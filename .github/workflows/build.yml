@@ -54,4 +54,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: app/build/outputs/apk/release/car-music.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
