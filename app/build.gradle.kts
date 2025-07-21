@@ -21,13 +21,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val keystorePath = System.getenv("KEYSTORE_PATH") ?: throw GradleException("KEYSTORE_PATH is not set")
+    val keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: throw GradleException("KEYSTORE_PASSWORD is not set")
+    val keyAlias = System.getenv("KEY_ALIAS") ?: throw GradleException("KEY_ALIAS is not set")
+    val keyPassword = System.getenv("KEY_PASSWORD") ?: throw GradleException("KEY_PASSWORD is not set")
+
+
     signingConfigs {
         create("release") {
-            val props = gradleLocalProperties(rootDir)
-            storeFile = file(props["KEYSTORE_PATH"] ?: "my-release-key.jks")
-            storePassword = props["KEYSTORE_PASSWORD"] as String
-            keyAlias = props["KEY_ALIAS"] as String
-            keyPassword = props["KEY_PASSWORD"] as String
+            storeFile = file(keystorePath)
+            storePassword = keystorePassword
+            keyAlias = keyAlias
+            keyPassword = keyPassword
         }
     }
 
