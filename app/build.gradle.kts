@@ -16,23 +16,23 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "0.0.1"
+        versionName = "0.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    val keystorePath = System.getenv("KEYSTORE_PATH") ?: throw GradleException("KEYSTORE_PATH is not set")
-    val keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: throw GradleException("KEYSTORE_PASSWORD is not set")
-    val keyAlias = System.getenv("KEY_ALIAS") ?: throw GradleException("KEY_ALIAS is not set")
-    val keyPassword = System.getenv("KEY_PASSWORD") ?: throw GradleException("KEY_PASSWORD is not set")
+    val signingKeystorePath = System.getenv("KEYSTORE_PATH") ?: throw GradleException("KEYSTORE_PATH not set")
+    val signingKeystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: throw GradleException("KEYSTORE_PASSWORD not set")
+    val signingKeyAlias = System.getenv("KEY_ALIAS") ?: throw GradleException("KEY_ALIAS not set")
+    val signingKeyPassword = System.getenv("KEY_PASSWORD") ?: throw GradleException("KEY_PASSWORD not set")
 
 
     signingConfigs {
         create("release") {
-            storeFile = file(keystorePath)
-            storePassword = keystorePassword
-            keyAlias = keyAlias
-            keyPassword = keyPassword
+            storeFile = file(signingKeystorePath)
+            storePassword = signingKeystorePassword
+            keyAlias = signingKeyAlias
+            keyPassword = signingKeyPassword
         }
     }
 
