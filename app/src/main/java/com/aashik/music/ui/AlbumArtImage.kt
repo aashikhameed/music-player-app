@@ -27,12 +27,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aashik.music.cache.AlbumArtCache
 import com.aashik.music.utils.loadAlbumArt
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @Composable
 fun AlbumArtImage(
@@ -43,19 +42,12 @@ fun AlbumArtImage(
     val shape: Shape = RoundedCornerShape(borderRadius)
     val currentPath by rememberUpdatedState(path)
 
-    var bitmap by remember(path) {
-        mutableStateOf<Bitmap?>(AlbumArtCache.get(path))
-    }
+    val context = LocalContext.current
+    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(currentPath) {
-        if (bitmap == null && !AlbumArtCache.contains(currentPath)) {
-            withContext(Dispatchers.IO) {
-                val loaded = loadAlbumArt(currentPath)
-                if (loaded != null) {
-                    AlbumArtCache.put(currentPath, loaded)
-                    bitmap = loaded
-                }
-            }
+        bitmap = AlbumArtCache.getOrLoad(context, currentPath) { path ->
+            loadAlbumArt(path) // your existing metadata loader
         }
     }
 
@@ -64,7 +56,7 @@ fun AlbumArtImage(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 8000, easing = LinearEasing),
+            animation = tween(durationMillis = 10000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "rotation"

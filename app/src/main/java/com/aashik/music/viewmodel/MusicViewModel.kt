@@ -238,4 +238,41 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _scrollToIndex.value = index
         }
     }
+
+
+    fun deleteSong(song: Song) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Remove from database
+                songDao.delete(song)
+
+                // Remove from in-memory lists
+                originalSongs = originalSongs.filter { it.id != song.id }
+                shuffledSongs.removeAll { it.id == song.id }
+
+                // Remove from StateFlow
+                _songs.value = originalSongs
+
+                // If the deleted song is the current one, stop or move to next
+                if (_currentSong.value?.id == song.id) {
+                    if (originalSongs.isNotEmpty()) {
+                        play(originalSongs.first())
+                    } else {
+                        _currentSong.value = null
+                        _isPlaying.value = false
+//                        musicPlayer.st()
+                    }
+                }
+
+                // Remove file from storage
+                val file = java.io.File(song.path)
+                if (file.exists()) {
+                    file.delete()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
 }

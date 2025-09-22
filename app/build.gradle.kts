@@ -4,6 +4,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.google.ksp)
     id("kotlin-kapt")
 }
 
@@ -15,12 +16,11 @@ android {
         applicationId = "com.aashik.music"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.0.1"
+        versionCode = 3
+        versionName = "0.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
     val signingKeystorePath = System.getenv("KEYSTORE_PATH") ?: throw GradleException("KEYSTORE_PATH not set")
     val signingKeystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: throw GradleException("KEYSTORE_PASSWORD not set")
     val signingKeyAlias = System.getenv("KEY_ALIAS") ?: throw GradleException("KEY_ALIAS not set")
@@ -83,7 +83,7 @@ dependencies {
 
     // Room DB
     implementation(libs.androidx.room.runtime)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
 
     // DataStore
@@ -95,7 +95,7 @@ dependencies {
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.animation:animation-core")
     implementation("io.coil-kt:coil-compose:2.5.0")
-
+    implementation("io.coil-kt:coil-compose:2.7.0")
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
     implementation("androidx.compose.material:material-icons-extended")

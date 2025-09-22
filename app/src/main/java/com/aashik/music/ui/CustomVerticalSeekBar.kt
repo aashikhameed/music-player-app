@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -31,23 +31,26 @@ fun CustomVerticalSeekBar(
     modifier: Modifier = Modifier,
     barColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     thumbColor: Color = MaterialTheme.colorScheme.primary,
-    thumbHeight: Float = 8f
+    thumbSizeDp: Float = 12f
 ) {
-    var barHeightPx by remember { mutableStateOf(1f) }
+    var barHeightPx by remember { mutableFloatStateOf(1f) }
+    val density = LocalDensity.current
 
     Box(
         modifier = modifier
-            .width(8.dp)
+            .width(4.dp)
             .fillMaxHeight()
             .pointerInput(Unit) {
-                detectVerticalDragGestures { change, dragAmount ->
+                detectVerticalDragGestures { change, _ ->
+                    change.consume() // consume so we keep getting events
                     val y = change.position.y
-                    val newProgress = 1f - (y / barHeightPx)
+                    val newProgress = y / barHeightPx
                     onProgressChanged(min(1f, max(0f, newProgress)))
                 }
             },
-        contentAlignment = Alignment.BottomCenter
+        contentAlignment = Alignment.TopCenter
     ) {
+        // Background bar
         Box(
             modifier = Modifier
                 .fillMaxHeight()
@@ -59,15 +62,31 @@ fun CustomVerticalSeekBar(
                 }
         )
 
-        val filledHeight = (progress.coerceIn(0f, 1f)) * barHeightPx
+        // Filled height in dp
+        val filledHeightDp = with(density) {
+            (progress.coerceIn(0f, 1f) * barHeightPx).toDp()
+        }
 
+        // Filled part
         Box(
             modifier = Modifier
                 .width(4.dp)
-                .height(with(LocalDensity.current) { filledHeight.toDp() })
+                .height(filledHeightDp)
                 .clip(RoundedCornerShape(4.dp))
                 .background(thumbColor)
-                .align(Alignment.BottomCenter)
+                .align(Alignment.TopCenter)
         )
+
+        // Thumb circle
+//        Box(
+//            modifier = Modifier
+//                .width(thumbSizeDp.dp)
+//                .height(thumbSizeDp.dp)
+//                .clip(CircleShape)
+//                .background(thumbColor)
+//                .align(Alignment.TopCenter)
+//                .offset(y = filledHeightDp - (thumbSizeDp / 2).dp)
+//        )
     }
 }
+

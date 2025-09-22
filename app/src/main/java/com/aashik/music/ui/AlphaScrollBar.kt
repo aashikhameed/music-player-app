@@ -39,7 +39,7 @@ fun AlphaScrollBar(
             ) {
                 Text(
                     text = letter.toString(),
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
