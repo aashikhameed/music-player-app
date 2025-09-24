@@ -3,6 +3,9 @@
 A modern, feature-rich **Music Player App** built with **Kotlin** specifically designed for **Android Automotive OS** and **Car Infotainment Systems**. It supports local audio playback, voice/media controls, and seamless Bluetooth integration for an optimal in-car entertainment experience.
 
 ---
+## 📱 Screenshots
+<img width="2664" height="1200" alt="Screenshot_1758726567" src="https://github.com/user-attachments/assets/b891df38-6944-429d-afb6-1892b94bc4a7" />
+<img width="1200" height="2664" alt="Screenshot_1758726559" src="https://github.com/user-attachments/assets/4162dd2a-05fe-4bb0-a94d-f4db8e4ab2d3" />
 
 ## 📱 Features
 
