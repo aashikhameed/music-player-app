@@ -1,11 +1,14 @@
 package com.aashik.music.ui
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -27,7 +30,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.aashik.music.model.Song
@@ -41,10 +43,27 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
     val scrollToIndex by viewModel.scrollToIndex.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val cardWidth = remember(screenWidthDp) { (screenWidthDp / 3f).dp }
+
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
+    val columns = if (isPortrait) 1 else 3
+    val cardWidth = remember(configuration.screenWidthDp, columns) {
+        (configuration.screenWidthDp / columns.toFloat()).dp
+    }
 
     val listState = rememberLazyGridState()
+
+
+    // Scroll to current song or scrollToIndex
+    LaunchedEffect(current?.id, scrollToIndex) {
+        val index = scrollToIndex ?: songs.indexOfFirst { it.id == current?.id }
+        if (index in songs.indices) {
+            delay(100) // let layout stabilize
+            listState.scrollToItem(index)
+            viewModel.clearScrollToIndex()
+        }
+    }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var songToDelete by remember { mutableStateOf<Song?>(null) }
@@ -58,116 +77,140 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                 TextButton(onClick = {
                     viewModel.deleteSong(songToDelete!!)
                     showDeleteDialog = false
-                }) {
-                    Text("Delete")
-                }
+                }) { Text("Delete") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
             }
         )
     }
-
-
-    LaunchedEffect(current?.id) {
-        current?.let { song ->
-            val index = songs.indexOfFirst { it.id == song.id }
-            if (index >= 0) {
-                delay(100) // Let the layout stabilize before scrolling
-                listState.scrollToItem(index, scrollOffset = -200)
-                viewModel.clearScrollToIndex()
-            }
-        }
-    }
-
-    LaunchedEffect(scrollToIndex) {
-        scrollToIndex?.let { index ->
-            if (index in songs.indices) {
-                delay(100) // Let composition settle
-                listState.scrollToItem(index)
-                viewModel.clearScrollToIndex()
-            }
-        }
-    }
-
 
     Surface(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize()
     ) {
         if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                SongLoadingBar(viewModel = viewModel)
-            }
+            Box(modifier = Modifier.fillMaxSize()) { SongLoadingBar(viewModel) }
         } else {
-            Row(modifier = Modifier.fillMaxSize()) {
-
-                val onLetterClick = remember(songs) {
-                    { letter: Char ->
-                        val index = songs.indexOfFirst {
-                            it.title.firstOrNull()?.uppercaseChar() == letter
-                        }
-                        if (index >= 0) {
-                            viewModel.triggerScrollToSong(index)
+            if (isPortrait) {
+                // Portrait layout: controls at bottom
+                Column(modifier = Modifier.fillMaxSize()) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(1),
+                        state = listState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        contentPadding = PaddingValues(bottom = 4.dp)
+                    ) {
+                        items(items = songs, key = { it.id }) { song ->
+                            val isPlaying = song.id == current?.id
+                            SongCard(
+                                song = song,
+                                isPlaying = isPlaying,
+                                progress = if (isPlaying) progress else 0f,
+                                onClick = rememberUpdatedState { viewModel.play(song) }.value,
+                                onLongPress = {
+                                    showDeleteDialog = true
+                                    songToDelete = song
+                                },
+                                cardWidth = cardWidth
+                            )
                         }
                     }
-                }
 
-                AlphaScrollBar(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(24.dp),
-                    onLetterClick = onLetterClick
-                )
-
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    state = listState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(4.dp)
-                        .graphicsLayer {},
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    contentPadding = PaddingValues(end = 4.dp),
-                ) {
-                    items(
-                        items = songs,
-                        key = { it.id }
-                    ) { song ->
-                        val isPlaying = song.id == current?.id
-                        SongCard(
-                            song = song,
-                            isPlaying = isPlaying,
-                            progress = if (isPlaying) progress else 0f,
-                            onClick = rememberUpdatedState { viewModel.play(song) }.value,
-                            onLongPress = {
-                                showDeleteDialog = true
-                                songToDelete = song
-                            },
-                            cardWidth=cardWidth// replace with actual handler
+                    // Bottom control strip
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CustomHorizontalSeekBar(
+                            progress = progress,
+                            onProgressChanged = { viewModel.seekToFraction(it) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         )
+                        BottomControlStrip(viewModel)
                     }
                 }
+            } else {
+                // Landscape layout: controls at right
+                Row(modifier = Modifier.fillMaxSize()) {
+                    val onLetterClick = remember(songs) {
+                        { letter: Char ->
+                            val index = songs.indexOfFirst {
+                                it.title.firstOrNull()?.uppercaseChar() == letter
+                            }
+                            if (index >= 0) {
+                                viewModel.triggerScrollToSong(index)
+                            }
+                        }
+                    }
 
-                CustomVerticalSeekBar(
-                    progress = progress,
-                    onProgressChanged = { viewModel.seekToFraction(it) },
-                    modifier = Modifier
-//                        .height(150.dp)
-                        .padding(1.dp)
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .padding(4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    RightControlStrip(viewModel)
+                    AlphaScrollBar(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(24.dp),
+                        onLetterClick = onLetterClick
+                    )
+                    // Grid of songs
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columns),
+                        state = listState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        contentPadding = PaddingValues(end = 4.dp)
+                    ) {
+                        items(items = songs, key = { it.id }) { song ->
+                            val isPlaying = song.id == current?.id
+                            SongCard(
+                                song = song,
+                                isPlaying = isPlaying,
+                                progress = if (isPlaying) progress else 0f,
+                                onClick = rememberUpdatedState { viewModel.play(song) }.value,
+                                onLongPress = {
+                                    showDeleteDialog = true
+                                    songToDelete = song
+                                },
+                                cardWidth = cardWidth
+                            )
+                        }
+                    }
+
+                    // Right-side controls
+                    Row(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(70.dp) // total width for seekbar + controls
+                            .padding(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Vertical SeekBar on the left
+                        CustomVerticalSeekBar(
+                            progress = progress,
+                            onProgressChanged = { viewModel.seekToFraction(it) },
+                            modifier = Modifier
+                                .fillMaxHeight() // full height of the row
+                                .weight(1f)     // take remaining horizontal space
+                        )
+
+                        // Control strip on the right
+                        RightControlStrip(viewModel)
+                    }
+
                 }
+
             }
         }
     }

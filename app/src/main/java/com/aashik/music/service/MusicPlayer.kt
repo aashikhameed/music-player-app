@@ -1,6 +1,9 @@
 package com.aashik.music.service
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -18,6 +21,11 @@ import kotlinx.coroutines.withContext
 
 class MusicPlayer(private val context: Context) {
     private var exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
+    // 🔑 Audio focus handling
+    private val audioManager: AudioManager =
+        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val focusRequest: AudioFocusRequest
+
 
     private val _positionFlow = MutableStateFlow(0L)
     val positionFlow: StateFlow<Long> = _positionFlow
@@ -40,6 +48,22 @@ class MusicPlayer(private val context: Context) {
 
 
     init {
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+
+        focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(attrs)
+            .setOnAudioFocusChangeListener { focusChange ->
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_LOSS -> pause() // lost focus permanently
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause() // short interruption
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> exoPlayer.volume = 0.2f
+                    AudioManager.AUDIOFOCUS_GAIN -> exoPlayer.volume = 1.0f
+                }
+            }
+            .build()
         exoPlayer.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _isPlayingFlow.value = isPlaying
@@ -78,6 +102,12 @@ class MusicPlayer(private val context: Context) {
     }
 
     fun play(song: Song) {
+        val result = audioManager.requestAudioFocus(focusRequest)
+        if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            return // don't play if another app already has focus
+        }
+
+
         _currentSongFlow.value = song
         val item = MediaItem.Builder()
             .setUri(Uri.parse(song.path))
@@ -93,6 +123,8 @@ class MusicPlayer(private val context: Context) {
     fun pause() {
         exoPlayer.pause()
         stopTrackingProgress()
+        audioManager.abandonAudioFocusRequest(focusRequest)
+
     }
 
 
@@ -101,9 +133,11 @@ class MusicPlayer(private val context: Context) {
     }
 
     fun resume() {
-        exoPlayer.playWhenReady = true
-        startTrackingProgress()
-    }
+        val result = audioManager.requestAudioFocus(focusRequest)
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            exoPlayer.playWhenReady = true
+            startTrackingProgress()
+        }    }
 
 
     fun seekTo(position: Long) {
@@ -128,5 +162,11 @@ class MusicPlayer(private val context: Context) {
     private fun stopTrackingProgress() {
         progressJob?.cancel()
         progressJob = null
+    }
+
+    fun release() {
+        stopTrackingProgress()
+        audioManager.abandonAudioFocusRequest(focusRequest)
+        exoPlayer.release()
     }
 }

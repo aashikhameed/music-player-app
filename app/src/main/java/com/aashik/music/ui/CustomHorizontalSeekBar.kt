@@ -1,9 +1,9 @@
 package com.aashik.music.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,59 +25,52 @@ import kotlin.math.max
 import kotlin.math.min
 
 @Composable
-fun CustomVerticalSeekBar(
+fun CustomHorizontalSeekBar(
     progress: Float,
     onProgressChanged: (Float) -> Unit,
     modifier: Modifier = Modifier,
     barColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     thumbColor: Color = MaterialTheme.colorScheme.primary,
-    thumbSizeDp: Float = 12f
+    barHeightDp: Float = 5f // increased height for visibility
 ) {
-    var barHeightPx by remember { mutableFloatStateOf(1f) }
+    var barWidthPx by remember { mutableFloatStateOf(1f) }
     val density = LocalDensity.current
 
     Box(
         modifier = modifier
-            .width(4.dp)
-            .fillMaxHeight()
+            .height(barHeightDp.dp)
+            .fillMaxWidth()
             .pointerInput(Unit) {
-                detectVerticalDragGestures { change, _ ->
+                detectHorizontalDragGestures { change, _ ->
                     change.consume()
-                    val y = change.position.y
-                    // Invert progress: bottom = 0, top = 1
-                    val newProgress = 1f - (y / barHeightPx)
+                    val x = change.position.x
+                    val newProgress = x / barWidthPx
                     onProgressChanged(min(1f, max(0f, newProgress)))
                 }
             },
-        contentAlignment = Alignment.BottomCenter // align filled bar to bottom
+        contentAlignment = Alignment.CenterStart
     ) {
         // Background bar
         Box(
             modifier = Modifier
-                .fillMaxHeight()
-                .width(4.dp)
-                .clip(RoundedCornerShape(4.dp))
+                .fillMaxWidth()
+                .height(barHeightDp.dp)
+                .clip(RoundedCornerShape(barHeightDp.dp / 2))
                 .background(barColor)
                 .onGloballyPositioned {
-                    barHeightPx = it.size.height.toFloat()
+                    barWidthPx = it.size.width.toFloat()
                 }
         )
-
-        // Filled height in dp
-        val filledHeightDp = with(density) {
-            (progress.coerceIn(0f, 1f) * barHeightPx).toDp()
-        }
 
         // Filled part
         Box(
             modifier = Modifier
-                .width(4.dp)
-                .height(filledHeightDp)
-                .clip(RoundedCornerShape(4.dp))
+                .width(with(density) { (progress.coerceIn(0f, 1f) * barWidthPx).toDp() })
+                .height(barHeightDp.dp)
+                .clip(RoundedCornerShape(barHeightDp.dp / 2))
                 .background(thumbColor)
-                .align(Alignment.BottomCenter)
+                .align(Alignment.CenterStart)
         )
     }
 }
-
 

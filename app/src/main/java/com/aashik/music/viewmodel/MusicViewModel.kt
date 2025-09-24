@@ -119,10 +119,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             originalSongs = loadedSongs.sortedBy { it.title.lowercase() }
-            shuffledSongs = originalSongs.shuffled().toMutableList()
+
+            // ✅ only shuffle if not already shuffled
+            if (shuffledSongs.isEmpty()) {
+                shuffledSongs = originalSongs.shuffled().toMutableList()
+            }
 
             _songs.value = originalSongs
-            _currentSong.value = shuffledSongs.firstOrNull()
+
+            // don’t overwrite currentSong on reload if already set
+            if (_currentSong.value == null) {
+                _currentSong.value = shuffledSongs.firstOrNull()
+            }
+
             _isLoading.value = false
         }
     }

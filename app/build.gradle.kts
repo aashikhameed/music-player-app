@@ -10,29 +10,25 @@ plugins {
 
 android {
     namespace = "com.aashik.music"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.aashik.music"
-        minSdk = 24
-        targetSdk = 34
-        versionCode = 3
-        versionName = "0.0.3"
+        minSdk = 26
+        targetSdk = 36
+        versionCode = 4
+        versionName = "0.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-    val signingKeystorePath = System.getenv("KEYSTORE_PATH") ?: throw GradleException("KEYSTORE_PATH not set")
-    val signingKeystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: throw GradleException("KEYSTORE_PASSWORD not set")
-    val signingKeyAlias = System.getenv("KEY_ALIAS") ?: throw GradleException("KEY_ALIAS not set")
-    val signingKeyPassword = System.getenv("KEY_PASSWORD") ?: throw GradleException("KEY_PASSWORD not set")
-
 
     signingConfigs {
         create("release") {
-            storeFile = file(signingKeystorePath)
-            storePassword = signingKeystorePassword
-            keyAlias = signingKeyAlias
-            keyPassword = signingKeyPassword
+            val props = gradleLocalProperties(rootDir)
+            storeFile = file(props["KEYSTORE_PATH"] ?: "my-release-key.jks")
+            storePassword = props["KEYSTORE_PASSWORD"] as String
+            keyAlias = props["KEY_ALIAS"] as String
+            keyPassword = props["KEY_PASSWORD"] as String
         }
     }
 
