@@ -48,7 +48,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private var originalSongs: List<Song> = emptyList()
     private var shuffledSongs: MutableList<Song> = mutableListOf()
-    private val _isShuffleOn = MutableStateFlow(false)
+    private val _isShuffleOn = MutableStateFlow(true)
     val isShuffleOn: StateFlow<Boolean> = _isShuffleOn
 
     private val progressFlow: Flow<Float> = combine(

@@ -16,15 +16,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -37,50 +36,46 @@ import com.aashik.music.utils.loadAlbumArt
 fun AlbumArtImage(
     path: String,
     borderRadius: Dp = 8.dp,
-    spinning: Boolean = true // Toggle spin effect
+    spinning: Boolean = false // only true for currently playing song
 ) {
-    val shape: Shape = RoundedCornerShape(borderRadius)
-    val currentPath by rememberUpdatedState(path)
-
+    val shape = RoundedCornerShape(borderRadius)
     val context = LocalContext.current
-    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var bitmap by remember(path) { mutableStateOf<Bitmap?>(null) }
 
-    LaunchedEffect(currentPath) {
-        bitmap = AlbumArtCache.getOrLoad(context, currentPath) { path ->
-            loadAlbumArt(path) // your existing metadata loader
-        }
+    // Load bitmap once per path
+    LaunchedEffect(path) {
+        bitmap = AlbumArtCache.getOrLoad(context, path) { loadAlbumArt(it) }
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "spin")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 10000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
+    val rotation by if (spinning) {
+        val infiniteTransition = rememberInfiniteTransition(label = "spin")
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(10000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "rotation"
+        )
+    } else {
+        remember { mutableFloatStateOf(0f) }
+    }
 
     Box(
         modifier = Modifier
             .size(50.dp)
             .clip(shape)
             .background(Color.Gray)
-            .graphicsLayer {
-                if (spinning) {
-                    rotationZ = rotation
-                }
-            },
+            .graphicsLayer(rotationZ = rotation),
         contentAlignment = Alignment.Center
     ) {
         bitmap?.let {
             Image(
                 bitmap = it.asImageBitmap(),
-                contentDescription = "Album Art",
+                contentDescription = null,
                 modifier = Modifier.fillMaxSize()
             )
         }
     }
 }
-

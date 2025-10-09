@@ -23,6 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,19 +35,17 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.aashik.music.model.Song
 import com.aashik.music.viewmodel.MusicViewModel
-import kotlinx.coroutines.delay
 
 @Composable
 fun MusicListScreen(viewModel: MusicViewModel) {
     val songs by viewModel.songs.collectAsState()
-    val current by viewModel.currentSong.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
+    val currentSongId = currentSong?.id
     val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
-    val scrollToIndex by viewModel.scrollToIndex.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-
     val columns = if (isPortrait) 1 else 3
     val cardWidth = remember(configuration.screenWidthDp, columns) {
         (configuration.screenWidthDp / columns.toFloat()).dp
@@ -54,14 +53,32 @@ fun MusicListScreen(viewModel: MusicViewModel) {
 
     val listState = rememberLazyGridState()
 
+    // --- Scroll control ---
+    var manualScrollIndex by remember { mutableStateOf<Int?>(null) }
+    var lastAutoScrollSongId by remember { mutableStateOf<String?>(null) }
+    var userScrolledManually by remember { mutableStateOf(false) }
 
-    // Scroll to current song or scrollToIndex
-    LaunchedEffect(current?.id, scrollToIndex) {
-        val index = scrollToIndex ?: songs.indexOfFirst { it.id == current?.id }
-        if (index in songs.indices) {
-            delay(100) // let layout stabilize
-            listState.scrollToItem(index)
-            viewModel.clearScrollToIndex()
+    LaunchedEffect(currentSongId, manualScrollIndex) {
+        when {
+            // Manual scroll triggered by letter
+            manualScrollIndex != null -> {
+                val index = manualScrollIndex!!
+                if (index in songs.indices) {
+                    listState.scrollToItem(index)
+                }
+                manualScrollIndex = null
+                userScrolledManually = true // block auto-scroll temporarily
+            }
+
+            // Auto-scroll to current song only if user hasn't manually scrolled OR the song changed
+            currentSongId != null && (!userScrolledManually || currentSongId != lastAutoScrollSongId) -> {
+                val index = songs.indexOfFirst { it.id == currentSongId }
+                if (index in songs.indices) {
+                    listState.scrollToItem(index)
+                    lastAutoScrollSongId = currentSongId
+                    userScrolledManually = false // reset after scrolling to current song
+                }
+            }
         }
     }
 
@@ -85,15 +102,11 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         )
     }
 
-    Surface(
-        color = MaterialTheme.colorScheme.background,
-        modifier = Modifier.fillMaxSize()
-    ) {
+    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize()) { SongLoadingBar(viewModel) }
         } else {
             if (isPortrait) {
-                // Portrait layout: controls at bottom
                 Column(modifier = Modifier.fillMaxSize()) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(1),
@@ -106,12 +119,16 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                         contentPadding = PaddingValues(bottom = 4.dp)
                     ) {
                         items(items = songs, key = { it.id }) { song ->
-                            val isPlaying = song.id == current?.id
+                            val isPlaying by rememberUpdatedState(song.id == currentSongId)
+                            val itemProgress by remember {
+                                derivedStateOf { if (isPlaying) progress else 0f }
+                            }
+
                             SongCard(
                                 song = song,
                                 isPlaying = isPlaying,
-                                progress = if (isPlaying) progress else 0f,
-                                onClick = rememberUpdatedState { viewModel.play(song) }.value,
+                                progress = itemProgress,
+                                onClick = { viewModel.play(song) },
                                 onLongPress = {
                                     showDeleteDialog = true
                                     songToDelete = song
@@ -121,7 +138,6 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                         }
                     }
 
-                    // Bottom control strip
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -140,16 +156,13 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                     }
                 }
             } else {
-                // Landscape layout: controls at right
                 Row(modifier = Modifier.fillMaxSize()) {
                     val onLetterClick = remember(songs) {
                         { letter: Char ->
                             val index = songs.indexOfFirst {
                                 it.title.firstOrNull()?.uppercaseChar() == letter
                             }
-                            if (index >= 0) {
-                                viewModel.triggerScrollToSong(index)
-                            }
+                            if (index >= 0) manualScrollIndex = index
                         }
                     }
 
@@ -159,7 +172,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                             .width(24.dp),
                         onLetterClick = onLetterClick
                     )
-                    // Grid of songs
+
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
                         state = listState,
@@ -172,12 +185,16 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                         contentPadding = PaddingValues(end = 4.dp)
                     ) {
                         items(items = songs, key = { it.id }) { song ->
-                            val isPlaying = song.id == current?.id
+                            val isPlaying by rememberUpdatedState(song.id == currentSongId)
+                            val itemProgress by remember {
+                                derivedStateOf { if (isPlaying) progress else 0f }
+                            }
+
                             SongCard(
                                 song = song,
                                 isPlaying = isPlaying,
-                                progress = if (isPlaying) progress else 0f,
-                                onClick = rememberUpdatedState { viewModel.play(song) }.value,
+                                progress = itemProgress,
+                                onClick = { viewModel.play(song) },
                                 onLongPress = {
                                     showDeleteDialog = true
                                     songToDelete = song
@@ -187,31 +204,27 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                         }
                     }
 
-                    // Right-side controls
                     Row(
                         modifier = Modifier
                             .fillMaxHeight()
-                            .width(70.dp) // total width for seekbar + controls
+                            .width(80.dp)
                             .padding(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Vertical SeekBar on the left
                         CustomVerticalSeekBar(
                             progress = progress,
                             onProgressChanged = { viewModel.seekToFraction(it) },
                             modifier = Modifier
-                                .fillMaxHeight() // full height of the row
-                                .weight(1f)     // take remaining horizontal space
+                                .fillMaxHeight()
+                                .weight(2f)
                         )
 
-                        // Control strip on the right
                         RightControlStrip(viewModel)
                     }
-
                 }
-
             }
         }
     }
 }
+
