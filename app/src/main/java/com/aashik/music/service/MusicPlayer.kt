@@ -1,6 +1,9 @@
 package com.aashik.music.service
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -60,6 +63,8 @@ class MusicPlayer(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     var onCompletion: (() -> Unit)? = null
 
+    private var volumeReceiver: BroadcastReceiver? = null
+
     init {
         val attrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -83,6 +88,12 @@ class MusicPlayer(private val context: Context) {
                 _isPlayingFlow.value = isPlaying
             }
 
+            override fun onVolumeChanged(volume: Float) {
+                if (volume <= 0f && exoPlayer.isPlaying) {
+                    pause()
+                }
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
                     onCompletion?.invoke()
@@ -91,6 +102,24 @@ class MusicPlayer(private val context: Context) {
                 }
             }
         })
+
+        // Listen for hardware volume mute / volume change events from steering wheel or head unit
+        try {
+            volumeReceiver = object : BroadcastReceiver() {
+                override fun onReceive(c: Context?, intent: Intent?) {
+                    val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                    val isStreamMute = audioManager.isStreamMute(AudioManager.STREAM_MUSIC)
+                    if ((currentVolume == 0 || isStreamMute) && exoPlayer.isPlaying) {
+                        pause()
+                    }
+                }
+            }
+            val filter = IntentFilter("android.media.VOLUME_CHANGED_ACTION").apply {
+                addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+                addAction("android.media.STREAM_MUTE_CHANGED_ACTION")
+            }
+            context.registerReceiver(volumeReceiver, filter)
+        } catch (_: Exception) {}
     }
 
     fun getCurrentMediaId(): String? {
@@ -169,6 +198,10 @@ class MusicPlayer(private val context: Context) {
 
     fun release() {
         stopTrackingProgress()
+        try {
+            volumeReceiver?.let { context.unregisterReceiver(it) }
+            volumeReceiver = null
+        } catch (_: Exception) {}
         audioManager.abandonAudioFocusRequest(focusRequest)
         exoPlayer.release()
     }

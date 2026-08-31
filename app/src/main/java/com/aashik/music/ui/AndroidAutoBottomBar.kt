@@ -91,30 +91,32 @@ fun AndroidAutoBottomBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left: Map Toggle Pill (Dashboard button removed)
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (isMapOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier
-                    .height(38.dp)
-                    .clickable { onToggleMap() }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+            // Left: Map Toggle Pill (Shown only when map is closed, hidden when shrunk on right)
+            if (!isMapOpen) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .height(38.dp)
+                        .clickable { onToggleMap() }
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Map,
-                        contentDescription = "Map",
-                        tint = if (isMapOpen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Map",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (isMapOpen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Map,
+                            contentDescription = "Map",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "Map",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 

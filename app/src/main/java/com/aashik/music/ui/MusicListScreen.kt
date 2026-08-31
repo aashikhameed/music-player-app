@@ -270,42 +270,25 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                 }
             } else {
                 // Landscape Android Auto Infotainment Layout (Permanent Modern Design)
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Top Split Main Content Area
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    ) {
-                        // Left: Modern Automotive Scrollbar (Shown when Map is closed)
-                        if (!isMapOpen && songs.isNotEmpty()) {
-                            ModernVerticalScrollbar(
-                                gridState = listState,
-                                totalItemCount = songs.size,
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .padding(vertical = 6.dp)
-                            )
-                        }
+                if (isMapOpen) {
+                    // Split Screen: Full-height map on Left, Library + Bottom Bar on Right
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        // Left: Full-Height Android Auto Google Maps Split Screen
+                        NavigationMapView(
+                            viewModel = viewModel,
+                            onClose = { isMapOpen = false },
+                            modifier = Modifier
+                                .weight(1.2f)
+                                .fillMaxHeight()
+                                .padding(top = 6.dp, start = 8.dp, bottom = 6.dp, end = 4.dp)
+                        )
 
-                        // Left: Android Auto Google Maps Split Screen (When Map is Active)
-                        if (isMapOpen) {
-                            NavigationMapView(
-                                viewModel = viewModel,
-                                onClose = { isMapOpen = false },
-                                modifier = Modifier
-                                    .weight(1.15f)
-                                    .fillMaxHeight()
-                                    .padding(top = 6.dp, start = 8.dp, bottom = 4.dp, end = 4.dp)
-                            )
-                        }
-
-                        // Right / Center: Music Library Area
+                        // Right: Music Library Area + Bottom Taskbar
                         Column(
                             modifier = Modifier
-                                .weight(if (isMapOpen) 1f else 1f)
+                                .weight(1f)
                                 .fillMaxHeight()
-                                .padding(top = 6.dp, start = 6.dp, end = 8.dp)
+                                .padding(top = 6.dp, start = 4.dp, end = 8.dp)
                         ) {
                             // Header Tabs
                             LibraryModeHeader(
@@ -349,7 +332,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                         EmptyFoldersView(modifier = Modifier.fillMaxSize())
                                     } else {
                                         LazyVerticalGrid(
-                                            columns = GridCells.Fixed(if (isMapOpen) 2 else 3),
+                                            columns = GridCells.Fixed(2),
                                             modifier = Modifier.fillMaxSize(),
                                             verticalArrangement = Arrangement.spacedBy(6.dp),
                                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -372,7 +355,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                         )
                                     } else {
                                         LazyVerticalGrid(
-                                            columns = GridCells.Fixed(if (isMapOpen) 2 else 3),
+                                            columns = GridCells.Fixed(2),
                                             state = listState,
                                             modifier = Modifier.fillMaxSize(),
                                             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -395,20 +378,143 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                     }
                                 }
                             }
+
+                            // Bottom: Right-Aligned Shrunk Taskbar
+                            AndroidAutoBottomBar(
+                                viewModel = viewModel,
+                                isMapOpen = isMapOpen,
+                                onToggleMap = { isMapOpen = !isMapOpen },
+                                isSearchVisible = isSearchOpen,
+                                onToggleSearch = {
+                                    isSearchOpen = !isSearchOpen
+                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                }
+                            )
                         }
                     }
+                } else {
+                    // Full Screen Library View
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        ) {
+                            if (songs.isNotEmpty()) {
+                                ModernVerticalScrollbar(
+                                    gridState = listState,
+                                    totalItemCount = songs.size,
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .padding(vertical = 6.dp)
+                                )
+                            }
 
-                    // Bottom: Android Auto Permanent Taskbar & Mini Media Bar
-                    AndroidAutoBottomBar(
-                        viewModel = viewModel,
-                        isMapOpen = isMapOpen,
-                        onToggleMap = { isMapOpen = !isMapOpen },
-                        isSearchVisible = isSearchOpen,
-                        onToggleSearch = {
-                            isSearchOpen = !isSearchOpen
-                            if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .padding(top = 6.dp, start = 6.dp, end = 8.dp)
+                            ) {
+                                LibraryModeHeader(
+                                    selectedTab = selectedTab,
+                                    selectedFolder = selectedFolder,
+                                    onTabSelected = { viewModel.selectTab(it) },
+                                    onBackFolder = { viewModel.closeFolder() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 6.dp)
+                                )
+
+                                AnimatedVisibility(
+                                    visible = isSearchOpen,
+                                    enter = expandVertically() + fadeIn(),
+                                    exit = shrinkVertically() + fadeOut()
+                                ) {
+                                    SearchHeader(
+                                        query = searchQuery,
+                                        onQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                                        onClose = {
+                                            isSearchOpen = false
+                                            viewModel.onSearchQueryChanged("")
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 6.dp)
+                                    )
+                                }
+
+                                Box(modifier = Modifier.weight(1f)) {
+                                    if (selectedTab == LibraryTab.BLUETOOTH) {
+                                        BluetoothScreen(
+                                            viewModel = viewModel,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else if (selectedTab == LibraryTab.FOLDERS && selectedFolder == null) {
+                                        if (folders.isEmpty()) {
+                                            EmptyFoldersView(modifier = Modifier.fillMaxSize())
+                                        } else {
+                                            LazyVerticalGrid(
+                                                columns = GridCells.Fixed(3),
+                                                modifier = Modifier.fillMaxSize(),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                contentPadding = PaddingValues(bottom = 6.dp)
+                                            ) {
+                                                items(items = folders, key = { it.path }) { folder ->
+                                                    FolderCard(
+                                                        folder = folder,
+                                                        onClick = { viewModel.openFolder(folder.path) }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        if (songs.isEmpty()) {
+                                            EmptySongsView(
+                                                isSearching = searchQuery.isNotBlank(),
+                                                onScanClick = { viewModel.loadSongs() },
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            LazyVerticalGrid(
+                                                columns = GridCells.Fixed(3),
+                                                state = listState,
+                                                modifier = Modifier.fillMaxSize(),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                contentPadding = PaddingValues(bottom = 6.dp)
+                                            ) {
+                                                items(items = songs, key = { it.id }) { song ->
+                                                    val isPlaying = song.id == currentSongId
+                                                    SongCard(
+                                                        song = song,
+                                                        isPlaying = isPlaying,
+                                                        onClick = { viewModel.play(song) },
+                                                        onLongPress = {
+                                                            showDeleteDialog = true
+                                                            songToDelete = song
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
-                    )
+
+                        AndroidAutoBottomBar(
+                            viewModel = viewModel,
+                            isMapOpen = isMapOpen,
+                            onToggleMap = { isMapOpen = !isMapOpen },
+                            isSearchVisible = isSearchOpen,
+                            onToggleSearch = {
+                                isSearchOpen = !isSearchOpen
+                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                            }
+                        )
+                    }
                 }
             }
         }

@@ -110,7 +110,7 @@ fun NavigationMapView(
         (function() {
             function applyThemeAndClean() {
                 try {
-                    // Click 'Keep using web' / 'Stay on web' / 'Use web' automatically
+                    // 1. Click 'Keep using web' / 'Stay on web' / 'Use web' automatically
                     var allElements = document.querySelectorAll('button, a, span, div');
                     for (var i = 0; i < allElements.length; i++) {
                         var text = (allElements[i].innerText || allElements[i].textContent || '').trim().toLowerCase();
@@ -119,11 +119,31 @@ fun NavigationMapView(
                         }
                     }
 
-                    // Remove all 'Open app' web buttons, promo banners, and Google logo watermarks
+                    // 2. Remove ANY element whose direct text contains 'Open app' or 'Google Maps' or logo
+                    for (var k = 0; k < allElements.length; k++) {
+                        var el = allElements[k];
+                        var t = (el.innerText || el.textContent || '').trim().toLowerCase();
+                        if (t === 'open app' || t === 'open' || t === 'use app' || t.indexOf('open app') !== -1) {
+                            if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.getAttribute('role') === 'button' || el.classList.contains('app-banner')) {
+                                el.style.setProperty('display', 'none', 'important');
+                                if (el.parentElement && el.parentElement.tagName === 'HEADER') {
+                                    el.parentElement.style.setProperty('display', 'none', 'important');
+                                }
+                            }
+                        }
+                        if (t === 'google maps' || t === 'google' || el.getAttribute('aria-label') === 'Google' || el.getAttribute('title') === 'Google Maps') {
+                            if (el.tagName === 'DIV' || el.tagName === 'A' || el.tagName === 'SPAN' || el.tagName === 'IMG') {
+                                el.style.setProperty('display', 'none', 'important');
+                            }
+                        }
+                    }
+
+                    // 3. Remove by selector
                     var selectors = [
                         'a[href*="maps.app"]',
                         'a[href*="google.com/maps/dir"]',
                         '[aria-label*="Open app"]',
+                        '[aria-label*="Open in"]',
                         'button[jsaction*="app_banner"]',
                         'div[data-id="app-banner"]',
                         '.app-banner',
@@ -137,7 +157,9 @@ fun NavigationMapView(
                         'div[class*="watermark"]',
                         'a[href*="maps.google.com/maps"]',
                         'div[class*="omnibox-header-action"]',
-                        'button[class*="app-banner"]'
+                        'button[class*="app-banner"]',
+                        'div[class*="app-promo"]',
+                        'div[id*="omnibox-header-action"]'
                     ];
 
                     var targets = document.querySelectorAll(selectors.join(', '));
@@ -157,13 +179,14 @@ fun NavigationMapView(
 
                     style.textContent = `
                         /* Completely remove Open App buttons, headers, and Google watermarks */
-                        [class*="app-banner"], [aria-label*="Open app"], a[href*="app.goo.gl"], a[href*="maps.app"],
-                        div[role="dialog"], div[aria-modal="true"], header button, header a, div[data-ved] button,
-                        button[jsaction*="app_banner"], div[data-id="app-banner"], div.gm-style-cc, 
-                        a[title*="Google Maps"], .gm-bundled-control, div[class*="watermark"],
-                        a[href*="maps.google.com/maps"], div[class*="logo"], div[aria-label*="Google"],
-                        button[aria-label*="Open"], a[aria-label*="Open"], [data-value*="open_app"],
-                        .omnibox-header-action, .widget-pane-visible header, div[id*="omnibox"] button:not([aria-label*="Search"]) {
+                        [class*="app-banner"], [class*="app-promo"], [aria-label*="Open app"], [aria-label*="Open in"], 
+                        a[href*="app.goo.gl"], a[href*="maps.app"], div[role="dialog"], div[aria-modal="true"], 
+                        header button, header a, div[data-ved] button, button[jsaction*="app_banner"], 
+                        div[data-id="app-banner"], div.gm-style-cc, a[title*="Google Maps"], 
+                        .gm-bundled-control, div[class*="watermark"], a[href*="maps.google.com/maps"], 
+                        div[class*="logo"], div[aria-label*="Google"], button[aria-label*="Open"], 
+                        a[aria-label*="Open"], [data-value*="open_app"], .omnibox-header-action, 
+                        .widget-pane-visible header, div[id*="omnibox"] button:not([aria-label*="Search"]) {
                             display: none !important;
                             visibility: hidden !important;
                             opacity: 0 !important;
@@ -190,7 +213,7 @@ fun NavigationMapView(
 
             applyThemeAndClean();
             if (!window.__cleanInterval) {
-                window.__cleanInterval = setInterval(applyThemeAndClean, 200);
+                window.__cleanInterval = setInterval(applyThemeAndClean, 150);
             }
         })();
     """.trimIndent()
