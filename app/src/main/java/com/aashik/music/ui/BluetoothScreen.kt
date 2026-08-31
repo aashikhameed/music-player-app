@@ -156,7 +156,7 @@ fun BluetoothScreen(
                             )
                             Text(
                                 text = if (isPlaying && currentSong != null)
-                                    "${currentSong!!.title} • ${currentSong!!.artist}"
+                                    "${currentSong?.title} • ${currentSong?.artist}"
                                 else
                                     "Connected phone will autoplay",
                                 style = MaterialTheme.typography.bodySmall,

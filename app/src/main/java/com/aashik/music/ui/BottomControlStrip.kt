@@ -75,7 +75,7 @@ fun BottomControlStrip(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AlbumArtImage(
-                        path = currentSong!!.path,
+                        path = currentSong?.path.orEmpty(),
                         size = 40.dp,
                         borderRadius = 8.dp,
                         isPlaying = isPlaying
@@ -85,7 +85,7 @@ fun BottomControlStrip(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = currentSong!!.title,
+                            text = currentSong?.title.orEmpty(),
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -93,7 +93,7 @@ fun BottomControlStrip(
                             modifier = if (isPlaying) Modifier.basicMarquee() else Modifier
                         )
                         Text(
-                            text = currentSong!!.artist,
+                            text = currentSong?.artist.orEmpty(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,

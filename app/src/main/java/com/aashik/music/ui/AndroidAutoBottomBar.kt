@@ -162,7 +162,7 @@ fun AndroidAutoBottomBar(
                         ) {
                         if (currentSong != null) {
                             AlbumArtImage(
-                                path = currentSong!!.path,
+                                path = currentSong?.path.orEmpty(),
                                 size = 32.dp,
                                 borderRadius = 6.dp,
                                 isPlaying = isPlaying
