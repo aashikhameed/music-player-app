@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'  # Trigger on version tags like v1.0.0
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Release Build
@@ -15,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
@@ -50,8 +53,7 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GH_PAT }}
           name: Release ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           files: app/build/outputs/apk/release/car-music.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
