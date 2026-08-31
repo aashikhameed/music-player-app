@@ -9,11 +9,14 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import com.aashik.music.service.NotificationPlaybackService
 
 class BluetoothReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "BluetoothReceiver"
+        const val ACTION_BLUETOOTH_AUTOPLAY = "com.aashik.music.ACTION_BLUETOOTH_AUTOPLAY"
+        const val ACTION_BLUETOOTH_PAUSE = "com.aashik.music.ACTION_BLUETOOTH_PAUSE"
     }
 
     @Suppress("DEPRECATION")
@@ -28,19 +31,28 @@ class BluetoothReceiver : BroadcastReceiver() {
                         Manifest.permission.BLUETOOTH_CONNECT
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
-                    // Permission not granted; do not proceed
                     Log.w(TAG, "Missing BLUETOOTH_CONNECT permission")
                     return
                 }
 
                 Log.d(TAG, "Connected to ${device?.name}")
-                // TODO: Optionally auto-play music here
+
+                // Trigger playback on Bluetooth connection
+                val serviceIntent = Intent(context, NotificationPlaybackService::class.java).apply {
+                    action = ACTION_BLUETOOTH_AUTOPLAY
+                }
+                NotificationPlaybackService.startService(context, serviceIntent)
             }
 
             BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                 val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 Log.d(TAG, "Disconnected from ${device?.name}")
-                // TODO: Optionally pause or stop playback here
+
+                // Pause playback when Bluetooth disconnects
+                val serviceIntent = Intent(context, NotificationPlaybackService::class.java).apply {
+                    action = ACTION_BLUETOOTH_PAUSE
+                }
+                NotificationPlaybackService.startService(context, serviceIntent)
             }
         }
     }

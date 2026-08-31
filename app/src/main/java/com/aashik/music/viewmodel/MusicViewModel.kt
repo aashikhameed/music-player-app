@@ -25,7 +25,8 @@ import java.io.File
 
 enum class LibraryTab {
     ALL_SONGS,
-    FOLDERS
+    FOLDERS,
+    BLUETOOTH
 }
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {

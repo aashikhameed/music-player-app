@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -164,7 +165,12 @@ fun MusicListScreen(viewModel: MusicViewModel) {
 
                     // Content View
                     Box(modifier = Modifier.weight(1f)) {
-                        if (selectedTab == LibraryTab.FOLDERS && selectedFolder == null) {
+                        if (selectedTab == LibraryTab.BLUETOOTH) {
+                            BluetoothScreen(
+                                viewModel = viewModel,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else if (selectedTab == LibraryTab.FOLDERS && selectedFolder == null) {
                             // Folders Grid View
                             if (folders.isEmpty()) {
                                 EmptyFoldersView(modifier = Modifier.fillMaxSize())
@@ -305,7 +311,12 @@ fun MusicListScreen(viewModel: MusicViewModel) {
 
                         // Content
                         Box(modifier = Modifier.weight(1f)) {
-                            if (selectedTab == LibraryTab.FOLDERS && selectedFolder == null) {
+                            if (selectedTab == LibraryTab.BLUETOOTH) {
+                                BluetoothScreen(
+                                    viewModel = viewModel,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else if (selectedTab == LibraryTab.FOLDERS && selectedFolder == null) {
                                 if (folders.isEmpty()) {
                                     EmptyFoldersView(modifier = Modifier.fillMaxSize())
                                 } else {
@@ -500,6 +511,27 @@ fun LibraryModeHeader(
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Rounded.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+
+                FilterChip(
+                    selected = selectedTab == LibraryTab.BLUETOOTH,
+                    onClick = { onTabSelected(LibraryTab.BLUETOOTH) },
+                    label = { Text("Bluetooth", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Bluetooth,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
