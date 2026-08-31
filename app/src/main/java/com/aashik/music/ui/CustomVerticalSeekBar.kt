@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -30,54 +31,64 @@ fun CustomVerticalSeekBar(
     onProgressChanged: (Float) -> Unit,
     modifier: Modifier = Modifier,
     barColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    thumbColor: Color = MaterialTheme.colorScheme.primary,
-    thumbSizeDp: Float = 12f
+    thumbColor: Color = MaterialTheme.colorScheme.primary
 ) {
     var barHeightPx by remember { mutableFloatStateOf(1f) }
     val density = LocalDensity.current
 
+    // Seekbar container with 16dp width aligned flush to the right edge
     Box(
         modifier = modifier
-            .width(4.dp)
+            .width(16.dp)
             .fillMaxHeight()
             .pointerInput(Unit) {
                 detectVerticalDragGestures { change, _ ->
                     change.consume()
                     val y = change.position.y
-                    // Invert progress: bottom = 0, top = 1
                     val newProgress = 1f - (y / barHeightPx)
                     onProgressChanged(min(1f, max(0f, newProgress)))
                 }
             },
-        contentAlignment = Alignment.BottomCenter // align filled bar to bottom
+        contentAlignment = Alignment.CenterEnd
     ) {
-        // Background bar
+        // Track
         Box(
             modifier = Modifier
                 .fillMaxHeight()
-                .width(4.dp)
-                .clip(RoundedCornerShape(4.dp))
+                .width(6.dp)
                 .background(barColor)
                 .onGloballyPositioned {
                     barHeightPx = it.size.height.toFloat()
                 }
         )
 
-        // Filled height in dp
+        // Filled active track
         val filledHeightDp = with(density) {
             (progress.coerceIn(0f, 1f) * barHeightPx).toDp()
         }
 
-        // Filled part
         Box(
             modifier = Modifier
-                .width(4.dp)
+                .width(6.dp)
                 .height(filledHeightDp)
-                .clip(RoundedCornerShape(4.dp))
                 .background(thumbColor)
-                .align(Alignment.BottomCenter)
+                .align(Alignment.BottomEnd)
         )
+
+        // Floating tactile circular thumb
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .height(filledHeightDp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(14.dp)
+                    .height(14.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .align(Alignment.TopCenter)
+            )
+        }
     }
 }
-
-

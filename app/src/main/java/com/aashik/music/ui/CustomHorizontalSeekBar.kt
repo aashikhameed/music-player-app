@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -31,14 +32,15 @@ fun CustomHorizontalSeekBar(
     modifier: Modifier = Modifier,
     barColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     thumbColor: Color = MaterialTheme.colorScheme.primary,
-    barHeightDp: Float = 5f // increased height for visibility
+    trackHeightDp: Float = 8f
 ) {
     var barWidthPx by remember { mutableFloatStateOf(1f) }
     val density = LocalDensity.current
 
+    // Large 36dp touch height to allow effortless dragging while driving
     Box(
         modifier = modifier
-            .height(barHeightDp.dp)
+            .height(36.dp)
             .fillMaxWidth()
             .pointerInput(Unit) {
                 detectHorizontalDragGestures { change, _ ->
@@ -50,27 +52,46 @@ fun CustomHorizontalSeekBar(
             },
         contentAlignment = Alignment.CenterStart
     ) {
-        // Background bar
+        // Visual Track
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(barHeightDp.dp)
-                .clip(RoundedCornerShape(barHeightDp.dp / 2))
+                .height(trackHeightDp.dp)
+                .clip(RoundedCornerShape(trackHeightDp.dp / 2))
                 .background(barColor)
                 .onGloballyPositioned {
                     barWidthPx = it.size.width.toFloat()
                 }
         )
 
-        // Filled part
+        val filledWidthDp = with(density) {
+            (progress.coerceIn(0f, 1f) * barWidthPx).toDp()
+        }
+
+        // Filled active track
         Box(
             modifier = Modifier
-                .width(with(density) { (progress.coerceIn(0f, 1f) * barWidthPx).toDp() })
-                .height(barHeightDp.dp)
-                .clip(RoundedCornerShape(barHeightDp.dp / 2))
+                .width(filledWidthDp)
+                .height(trackHeightDp.dp)
+                .clip(RoundedCornerShape(trackHeightDp.dp / 2))
                 .background(thumbColor)
                 .align(Alignment.CenterStart)
         )
+
+        // Floating tactile circular thumb
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .width(filledWidthDp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(18.dp)
+                    .height(18.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .align(Alignment.CenterEnd)
+            )
+        }
     }
 }
-

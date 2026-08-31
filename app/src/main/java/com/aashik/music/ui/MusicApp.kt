@@ -14,11 +14,14 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aashik.music.service.NotificationPlaybackService
+import com.aashik.music.theme.CarMusicTheme
 import com.aashik.music.viewmodel.MusicViewModel
 import com.aashik.music.viewmodel.ThemeViewModel
 
@@ -38,28 +41,34 @@ fun MusicApp() {
     val songs by viewModel.songs.collectAsState() // assuming you expose songs as StateFlow<List<Song>>
 
 
+    val serviceConnection = remember {
+        object : android.content.ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                val binder = service as? NotificationPlaybackService.LocalBinder
+                binder?.getService()?.setViewModel(viewModel)
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {}
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
             viewModel.loadSongs()
-
             val intent = Intent(context, NotificationPlaybackService::class.java)
-
             NotificationPlaybackService.startService(context)
-
-            val connection = object : android.content.ServiceConnection {
-                override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-                    val binder = service as? NotificationPlaybackService.LocalBinder
-                    binder?.getService()?.setViewModel(viewModel)
-                }
-
-                override fun onServiceDisconnected(name: ComponentName?) {}
-            }
-
-            context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+            context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
             NotificationPlaybackService.instance?.setViewModel(viewModel)
+        }
+    }
 
+    androidx.compose.runtime.DisposableEffect(context) {
+        onDispose {
+            try {
+                context.unbindService(serviceConnection)
+            } catch (_: Exception) {}
         }
     }
 
@@ -74,13 +83,9 @@ fun MusicApp() {
     LaunchedEffect(Unit) {
         permissionLauncher.launch(permission)
     }
-    val colorScheme = if (isDarkMode) darkColorScheme() else lightColorScheme()
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography(),
-        content = {
-            MusicListScreen(viewModel)
-        }
-    )
+    CarMusicTheme(
+        isDarkMode = isDarkMode
+    ) {
+        MusicListScreen(viewModel)
+    }
 }

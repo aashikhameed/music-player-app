@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aashik.music.controller.MusicController
 import com.aashik.music.data.MusicDatabase
+import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
 import com.aashik.music.pref.ThemePreference
 import com.aashik.music.repository.AudioScanner
@@ -20,6 +21,12 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+
+enum class LibraryTab {
+    ALL_SONGS,
+    FOLDERS
+}
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isPlaying = MutableStateFlow(false)
@@ -51,6 +58,22 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isShuffleOn = MutableStateFlow(true)
     val isShuffleOn: StateFlow<Boolean> = _isShuffleOn
 
+    // Tab and Folder state
+    private val _selectedTab = MutableStateFlow(LibraryTab.ALL_SONGS)
+    val selectedTab: StateFlow<LibraryTab> = _selectedTab.asStateFlow()
+
+    private val _selectedFolder = MutableStateFlow<String?>(null)
+    val selectedFolder: StateFlow<String?> = _selectedFolder.asStateFlow()
+
+    private val _folders = MutableStateFlow<List<MusicFolder>>(emptyList())
+    val folders: StateFlow<List<MusicFolder>> = _folders.asStateFlow()
+
+    val positionFlow: StateFlow<Long> = musicPlayer.positionFlow
+    val durationFlow: StateFlow<Long> = musicPlayer.durationFlow
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     private val progressFlow: Flow<Float> = combine(
         musicPlayer.positionFlow,
         musicPlayer.durationFlow
@@ -67,14 +90,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val themePref = ThemePreference(application)
     private val _isDarkTheme = MutableStateFlow(false)
 
-
     init {
         viewModelScope.launch {
             themePref.isDarkMode.collect {
                 _isDarkTheme.value = it
             }
         }
-
 
         musicPlayer.onCompletion = {
             playNextSong()
@@ -87,22 +108,85 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
             loadSongs()
         }
-        viewModelScope.launch {
-            val saved = songDao.getLastPlayed()
-            if (saved != null) {
-                _currentSong.value = saved
-            }
-            loadSongs()
+    }
+
+    fun selectTab(tab: LibraryTab) {
+        _selectedTab.value = tab
+        if (tab == LibraryTab.ALL_SONGS) {
+            _selectedFolder.value = null
+            applySearchFilter(_searchQuery.value)
+        } else {
+            updateFolderList()
         }
     }
 
+    fun openFolder(folderPath: String) {
+        _selectedFolder.value = folderPath
+        applySearchFilter(_searchQuery.value)
+    }
 
+    fun closeFolder() {
+        _selectedFolder.value = null
+        applySearchFilter(_searchQuery.value)
+    }
+
+    private fun updateFolderList() {
+        val folderMap = originalSongs.groupBy {
+            try {
+                File(it.path).parent ?: "Root"
+            } catch (_: Exception) {
+                "Unknown"
+            }
+        }
+
+        _folders.value = folderMap.map { (path, songList) ->
+            val folderName = try {
+                File(path).name.ifBlank { path }
+            } catch (_: Exception) {
+                path
+            }
+            MusicFolder(
+                name = folderName,
+                path = path,
+                songCount = songList.size
+            )
+        }.sortedBy { it.name.lowercase() }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+        applySearchFilter(query)
+    }
+
+    private fun applySearchFilter(query: String) {
+        var baseList = if (_selectedFolder.value != null) {
+            originalSongs.filter {
+                try {
+                    File(it.path).parent == _selectedFolder.value
+                } catch (_: Exception) {
+                    false
+                }
+            }
+        } else {
+            originalSongs
+        }
+
+        if (query.isBlank()) {
+            _songs.value = baseList
+        } else {
+            val q = query.trim().lowercase()
+            _songs.value = baseList.filter {
+                it.title.lowercase().contains(q) || it.artist.lowercase().contains(q) || it.album.lowercase().contains(q)
+            }
+        }
+    }
 
     fun toggleTheme() {
         viewModelScope.launch {
             themePref.setDarkMode(!_isDarkTheme.value)
         }
     }
+
     fun loadSongs() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -120,14 +204,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
             originalSongs = loadedSongs.sortedBy { it.title.lowercase() }
 
-            // ✅ only shuffle if not already shuffled
             if (shuffledSongs.isEmpty()) {
                 shuffledSongs = originalSongs.shuffled().toMutableList()
             }
 
             _songs.value = originalSongs
+            updateFolderList()
 
-            // don’t overwrite currentSong on reload if already set
+            // Background prefetch for cover art
+            com.aashik.music.cache.AlbumArtCache.preload(
+                context = context,
+                paths = originalSongs.take(50).map { it.path }
+            ) { path ->
+                com.aashik.music.utils.loadAlbumArt(path)
+            }
+
             if (_currentSong.value == null) {
                 _currentSong.value = shuffledSongs.firstOrNull()
             }
@@ -146,33 +237,38 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playNextSong() {
-        val list = if (_isShuffleOn.value) shuffledSongs else originalSongs
+        val list = if (_isShuffleOn.value) shuffledSongs else _songs.value.ifEmpty { originalSongs }
+        if (list.isEmpty()) return
         val index = list.indexOf(_currentSong.value)
-        if (index in 0 until list.lastIndex) {
-            play(list[index + 1])
-        } else if (index == list.lastIndex && list.isNotEmpty()) {
-            play(list[0])
+        val nextSong = if (index in 0 until list.lastIndex) {
+            list[index + 1]
+        } else {
+            list[0]
         }
-        MusicController.next(list)
-
+        play(nextSong)
+        MusicController.play(nextSong)
+        triggerScrollToCurrentSong()
     }
 
     fun playPreviousSong() {
-        val list = if (_isShuffleOn.value) shuffledSongs else originalSongs
+        val list = if (_isShuffleOn.value) shuffledSongs else _songs.value.ifEmpty { originalSongs }
+        if (list.isEmpty()) return
         val index = list.indexOf(_currentSong.value)
-        if (index > 0) {
-            play(list[index - 1])
-        } else if (index == 0 && list.isNotEmpty()) {
-            play(list.last())
+        val prevSong = if (index > 0) {
+            list[index - 1]
+        } else {
+            list.last()
         }
-        MusicController.next(list)
-
+        play(prevSong)
+        MusicController.play(prevSong)
+        triggerScrollToCurrentSong()
     }
 
     fun toggleShuffle() {
         _isShuffleOn.value = !_isShuffleOn.value
+        val baseList = _songs.value.ifEmpty { originalSongs }
         if (_isShuffleOn.value) {
-            shuffledSongs = originalSongs.shuffled().toMutableList()
+            shuffledSongs = baseList.shuffled().toMutableList()
             _currentSong.value?.let {
                 if (!shuffledSongs.contains(it)) {
                     shuffledSongs.add(0, it)
@@ -182,21 +278,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-        play(shuffledSongs[0])
-
+        shuffledSongs.firstOrNull()?.let { play(it) }
     }
 
     fun pause() {
         musicPlayer.pause()
         _isPlaying.value = false
         MusicController.pause()
-
     }
 
     fun resumeMusic() {
         musicPlayer.resume()
         MusicController.play(currentSong.value)
-
     }
 
     fun togglePlayPause() {
@@ -234,7 +327,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun seekToFraction(fraction: Float) {
         viewModelScope.launch {
             val duration = musicPlayer.durationFlow.replayCache.firstOrNull() ?: return@launch
-            val newPosition = (duration * fraction).toLong() // convert to Long here
+            val newPosition = (duration * fraction).toLong()
             musicPlayer.seekTo(newPosition)
         }
     }
@@ -248,33 +341,25 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
     fun deleteSong(song: Song) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Remove from database
                 songDao.delete(song)
-
-                // Remove from in-memory lists
                 originalSongs = originalSongs.filter { it.id != song.id }
                 shuffledSongs.removeAll { it.id == song.id }
+                applySearchFilter(_searchQuery.value)
+                updateFolderList()
 
-                // Remove from StateFlow
-                _songs.value = originalSongs
-
-                // If the deleted song is the current one, stop or move to next
                 if (_currentSong.value?.id == song.id) {
                     if (originalSongs.isNotEmpty()) {
                         play(originalSongs.first())
                     } else {
                         _currentSong.value = null
                         _isPlaying.value = false
-//                        musicPlayer.st()
                     }
                 }
 
-                // Remove file from storage
-                val file = java.io.File(song.path)
+                val file = File(song.path)
                 if (file.exists()) {
                     file.delete()
                 }
@@ -283,5 +368,4 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
 }

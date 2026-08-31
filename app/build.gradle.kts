@@ -22,30 +22,33 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     
-    val signingKeystorePath = System.getenv("KEYSTORE_PATH") ?: throw GradleException("KEYSTORE_PATH not set")
-    val signingKeystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: throw GradleException("KEYSTORE_PASSWORD not set")
-    val signingKeyAlias = System.getenv("KEY_ALIAS") ?: throw GradleException("KEY_ALIAS not set")
-    val signingKeyPassword = System.getenv("KEY_PASSWORD") ?: throw GradleException("KEY_PASSWORD not set")
-
+    val signingKeystorePath = System.getenv("KEYSTORE_PATH")
+    val signingKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
+    val signingKeyAlias = System.getenv("KEY_ALIAS")
+    val signingKeyPassword = System.getenv("KEY_PASSWORD")
 
     signingConfigs {
-        create("release") {
-            storeFile = file(signingKeystorePath)
-            storePassword = signingKeystorePassword
-            keyAlias = signingKeyAlias
-            keyPassword = signingKeyPassword
+        if (signingKeystorePath != null && signingKeystorePassword != null && signingKeyAlias != null && signingKeyPassword != null) {
+            create("release") {
+                storeFile = file(signingKeystorePath)
+                storePassword = signingKeystorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
         }
     }
 
     buildTypes {
-    release {
-        isMinifyEnabled = true
-        isShrinkResources = true
-        signingConfig = signingConfigs.getByName("release")
-        proguardFiles(
-            getDefaultProguardFile("proguard-android-optimize.txt"),
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfigs.findByName("release")?.let {
+                signingConfig = it
+            }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
-        )
+            )
         }
     }
     compileOptions {
@@ -95,13 +98,10 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.3.1")
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.animation:animation-core")
-    implementation("io.coil-kt:coil-compose:2.5.0")
-    implementation("io.coil-kt:coil-compose:2.7.0")
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("io.coil-kt:coil-compose:2.5.0")
-    implementation ("androidx.media:media:1.6.0")
+    implementation("androidx.media:media:1.6.0")
 
 
     // Testing

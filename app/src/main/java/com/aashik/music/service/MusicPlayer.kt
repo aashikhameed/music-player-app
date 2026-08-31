@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import com.aashik.music.model.Song
 import kotlinx.coroutines.CoroutineScope
@@ -20,12 +21,25 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MusicPlayer(private val context: Context) {
-    private var exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
-    // 🔑 Audio focus handling
+
+    // Low-RAM buffer control tailored for 2GB automotive devices
+    private val loadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            2500,  // Min buffer ms (2.5s)
+            8000,  // Max buffer ms (8s - cuts ExoPlayer memory by ~60%)
+            1000,  // Buffer for playback ms
+            1500   // Buffer for playback after rebuffer ms
+        )
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .build()
+
+    private var exoPlayer: ExoPlayer = ExoPlayer.Builder(context)
+        .setLoadControl(loadControl)
+        .build()
+
     private val audioManager: AudioManager =
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val focusRequest: AudioFocusRequest
-
 
     private val _positionFlow = MutableStateFlow(0L)
     val positionFlow: StateFlow<Long> = _positionFlow
@@ -46,7 +60,6 @@ class MusicPlayer(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     var onCompletion: (() -> Unit)? = null
 
-
     init {
         val attrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -57,13 +70,14 @@ class MusicPlayer(private val context: Context) {
             .setAudioAttributes(attrs)
             .setOnAudioFocusChangeListener { focusChange ->
                 when (focusChange) {
-                    AudioManager.AUDIOFOCUS_LOSS -> pause() // lost focus permanently
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause() // short interruption
+                    AudioManager.AUDIOFOCUS_LOSS -> pause()
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> exoPlayer.volume = 0.2f
                     AudioManager.AUDIOFOCUS_GAIN -> exoPlayer.volume = 1.0f
                 }
             }
             .build()
+
         exoPlayer.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _isPlayingFlow.value = isPlaying
@@ -76,14 +90,6 @@ class MusicPlayer(private val context: Context) {
                     _durationFlow.value = exoPlayer.duration.takeIf { it > 0 } ?: 1L
                 }
             }
-
-//            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-//                val path = mediaItem?.mediaId
-//                val song = songs.find { it.path == path }
-//                if (song != null) {
-//                    viewModel.setCurrentlyPlaying(song)
-//                }
-//            }
         })
     }
 
@@ -104,14 +110,13 @@ class MusicPlayer(private val context: Context) {
     fun play(song: Song) {
         val result = audioManager.requestAudioFocus(focusRequest)
         if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            return // don't play if another app already has focus
+            return
         }
-
 
         _currentSongFlow.value = song
         val item = MediaItem.Builder()
             .setUri(Uri.parse(song.path))
-            .setMediaId(song.path) // Or use song.id if you have a unique ID
+            .setMediaId(song.path)
             .build()
 
         exoPlayer.setMediaItem(item)
@@ -124,9 +129,7 @@ class MusicPlayer(private val context: Context) {
         exoPlayer.pause()
         stopTrackingProgress()
         audioManager.abandonAudioFocusRequest(focusRequest)
-
     }
-
 
     suspend fun isPrepared(): Boolean = withContext(Dispatchers.Main) {
         exoPlayer.playbackState == Player.STATE_READY && !exoPlayer.isPlaying
@@ -137,8 +140,8 @@ class MusicPlayer(private val context: Context) {
         if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             exoPlayer.playWhenReady = true
             startTrackingProgress()
-        }    }
-
+        }
+    }
 
     fun seekTo(position: Long) {
         exoPlayer.seekTo(position)

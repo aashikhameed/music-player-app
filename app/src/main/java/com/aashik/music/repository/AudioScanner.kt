@@ -1,4 +1,3 @@
-
 // AudioScanner.kt
 package com.aashik.music.repository
 
@@ -11,7 +10,7 @@ object AudioScanner {
         context: Context,
         onProgress: (loaded: Int, total: Int) -> Unit = { _, _ -> }
     ): List<Song> {
-        val songs = mutableListOf<Song>()
+        val songs = ArrayList<Song>(128)
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media.TITLE,
@@ -21,7 +20,11 @@ object AudioScanner {
             MediaStore.Audio.Media.DATA
         )
 
-        val cursor = context.contentResolver.query(uri, projection, null, null, null)
+        // Filter out ringtones, notification sounds, and short audio snippets (< 5 seconds) at SQL engine level
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 5000"
+        val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
+
+        val cursor = context.contentResolver.query(uri, projection, selection, null, sortOrder)
         cursor?.use {
             val titleCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artistCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
@@ -33,42 +36,30 @@ object AudioScanner {
             var loaded = 0
 
             while (it.moveToNext()) {
-                val path = it.getString(pathCol)
-//                val albumArt: ByteArray? = try {
-//                    val retriever = MediaMetadataRetriever()
-//                    retriever.setDataSource(path)
-//                    val raw = retriever.embeddedPicture
-//                    val resized = raw?.let { bytes ->
-//                        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-//                        val scaled = Bitmap.createScaledBitmap(bitmap, 50, 50, true)
-//                        val outputStream = ByteArrayOutputStream()
-//                        scaled.compress(Bitmap.CompressFormat.JPEG, 50, outputStream)
-//                        outputStream.toByteArray()
-//                    }
-//                    retriever.release()
-//                    resized
-//                } catch (_: Exception) {
-//                    null
-//                }
+                val path = it.getString(pathCol) ?: continue
+                val title = it.getString(titleCol) ?: "Unknown Title"
+                val artist = it.getString(artistCol) ?: "Unknown Artist"
+                val album = it.getString(albumCol) ?: "Unknown Album"
+                val duration = it.getLong(durationCol)
 
                 songs.add(
                     Song(
-                        title = it.getString(titleCol),
-                        artist = it.getString(artistCol),
-                        album = it.getString(albumCol),
-                        duration = it.getLong(durationCol),
-                        path = path,
-//                        albumArt = albumArt,
-                        id = path
+                        id = path,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        duration = duration,
+                        path = path
                     )
                 )
 
                 loaded++
-                onProgress(loaded, total)
+                if (loaded % 20 == 0 || loaded == total) {
+                    onProgress(loaded, total)
+                }
             }
         }
 
         return songs
     }
-
 }

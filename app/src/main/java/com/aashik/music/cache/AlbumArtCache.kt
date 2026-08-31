@@ -12,24 +12,28 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 object AlbumArtCache {
 
-    // --- In-memory LruCache ---
+    // Fast O(1) in-memory cache tailored for low-spec (2GB RAM) devices
     private val memoryCache = object : LruCache<String, Bitmap>(calculateMaxSize()) {
         override fun sizeOf(key: String, value: Bitmap): Int {
-            return value.byteCount / 1024 // size in KB
+            return value.byteCount / 1024 // Size in KB
         }
     }
 
+    // Tracks known files without album art to skip redundant disk I/O & retriever calls
+    private val noArtPaths = ConcurrentHashMap.newKeySet<String>()
+
     private fun calculateMaxSize(): Int {
         val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
-        return maxMemoryKb / 16 // 1/16th of memory
+        // Allocate up to 8MB max for cover art thumbnails
+        return (maxMemoryKb / 32).coerceIn(4096, 8192)
     }
 
-    // --- Disk cache ---
-    private const val MAX_DISK_CACHE_SIZE = 50L * 1024L * 1024L // 50MB
+    private const val MAX_DISK_CACHE_SIZE = 25L * 1024L * 1024L
 
     private fun getAlbumArtFile(context: Context, path: String): File {
         val cacheDir = File(context.cacheDir, "albumart")
@@ -43,9 +47,10 @@ object AlbumArtCache {
             val file = getAlbumArtFile(context, path)
             FileOutputStream(file).use { out ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 80, out)
+                    bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 75, out)
                 } else {
-                    bitmap.compress(Bitmap.CompressFormat.WEBP, 80, out)
+                    @Suppress("DEPRECATION")
+                    bitmap.compress(Bitmap.CompressFormat.WEBP, 75, out)
                 }
             }
             enforceDiskLimit(file.parentFile)
@@ -57,21 +62,24 @@ object AlbumArtCache {
         return if (file.exists()) decodeScaledBitmap(file) else null
     }
 
-    // --- Scale large images ---
-    private fun decodeScaledBitmap(file: File, maxSize: Int = 512): Bitmap? {
-        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    private fun decodeScaledBitmap(file: File, maxSize: Int = 120): Bitmap? {
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
         BitmapFactory.decodeFile(file.absolutePath, options)
 
         var scale = 1
-        while (options.outWidth / scale > maxSize || options.outHeight / scale > maxSize) {
+        while (options.outWidth / scale > maxSize * 2 || options.outHeight / scale > maxSize * 2) {
             scale *= 2
         }
 
-        val opts = BitmapFactory.Options().apply { inSampleSize = scale }
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = scale
+            inPreferredConfig = Bitmap.Config.RGB_565
+        }
         return BitmapFactory.decodeFile(file.absolutePath, opts)
     }
 
-    // --- Disk limit enforcement ---
     private fun enforceDiskLimit(cacheDir: File?) {
         cacheDir ?: return
         val files = cacheDir.listFiles()?.sortedBy { it.lastModified() } ?: return
@@ -83,7 +91,6 @@ object AlbumArtCache {
         }
     }
 
-    // --- Public API ---
     fun contains(path: String) = memoryCache.get(path) != null
 
     fun get(path: String): Bitmap? = memoryCache.get(path)
@@ -93,31 +100,42 @@ object AlbumArtCache {
         path: String,
         loader: suspend (String) -> Bitmap?
     ): Bitmap? {
-        // 1. Try memory cache
+        // Fast path 1: In-memory hit
         memoryCache.get(path)?.let { return it }
 
-        // 2. Try disk cache
-        loadFromDisk(context, path)?.let {
-            memoryCache.put(path, it)
-            return it
-        }
+        // Fast path 2: Known missing artwork
+        if (noArtPaths.contains(path)) return null
 
-        // 3. Load from loader
         return withContext(Dispatchers.IO) {
-            loader(path)?.also {
-                memoryCache.put(path, it)
-                saveToDisk(context, path, it)
+            // Check disk cache first
+            val diskBitmap = loadFromDisk(context, path)
+            if (diskBitmap != null) {
+                memoryCache.put(path, diskBitmap)
+                return@withContext diskBitmap
+            }
+
+            // Load via MediaMetadataRetriever
+            val loadedBitmap = loader(path)
+            if (loadedBitmap != null) {
+                memoryCache.put(path, loadedBitmap)
+                saveToDisk(context, path, loadedBitmap)
+                loadedBitmap
+            } else {
+                noArtPaths.add(path)
+                null
             }
         }
     }
 
-    // --- Async preloading ---
+    // Background prefetching for ultra-smooth list scrolling
     private val preloadQueue = ConcurrentLinkedQueue<Pair<Context, String>>()
     private var preloadJob: Job? = null
 
     fun preload(context: Context, paths: List<String>, loader: suspend (String) -> Bitmap?) {
-        preloadQueue.addAll(paths.map { context to it })
-        if (preloadJob?.isActive != true) {
+        val unvisited = paths.filter { !memoryCache.snapshot().containsKey(it) && !noArtPaths.contains(it) }
+        preloadQueue.addAll(unvisited.map { context to it })
+
+        if (preloadJob?.isActive != true && preloadQueue.isNotEmpty()) {
             preloadJob = CoroutineScope(Dispatchers.IO).launch {
                 while (preloadQueue.isNotEmpty()) {
                     val (ctx, path) = preloadQueue.poll() ?: continue
@@ -135,9 +153,9 @@ object AlbumArtCache {
         preloadQueue.clear()
     }
 
-    // --- Clear caches ---
     suspend fun clear(context: Context) = withContext(Dispatchers.IO) {
         memoryCache.evictAll()
+        noArtPaths.clear()
         val cacheDir = File(context.cacheDir, "albumart")
         cacheDir.deleteRecursively()
     }
