@@ -75,7 +75,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val progressFlow: Flow<Float> = combine(
+    val progressFlow: Flow<Float> = combine(
         musicPlayer.positionFlow,
         musicPlayer.durationFlow
     ) { position: Long, duration: Long ->
@@ -266,20 +266,23 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleShuffle() {
-        _isShuffleOn.value = !_isShuffleOn.value
+        val newState = !_isShuffleOn.value
+        _isShuffleOn.value = newState
         val baseList = _songs.value.ifEmpty { originalSongs }
-        if (_isShuffleOn.value) {
-            shuffledSongs = baseList.shuffled().toMutableList()
-            _currentSong.value?.let {
-                if (!shuffledSongs.contains(it)) {
-                    shuffledSongs.add(0, it)
-                } else {
-                    shuffledSongs.remove(it)
-                    shuffledSongs.add(0, it)
-                }
+
+        if (newState) {
+            val current = _currentSong.value
+            val otherSongs = if (current != null) {
+                baseList.filter { it.id != current.id }.shuffled()
+            } else {
+                baseList.shuffled()
+            }
+            shuffledSongs = if (current != null) {
+                (listOf(current) + otherSongs).toMutableList()
+            } else {
+                otherSongs.toMutableList()
             }
         }
-        shuffledSongs.firstOrNull()?.let { play(it) }
     }
 
     fun pause() {

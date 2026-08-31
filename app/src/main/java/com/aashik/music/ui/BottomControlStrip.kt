@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
@@ -45,7 +46,9 @@ import com.aashik.music.viewmodel.MusicViewModel
 fun BottomControlStrip(
     viewModel: MusicViewModel,
     isSearchVisible: Boolean,
-    onToggleSearch: () -> Unit
+    isMapOpen: Boolean,
+    onToggleSearch: () -> Unit,
+    onToggleMap: () -> Unit
 ) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isShuffleOn by viewModel.isShuffleOn.collectAsState()
@@ -62,8 +65,8 @@ fun BottomControlStrip(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding() // Adapts to system navigation bars and gesture bar
-                .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 12.dp) // Elevated bottom padding
+                .navigationBarsPadding()
+                .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 12.dp)
         ) {
             // Mini track information banner with Theme Toggle in header
             if (currentSong != null) {
@@ -124,24 +127,37 @@ fun BottomControlStrip(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // Balanced 5-action bottom row
+            // Balanced actions bottom row with Map toggle
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Map Split Toggle
+                IconButton(
+                    onClick = onToggleMap,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Map,
+                        contentDescription = "Live Map",
+                        tint = if (isMapOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
                 // Search Toggle
                 IconButton(
                     onClick = onToggleSearch,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(38.dp)
                 ) {
                     Icon(
                         imageVector = if (isSearchVisible) Icons.Rounded.SearchOff else Icons.Rounded.Search,
                         contentDescription = "Search",
                         tint = if (isSearchVisible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -154,7 +170,7 @@ fun BottomControlStrip(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = "Previous",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
@@ -183,20 +199,20 @@ fun BottomControlStrip(
                         imageVector = Icons.Rounded.SkipNext,
                         contentDescription = "Next",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
                 // Shuffle
                 IconButton(
                     onClick = { viewModel.toggleShuffle() },
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(38.dp)
                 ) {
                     Icon(
                         imageVector = if (isShuffleOn) Icons.Rounded.ShuffleOn else Icons.Rounded.Shuffle,
                         contentDescription = "Shuffle",
                         tint = if (isShuffleOn) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }

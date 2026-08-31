@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
@@ -49,7 +50,9 @@ import java.util.Locale
 fun RightControlStrip(
     viewModel: MusicViewModel,
     isSearchVisible: Boolean,
-    onToggleSearch: () -> Unit
+    isMapOpen: Boolean,
+    onToggleSearch: () -> Unit,
+    onToggleMap: () -> Unit
 ) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isShuffleOn by viewModel.isShuffleOn.collectAsState()
@@ -117,7 +120,7 @@ fun RightControlStrip(
 
             // Center: Core Transport Controls
             Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 IconButton(
@@ -160,14 +163,27 @@ fun RightControlStrip(
                 }
             }
 
-            // Bottom: Search & Shuffle
+            // Bottom: Map Toggle, Search & Shuffle
             Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Navigation Map Split Toggle
+                IconButton(
+                    onClick = onToggleMap,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Map,
+                        contentDescription = "Navigation Map",
+                        tint = if (isMapOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
                 IconButton(
                     onClick = onToggleSearch,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = if (isSearchVisible) Icons.Rounded.SearchOff else Icons.Rounded.Search,
@@ -179,7 +195,7 @@ fun RightControlStrip(
 
                 IconButton(
                     onClick = { viewModel.toggleShuffle() },
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = if (isShuffleOn) Icons.Rounded.ShuffleOn else Icons.Rounded.Shuffle,
