@@ -78,7 +78,7 @@ fun AndroidAutoBottomBar(
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 8.dp,
+        shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
@@ -124,6 +124,7 @@ fun AndroidAutoBottomBar(
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .height(46.dp)
                     .width(340.dp)
@@ -250,23 +251,11 @@ fun AndroidAutoBottomBar(
             }
         }
 
-            // Right: Search, Shuffle, Theme, and Clock
+            // Right: Shuffle, Theme Toggle, and Clock (Search moved to top right)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                IconButton(
-                    onClick = onToggleSearch,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isSearchVisible) Icons.Rounded.SearchOff else Icons.Rounded.Search,
-                        contentDescription = "Search",
-                        tint = if (isSearchVisible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
                 IconButton(
                     onClick = { viewModel.toggleShuffle() },
                     modifier = Modifier.size(36.dp)

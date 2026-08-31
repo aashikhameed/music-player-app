@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -296,6 +297,11 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 selectedFolder = selectedFolder,
                                 onTabSelected = { viewModel.selectTab(it) },
                                 onBackFolder = { viewModel.closeFolder() },
+                                isSearchVisible = isSearchOpen,
+                                onToggleSearch = {
+                                    isSearchOpen = !isSearchOpen
+                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 6.dp)
@@ -421,6 +427,11 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                     selectedFolder = selectedFolder,
                                     onTabSelected = { viewModel.selectTab(it) },
                                     onBackFolder = { viewModel.closeFolder() },
+                                    isSearchVisible = isSearchOpen,
+                                    onToggleSearch = {
+                                        isSearchOpen = !isSearchOpen
+                                        if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                    },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(bottom = 6.dp)
@@ -527,6 +538,8 @@ fun LibraryModeHeader(
     selectedFolder: String?,
     onTabSelected: (LibraryTab) -> Unit,
     onBackFolder: () -> Unit,
+    isSearchVisible: Boolean = false,
+    onToggleSearch: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -544,7 +557,7 @@ fun LibraryModeHeader(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.weight(1f)
             ) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -666,6 +679,21 @@ fun LibraryModeHeader(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                )
+            }
+        }
+
+        // Top Right: Search Toggle Button
+        if (onToggleSearch != null) {
+            IconButton(
+                onClick = onToggleSearch,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Icon(
+                    imageVector = if (isSearchVisible) Icons.Rounded.SearchOff else Icons.Rounded.Search,
+                    contentDescription = "Search",
+                    tint = if (isSearchVisible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
