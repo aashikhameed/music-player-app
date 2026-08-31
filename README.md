@@ -1,40 +1,36 @@
 # 🚗🎵 Music App for Android Car Infotainment
 
-A modern, feature-rich **Music Player App** built with **Kotlin** specifically designed for **Android Automotive OS** and **Car Infotainment Systems**. It supports local audio playback, voice/media controls, and seamless Bluetooth integration for an optimal in-car entertainment experience.
+A modern, high-performance **Music Player App** built with **Kotlin & Jetpack Compose** specifically designed for **Android Automotive OS**, **Android Auto**, and **Car Infotainment Systems** (optimized for low-RAM / low-CPU 2GB head units).
 
 ---
-## 📱 Screenshots
-<img width="500" height="300" alt="Screenshot_1758726567" src="https://github.com/user-attachments/assets/b891df38-6944-429d-afb6-1892b94bc4a7" />
-<img width="300" height="500" alt="Screenshot_1758726559" src="https://github.com/user-attachments/assets/4162dd2a-05fe-4bb0-a94d-f4db8e4ab2d3" />
 
 ## 📱 Features
 
-- 🎶 **Offline Music Playback**
-  - Supports `.mp3`, `.m4a`, `.opus`, and other common formats.
-  - Fast local media scanning and caching.
+- 🚗 **Android Auto Infotainment Interface**
+  - Permanent landscape automotive layout with bottom taskbar and mini media player pill.
+  - Split-screen navigation mode: Full-height **Google Maps** on the left with live real-time GPS tracking and 2-column music library on the right.
+  - Seamless full-screen mode: 3-column music grid with sleek automotive vertical scrollbar.
 
-- 🚗 **Android Auto & Bluetooth Support**
-  - Fully integrated with `MediaSessionCompat` and `MediaBrowserServiceCompat`.
-  - Supports steering wheel, dashboard, and Bluetooth headset controls.
+- 🗺️ **Embedded Live Navigation Map**
+  - Clean full-bleed map display with auto-centered GPS location updates.
+  - Distraction-free: Stripped of web banners, "Open app" buttons, and watermarks.
+  - Native theme integration: Instant zero-flicker dark & light mode styling.
 
-- 🎚️ **Advanced Playback Controls**
-  - Shuffle, Repeat, Loop, Seek
-  - Smooth fade in/out transitions
-  - Foreground playback service for uninterrupted listening
+- 🎚️ **Automotive Playback & Controls**
+  - **Integrated Top-Border Seekbar**: Sleek 3dp progress bar seamlessly embedded directly into the top edge of the Now Playing media pill.
+  - **Hardware Mute Auto-Pause**: Automatically pauses playback when steering wheel mute button is pressed or vehicle audio stream drops to 0 volume.
+  - **Non-Interruptive Shuffle**: Dynamically shuffles the playlist without interrupting or restarting current track playback.
+  - Full steering wheel, head unit media buttons, and Bluetooth AVRCP support.
 
-- 🌗 **UI & UX**
-  - Tablet-optimized 3-column layout
-  - Material 3 design with light/dark theme toggle
-  - Persistent playback state and theme using DataStore
+- 🎶 **Offline Music Playback & Low-RAM Optimization**
+  - Supports `.mp3`, `.m4a`, `.opus`, `.flac`, `.wav`, and `.aac`.
+  - Tuned ExoPlayer LoadControl buffering to minimize memory footprint on 2GB RAM automotive devices.
+  - Fast local media scanning, folder browsing, and instant library cache.
 
-- 📂 **Library & Folder Filtering**
-  - Search and filter by folder
-  - Playlist creation and local storage
-  - Long-press delete support
-
-- 💾 **Persistence**
-  - Remembers last played song on app restart
-  - Room database for storing songs and playlists
+- 📁 **Library & Folder Filtering**
+  - Tabbed library filters (All Songs, Folders, Bluetooth).
+  - Quick top-right collapsible search.
+  - In-place folder hierarchy browsing and long-press delete actions.
 
 ---
 
@@ -45,16 +41,22 @@ A modern, feature-rich **Music Player App** built with **Kotlin** specifically d
 | Language         | Kotlin                      |
 | UI Framework     | Jetpack Compose + Material3 |
 | Media Playback   | ExoPlayer (Media3)          |
-| Car Integration  | MediaSessionCompat + Android Auto |
-| Background Tasks | Foreground Service + Coroutine |
+| Car Integration  | MediaSessionCompat + Android Auto + BroadcastReceivers |
+| GPS / Location   | Android LocationManager (GPS / Network Provider) |
 | Data Storage     | Room DB + DataStore         |
 
 ---
 
-## 📦 Installation
+## 📦 Getting Started
 
-1. **Clone this repository**
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/music-player-app.git
+   cd music-player-app
+   ```
 
-```bash
-git clone https://github.com/yourusername/music-car-app.git
-cd music-car-app
+2. **Build and Install**:
+   ```bash
+   ./gradlew assembleDebug
+   ./gradlew installDebug
+   ```
