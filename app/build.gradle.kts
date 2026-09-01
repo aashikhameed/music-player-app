@@ -12,6 +12,9 @@ android {
     namespace = "com.aashik.music"
     compileSdk = 36
 
+    val localProps = gradleLocalProperties(rootDir)
+    val mapsApiKey = localProps.getProperty("MAPS_API_KEY") ?: System.getenv("MAPS_API_KEY") ?: ""
+
     defaultConfig {
         applicationId = "com.aashik.music"
         minSdk = 26
@@ -20,6 +23,7 @@ android {
         versionName = "0.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
     
     val signingKeystorePath = System.getenv("KEYSTORE_PATH")
@@ -103,6 +107,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.media:media:1.6.0")
 
+    // Google Maps & Location
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
 
     // Testing
     testImplementation(libs.junit)

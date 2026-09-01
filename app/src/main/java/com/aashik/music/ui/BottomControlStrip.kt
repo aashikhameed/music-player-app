@@ -1,8 +1,13 @@
 package com.aashik.music.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +17,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LightMode
@@ -24,10 +30,9 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.ShuffleOn
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,9 +41,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -53,14 +61,21 @@ fun BottomControlStrip(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isShuffleOn by viewModel.isShuffleOn.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
-    val positionMs by viewModel.positionFlow.collectAsState()
-    val durationMs by viewModel.durationFlow.collectAsState()
+
+    val dockGradient = AppGradients.dock()
+    val capsuleGradient = AppGradients.capsule(isActive = false)
+    val borderBrush = AppGradients.border(isActive = false)
+    val primaryButtonGradient = AppGradients.primaryButton()
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        shadowElevation = 6.dp,
-        modifier = Modifier.fillMaxWidth()
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(brush = dockGradient, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            .border(border = BorderStroke(1.dp, borderBrush), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
     ) {
         Column(
             modifier = Modifier
@@ -70,61 +85,62 @@ fun BottomControlStrip(
         ) {
             // Mini track information banner with Theme Toggle in header
             if (currentSong != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                val bannerShape = RoundedCornerShape(12.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(bannerShape)
+                        .background(brush = capsuleGradient, shape = bannerShape)
+                        .border(border = BorderStroke(1.dp, borderBrush), shape = bannerShape)
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
-                    AlbumArtImage(
-                        path = currentSong?.path.orEmpty(),
-                        size = 40.dp,
-                        borderRadius = 8.dp,
-                        isPlaying = isPlaying
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = currentSong?.title.orEmpty(),
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = if (isPlaying) Modifier.basicMarquee() else Modifier
-                        )
-                        Text(
-                            text = currentSong?.artist.orEmpty(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    if (durationMs > 1000L) {
-                        Text(
-                            text = "${formatTime(positionMs)} / ${formatTime(durationMs)}",
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 6.dp)
-                        )
-                    }
-
-                    // Theme toggle button in mini banner
-                    IconButton(
-                        onClick = { viewModel.toggleTheme() },
-                        modifier = Modifier.size(34.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.LightMode,
-                            contentDescription = "Theme",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                            modifier = Modifier.size(20.dp)
+                        AlbumArtImage(
+                            path = currentSong?.path.orEmpty(),
+                            size = 40.dp,
+                            borderRadius = 8.dp,
+                            isPlaying = isPlaying
                         )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = currentSong?.title.orEmpty(),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = if (isPlaying) Modifier.basicMarquee() else Modifier
+                            )
+                            Text(
+                                text = currentSong?.artist.orEmpty(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // Theme toggle button in mini banner
+                        IconButton(
+                            onClick = { viewModel.toggleTheme() },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.LightMode,
+                                contentDescription = "Theme",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
             }
 
             // Balanced actions bottom row with Map toggle
@@ -161,45 +177,46 @@ fun BottomControlStrip(
                     )
                 }
 
-                // Previous
+                // Previous - Large Target
                 IconButton(
                     onClick = { viewModel.playPreviousSong() },
-                    modifier = Modifier.size(46.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = "Previous",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-
-                // Play / Pause
-                FilledIconButton(
-                    onClick = { viewModel.togglePlayPause() },
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier.size(52.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
                         modifier = Modifier.size(30.dp)
                     )
                 }
 
-                // Next
+                // Play / Pause Hero Button - Large High-Visibility
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(brush = primaryButtonGradient, shape = CircleShape)
+                        .clickable { viewModel.togglePlayPause() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                // Next - Large Target
                 IconButton(
                     onClick = { viewModel.playNextSong() },
-                    modifier = Modifier.size(46.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
                         contentDescription = "Next",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(30.dp)
                     )
                 }
 

@@ -2,7 +2,9 @@ package com.aashik.music.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,8 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Equalizer
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aashik.music.model.Song
+import com.aashik.music.theme.AppGradients
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -42,33 +43,25 @@ fun SongCard(
     modifier: Modifier = Modifier,
     cardWidth: Dp? = null
 ) {
-    val containerColor = if (isPlaying) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
-
-    val border = if (isPlaying) {
-        BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-    } else {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-    }
-
     val widthModifier = if (cardWidth != null) Modifier.width(cardWidth) else Modifier.fillMaxWidth()
+    val shape = RoundedCornerShape(14.dp)
+    val cardGradient = AppGradients.card(isActive = isPlaying)
+    val borderBrush = AppGradients.border(isActive = isPlaying)
 
-    Card(
+    Box(
         modifier = modifier
             .then(widthModifier)
-            .height(72.dp) // Generous touch target height for automotive screens
-            .clip(RoundedCornerShape(12.dp))
+            .height(72.dp) // Generous automotive touch target
+            .clip(shape)
+            .background(brush = cardGradient, shape = shape)
+            .border(
+                border = BorderStroke(if (isPlaying) 1.5.dp else 1.dp, borderBrush),
+                shape = shape
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
-            ),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = border,
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isPlaying) 4.dp else 1.dp)
+            )
     ) {
         Row(
             modifier = Modifier
@@ -80,7 +73,7 @@ fun SongCard(
                 AlbumArtImage(
                     path = song.path,
                     size = 54.dp,
-                    borderRadius = 8.dp,
+                    borderRadius = 10.dp,
                     isPlaying = isPlaying
                 )
                 if (isPlaying) {

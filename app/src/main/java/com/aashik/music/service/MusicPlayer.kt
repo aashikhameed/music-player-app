@@ -105,12 +105,23 @@ class MusicPlayer(private val context: Context) {
 
         // Listen for hardware volume mute / volume change events from steering wheel or head unit
         try {
+            var wasAutoPausedByMute = false
             volumeReceiver = object : BroadcastReceiver() {
                 override fun onReceive(c: Context?, intent: Intent?) {
                     val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                     val isStreamMute = audioManager.isStreamMute(AudioManager.STREAM_MUSIC)
-                    if ((currentVolume == 0 || isStreamMute) && exoPlayer.isPlaying) {
-                        pause()
+                    val isMuted = currentVolume == 0 || isStreamMute
+                    
+                    if (isMuted) {
+                        if (exoPlayer.isPlaying) {
+                            wasAutoPausedByMute = true
+                            pause()
+                        }
+                    } else {
+                        if (wasAutoPausedByMute && !exoPlayer.isPlaying) {
+                            wasAutoPausedByMute = false
+                            resume()
+                        }
                     }
                 }
             }
@@ -157,6 +168,16 @@ class MusicPlayer(private val context: Context) {
     fun pause() {
         exoPlayer.pause()
         stopTrackingProgress()
+        audioManager.abandonAudioFocusRequest(focusRequest)
+    }
+
+    fun stop() {
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        stopTrackingProgress()
+        _positionFlow.value = 0L
+        _isPlayingFlow.value = false
+        _currentSongFlow.value = null
         audioManager.abandonAudioFocusRequest(focusRequest)
     }
 

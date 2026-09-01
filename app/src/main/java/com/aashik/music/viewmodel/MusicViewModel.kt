@@ -3,6 +3,7 @@ package com.aashik.music.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import android.provider.MediaStore
 import com.aashik.music.controller.MusicController
 import com.aashik.music.data.MusicDatabase
 import com.aashik.music.model.MusicFolder
@@ -90,6 +91,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val themePref = ThemePreference(application)
     private val _isDarkTheme = MutableStateFlow(false)
+    val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -348,25 +350,50 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteSong(song: Song) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // 1. Delete from Room database
                 songDao.delete(song)
+
+                // 2. Remove from in-memory playlists
                 originalSongs = originalSongs.filter { it.id != song.id }
                 shuffledSongs.removeAll { it.id == song.id }
-                applySearchFilter(_searchQuery.value)
-                updateFolderList()
 
+                // 3. Handle active playback if deleted track is current
                 if (_currentSong.value?.id == song.id) {
-                    if (originalSongs.isNotEmpty()) {
-                        play(originalSongs.first())
+                    val nextSong = if (_isShuffleOn.value) shuffledSongs.firstOrNull() else originalSongs.firstOrNull()
+                    if (nextSong != null) {
+                        withContext(Dispatchers.Main) {
+                            play(nextSong)
+                        }
                     } else {
-                        _currentSong.value = null
-                        _isPlaying.value = false
+                        withContext(Dispatchers.Main) {
+                            musicPlayer.stop()
+                            _currentSong.value = null
+                            _isPlaying.value = false
+                        }
                     }
                 }
 
-                val file = File(song.path)
-                if (file.exists()) {
-                    file.delete()
+                // 4. Update UI state flows
+                withContext(Dispatchers.Main) {
+                    applySearchFilter(_searchQuery.value)
+                    updateFolderList()
                 }
+
+                // 5. Delete from Android MediaStore ContentResolver & FileSystem
+                val context = getApplication<Application>().applicationContext
+                try {
+                    val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                    val where = "${MediaStore.Audio.Media.DATA} = ?"
+                    val selectionArgs = arrayOf(song.path)
+                    context.contentResolver.delete(uri, where, selectionArgs)
+                } catch (_: Exception) {}
+
+                try {
+                    val file = File(song.path)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                } catch (_: Exception) {}
             } catch (e: Exception) {
                 e.printStackTrace()
             }

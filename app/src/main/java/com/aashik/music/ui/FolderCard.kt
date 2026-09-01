@@ -1,6 +1,8 @@
 package com.aashik.music.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,8 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.aashik.music.model.MusicFolder
+import com.aashik.music.theme.AppGradients
 
 @Composable
 fun FolderCard(
@@ -36,14 +37,17 @@ fun FolderCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
+    val shape = RoundedCornerShape(14.dp)
+    val cardGradient = AppGradients.card(isActive = false)
+    val borderBrush = AppGradients.border(isActive = false)
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(72.dp)
+            .clip(shape)
+            .background(brush = cardGradient, shape = shape)
+            .border(border = BorderStroke(1.dp, borderBrush), shape = shape)
             .clickable(onClick = onClick)
     ) {
         Row(

@@ -29,6 +29,11 @@
         android:theme="@style/Theme.Music"
         tools:targetApi="31">
 
+        <!-- Google Maps SDK API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -54,6 +59,17 @@
             </intent-filter>
         </service>
 
+        <!-- Notification Listener Service for displaying Bluetooth / Phone notifications -->
+        <service
+            android:name=".service.AppNotificationListenerService"
+            android:label="Car Notification Mirror"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name="androidx.media.session.MediaButtonReceiver"
             android:exported="true">
@@ -69,6 +85,7 @@
             <intent-filter>
                 <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
                 <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+                <action android:name="com.aashik.music.ACTION_TEST_NOTIFICATION" />
             </intent-filter>
         </receiver>
 
