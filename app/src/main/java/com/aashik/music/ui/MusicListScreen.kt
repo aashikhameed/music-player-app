@@ -234,41 +234,43 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if (selectedTab != LibraryTab.BLUETOOTH) {
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // Bottom Waveform Seekbar & Controls
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(brush = AppGradients.card(isActive = false), shape = RoundedCornerShape(18.dp))
-                            .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = RoundedCornerShape(18.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        CustomHorizontalSeekBar(
-                            progress = progress,
-                            onProgressChanged = { viewModel.seekToFraction(it) },
-                            isPlaying = isPlaying,
-                            currentPositionMs = positionMs,
-                            durationMs = durationMs,
-                            waveSeed = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
-                            showTimeLabels = true,
+                        // Bottom Waveform Seekbar & Controls
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 2.dp)
-                        )
-                        BottomControlStrip(
-                            viewModel = viewModel,
-                            isSearchVisible = isSearchOpen,
-                            isMapOpen = isMapOpen,
-                            onToggleSearch = {
-                                isSearchOpen = !isSearchOpen
-                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                            },
-                            onToggleMap = {
-                                isMapOpen = !isMapOpen
-                            }
-                        )
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(brush = AppGradients.card(isActive = false), shape = RoundedCornerShape(18.dp))
+                                .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = RoundedCornerShape(18.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            CustomHorizontalSeekBar(
+                                progress = progress,
+                                onProgressChanged = { viewModel.seekToFraction(it) },
+                                isPlaying = isPlaying,
+                                currentPositionMs = positionMs,
+                                durationMs = durationMs,
+                                waveSeed = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
+                                showTimeLabels = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 2.dp)
+                            )
+                            BottomControlStrip(
+                                viewModel = viewModel,
+                                isSearchVisible = isSearchOpen,
+                                isMapOpen = isMapOpen,
+                                onToggleSearch = {
+                                    isSearchOpen = !isSearchOpen
+                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                },
+                                onToggleMap = {
+                                    isMapOpen = !isMapOpen
+                                }
+                            )
+                        }
                     }
                 }
             } else {
@@ -410,18 +412,20 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            if (selectedTab != LibraryTab.BLUETOOTH) {
+                                Spacer(modifier = Modifier.height(12.dp))
 
-                            AndroidAutoBottomBar(
-                                viewModel = viewModel,
-                                isMapOpen = false,
-                                onToggleMap = { isMapOpen = true },
-                                isSearchVisible = isSearchOpen,
-                                onToggleSearch = {
-                                    isSearchOpen = !isSearchOpen
-                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                }
-                            )
+                                AndroidAutoBottomBar(
+                                    viewModel = viewModel,
+                                    isMapOpen = false,
+                                    onToggleMap = { isMapOpen = true },
+                                    isSearchVisible = isSearchOpen,
+                                    onToggleSearch = {
+                                        isSearchOpen = !isSearchOpen
+                                        if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                    }
+                                )
+                            }
                         }
                     }
                 }
