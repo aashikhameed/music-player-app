@@ -3,7 +3,10 @@ name: Build & Release APK
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.0.0
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -15,21 +18,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
+          cache: gradle
 
       - name: Decode Keystore File
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$GITHUB_WORKSPACE/release.keystore"
 
       - name: Set Signing Environment Variables
         run: |
-          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/release.keystore" >> $GITHUB_ENV
-          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
-          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/release.keystore" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> "$GITHUB_ENV"
 
       - name: Give Gradle Execute Permission
         run: chmod +x ./gradlew
@@ -37,14 +41,16 @@ jobs:
       - name: Build Signed Release APK
         run: ./gradlew assembleRelease
 
-      - name: Rename APK to car-music.apk
+      - name: Rename APK
         run: |
-          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/car-music.apk
+          mv \
+            app/build/outputs/apk/release/app-release.apk \
+            app/build/outputs/apk/release/car-music.apk
 
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: car-music.apk
+          name: car-music
           path: app/build/outputs/apk/release/car-music.apk
 
       - name: Upload to GitHub Release
@@ -54,4 +60,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: app/build/outputs/apk/release/car-music.apk
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup Keystore
+        if: always()
+        run: |
+          rm -f "$GITHUB_WORKSPACE/release.keystore"
