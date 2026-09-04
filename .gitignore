@@ -52,8 +52,6 @@ Thumbs.db
 app/build/
 */build/
 
-# Proguard configuration files
-proguard-rules.pro
 
 # Miscellaneous
 *.apk
