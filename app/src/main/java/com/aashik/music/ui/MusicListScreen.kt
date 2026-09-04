@@ -37,7 +37,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Folder
@@ -59,11 +58,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,31 +85,17 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     val selectedFolder by viewModel.selectedFolder.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val currentSongId = currentSong?.id
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val positionMs by viewModel.positionFlow.collectAsState()
-    val durationMs by viewModel.durationFlow.collectAsState()
-    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
+    // NOTE: isPlaying is NOT collected here — each SongCard derives its own
+    // isPlaying = (song.id == currentSongId), avoiding a full-screen recompose
+    // on every play/pause toggle.
+    // NOTE: positionMs / durationMs / progress are intentionally NOT collected here.
+    // Reading them in this scope would recompose the entire screen (3 song cards + header)
+    // every 250ms. They are read inside PortraitSeekBarSection below, which scopes
+    // recompositions to only that small widget.
     val isLoading by viewModel.isLoading.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     var isSearchOpen by remember { mutableStateOf(false) }
-    var isMapOpen by rememberSaveable { mutableStateOf(false) }
-    var hasMapBeenOpened by rememberSaveable { mutableStateOf(false) }
-
-    if (isMapOpen && !hasMapBeenOpened) {
-        hasMapBeenOpened = true
-    }
-
-    val persistentNavigationMap = remember {
-        movableContentOf { modifier: Modifier ->
-            NavigationMapView(
-                viewModel = viewModel,
-                onClose = { isMapOpen = false },
-                isMapOpen = isMapOpen,
-                modifier = modifier
-            )
-        }
-    }
 
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
@@ -119,13 +103,21 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     val listState = rememberLazyGridState()
     val scrollToIndex by viewModel.scrollToIndex.collectAsState()
 
-    // Handle system back button
-    BackHandler(enabled = isMapOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
-        if (isMapOpen) {
-            isMapOpen = false
-        } else {
-            viewModel.closeFolder()
+    // Scroll to the playing/highlighted song on initial load
+    var hasScrolledToInitialSong by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(isLoading, songs, currentSongId) {
+        if (!isLoading && songs.isNotEmpty() && currentSongId != null && !hasScrolledToInitialSong) {
+            val index = songs.indexOfFirst { it.id == currentSongId }
+            if (index >= 0) {
+                listState.scrollToItem(index)
+                hasScrolledToInitialSong = true
+            }
         }
+    }
+
+    // Handle system back button
+    BackHandler(enabled = selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
+        viewModel.closeFolder()
     }
 
     LaunchedEffect(scrollToIndex) {
@@ -138,7 +130,6 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     }
 
     var songToDelete by remember { mutableStateOf<Song?>(null) }
-    val activeNotification by com.aashik.music.notification.AppNotificationManager.activeNotification.collectAsState()
 
     // Reusable Delete Confirmation Dialog
     DeleteSongDialog(
@@ -151,68 +142,44 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // ALWAYS keep the map in the composition to prevent WebView reload
-        if (!isMapOpen) {
-            Box(modifier = Modifier.size(1.dp).alpha(0.01f)) {
-                persistentNavigationMap(Modifier.fillMaxSize())
-            }
-        }
-
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     SongLoadingBar(viewModel)
                 }
             } else {
-            if (isPortrait) {
-                // Portrait Mobile Layout
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
-                ) {
-                    // Header Bar with In-Place Search
-                    LibraryModeHeader(
-                        selectedTab = selectedTab,
-                        selectedFolder = selectedFolder,
-                        searchQuery = searchQuery,
-                        onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                        isSearchOpen = isSearchOpen,
-                        onToggleSearch = {
-                            isSearchOpen = !isSearchOpen
-                            if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                        },
-                        onTabSelected = { viewModel.selectTab(it) },
-                        onBackFolder = { viewModel.closeFolder() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 6.dp)
-                    )
-
-                    // Content & Live Map Split in Portrait (65% Map, 35% Library if map open)
+                if (isPortrait) {
+                    // Portrait Mobile Layout
                     Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
                     ) {
-                        if (isMapOpen) {
-                            val portraitMapShape = RoundedCornerShape(20.dp)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(0.65f)
-                                    .clip(portraitMapShape)
-                                    .background(brush = AppGradients.card(isActive = false), shape = portraitMapShape)
-                                    .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = portraitMapShape)
-                            ) {
-                                persistentNavigationMap(Modifier.fillMaxSize())
-                            }
-                        }
+                        // Header Bar with In-Place Search
+                        LibraryModeHeader(
+                            selectedTab = selectedTab,
+                            selectedFolder = selectedFolder,
+                            songCount = songs.size,
+                            folderCount = folders.size,
+                            searchQuery = searchQuery,
+                            onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                            isSearchOpen = isSearchOpen,
+                            onToggleSearch = {
+                                isSearchOpen = !isSearchOpen
+                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                            },
+                            onTabSelected = { viewModel.selectTab(it) },
+                            onBackFolder = { viewModel.closeFolder() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp)
+                        )
 
                         val portraitSongShape = RoundedCornerShape(20.dp)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(if (isMapOpen) 0.35f else 1f)
+                                .weight(1f)
                                 .clip(portraitSongShape)
                                 .background(brush = AppGradients.card(isActive = false), shape = portraitSongShape)
                                 .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = portraitSongShape)
@@ -232,128 +199,41 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
-                    }
 
-                    if (selectedTab != LibraryTab.BLUETOOTH) {
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Bottom Waveform Seekbar & Controls
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(brush = AppGradients.card(isActive = false), shape = RoundedCornerShape(18.dp))
-                                .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = RoundedCornerShape(18.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            CustomHorizontalSeekBar(
-                                progress = progress,
-                                onProgressChanged = { viewModel.seekToFraction(it) },
-                                isPlaying = isPlaying,
-                                currentPositionMs = positionMs,
-                                durationMs = durationMs,
-                                waveSeed = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
-                                showTimeLabels = true,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 2.dp)
-                            )
-                            BottomControlStrip(
-                                viewModel = viewModel,
-                                isSearchVisible = isSearchOpen,
-                                isMapOpen = isMapOpen,
-                                onToggleSearch = {
-                                    isSearchOpen = !isSearchOpen
-                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                },
-                                onToggleMap = {
-                                    isMapOpen = !isMapOpen
-                                }
-                            )
-                        }
+                        // Portrait Seekbar + Controls — isolated composable so that
+                        // 250ms position ticks only recompose this widget, not the song list.
+                        PortraitSeekBarSection(
+                            viewModel = viewModel,
+                            currentSong = currentSong,
+                            isSearchOpen = isSearchOpen,
+                            onToggleSearch = {
+                                isSearchOpen = !isSearchOpen
+                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                            }
+                        )
                     }
-                }
-            } else {
-                // Landscape Android Auto Infotainment Layout (65% Map, 35% Media & Player)
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    if (isMapOpen) {
-                        // Left: 65% Google Maps Split Screen with rounded card shape
-                        val mapCardShape = RoundedCornerShape(22.dp)
-                        Box(
-                            modifier = Modifier
-                                .weight(0.65f)
-                                .fillMaxHeight()
-                                .clip(mapCardShape)
-                                .background(brush = AppGradients.card(isActive = false), shape = mapCardShape)
-                                .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = mapCardShape)
-                        ) {
-                            persistentNavigationMap(Modifier.fillMaxSize())
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        // Right: 35% Width Media Side Panel with rounded card shape
-                        val songPanelShape = RoundedCornerShape(22.dp)
-                        Column(
-                            modifier = Modifier
-                                .weight(0.35f)
-                                .fillMaxHeight()
-                                .clip(songPanelShape)
-                                .background(brush = AppGradients.card(isActive = false), shape = songPanelShape)
-                                .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = songPanelShape)
-                                .padding(10.dp)
-                        ) {
-                            // Header Bar with In-Place Search
-                            LibraryModeHeader(
-                                selectedTab = selectedTab,
-                                selectedFolder = selectedFolder,
-                                searchQuery = searchQuery,
-                                onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                                isSearchOpen = isSearchOpen,
-                                onToggleSearch = {
-                                    isSearchOpen = !isSearchOpen
-                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                },
-                                onTabSelected = { viewModel.selectTab(it) },
-                                onBackFolder = { viewModel.closeFolder() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 6.dp)
-                            )
-
-                            // Media Library Content Grid
-                            MediaLibraryContent(
-                                viewModel = viewModel,
-                                selectedTab = selectedTab,
-                                selectedFolder = selectedFolder,
-                                folders = folders,
-                                songs = songs,
-                                currentSongId = currentSongId,
-                                searchQuery = searchQuery,
-                                gridState = listState,
-                                columns = 1,
-                                onSongLongPress = { songToDelete = it },
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Bottom Automotive Side Player Card
-                            AutomotiveSidePlayerCard(
-                                viewModel = viewModel,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    } else {
-                        // Full-screen Media View (Map closed)
-                        val fullSongShape = RoundedCornerShape(22.dp)
+                } else {
+                    // ─────────────────────────────────────────────────────────────────────────
+                    // Landscape Infotainment Layout — optimised for 1280×720 @ 160 dpi
+                    // 1dp = 1px; full canvas available for automotive touch targets
+                    // Layout budget: 720dp height, 1280dp width
+                    //   Outer pad: h=10dp, v=8dp → inner: 1260dp × 704dp
+                    //   Bottom bar: 80dp
+                    //   Spacer:     8dp
+                    //   Library:    704 - 80 - 8 = 616dp
+                    // ─────────────────────────────────────────────────────────────────────────
+                    val fullSongShape = RoundedCornerShape(18.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                    ) {
                         Column(
                             modifier = Modifier.fillMaxSize()
                         ) {
+                            // ── Library Panel (songs + header) ──
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
@@ -361,9 +241,11 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                     .clip(fullSongShape)
                                     .background(brush = AppGradients.card(isActive = false), shape = fullSongShape)
                                     .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = fullSongShape)
-                                    .padding(12.dp)
+                                    .padding(horizontal = 10.dp, vertical = 8.dp)
                             ) {
-                                if (songs.isNotEmpty()) {
+                                val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedFolder != null) &&
+                                        (songs.size > 5 || listState.canScrollForward || listState.canScrollBackward)
+                                if (canScroll) {
                                     ModernVerticalScrollbar(
                                         gridState = listState,
                                         totalItemCount = songs.size,
@@ -377,11 +259,14 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight()
-                                        .padding(start = if (songs.isNotEmpty()) 6.dp else 0.dp)
+                                        .padding(start = if (canScroll) 6.dp else 0.dp)
                                 ) {
+                                    // Header: 46dp tall — tab chips + search icon
                                     LibraryModeHeader(
                                         selectedTab = selectedTab,
                                         selectedFolder = selectedFolder,
+                                        songCount = songs.size,
+                                        folderCount = folders.size,
                                         searchQuery = searchQuery,
                                         onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
                                         isSearchOpen = isSearchOpen,
@@ -396,6 +281,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                             .padding(bottom = 6.dp)
                                     )
 
+                                    // Song/folder grid — 3 columns fill the 1260dp width
                                     MediaLibraryContent(
                                         viewModel = viewModel,
                                         selectedTab = selectedTab,
@@ -412,39 +298,28 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 }
                             }
 
-                            if (selectedTab != LibraryTab.BLUETOOTH) {
-                                Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                                AndroidAutoBottomBar(
-                                    viewModel = viewModel,
-                                    isMapOpen = false,
-                                    onToggleMap = { isMapOpen = true },
-                                    isSearchVisible = isSearchOpen,
-                                    onToggleSearch = {
-                                        isSearchOpen = !isSearchOpen
-                                        if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                    }
-                                )
-                            }
+                            // ── Automotive Bottom Dock — 80dp tall ──
+                            AndroidAutoBottomBar(
+                                viewModel = viewModel,
+                                isSearchVisible = isSearchOpen,
+                                onToggleSearch = {
+                                    isSearchOpen = !isSearchOpen
+                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                }
+                            )
                         }
                     }
                 }
             }
         }
     }
-
-        // Automotive Floating Heads-Up Notification Banner (Top Overlay)
-        HeadsUpNotificationBanner(
-            notification = activeNotification,
-            onDismiss = { com.aashik.music.notification.AppNotificationManager.dismissActive() },
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
-    }
 }
 
 /**
  * Reusable Media Library Content Component.
- * Dynamically displays Bluetooth Screen, Folders Grid, or Songs Grid with zero code duplication.
+ * Dynamically displays Folders Grid or Songs Grid with zero code duplication.
  */
 @Composable
 fun MediaLibraryContent(
@@ -462,12 +337,6 @@ fun MediaLibraryContent(
 ) {
     Box(modifier = modifier) {
         when {
-            selectedTab == LibraryTab.BLUETOOTH -> {
-                BluetoothScreen(
-                    viewModel = viewModel,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
             selectedTab == LibraryTab.FOLDERS && selectedFolder == null -> {
                 if (folders.isEmpty()) {
                     EmptyFoldersView(modifier = Modifier.fillMaxSize())
@@ -477,8 +346,8 @@ fun MediaLibraryContent(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),   // 8dp on 1280px wide screen
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 8.dp)
                     ) {
                         items(items = folders, key = { it.path }) { folder ->
@@ -504,8 +373,8 @@ fun MediaLibraryContent(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),   // 8dp on 1280px wide screen
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 8.dp)
                     ) {
                         items(items = songs, key = { it.id }) { song ->
@@ -556,6 +425,8 @@ fun DeleteSongDialog(
 fun LibraryModeHeader(
     selectedTab: LibraryTab,
     selectedFolder: String?,
+    songCount: Int = 0,
+    folderCount: Int = 0,
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
     isSearchOpen: Boolean,
@@ -571,7 +442,7 @@ fun LibraryModeHeader(
 
     Box(
         modifier = modifier
-            .height(44.dp)
+            .height(48.dp)  // 48dp = minimum tap target per automotive UX on 160dpi
             .then(
                 if (isSearchOpen) Modifier
                     .clip(headerShape)
@@ -731,7 +602,32 @@ fun LibraryModeHeader(
                         FilterChip(
                             selected = selectedTab == LibraryTab.ALL_SONGS,
                             onClick = { onTabSelected(LibraryTab.ALL_SONGS) },
-                            label = { Text("All Songs", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) },
+                            label = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("All Songs", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                    if (songCount > 0) {
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Surface(
+                                            color = if (selectedTab == LibraryTab.ALL_SONGS)
+                                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f)
+                                            else
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Text(
+                                                text = "$songCount",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (selectedTab == LibraryTab.ALL_SONGS)
+                                                    MaterialTheme.colorScheme.onPrimary
+                                                else
+                                                    MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
@@ -752,31 +648,35 @@ fun LibraryModeHeader(
                         FilterChip(
                             selected = selectedTab == LibraryTab.FOLDERS,
                             onClick = { onTabSelected(LibraryTab.FOLDERS) },
-                            label = { Text("Folders", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) },
+                            label = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Folders", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                    if (folderCount > 0) {
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Surface(
+                                            color = if (selectedTab == LibraryTab.FOLDERS)
+                                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f)
+                                            else
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Text(
+                                                text = "$folderCount",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (selectedTab == LibraryTab.FOLDERS)
+                                                    MaterialTheme.colorScheme.onPrimary
+                                                else
+                                                    MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Rounded.Folder,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
-
-                        FilterChip(
-                            selected = selectedTab == LibraryTab.BLUETOOTH,
-                            onClick = { onTabSelected(LibraryTab.BLUETOOTH) },
-                            label = { Text("Bluetooth", fontWeight = FontWeight.SemiBold, fontSize = 12.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.Bluetooth,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -894,5 +794,53 @@ fun EmptySongsView(
                 }
             }
         }
+    }
+}
+
+/**
+ * Isolated recomposition boundary for the portrait seekbar.
+ *
+ * positionMs / durationMs / progress are high-frequency flows (update every 250 ms).
+ * By reading them inside THIS composable instead of MusicListScreen, only this widget
+ * recomposes on each tick — not the parent screen with its LazyVerticalGrid + header.
+ */
+@Composable
+private fun PortraitSeekBarSection(
+    viewModel: MusicViewModel,
+    currentSong: com.aashik.music.model.Song?,
+    isSearchOpen: Boolean,
+    onToggleSearch: () -> Unit
+) {
+    // These flows update every 250ms — isolated here so parent screen stays stable
+    val positionMs by viewModel.positionFlow.collectAsState()
+    val durationMs by viewModel.durationFlow.collectAsState()
+    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
+    val isPlaying by viewModel.isPlaying.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(brush = AppGradients.card(isActive = false), shape = RoundedCornerShape(18.dp))
+            .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = RoundedCornerShape(18.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        CustomHorizontalSeekBar(
+            progress = progress,
+            onProgressChanged = { viewModel.seekToFraction(it) },
+            isPlaying = isPlaying,
+            currentPositionMs = positionMs,
+            durationMs = durationMs,
+            waveSeed = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
+            showTimeLabels = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 2.dp)
+        )
+        BottomControlStrip(
+            viewModel = viewModel,
+            isSearchVisible = isSearchOpen,
+            onToggleSearch = onToggleSearch
+        )
     }
 }

@@ -25,9 +25,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.aashik.music.model.MusicFolder
 import com.aashik.music.theme.AppGradients
 
@@ -44,7 +48,7 @@ fun FolderCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .height(76.dp) // Matched with SongCard height, tuned for 1280×720 @ 160dpi
             .clip(shape)
             .background(brush = cardGradient, shape = shape)
             .border(border = BorderStroke(1.dp, borderBrush), shape = shape)
@@ -56,19 +60,57 @@ fun FolderCard(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Folder Icon Container
+            val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+            // Warm Amber/Gold Automotive Folder Icon Capsule
+            val iconShape = RoundedCornerShape(10.dp)
+            val folderBg = if (isDark) {
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFF2B2113),
+                        Color(0xFF1B140A)
+                    )
+                )
+            } else {
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFFFFFBEB),
+                        Color(0xFFFEF3C7)
+                    )
+                )
+            }
+
+            val folderBorder = if (isDark) {
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFFFFB300).copy(alpha = 0.5f),
+                        Color(0xFFFF8F00).copy(alpha = 0.2f)
+                    )
+                )
+            } else {
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFFF59E0B).copy(alpha = 0.5f),
+                        Color(0xFFD97706).copy(alpha = 0.25f)
+                    )
+                )
+            }
+
+            val folderIconTint = if (isDark) Color(0xFFFFB300) else Color(0xFFD97706)
+
             Box(
                 modifier = Modifier
                     .size(54.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surface),
+                    .clip(iconShape)
+                    .background(folderBg)
+                    .border(1.dp, folderBorder, iconShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Folder,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(30.dp)
+                    tint = folderIconTint,
+                    modifier = Modifier.size(28.dp)
                 )
             }
 
@@ -80,26 +122,45 @@ fun FolderCard(
             ) {
                 Text(
                     text = folder.name,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.5.sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
-                Text(
-                    text = "${folder.songCount} ${if (folder.songCount == 1) "song" else "songs"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val countPillShape = RoundedCornerShape(6.dp)
+                    val countPillBg = if (isDark) Color(0xFF1E2638) else Color(0xFFE2E8F0)
+                    val countPillText = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
+
+                    Box(
+                        modifier = Modifier
+                            .clip(countPillShape)
+                            .background(countPillBg)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${folder.songCount} ${if (folder.songCount == 1) "TRACK" else "TRACKS"}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = countPillText,
+                            letterSpacing = 0.4.sp
+                        )
+                    }
+                }
             }
 
             Icon(
                 imageVector = Icons.Rounded.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(24.dp)
             )
         }

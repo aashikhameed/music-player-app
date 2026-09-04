@@ -19,7 +19,6 @@ import androidx.media.session.MediaButtonReceiver
 import com.aashik.music.R
 import com.aashik.music.controller.MusicController
 import com.aashik.music.model.Song
-import com.aashik.music.receiver.BluetoothReceiver
 import com.aashik.music.viewmodel.MusicViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,24 +72,6 @@ class NotificationPlaybackService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         MediaButtonReceiver.handleIntent(mediaSession, intent)
-
-        when (intent?.action) {
-            BluetoothReceiver.ACTION_BLUETOOTH_AUTOPLAY -> {
-                viewModel?.let { vm ->
-                    if (!vm.isPlaying.value) {
-                        vm.togglePlayPause()
-                    }
-                }
-            }
-            BluetoothReceiver.ACTION_BLUETOOTH_PAUSE -> {
-                viewModel?.let { vm ->
-                    if (vm.isPlaying.value) {
-                        vm.pause()
-                    }
-                }
-            }
-        }
-
         return START_STICKY
     }
 

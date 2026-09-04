@@ -9,17 +9,26 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.aashik.music.R
+
+val AppFontFamily = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_medium, FontWeight.Medium),
+    Font(R.font.inter_semibold, FontWeight.SemiBold),
+    Font(R.font.inter_bold, FontWeight.Bold)
+)
 
 private val AutoDarkColorScheme = darkColorScheme(
     primary = AutoPrimaryCyan,
-    onPrimary = AutoDarkBg,
+    onPrimary = Color(0xFF001E2B),
     primaryContainer = AutoDarkCardActive,
     onPrimaryContainer = AutoPrimaryCyan,
     secondary = AutoAccentAmber,
-    onSecondary = AutoDarkBg,
+    onSecondary = Color(0xFF1F1200),
     background = AutoDarkBg,
     onBackground = AutoTextPrimary,
     surface = AutoDarkSurface,
@@ -27,62 +36,68 @@ private val AutoDarkColorScheme = darkColorScheme(
     surfaceVariant = AutoDarkCard,
     onSurfaceVariant = AutoTextSecondary,
     outline = AutoDarkBorder,
-    outlineVariant = AutoDarkBorder
+    outlineVariant = Color(0xFF1C2433)
 )
 
 private val AutoLightColorScheme = lightColorScheme(
-    primary = AutoPrimaryCyanDim,
-    onPrimary = AutoLightSurface,
+    primary = AutoPrimaryAzure,
+    onPrimary = Color(0xFFFFFFFF),
     primaryContainer = AutoLightCardActive,
-    onPrimaryContainer = AutoLightTextPrimary,
-    secondary = AutoAccentAmber,
-    onSecondary = AutoLightSurface,
+    onPrimaryContainer = AutoPrimaryAzure,
+    secondary = AutoLightAccentAmber,
+    onSecondary = Color(0xFFFFFFFF),
     background = AutoLightBg,
     onBackground = AutoLightTextPrimary,
     surface = AutoLightSurface,
     onSurface = AutoLightTextPrimary,
-    surfaceVariant = AutoLightCard,
+    surfaceVariant = Color(0xFFF1F5F9),
     onSurfaceVariant = AutoLightTextSecondary,
     outline = AutoLightBorder,
-    outlineVariant = AutoLightBorder
+    outlineVariant = Color(0xFFE2E8F0)
 )
 
 private val AutoTypography = Typography(
     titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = AppFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 20.sp,
-        lineHeight = 26.sp
+        fontSize = 18.sp,
+        lineHeight = 24.sp
     ),
     titleMedium = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = AppFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
-        lineHeight = 22.sp
+        fontSize = 15.sp,
+        lineHeight = 20.sp
     ),
     titleSmall = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = AppFontFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
+        fontSize = 13.5.sp,
         lineHeight = 18.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = AppFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        lineHeight = 17.sp
+        fontSize = 12.5.sp,
+        lineHeight = 16.sp
     ),
     bodySmall = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = AppFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 11.sp,
         lineHeight = 15.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = AppFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 14.sp,
+        fontSize = 13.5.sp,
         lineHeight = 18.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 10.sp,
+        lineHeight = 13.sp
     )
 )
 
@@ -98,15 +113,15 @@ object AppGradients {
             if (isDark) {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFF0C2C3D),
-                        Color(0xFF131F2E)
+                        Color(0xFF0F2D44),
+                        Color(0xFF091C2B)
                     )
                 )
             } else {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFFD6F2F8),
-                        Color(0xFFCCE4EE)
+                        Color(0xFFE3F2FD),
+                        Color(0xFFCFE6FB)
                     )
                 )
             }
@@ -114,15 +129,15 @@ object AppGradients {
             if (isDark) {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFF1E222B),
-                        Color(0xFF15181F)
+                        Color(0xFF161C28),
+                        Color(0xFF10141E)
                     )
                 )
             } else {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFFFAFCFE),
-                        Color(0xFFEDF2F7)
+                        Color(0xFFFFFFFF),
+                        Color(0xFFF7FAFD)
                     )
                 )
             }
@@ -135,15 +150,15 @@ object AppGradients {
         return if (isDark) {
             Brush.verticalGradient(
                 listOf(
-                    Color(0xFF181B24),
-                    Color(0xFF0F1117)
+                    Color(0xFF131824),
+                    Color(0xFF090C12)
                 )
             )
         } else {
             Brush.verticalGradient(
                 listOf(
                     Color(0xFFFFFFFF),
-                    Color(0xFFEFF3F8)
+                    Color(0xFFEFF4F9)
                 )
             )
         }
@@ -156,15 +171,15 @@ object AppGradients {
             if (isDark) {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFF133648),
-                        Color(0xFF182433)
+                        Color(0xFF10334C),
+                        Color(0xFF0C2233)
                     )
                 )
             } else {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFFD8F2F8),
-                        Color(0xFFC7E2EC)
+                        Color(0xFFDBEAFE),
+                        Color(0xFFBFDBFE)
                     )
                 )
             }
@@ -172,15 +187,15 @@ object AppGradients {
             if (isDark) {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFF242835),
-                        Color(0xFF1B1E28)
+                        Color(0xFF19202E),
+                        Color(0xFF131824)
                     )
                 )
             } else {
                 Brush.linearGradient(
                     listOf(
                         Color(0xFFFFFFFF),
-                        Color(0xFFE9EFF6)
+                        Color(0xFFEDF2F7)
                     )
                 )
             }
@@ -189,37 +204,56 @@ object AppGradients {
 
     @Composable
     fun primaryButton(): Brush {
-        return Brush.linearGradient(
-            listOf(
-                AutoPrimaryCyan,
-                Color(0xFF00B0FF)
+        val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        return if (isDark) {
+            Brush.linearGradient(
+                listOf(
+                    Color(0xFF00E5FF),
+                    Color(0xFF0091EA)
+                )
             )
-        )
+        } else {
+            Brush.linearGradient(
+                listOf(
+                    Color(0xFF0066FF),
+                    Color(0xFF0052D4)
+                )
+            )
+        }
     }
 
     @Composable
     fun border(isActive: Boolean = false): Brush {
         val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
         return if (isActive) {
-            Brush.linearGradient(
-                listOf(
-                    AutoPrimaryCyan.copy(alpha = 0.85f),
-                    AutoPrimaryCyan.copy(alpha = 0.35f)
-                )
-            )
-        } else {
             if (isDark) {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFF353B4B).copy(alpha = 0.8f),
-                        Color(0xFF232733).copy(alpha = 0.5f)
+                        Color(0xFF00E5FF).copy(alpha = 0.9f),
+                        Color(0xFF0091EA).copy(alpha = 0.45f)
                     )
                 )
             } else {
                 Brush.linearGradient(
                     listOf(
-                        Color(0xFFD2DCE6),
-                        Color(0xFFE5ECF2)
+                        Color(0xFF0066FF).copy(alpha = 0.9f),
+                        Color(0xFF0052D4).copy(alpha = 0.45f)
+                    )
+                )
+            }
+        } else {
+            if (isDark) {
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFF283448).copy(alpha = 0.85f),
+                        Color(0xFF1B2332).copy(alpha = 0.5f)
+                    )
+                )
+            } else {
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFFD2DEE9),
+                        Color(0xFFE2EAF1)
                     )
                 )
             }

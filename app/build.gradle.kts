@@ -12,9 +12,6 @@ android {
     namespace = "com.aashik.music"
     compileSdk = 36
 
-    val localProps = gradleLocalProperties(rootDir)
-    val mapsApiKey = localProps.getProperty("MAPS_API_KEY") ?: System.getenv("MAPS_API_KEY") ?: ""
-
     defaultConfig {
         applicationId = "com.aashik.music"
         minSdk = 26
@@ -23,7 +20,18 @@ android {
         versionName = "0.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        ndk {
+            // Blaupunkt Santa Rosa 985 is ARM aarch64 only.
+            // Removing x86/x86_64/armeabi-v7a saves ~2 MB of APK install size.
+            abiFilters.addAll(listOf("arm64-v8a"))
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
     
     val signingKeystorePath = System.getenv("KEYSTORE_PATH")
@@ -56,11 +64,12 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // Java 11 target: ART on API 28+ generates faster bytecode with J11
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
 
     buildFeatures {
@@ -107,10 +116,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.media:media:1.6.0")
 
-    // Google Maps & Location
-    implementation(libs.maps.compose)
-    implementation(libs.play.services.maps)
-    implementation(libs.play.services.location)
 
     // Testing
     testImplementation(libs.junit)

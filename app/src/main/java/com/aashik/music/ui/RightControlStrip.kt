@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
-import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
@@ -50,9 +49,7 @@ import java.util.Locale
 fun RightControlStrip(
     viewModel: MusicViewModel,
     isSearchVisible: Boolean,
-    isMapOpen: Boolean,
-    onToggleSearch: () -> Unit,
-    onToggleMap: () -> Unit
+    onToggleSearch: () -> Unit
 ) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isShuffleOn by viewModel.isShuffleOn.collectAsState()
@@ -163,23 +160,11 @@ fun RightControlStrip(
                 }
             }
 
-            // Bottom: Map Toggle, Search & Shuffle
+            // Bottom: Search & Shuffle
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Navigation Map Split Toggle
-                IconButton(
-                    onClick = onToggleMap,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Map,
-                        contentDescription = "Navigation Map",
-                        tint = if (isMapOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
 
                 IconButton(
                     onClick = onToggleSearch,
@@ -210,7 +195,7 @@ fun RightControlStrip(
 }
 
 fun getCurrentTimeWithAmPm(): String {
-    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
     return sdf.format(Calendar.getInstance().time)
 }
 

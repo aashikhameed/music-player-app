@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -74,9 +75,16 @@ fun CustomHorizontalSeekBar(
     durationMs: Long = 0L,
     @Suppress("UNUSED_PARAMETER") waveSeed: Int = 42,
     activeColor: Color = MaterialTheme.colorScheme.primary,
-    inactiveColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+    inactiveColor: Color = Color.Unspecified,
     showTimeLabels: Boolean = true
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val resolvedInactiveColor = if (inactiveColor != Color.Unspecified) {
+        inactiveColor
+    } else {
+        if (isDark) Color(0xFF263245) else Color(0xFFCAD5E2)
+    }
+
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
     var barWidthPx by remember { mutableFloatStateOf(1f) }
@@ -196,7 +204,7 @@ fun CustomHorizontalSeekBar(
                 // 1. Draw Inactive Track (Clean straight line from progressX to end)
                 if (progressX < canvasWidth) {
                     drawLine(
-                        color = inactiveColor,
+                        color = resolvedInactiveColor,
                         start = Offset(progressX, centerY),
                         end = Offset(canvasWidth, centerY),
                         strokeWidth = strokeWidthPx,

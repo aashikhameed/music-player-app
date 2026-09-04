@@ -26,8 +26,7 @@ import java.io.File
 
 enum class LibraryTab {
     ALL_SONGS,
-    FOLDERS,
-    BLUETOOTH
+    FOLDERS
 }
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
@@ -117,7 +116,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _selectedTab.value = tab
         if (tab == LibraryTab.ALL_SONGS) {
             _selectedFolder.value = null
-            applySearchFilter(_searchQuery.value)
+            viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
         } else {
             updateFolderList()
         }
@@ -125,40 +124,48 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openFolder(folderPath: String) {
         _selectedFolder.value = folderPath
-        applySearchFilter(_searchQuery.value)
+        viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
     }
 
     fun closeFolder() {
         _selectedFolder.value = null
-        applySearchFilter(_searchQuery.value)
+        viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
     }
 
-    private fun updateFolderList() {
-        val folderMap = originalSongs.groupBy {
-            try {
-                File(it.path).parent ?: "Root"
-            } catch (_: Exception) {
-                "Unknown"
-            }
-        }
 
-        _folders.value = folderMap.map { (path, songList) ->
-            val folderName = try {
-                File(path).name.ifBlank { path }
-            } catch (_: Exception) {
-                path
+    private fun updateFolderList() {
+        // Run groupBy + sort on Default thread to avoid blocking Compose recompositions
+        viewModelScope.launch(Dispatchers.Default) {
+            val folderMap = originalSongs.groupBy {
+                try {
+                    File(it.path).parent ?: "Root"
+                } catch (_: Exception) {
+                    "Unknown"
+                }
             }
-            MusicFolder(
-                name = folderName,
-                path = path,
-                songCount = songList.size
-            )
-        }.sortedBy { it.name.lowercase() }
+            val result = folderMap.map { (path, songList) ->
+                val folderName = try {
+                    File(path).name.ifBlank { path }
+                } catch (_: Exception) {
+                    path
+                }
+                MusicFolder(
+                    name = folderName,
+                    path = path,
+                    songCount = songList.size
+                )
+            }.sortedBy { it.name.lowercase() }
+            _folders.value = result
+        }
     }
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
-        applySearchFilter(query)
+        // Fix: dispatch filter work to Default (background) so main thread
+        // stays unblocked during search on large libraries (1000+ songs)
+        viewModelScope.launch(Dispatchers.Default) {
+            applySearchFilter(query)
+        }
     }
 
     private fun applySearchFilter(query: String) {

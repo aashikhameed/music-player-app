@@ -20,7 +20,7 @@ A modern, high-performance **Music Player App** built with **Kotlin & Jetpack Co
   - **Integrated Top-Border Seekbar**: Sleek 3dp progress bar seamlessly embedded directly into the top edge of the Now Playing media pill.
   - **Hardware Mute Auto-Pause**: Automatically pauses playback when steering wheel mute button is pressed or vehicle audio stream drops to 0 volume.
   - **Non-Interruptive Shuffle**: Dynamically shuffles the playlist without interrupting or restarting current track playback.
-  - Full steering wheel, head unit media buttons, and Bluetooth AVRCP support.
+  - Full steering wheel and head unit media button support.
 
 - 🎶 **Offline Music Playback & Low-RAM Optimization**
   - Supports `.mp3`, `.m4a`, `.opus`, `.flac`, `.wav`, and `.aac`.
@@ -28,7 +28,7 @@ A modern, high-performance **Music Player App** built with **Kotlin & Jetpack Co
   - Fast local media scanning, folder browsing, and instant library cache.
 
 - 📁 **Library & Folder Filtering**
-  - Tabbed library filters (All Songs, Folders, Bluetooth).
+  - Tabbed library filters (All Songs, Folders).
   - Quick top-right collapsible search.
   - In-place folder hierarchy browsing and long-press delete actions.
 
