@@ -1,15 +1,7 @@
 package com.aashik.music.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,7 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.theme.AppGradients
-import java.util.Locale
+
+private val SongCardShape = RoundedCornerShape(14.dp)
+private val ArtVignetteShape = RoundedCornerShape(10.dp)
+private val BadgeShape = RoundedCornerShape(6.dp)
+private val EqualizerBarShape = RoundedCornerShape(1.dp)
 
 @Composable
 fun LiveAnimatedEqualizer(
@@ -48,80 +45,42 @@ fun LiveAnimatedEqualizer(
     modifier: Modifier = Modifier,
     barColor: Color = MaterialTheme.colorScheme.primary
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "Equalizer")
-
-    val h1 by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = if (isPlaying) 0.95f else 0.35f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bar1"
-    )
-
-    val h2 by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = if (isPlaying) 0.2f else 0.45f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(350, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bar2"
-    )
-
-    val h3 by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = if (isPlaying) 1.0f else 0.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(450, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bar3"
-    )
-
-    val h4 by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = if (isPlaying) 0.15f else 0.4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(380, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bar4"
-    )
+    val h1 = if (isPlaying) 0.40f else 0.35f
+    val h2 = if (isPlaying) 0.95f else 0.45f
+    val h3 = if (isPlaying) 0.60f else 0.30f
+    val h4 = if (isPlaying) 0.85f else 0.40f
 
     Row(
         modifier = modifier.height(18.dp).width(18.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        val barShape = RoundedCornerShape(1.dp)
         Box(
             modifier = Modifier
                 .width(3.dp)
                 .fillMaxHeight(h1)
-                .clip(barShape)
+                .clip(EqualizerBarShape)
                 .background(barColor)
         )
         Box(
             modifier = Modifier
                 .width(3.dp)
                 .fillMaxHeight(h2)
-                .clip(barShape)
+                .clip(EqualizerBarShape)
                 .background(barColor)
         )
         Box(
             modifier = Modifier
                 .width(3.dp)
                 .fillMaxHeight(h3)
-                .clip(barShape)
+                .clip(EqualizerBarShape)
                 .background(barColor)
         )
         Box(
             modifier = Modifier
                 .width(3.dp)
                 .fillMaxHeight(h4)
-                .clip(barShape)
+                .clip(EqualizerBarShape)
                 .background(barColor)
         )
     }
@@ -138,24 +97,24 @@ fun SongCard(
     cardWidth: Dp? = null
 ) {
     val widthModifier = if (cardWidth != null) Modifier.width(cardWidth) else Modifier.fillMaxWidth()
-    val shape = RoundedCornerShape(14.dp)
     val cardGradient = AppGradients.card(isActive = isPlaying)
     val borderBrush = AppGradients.border(isActive = isPlaying)
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-    // Codec extension and duration format
-    val ext = song.path.substringAfterLast('.', "").uppercase().take(4)
-    val formattedDuration = formatSongDuration(song.duration)
+    // Codec extension and duration format — memoized per track
+    val ext = remember(song.path) { song.path.substringAfterLast('.', "").uppercase().take(4) }
+    val formattedDuration = remember(song.duration) { formatSongDuration(song.duration) }
 
     Box(
         modifier = modifier
             .then(widthModifier)
             .height(76.dp) // 1280×720 @ 160dpi: 76dp card = clear automotive touch target
-            .clip(shape)
-            .background(brush = cardGradient, shape = shape)
+            .clip(SongCardShape)
+            .background(brush = cardGradient, shape = SongCardShape)
             .border(
-                border = BorderStroke(if (isPlaying) 1.6.dp else 1.dp, borderBrush),
-                shape = shape
+                width = if (isPlaying) 1.6.dp else 1.dp,
+                brush = borderBrush,
+                shape = SongCardShape
             )
             .combinedClickable(
                 onClick = onClick,
@@ -209,8 +168,7 @@ fun SongCard(
                     ),
                     color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = if (isPlaying) Modifier.basicMarquee() else Modifier
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(3.dp))
@@ -230,7 +188,6 @@ fun SongCard(
                     )
 
                     // Codec & Duration Micro-Pill
-                    val badgeShape = RoundedCornerShape(6.dp)
                     val badgeBg = if (isPlaying) {
                         MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.22f else 0.14f)
                     } else {
@@ -244,7 +201,7 @@ fun SongCard(
 
                     Box(
                         modifier = Modifier
-                            .clip(badgeShape)
+                            .clip(BadgeShape)
                             .background(badgeBg)
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
@@ -267,5 +224,7 @@ private fun formatSongDuration(durationMs: Long): String {
     val totalSeconds = (durationMs / 1000).coerceAtLeast(0)
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+    val m = if (minutes < 10) "0$minutes" else minutes.toString()
+    val s = if (seconds < 10) "0$seconds" else seconds.toString()
+    return "$m:$s"
 }

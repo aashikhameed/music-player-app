@@ -194,14 +194,19 @@ fun RightControlStrip(
     }
 }
 
+private val timeFormatter = SimpleDateFormat("h:mm a", Locale.getDefault())
+
 fun getCurrentTimeWithAmPm(): String {
-    val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
-    return sdf.format(Calendar.getInstance().time)
+    return synchronized(timeFormatter) {
+        timeFormatter.format(Calendar.getInstance().time)
+    }
 }
 
 fun formatTime(millis: Long): String {
     val totalSeconds = (millis / 1000).coerceAtLeast(0)
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+    val m = if (minutes < 10) "0$minutes" else minutes.toString()
+    val s = if (seconds < 10) "0$seconds" else seconds.toString()
+    return "$m:$s"
 }

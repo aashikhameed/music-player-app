@@ -1,12 +1,12 @@
 package com.aashik.music.ui
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -27,10 +27,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.roundToInt
 
 @Composable
 fun ModernVerticalScrollbar(
@@ -57,11 +58,6 @@ fun ModernVerticalScrollbar(
             ((firstVisibleIndex + (firstVisibleOffset / 200f).coerceIn(0f, 1f)) / approximateTotalItems).coerceIn(0f, 1f)
         }
     }
-
-    val animatedFraction by animateFloatAsState(
-        targetValue = scrollFraction,
-        label = "ScrollbarThumbAnimation"
-    )
 
     // Sleek 6dp modern automotive scrollbar track
     Box(
@@ -98,18 +94,19 @@ fun ModernVerticalScrollbar(
                 .background(trackColor)
         )
 
-        // Floating Pill Thumb
+        // Floating Pill Thumb — using layout offset lambda to skip recomposition & layout passes
         val thumbHeightDp = 48.dp
         val thumbHeightPx = with(density) { thumbHeightDp.toPx() }
-        val maxTravelPx = max(0f, trackHeightPx - thumbHeightPx - with(density) { 24.dp.toPx() })
-        val thumbOffsetDp = with(density) {
-            (12.dp.toPx() + (if (isDragging) scrollFraction else animatedFraction) * maxTravelPx).toDp()
-        }
+        val topPaddingPx = with(density) { 12.dp.toPx() }
+        val maxTravelPx = max(0f, trackHeightPx - thumbHeightPx - topPaddingPx * 2f)
 
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = thumbOffsetDp)
+                .offset {
+                    val yOffset = (topPaddingPx + scrollFraction * maxTravelPx).roundToInt()
+                    IntOffset(0, yOffset)
+                }
                 .width(if (isDragging) 8.dp else 5.dp)
                 .height(thumbHeightDp)
                 .clip(RoundedCornerShape(4.dp))

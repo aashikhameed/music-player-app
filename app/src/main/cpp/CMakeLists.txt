@@ -42,6 +42,8 @@ target_link_libraries(audio-player
 # ─── ARM aarch64 Compiler Optimizations ──────────────────────────────────────
 # Target: Blaupunkt Santa Rosa 985 — ARM Cortex-A55 aarch64 @ 2.5 GHz
 # -O3               Full optimization; eliminates bounds checks, inlines loops
+# -flto             Link-Time Optimization across all C++ translation units
+# -fvisibility=hidden Hide non-JNI symbols to allow devirtualization and smaller DSO
 # -march=armv8-a    Enable ARMv8-A ISA (NEON SIMD, crypto extensions)
 # -ftree-vectorize  Auto-vectorise the PCM decode loop using NEON registers
 # -ffast-math       Relax IEEE-754 strictness for the seekbar sine calculation
@@ -50,6 +52,8 @@ target_link_libraries(audio-player
 # ─────────────────────────────────────────────────────────────────────────────
 target_compile_options(audio-player PRIVATE
     -O3
+    -flto
+    -fvisibility=hidden
     -march=armv8-a
     -ftree-vectorize
     -ffast-math
@@ -60,6 +64,7 @@ target_compile_options(audio-player PRIVATE
 )
 
 target_link_options(audio-player PRIVATE
+    -flto
     -Wl,--gc-sections
     -Wl,--strip-all
 )

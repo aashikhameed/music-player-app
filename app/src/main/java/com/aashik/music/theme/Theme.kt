@@ -106,157 +106,67 @@ private val AutoTypography = Typography(
  * Eliminates drop shadows / elevations in favor of modern, high-contrast linear gradients.
  */
 object AppGradients {
+    // Pre-allocated static brushes — Zero heap allocation on recompositions
+    private val DarkCardActive = Brush.linearGradient(listOf(Color(0xFF0F2D44), Color(0xFF091C2B)))
+    private val LightCardActive = Brush.linearGradient(listOf(Color(0xFFE3F2FD), Color(0xFFCFE6FB)))
+    private val DarkCardInactive = Brush.linearGradient(listOf(Color(0xFF161C28), Color(0xFF10141E)))
+    private val LightCardInactive = Brush.linearGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF7FAFD)))
+
+    private val DarkDock = Brush.verticalGradient(listOf(Color(0xFF131824), Color(0xFF090C12)))
+    private val LightDock = Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFEFF4F9)))
+
+    private val DarkCapsuleActive = Brush.linearGradient(listOf(Color(0xFF10334C), Color(0xFF0C2233)))
+    private val LightCapsuleActive = Brush.linearGradient(listOf(Color(0xFFDBEAFE), Color(0xFFBFDBFE)))
+    private val DarkCapsuleInactive = Brush.linearGradient(listOf(Color(0xFF19202E), Color(0xFF131824)))
+    private val LightCapsuleInactive = Brush.linearGradient(listOf(Color(0xFFFFFFFF), Color(0xFFEDF2F7)))
+
+    private val DarkPrimaryBtn = Brush.linearGradient(listOf(Color(0xFF00E5FF), Color(0xFF0091EA)))
+    private val LightPrimaryBtn = Brush.linearGradient(listOf(Color(0xFF0066FF), Color(0xFF0052D4)))
+
+    private val DarkBorderActive = Brush.linearGradient(listOf(Color(0xFF00E5FF).copy(alpha = 0.9f), Color(0xFF0091EA).copy(alpha = 0.45f)))
+    private val LightBorderActive = Brush.linearGradient(listOf(Color(0xFF0066FF).copy(alpha = 0.9f), Color(0xFF0052D4).copy(alpha = 0.45f)))
+    private val DarkBorderInactive = Brush.linearGradient(listOf(Color(0xFF283448).copy(alpha = 0.85f), Color(0xFF1B2332).copy(alpha = 0.5f)))
+    private val LightBorderInactive = Brush.linearGradient(listOf(Color(0xFFD2DEE9), Color(0xFFE2EAF1)))
+
     @Composable
     fun card(isActive: Boolean = false): Brush {
         val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
         return if (isActive) {
-            if (isDark) {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF0F2D44),
-                        Color(0xFF091C2B)
-                    )
-                )
-            } else {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFFE3F2FD),
-                        Color(0xFFCFE6FB)
-                    )
-                )
-            }
+            if (isDark) DarkCardActive else LightCardActive
         } else {
-            if (isDark) {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF161C28),
-                        Color(0xFF10141E)
-                    )
-                )
-            } else {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFFFFFFFF),
-                        Color(0xFFF7FAFD)
-                    )
-                )
-            }
+            if (isDark) DarkCardInactive else LightCardInactive
         }
     }
 
     @Composable
     fun dock(): Brush {
         val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-        return if (isDark) {
-            Brush.verticalGradient(
-                listOf(
-                    Color(0xFF131824),
-                    Color(0xFF090C12)
-                )
-            )
-        } else {
-            Brush.verticalGradient(
-                listOf(
-                    Color(0xFFFFFFFF),
-                    Color(0xFFEFF4F9)
-                )
-            )
-        }
+        return if (isDark) DarkDock else LightDock
     }
 
     @Composable
     fun capsule(isActive: Boolean = false): Brush {
         val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
         return if (isActive) {
-            if (isDark) {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF10334C),
-                        Color(0xFF0C2233)
-                    )
-                )
-            } else {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFFDBEAFE),
-                        Color(0xFFBFDBFE)
-                    )
-                )
-            }
+            if (isDark) DarkCapsuleActive else LightCapsuleActive
         } else {
-            if (isDark) {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF19202E),
-                        Color(0xFF131824)
-                    )
-                )
-            } else {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFFFFFFFF),
-                        Color(0xFFEDF2F7)
-                    )
-                )
-            }
+            if (isDark) DarkCapsuleInactive else LightCapsuleInactive
         }
     }
 
     @Composable
     fun primaryButton(): Brush {
         val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-        return if (isDark) {
-            Brush.linearGradient(
-                listOf(
-                    Color(0xFF00E5FF),
-                    Color(0xFF0091EA)
-                )
-            )
-        } else {
-            Brush.linearGradient(
-                listOf(
-                    Color(0xFF0066FF),
-                    Color(0xFF0052D4)
-                )
-            )
-        }
+        return if (isDark) DarkPrimaryBtn else LightPrimaryBtn
     }
 
     @Composable
     fun border(isActive: Boolean = false): Brush {
         val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
         return if (isActive) {
-            if (isDark) {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF00E5FF).copy(alpha = 0.9f),
-                        Color(0xFF0091EA).copy(alpha = 0.45f)
-                    )
-                )
-            } else {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF0066FF).copy(alpha = 0.9f),
-                        Color(0xFF0052D4).copy(alpha = 0.45f)
-                    )
-                )
-            }
+            if (isDark) DarkBorderActive else LightBorderActive
         } else {
-            if (isDark) {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF283448).copy(alpha = 0.85f),
-                        Color(0xFF1B2332).copy(alpha = 0.5f)
-                    )
-                )
-            } else {
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFFD2DEE9),
-                        Color(0xFFE2EAF1)
-                    )
-                )
-            }
+            if (isDark) DarkBorderInactive else LightBorderInactive
         }
     }
 }

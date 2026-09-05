@@ -2,11 +2,6 @@ package com.aashik.music.ui
 
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,6 +66,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.withStyle
 import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
 import com.aashik.music.viewmodel.LibraryTab
@@ -123,7 +127,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     LaunchedEffect(scrollToIndex) {
         scrollToIndex?.let { index ->
             if (index in songs.indices) {
-                listState.animateScrollToItem(index)
+                listState.scrollToItem(index)
             }
             viewModel.clearScrollToIndex()
         }
@@ -261,8 +265,9 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                         .fillMaxHeight()
                                         .padding(start = if (canScroll) 6.dp else 0.dp)
                                 ) {
-                                    // Header: 46dp tall — tab chips + search icon
+                                    // Header: 46dp tall — tab chips + search icon + time/status
                                     LibraryModeHeader(
+                                        viewModel = viewModel,
                                         selectedTab = selectedTab,
                                         selectedFolder = selectedFolder,
                                         songCount = songs.size,
@@ -350,10 +355,15 @@ fun MediaLibraryContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 8.dp)
                     ) {
-                        items(items = folders, key = { it.path }) { folder ->
+                        items(
+                            items = folders,
+                            key = { it.path },
+                            contentType = { "FolderCard" }
+                        ) { folder ->
+                            val onFolderClick = remember(folder.path) { { viewModel.openFolder(folder.path) } }
                             FolderCard(
                                 folder = folder,
-                                onClick = { viewModel.openFolder(folder.path) }
+                                onClick = onFolderClick
                             )
                         }
                     }
@@ -377,13 +387,19 @@ fun MediaLibraryContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 8.dp)
                     ) {
-                        items(items = songs, key = { it.id }) { song ->
+                        items(
+                            items = songs,
+                            key = { it.id },
+                            contentType = { "SongCard" }
+                        ) { song ->
                             val isPlaying = song.id == currentSongId
+                            val onCardClick = remember(song.id) { { viewModel.play(song) } }
+                            val onCardLongPress = remember(song.id) { { onSongLongPress(song) } }
                             SongCard(
                                 song = song,
                                 isPlaying = isPlaying,
-                                onClick = { viewModel.play(song) },
-                                onLongPress = { onSongLongPress(song) }
+                                onClick = onCardClick,
+                                onLongPress = onCardLongPress
                             )
                         }
                     }
@@ -423,6 +439,7 @@ fun DeleteSongDialog(
 
 @Composable
 fun LibraryModeHeader(
+    viewModel: MusicViewModel? = null,
     selectedTab: LibraryTab,
     selectedFolder: String?,
     songCount: Int = 0,
@@ -441,82 +458,93 @@ fun LibraryModeHeader(
     val activeBorder = AppGradients.border(isActive = true)
 
     Box(
-        modifier = modifier
-            .height(48.dp)  // 48dp = minimum tap target per automotive UX on 160dpi
-            .then(
-                if (isSearchOpen) Modifier
-                    .clip(headerShape)
-                    .background(brush = capsuleGrad, shape = headerShape)
-                    .border(border = BorderStroke(1.dp, activeBorder), shape = headerShape)
-                else Modifier
-            )
+        modifier = modifier.height(48.dp)
     ) {
         if (isSearchOpen) {
-            // Inline Search Text Field (opens directly in the header at the same place)
+            // Inline Search Text Field with Top-Right Status Clock
             Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp),
+                modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Search,
-                    contentDescription = "Search",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                BasicTextField(
-                    value = searchQuery,
-                    onSearchQueryChanged,
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    decorationBox = { innerTextField ->
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = "Search songs, artists, folders...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
-                        }
-                        innerTextField()
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = { onSearchQueryChanged("") },
-                        modifier = Modifier.size(32.dp)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(headerShape)
+                        .background(brush = capsuleGrad, shape = headerShape)
+                        .border(border = BorderStroke(1.dp, activeBorder), shape = headerShape)
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Clear,
-                            contentDescription = "Clear search",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
                         )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChanged,
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            decorationBox = { innerTextField ->
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Search songs, artists, folders...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                }
+                                innerTextField()
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { onSearchQueryChanged("") },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Clear,
+                                    contentDescription = "Clear search",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                onToggleSearch()
+                                onSearchQueryChanged("")
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Close search",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
-                IconButton(
-                    onClick = {
-                        onToggleSearch()
-                        onSearchQueryChanged("")
-                    },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Close search",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                if (viewModel != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TopRightStatusClock(viewModel = viewModel)
                 }
             }
         } else {
@@ -693,19 +721,125 @@ fun LibraryModeHeader(
                     }
                 }
 
-                // Top Right: Search Button (opens search text in place)
-                IconButton(
-                    onClick = onToggleSearch,
-                    modifier = Modifier.size(36.dp)
+                // Top Right Action Cluster: Search + Status Clock
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconButton(
+                        onClick = onToggleSearch,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    if (viewModel != null) {
+                        TopRightStatusClock(viewModel = viewModel)
+                    }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Top-Right Infotainment Status Cluster (Theme Toggle + 12-Hour Clock with Live State Dot).
+ * Isolated composable so 1-second clock updates only recompose this small widget.
+ */
+@Composable
+fun TopRightStatusClock(
+    viewModel: MusicViewModel,
+    modifier: Modifier = Modifier
+) {
+    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
+
+    var currentTime by remember { mutableStateOf(getCurrentTimeWithAmPm()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = getCurrentTimeWithAmPm()
+            kotlinx.coroutines.delay(20000)
+        }
+    }
+
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val capsuleGrad = AppGradients.capsule(isActive = false)
+    val borderBrush = AppGradients.border(isActive = false)
+    val capsuleShape = RoundedCornerShape(12.dp)
+
+    Row(
+        modifier = modifier
+            .height(38.dp)
+            .clip(capsuleShape)
+            .background(brush = capsuleGrad, shape = capsuleShape)
+            .border(BorderStroke(0.8.dp, borderBrush), capsuleShape)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // Theme Toggle: Sun / Moon
+        IconButton(
+            onClick = { viewModel.toggleTheme() },
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = if (isDarkTheme) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                contentDescription = "Toggle theme",
+                tint = if (isDarkTheme) Color(0xFFFFD54F) else Color(0xFF7986CB),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        VerticalDivider(
+            modifier = Modifier.height(18.dp).width(0.6.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        )
+
+        // 12-hour clock
+        val timeParts = currentTime.split(" ")
+        val timeDigits = timeParts.getOrElse(0) { currentTime }
+        val amPmLabel = timeParts.getOrElse(1) { "" }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isPlaying) Color(0xFF00E676)
+                        else if (isDark) Color(0xFF455A64)
+                        else Color(0xFFB0BEC5)
+                    )
+            )
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(
+                        SpanStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.5.sp,
+                            letterSpacing = 0.3.sp
+                        )
+                    ) { append(timeDigits) }
+                    append("\u202F")
+                    withStyle(
+                        SpanStyle(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 9.sp,
+                            baselineShift = BaselineShift.Superscript,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) { append(amPmLabel) }
+                },
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

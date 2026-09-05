@@ -1,19 +1,12 @@
 package com.aashik.music.ui
 
 import android.graphics.Bitmap
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +46,10 @@ private val AutomotiveGradients = listOf(
     listOf(Color(0xFF7F00FF), Color(0xFFE100FF))  // Electric Violet
 )
 
+private val AutomotiveGradientBrushes = AutomotiveGradients.map { colors ->
+    Brush.linearGradient(colors = colors, start = Offset.Zero, end = Offset.Infinite)
+}
+
 @Composable
 fun AlbumArtImage(
     path: String,
@@ -64,27 +61,11 @@ fun AlbumArtImage(
     val shape = remember(borderRadius) { RoundedCornerShape(borderRadius) }
     val context = LocalContext.current
 
-    // Pulsing halo animation when track is active
-    val infiniteTransition = rememberInfiniteTransition(label = "ArtGlow")
-    val pulseAlpha by if (isPlaying) {
-        infiniteTransition.animateFloat(
-            initialValue = 0.4f,
-            targetValue = 0.95f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1200, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "pulse"
-        )
-    } else {
-        remember { mutableStateOf(0f) }
-    }
-
     var bitmap by remember(path) {
         mutableStateOf<Bitmap?>(AlbumArtCache.get(path))
     }
 
-    if (bitmap == null) {
+    if (bitmap == null && path.isNotEmpty()) {
         LaunchedEffect(path) {
             bitmap = AlbumArtCache.getOrLoad(context, path) { loadAlbumArt(it) }
         }
@@ -94,12 +75,7 @@ fun AlbumArtImage(
     val glowModifier = if (isPlaying) {
         Modifier.border(
             width = 1.5.dp,
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    primaryColor.copy(alpha = pulseAlpha),
-                    primaryColor.copy(alpha = pulseAlpha * 0.5f)
-                )
-            ),
+            color = primaryColor.copy(alpha = 0.85f),
             shape = shape
         )
     } else {
@@ -123,19 +99,13 @@ fun AlbumArtImage(
             )
         } else {
             // High-End Generative Automotive Vinyl Record Art
-            val gradientIndex = (path.hashCode().absoluteValue) % AutomotiveGradients.size
-            val gradientColors = AutomotiveGradients[gradientIndex]
+            val gradientIndex = (path.hashCode().absoluteValue) % AutomotiveGradientBrushes.size
+            val brush = AutomotiveGradientBrushes[gradientIndex]
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            colors = gradientColors,
-                            start = Offset.Zero,
-                            end = Offset.Infinite
-                        )
-                    ),
+                    .background(brush),
                 contentAlignment = Alignment.Center
             ) {
                 // Vinyl Groove Rings

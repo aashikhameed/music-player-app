@@ -28,7 +28,8 @@ object MusicController {
     }
 
     fun next(songs: List<Song>) {
-        val index = songs.indexOf(currentSong)
+        val curId = currentSong?.id ?: return
+        val index = songs.indexOfFirst { it.id == curId }
         if (index != -1 && index < songs.lastIndex) {
             currentSong = songs[index + 1]
             isPlaying = true
@@ -37,7 +38,8 @@ object MusicController {
     }
 
     fun previous(songs: List<Song>) {
-        val index = songs.indexOf(currentSong)
+        val curId = currentSong?.id ?: return
+        val index = songs.indexOfFirst { it.id == curId }
         if (index > 0) {
             currentSong = songs[index - 1]
             isPlaying = true

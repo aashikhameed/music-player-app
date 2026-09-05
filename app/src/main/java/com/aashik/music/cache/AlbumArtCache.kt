@@ -14,6 +14,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 
 object AlbumArtCache {
 
@@ -26,6 +27,9 @@ object AlbumArtCache {
 
     // Tracks known files without album art to skip redundant disk I/O & retriever calls
     private val noArtPaths = ConcurrentHashMap.newKeySet<String>()
+
+    // Throttle disk cache size checks to avoid flash I/O bottlenecks during scrolling
+    private val diskWriteCount = AtomicInteger(0)
 
     private fun calculateMaxSize(): Int {
         val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
@@ -53,7 +57,9 @@ object AlbumArtCache {
                     bitmap.compress(Bitmap.CompressFormat.WEBP, 75, out)
                 }
             }
-            enforceDiskLimit(file.parentFile)
+            if (diskWriteCount.incrementAndGet() % 50 == 0) {
+                enforceDiskLimit(file.parentFile)
+            }
         } catch (_: Exception) {}
     }
 

@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <chrono>
+#include <vector>
 
 #define LOG_TAG "NativeAudioPlayer"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -96,6 +97,7 @@ ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPosi
     // Start decoder background thread
     mDecoderRunning.store(true, std::memory_order_release);
     mDecoderThread = std::thread(&AudioPlayer::decoderThreadLoop, this);
+    pthread_setname_np(mDecoderThread.native_handle(), "AudioDecoder");
 
     // Wait until at least 8KB (2 OpenSL ES queue buffers) of PCM is pre-buffered or EOF reached
     int waitCount = 0;

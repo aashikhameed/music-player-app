@@ -62,3 +62,6 @@ app/build/
 # Android NDK
 ndkBuild/
 local.properties
+compile_commands.json
+.clangd
+

@@ -20,7 +20,9 @@ std::unique_ptr<AudioDecoder> AudioDecoder::create(const std::string& filePath) 
     return std::make_unique<MediaCodecDecoder>();
 }
 
-MediaCodecDecoder::MediaCodecDecoder() = default;
+MediaCodecDecoder::MediaCodecDecoder() {
+    mPendingPcm.reserve(16 * 1024);
+}
 
 MediaCodecDecoder::~MediaCodecDecoder() {
     close();

@@ -1,13 +1,5 @@
 package com.aashik.music.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -25,25 +17,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import kotlin.math.PI
-import kotlin.math.sin
 
 /**
- * Vertical Android 13+ Style Squiggly Wave Seekbar.
+ * Ultra-fast, zero-overhead Vertical Seekbar for Automotive displays.
+ * Clean straight line track without sin() canvas loops or infinite redraws.
  */
 @Composable
 fun CustomVerticalSeekBar(
     progress: Float,
     onProgressChanged: (Float) -> Unit,
     modifier: Modifier = Modifier,
-    isPlaying: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") isPlaying: Boolean = false,
     activeColor: Color = MaterialTheme.colorScheme.primary,
     inactiveColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
 ) {
@@ -52,31 +40,6 @@ fun CustomVerticalSeekBar(
     var dragProgress by remember { mutableFloatStateOf(0f) }
 
     val displayProgress = if (isDragging) dragProgress else progress.coerceIn(0f, 1f)
-
-    val infiniteTransition = rememberInfiniteTransition(label = "VerticalWaveSeekbar")
-    val wavePhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "VerticalWavePhase"
-    )
-
-    val waveAmplitudeFactor by animateFloatAsState(
-        targetValue = if (isPlaying) 1.0f else 0.0f,
-        animationSpec = tween(durationMillis = 400),
-        label = "VerticalWaveAmplitude"
-    )
-
-    val thumbRadius by animateDpAsState(
-        targetValue = if (isDragging) 7.dp else 5.dp,
-        animationSpec = tween(120),
-        label = "VerticalThumbRadius"
-    )
-
-    val wavePath = remember { Path() }
 
     Box(
         modifier = modifier
@@ -111,9 +74,8 @@ fun CustomVerticalSeekBar(
         contentAlignment = Alignment.Center
     ) {
         val density = LocalDensity.current
-        val strokeWidthPx = with(density) { 3.5.dp.toPx() }
-        val baseAmplitudePx = with(density) { 3.dp.toPx() }
-        val wavelengthPx = with(density) { 20.dp.toPx() }
+        val strokeWidthPx = with(density) { 4.dp.toPx() }
+        val thumbRadiusPx = with(density) { if (isDragging) 7.dp.toPx() else 5.dp.toPx() }
 
         Canvas(modifier = Modifier.matchParentSize()) {
             barHeightPx = size.height
@@ -124,7 +86,6 @@ fun CustomVerticalSeekBar(
             if (canvasHeight <= 0f) return@Canvas
 
             val progressY = (canvasHeight * (1f - displayProgress)).coerceIn(0f, canvasHeight)
-            val currentAmplitude = baseAmplitudePx * waveAmplitudeFactor
 
             // Inactive top track
             if (progressY > 0f) {
@@ -137,51 +98,26 @@ fun CustomVerticalSeekBar(
                 )
             }
 
-            // Active bottom squiggly track
+            // Active bottom straight track (zero CPU math)
             if (progressY < canvasHeight) {
-                wavePath.reset()
-                wavePath.moveTo(centerX, canvasHeight)
-
-                if (currentAmplitude <= 0.2f || (canvasHeight - progressY) < 10f) {
-                    wavePath.lineTo(centerX, progressY)
-                } else {
-                    val stepPx = 3f
-                    var y = canvasHeight
-                    while (y >= progressY) {
-                        val distFromBottom = canvasHeight - y
-                        val distFromThumb = y - progressY
-
-                        val startTaper = (distFromBottom / (wavelengthPx * 0.75f)).coerceIn(0f, 1f)
-                        val endTaper = (distFromThumb / (wavelengthPx * 0.75f)).coerceIn(0f, 1f)
-                        val taper = (startTaper * endTaper).coerceIn(0f, 1f)
-
-                        val waveX = centerX + sin((distFromBottom / wavelengthPx) * 2 * PI.toFloat() - wavePhase) * currentAmplitude * taper
-                        wavePath.lineTo(waveX, y)
-                        y -= stepPx
-                    }
-                    wavePath.lineTo(centerX, progressY)
-                }
-
-                drawPath(
-                    path = wavePath,
+                drawLine(
                     color = activeColor,
-                    style = Stroke(
-                        width = strokeWidthPx,
-                        cap = StrokeCap.Round,
-                        join = StrokeJoin.Round
-                    )
+                    start = Offset(centerX, canvasHeight),
+                    end = Offset(centerX, progressY),
+                    strokeWidth = strokeWidthPx,
+                    cap = StrokeCap.Round
                 )
             }
 
             // Thumb
             drawCircle(
                 color = activeColor,
-                radius = thumbRadius.toPx(),
+                radius = thumbRadiusPx,
                 center = Offset(centerX, progressY)
             )
             drawCircle(
                 color = Color.White,
-                radius = (thumbRadius.toPx() * 0.5f).coerceAtLeast(1.5f),
+                radius = (thumbRadiusPx * 0.5f).coerceAtLeast(1.5f),
                 center = Offset(centerX, progressY)
             )
         }

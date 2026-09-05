@@ -16,12 +16,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private val AlphabetChars = ('A'..'Z').toList()
+private val AlphabetStrings = ('A'..'Z').map { it.toString() }
+
 @Composable
 fun AlphaScrollBar(
     modifier: Modifier = Modifier,
     onLetterClick: (Char) -> Unit
 ) {
-    val letters = ('A'..'Z').toList()
     val scrollState = rememberScrollState()
 
     Column(
@@ -30,7 +32,8 @@ fun AlphaScrollBar(
             .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        letters.forEach { letter ->
+        AlphabetChars.forEachIndexed { index, letter ->
+            val letterStr = AlphabetStrings[index]
             Box(
                 modifier = Modifier
                     .size(26.dp)
@@ -38,7 +41,7 @@ fun AlphaScrollBar(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = letter.toString(),
+                    text = letterStr,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary

@@ -137,45 +137,38 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         // Run groupBy + sort on Default thread to avoid blocking Compose recompositions
         viewModelScope.launch(Dispatchers.Default) {
             val folderMap = originalSongs.groupBy {
-                try {
-                    File(it.path).parent ?: "Root"
-                } catch (_: Exception) {
-                    "Unknown"
-                }
+                val p = it.path
+                val lastSlash = p.lastIndexOf('/')
+                if (lastSlash > 0) p.substring(0, lastSlash) else "Root"
             }
             val result = folderMap.map { (path, songList) ->
-                val folderName = try {
-                    File(path).name.ifBlank { path }
-                } catch (_: Exception) {
-                    path
-                }
+                val folderName = path.substringAfterLast('/', path)
                 MusicFolder(
                     name = folderName,
                     path = path,
                     songCount = songList.size
                 )
-            }.sortedBy { it.name.lowercase() }
+            }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
             _folders.value = result
         }
     }
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
-        // Fix: dispatch filter work to Default (background) so main thread
-        // stays unblocked during search on large libraries (1000+ songs)
+        // Dispatch filter work to Default (background) so main thread
+        // stays completely unblocked during search
         viewModelScope.launch(Dispatchers.Default) {
             applySearchFilter(query)
         }
     }
 
     private fun applySearchFilter(query: String) {
-        var baseList = if (_selectedFolder.value != null) {
+        val selectedFolder = _selectedFolder.value
+        val baseList = if (selectedFolder != null) {
             originalSongs.filter {
-                try {
-                    File(it.path).parent == _selectedFolder.value
-                } catch (_: Exception) {
-                    false
-                }
+                val p = it.path
+                val lastSlash = p.lastIndexOf('/')
+                lastSlash > 0 && p.substring(0, lastSlash) == selectedFolder
             }
         } else {
             originalSongs
@@ -184,9 +177,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         if (query.isBlank()) {
             _songs.value = baseList
         } else {
-            val q = query.trim().lowercase()
+            val q = query.trim()
             _songs.value = baseList.filter {
-                it.title.lowercase().contains(q) || it.artist.lowercase().contains(q) || it.album.lowercase().contains(q)
+                it.title.contains(q, ignoreCase = true) ||
+                it.artist.contains(q, ignoreCase = true) ||
+                it.album.contains(q, ignoreCase = true)
             }
         }
     }
@@ -249,7 +244,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun playNextSong() {
         val list = if (_isShuffleOn.value) shuffledSongs else _songs.value.ifEmpty { originalSongs }
         if (list.isEmpty()) return
-        val index = list.indexOf(_currentSong.value)
+        val curId = _currentSong.value?.id
+        val index = if (curId != null) list.indexOfFirst { it.id == curId } else -1
         val nextSong = if (index in 0 until list.lastIndex) {
             list[index + 1]
         } else {
@@ -263,7 +259,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun playPreviousSong() {
         val list = if (_isShuffleOn.value) shuffledSongs else _songs.value.ifEmpty { originalSongs }
         if (list.isEmpty()) return
-        val index = list.indexOf(_currentSong.value)
+        val curId = _currentSong.value?.id
+        val index = if (curId != null) list.indexOfFirst { it.id == curId } else -1
         val prevSong = if (index > 0) {
             list[index - 1]
         } else {
