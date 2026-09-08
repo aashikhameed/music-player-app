@@ -27,6 +27,7 @@ public:
     bool pause();
     bool stop();
     void flush();
+    void primeQueue();
 
     void setVolume(float linearVolume); // 0.0f to 1.0f
     float getVolume() const { return mVolume; }

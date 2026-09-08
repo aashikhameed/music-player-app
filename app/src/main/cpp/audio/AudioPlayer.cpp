@@ -227,6 +227,8 @@ void AudioPlayer::decoderThreadLoop() {
 
             if (mDecoder && mDecoder->seekTo(targetPos)) {
                 mCurrentPositionMs.store(targetPos, std::memory_order_release);
+                lastReportedPos = targetPos;
+                lastPosReportTime = std::chrono::steady_clock::now();
                 std::lock_guard<std::mutex> lock(mListenerMutex);
                 if (mListener.onPositionChanged) {
                     mListener.onPositionChanged(targetPos);
@@ -263,6 +265,11 @@ void AudioPlayer::decoderThreadLoop() {
         if (bytesDecoded > 0) {
             mRingBuffer->write(decodeBuf.data(), static_cast<size_t>(bytesDecoded));
             mCurrentPositionMs.store(framePosMs, std::memory_order_release);
+
+            // Re-prime hardware queue if it drained during a seek or starvation
+            if (mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING) {
+                mOutputPlayer->primeQueue();
+            }
 
             // Throttle position reports to ~250ms
             auto now = std::chrono::steady_clock::now();

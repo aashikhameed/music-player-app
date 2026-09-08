@@ -225,21 +225,7 @@ bool OpenSLESPlayer::play() {
     if (!mPlayerPlay || !mBufferQueue) return false;
 
     mIsPlaying.store(true, std::memory_order_release);
-
-    // Enqueue initial buffers to start the hardware callback loop
-    for (size_t i = 0; i < NUM_QUEUE_BUFFERS; ++i) {
-        uint8_t* currentBuffer = mQueueBuffers[mCurrentBufferIndex];
-        mCurrentBufferIndex = (mCurrentBufferIndex + 1) % NUM_QUEUE_BUFFERS;
-
-        size_t bytesRead = 0;
-        if (mRingBuffer) {
-            bytesRead = mRingBuffer->read(currentBuffer, QUEUE_BUFFER_SIZE);
-        }
-        if (bytesRead < QUEUE_BUFFER_SIZE) {
-            std::memset(currentBuffer + bytesRead, 0, QUEUE_BUFFER_SIZE - bytesRead);
-        }
-        (*mBufferQueue)->Enqueue(mBufferQueue, currentBuffer, QUEUE_BUFFER_SIZE);
-    }
+    primeQueue();
 
     SLresult result = (*mPlayerPlay)->SetPlayState(mPlayerPlay, SL_PLAYSTATE_PLAYING);
     return result == SL_RESULT_SUCCESS;
@@ -266,6 +252,34 @@ bool OpenSLESPlayer::stop() {
 void OpenSLESPlayer::flush() {
     if (mBufferQueue) {
         (*mBufferQueue)->Clear(mBufferQueue);
+    }
+    mCurrentBufferIndex = 0;
+}
+
+void OpenSLESPlayer::primeQueue() {
+    if (!mPlayerPlay || !mBufferQueue) return;
+    if (!mIsPlaying.load(std::memory_order_relaxed)) return;
+
+    SLAndroidSimpleBufferQueueState state{};
+    SLresult res = (*mBufferQueue)->GetState(mBufferQueue, &state);
+    if (res != SL_RESULT_SUCCESS) return;
+
+    // Only enqueue if the hardware buffer queue has run dry or was flushed
+    if (state.count == 0) {
+        for (size_t i = 0; i < NUM_QUEUE_BUFFERS; ++i) {
+            uint8_t* currentBuffer = mQueueBuffers[mCurrentBufferIndex];
+            mCurrentBufferIndex = (mCurrentBufferIndex + 1) % NUM_QUEUE_BUFFERS;
+
+            size_t bytesRead = 0;
+            if (mRingBuffer) {
+                bytesRead = mRingBuffer->read(currentBuffer, QUEUE_BUFFER_SIZE);
+            }
+            if (bytesRead < QUEUE_BUFFER_SIZE) {
+                std::memset(currentBuffer + bytesRead, 0, QUEUE_BUFFER_SIZE - bytesRead);
+            }
+            (*mBufferQueue)->Enqueue(mBufferQueue, currentBuffer, QUEUE_BUFFER_SIZE);
+        }
+        (*mPlayerPlay)->SetPlayState(mPlayerPlay, SL_PLAYSTATE_PLAYING);
     }
 }
 

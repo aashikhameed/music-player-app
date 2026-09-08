@@ -336,8 +336,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun seekToFraction(fraction: Float) {
         viewModelScope.launch {
-            val duration = musicPlayer.durationFlow.replayCache.firstOrNull() ?: return@launch
-            val newPosition = (duration * fraction).toLong()
+            val duration = musicPlayer.durationFlow.value.takeIf { it > 0 }
+                ?: currentSong.value?.duration?.takeIf { it > 0 }
+                ?: return@launch
+            val clampedFraction = fraction.coerceIn(0f, 1f)
+            val newPosition = (duration * clampedFraction).toLong()
             musicPlayer.seekTo(newPosition)
         }
     }
@@ -357,22 +360,34 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 // 1. Delete from Room database
                 songDao.delete(song)
 
-                // 2. Remove from in-memory playlists
+                // 2. Identify active playlist and position before removal
+                val isCurrentSong = _currentSong.value?.id == song.id
+                val activeList = if (_isShuffleOn.value) shuffledSongs else (_songs.value.ifEmpty { originalSongs })
+                val deletedIndex = if (isCurrentSong) activeList.indexOfFirst { it.id == song.id } else -1
+
+                // 3. Remove from in-memory playlists
                 originalSongs = originalSongs.filter { it.id != song.id }
                 shuffledSongs.removeAll { it.id == song.id }
 
-                // 3. Handle active playback if deleted track is current
-                if (_currentSong.value?.id == song.id) {
-                    val nextSong = if (_isShuffleOn.value) shuffledSongs.firstOrNull() else originalSongs.firstOrNull()
-                    if (nextSong != null) {
-                        withContext(Dispatchers.Main) {
+                // 4. Handle active playback if deleted track was currently playing
+                if (isCurrentSong) {
+                    val remainingList = if (_isShuffleOn.value) shuffledSongs else (_songs.value.ifEmpty { originalSongs })
+                    val nextSong = when {
+                        remainingList.isEmpty() -> null
+                        deletedIndex in remainingList.indices -> remainingList[deletedIndex] // Advance to track filling this slot
+                        deletedIndex >= remainingList.size -> remainingList.last() // Wrap to new last track if deleted was last
+                        else -> remainingList.first()
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        if (nextSong != null) {
                             play(nextSong)
-                        }
-                    } else {
-                        withContext(Dispatchers.Main) {
+                            MusicController.play(nextSong)
+                        } else {
                             musicPlayer.stop()
                             _currentSong.value = null
                             _isPlaying.value = false
+                            MusicController.pause()
                         }
                     }
                 }

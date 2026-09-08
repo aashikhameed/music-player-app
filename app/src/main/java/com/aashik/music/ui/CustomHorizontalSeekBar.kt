@@ -2,8 +2,8 @@ package com.aashik.music.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -117,29 +117,32 @@ fun CustomHorizontalSeekBar(
                 .fillMaxWidth()
                 .height(24.dp)
                 .pointerInput(Unit) {
-                    detectTapGestures { offset ->
-                        val newProgress = (offset.x / barWidthPx).coerceIn(0f, 1f)
-                        onProgressChanged(newProgress)
-                    }
-                }
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { offset ->
-                            isDragging = true
-                            dragProgress = (offset.x / barWidthPx).coerceIn(0f, 1f)
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                            onProgressChanged(dragProgress)
-                        },
-                        onDragCancel = {
-                            isDragging = false
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val downX = down.position.x
+                        if (barWidthPx > 0f) {
+                            dragProgress = (downX / barWidthPx).coerceIn(0f, 1f)
                         }
-                    ) { change, _ ->
-                        change.consume()
-                        val newProgress = (change.position.x / barWidthPx).coerceIn(0f, 1f)
-                        dragProgress = newProgress
-                        onProgressChanged(newProgress)
+                        isDragging = true
+
+                        val pointerId = down.id
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+
+                            if (!change.pressed) {
+                                change.consume()
+                                break
+                            }
+
+                            change.consume()
+                            if (barWidthPx > 0f) {
+                                dragProgress = (change.position.x / barWidthPx).coerceIn(0f, 1f)
+                            }
+                        }
+
+                        isDragging = false
+                        onProgressChanged(dragProgress)
                     }
                 },
             contentAlignment = Alignment.CenterStart
