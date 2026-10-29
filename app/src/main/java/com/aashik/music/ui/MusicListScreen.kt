@@ -42,11 +42,16 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.MusicOff
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.ViewColumn
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -89,11 +94,13 @@ import com.aashik.music.utils.formatTime
 import com.aashik.music.viewmodel.LibraryTab
 import com.aashik.music.viewmodel.MusicViewModel
 import java.io.File
+import kotlinx.coroutines.isActive
 
 private val PortraitSongCardShape = RoundedCornerShape(20.dp)
 private val LandscapeFullSongShape = RoundedCornerShape(18.dp)
 private val HeaderCapsuleShape = RoundedCornerShape(14.dp)
 private val PillShape10 = RoundedCornerShape(10.dp)
+private val PeekPillShape = RoundedCornerShape(12.dp)
 private val StatusCapsuleShape = RoundedCornerShape(12.dp)
 
 private val ThemeSunColor = Color(0xFFFFD54F)
@@ -146,6 +153,15 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     val isEqualizerOpen by viewModel.isEqualizerOpen.collectAsState()
     val isQueueOpen by viewModel.isQueueOpen.collectAsState()
     val favoritePaths by viewModel.favoritePaths.collectAsState()
+    val hideBottomBar by viewModel.hideBottomBar.collectAsState()
+    var isBottomDockPeeked by rememberSaveable { mutableStateOf(false) }
+
+    val userInteractionChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
+
+    AutoHudInactivityWatcher(
+        viewModel = viewModel,
+        userInteractionChannel = userInteractionChannel
+    )
 
     // Handle system back button
     BackHandler(enabled = isQueueOpen || isEqualizerOpen || isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
@@ -232,7 +248,20 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.changes.isNotEmpty()) {
+                            userInteractionChannel.trySend(Unit)
+                        }
+                    }
+                }
+            }
+    ) {
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -292,19 +321,29 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        if (!hideBottomBar || isBottomDockPeeked) {
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                        // Portrait Seekbar + Controls — isolated composable so that
-                        // 250ms position ticks only recompose this widget, not the song list.
-                        PortraitSeekBarSection(
-                            viewModel = viewModel,
-                            currentSong = currentSong,
-                            isSearchOpen = isSearchOpen,
-                            onToggleSearch = {
-                                isSearchOpen = !isSearchOpen
-                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                            }
-                        )
+                            // Portrait Seekbar + Controls — isolated composable so that
+                            // 250ms position ticks only recompose this widget, not the song list.
+                            PortraitSeekBarSection(
+                                viewModel = viewModel,
+                                currentSong = currentSong,
+                                isSearchOpen = isSearchOpen,
+                                onToggleSearch = {
+                                    isSearchOpen = !isSearchOpen
+                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                }
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            BottomDockPeekPill(
+                                viewModel = viewModel,
+                                onExpand = { isBottomDockPeeked = true },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 } else {
                     // ─────────────────────────────────────────────────────────────────────────
@@ -391,17 +430,28 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            if (!hideBottomBar || isBottomDockPeeked) {
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            // ── Automotive Bottom Dock — 80dp tall ──
-                            AndroidAutoBottomBar(
-                                viewModel = viewModel,
-                                isSearchVisible = isSearchOpen,
-                                onToggleSearch = {
-                                    isSearchOpen = !isSearchOpen
-                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                }
-                            )
+                                // ── Automotive Bottom Dock — 80dp tall ──
+                                AndroidAutoBottomBar(
+                                    viewModel = viewModel,
+                                    isSearchVisible = isSearchOpen,
+                                    onToggleSearch = {
+                                        isSearchOpen = !isSearchOpen
+                                        if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                    },
+                                    onCollapse = if (hideBottomBar) { { isBottomDockPeeked = false } } else null
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                BottomDockPeekPill(
+                                    viewModel = viewModel,
+                                    onExpand = { isBottomDockPeeked = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
                     }
                 }
@@ -1048,6 +1098,121 @@ fun LibraryModeHeader(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Isolated background inactivity watcher for Auto HUD mode.
+ * Collects high-frequency/state triggers without triggering recompositions of the main music library.
+ */
+@Composable
+private fun AutoHudInactivityWatcher(
+    viewModel: MusicViewModel,
+    userInteractionChannel: kotlinx.coroutines.channels.Channel<Unit>
+) {
+    val autoHudEnabled by viewModel.autoHudEnabled.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val isDriveModeOpen by viewModel.isDriveModeOpen.collectAsState()
+    val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
+    val isEqualizerOpen by viewModel.isEqualizerOpen.collectAsState()
+    val isQueueOpen by viewModel.isQueueOpen.collectAsState()
+
+    LaunchedEffect(autoHudEnabled, isPlaying, isDriveModeOpen, isSettingsOpen, isEqualizerOpen, isQueueOpen) {
+        if (!autoHudEnabled || !isPlaying || isDriveModeOpen || isSettingsOpen || isEqualizerOpen || isQueueOpen) return@LaunchedEffect
+
+        while (isActive) {
+            val interaction = kotlinx.coroutines.withTimeoutOrNull(20_000L) {
+                userInteractionChannel.receive()
+            }
+            if (interaction == null) {
+                if (autoHudEnabled && isPlaying && !isDriveModeOpen && !isSettingsOpen && !isEqualizerOpen && !isQueueOpen) {
+                    viewModel.openDriveMode()
+                }
+                return@LaunchedEffect
+            }
+        }
+    }
+}
+
+/**
+ * Ultra-compact peek pill displayed when bottom bar is hidden.
+ * Highly optimized for Mali GPU with flat solid colors and leaf recomposition.
+ */
+@Composable
+private fun BottomDockPeekPill(
+    viewModel: MusicViewModel,
+    onExpand: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentSong by viewModel.currentSong.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
+
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val containerBg = if (isDark) Color(0xFF131924) else MaterialTheme.colorScheme.surfaceVariant
+    val borderColor = if (isDark) Color(0xFF232D3F) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+
+    Row(
+        modifier = modifier
+            .height(36.dp)
+            .background(color = containerBg, shape = PeekPillShape)
+            .border(width = 0.8.dp, color = borderColor, shape = PeekPillShape)
+            .clickable { onExpand() }
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                    .clickable { viewModel.togglePlayPause() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            Text(
+                text = currentSong?.let { "${it.title} • ${it.artist}" } ?: "Tap to expand Player Dock",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Dock",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Icon(
+                imageVector = Icons.Rounded.KeyboardArrowUp,
+                contentDescription = "Expand Player Dock",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

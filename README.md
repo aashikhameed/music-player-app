@@ -14,7 +14,7 @@
   Engineered with modern <b>Jetpack Compose</b> and a bare-metal <b>C++17 OpenSL ES native audio engine</b> for flawless 60 FPS playback on low-memory ARM Cortex / Mali GPU automotive hardware.
 </p>
 
-[**Download Latest APK (v0.0.29)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
+[**Download Latest APK (v0.0.30)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
 
 ---
 
@@ -49,11 +49,13 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 ### 🎛️ Driver-First Automotive UI & Floating Media Dock
 - **Glanceable Touch Targets**: Oversized cards and spacious dock controls strictly complying with automotive distraction guidelines.
 - **Unified Floating Media Dock**: Dual-segment floating capsule housing track metadata, codec badges, scoped real-time seekbar, and tactile playback controls.
-- **Apple CarPlay Style Visual Transitions**: Horizontal card sliding transitions for album artwork (`slideInHorizontally` / `slideOutHorizontally`) and smooth crossfading typography (`AnimatedContent`) across the HUD and bottom dock.
+- **Apple CarPlay Style Visual Transitions**: Horizontal card sliding transitions for album artwork (`slideInHorizontally` / `slideOutHorizontally`) paired with vertical fade-up / fade-down typography (`slideInVertically` / `slideOutVertically` + `fadeIn` / `fadeOut`) across the HUD and bottom dock.
+- **Collapsible Bottom Dock**: Toggle in Settings (hidden by default) maximizes vertical canvas for browsing songs, paired with a sleek bottom peek pill for instant dock access.
+- **Auto HUD Drive Mode**: Automatically enters full-screen Drive HUD after 20 seconds of driving inactivity (toggle in Settings, enabled by default).
 - **Hardware-Accelerated Seekbar**: Direct Canvas-rendered scrubbing bar with live time bubble tooltip; zero heavy trigonometry animation overhead.
 - **Live Canvas Equalizer**: In-place 4-bar dynamic equalizer drawn directly on Canvas inside `SongCard`, eliminating Compose `LayoutNode` hierarchy churn.
 - **Adaptive Day & Night Theme**: Instant high-contrast toggle between Solar Amber/Light and Midnight Obsidian/Dark palettes designed for glare resistance and night driving.
-- **Continuous Automotive Digital Clock**: Synchronized clock island with glanceable 12-hour AM/PM indicator.
+- **Continuous Automotive Digital Clock**: Synchronized clock island with glanceable 12-hour AM/PM indicator preserved across both library and HUD screens.
 
 ### 📋 Playback Queue Drawer & "Play Next" Management
 - **Slide-Over Queue Drawer**: Instant slide-out drawer accessible from both landscape and portrait bottom bars without disrupting current playback.

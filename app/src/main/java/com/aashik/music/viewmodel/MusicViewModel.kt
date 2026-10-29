@@ -163,6 +163,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _autoResume = MutableStateFlow(appPrefs.getBoolean("auto_resume", true))
     val autoResume: StateFlow<Boolean> = _autoResume.asStateFlow()
 
+    // ── Auto HUD Mode & Bottom Bar Visibility ──
+    private val _autoHudEnabled = MutableStateFlow(appPrefs.getBoolean("auto_hud_enabled", true))
+    val autoHudEnabled: StateFlow<Boolean> = _autoHudEnabled.asStateFlow()
+
+    private val _hideBottomBar = MutableStateFlow(appPrefs.getBoolean("hide_bottom_bar", true))
+    val hideBottomBar: StateFlow<Boolean> = _hideBottomBar.asStateFlow()
+
     // ── Favorites State (persisted in SharedPreferences) ──
     private val _favoritePaths = MutableStateFlow<Set<String>>(
         appPrefs.getStringSet("favorite_paths", emptySet())?.toSet() ?: emptySet()
@@ -735,6 +742,20 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoResume(enabled: Boolean) {
         _autoResume.value = enabled
         appPrefs.edit().putBoolean("auto_resume", enabled).apply()
+    }
+
+    fun setAutoHudEnabled(enabled: Boolean) {
+        _autoHudEnabled.value = enabled
+        appPrefs.edit().putBoolean("auto_hud_enabled", enabled).apply()
+    }
+
+    fun setHideBottomBar(hide: Boolean) {
+        _hideBottomBar.value = hide
+        appPrefs.edit().putBoolean("hide_bottom_bar", hide).apply()
+    }
+
+    fun toggleHideBottomBar() {
+        setHideBottomBar(!_hideBottomBar.value)
     }
 
     fun setCrossfadeSeconds(seconds: Int) {

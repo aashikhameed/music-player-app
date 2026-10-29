@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -78,6 +79,7 @@ fun AndroidAutoBottomBar(
     viewModel: MusicViewModel,
     @Suppress("UNUSED_PARAMETER") isSearchVisible: Boolean = false,
     @Suppress("UNUSED_PARAMETER") onToggleSearch: () -> Unit = {},
+    onCollapse: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // Only collect state that changes on track change or user action
@@ -199,25 +201,25 @@ fun AndroidAutoBottomBar(
                             targetState = navigatingTrack,
                             transitionSpec = {
                                 if (targetState.direction >= 0) {
-                                    (slideInHorizontally(
+                                    (slideInVertically(
                                         animationSpec = tween(280, delayMillis = 30, easing = FastOutSlowInEasing),
-                                        initialOffsetX = { fullWidth -> fullWidth / 2 }
+                                        initialOffsetY = { fullHeight -> fullHeight / 2 }
                                     ) + fadeIn(animationSpec = tween(240, delayMillis = 30)))
                                         .togetherWith(
-                                            slideOutHorizontally(
+                                            slideOutVertically(
                                                 animationSpec = tween(240, easing = FastOutSlowInEasing),
-                                                targetOffsetX = { fullWidth -> -fullWidth / 2 }
+                                                targetOffsetY = { fullHeight -> -fullHeight / 2 }
                                             ) + fadeOut(animationSpec = tween(160))
                                         )
                                 } else {
-                                    (slideInHorizontally(
+                                    (slideInVertically(
                                         animationSpec = tween(280, delayMillis = 30, easing = FastOutSlowInEasing),
-                                        initialOffsetX = { fullWidth -> -fullWidth / 2 }
+                                        initialOffsetY = { fullHeight -> -fullHeight / 2 }
                                     ) + fadeIn(animationSpec = tween(240, delayMillis = 30)))
                                         .togetherWith(
-                                            slideOutHorizontally(
+                                            slideOutVertically(
                                                 animationSpec = tween(240, easing = FastOutSlowInEasing),
-                                                targetOffsetX = { fullWidth -> fullWidth / 2 }
+                                                targetOffsetY = { fullHeight -> fullHeight / 2 }
                                             ) + fadeOut(animationSpec = tween(160))
                                         )
                                 }
@@ -422,6 +424,28 @@ fun AndroidAutoBottomBar(
                                 .align(Alignment.TopEnd)
                                 .size(6.dp)
                                 .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
+                        )
+                    }
+                }
+
+                if (onCollapse != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = if (isDark) 0.09f else 0.06f
+                                )
+                            )
+                            .clickable { onCollapse() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector        = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = "Hide Player Dock",
+                            tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier           = Modifier.size(22.dp)
                         )
                     }
                 }

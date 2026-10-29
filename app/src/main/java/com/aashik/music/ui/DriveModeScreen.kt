@@ -61,11 +61,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.withStyle
 import com.aashik.music.theme.AppGradients
+import com.aashik.music.utils.getCurrentTimeWithAmPm
 import com.aashik.music.viewmodel.MusicViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -368,25 +373,25 @@ fun DriveModeScreen(
                         targetState = navigatingTrack,
                         transitionSpec = {
                             if (targetState.direction >= 0) {
-                                (slideInHorizontally(
+                                (slideInVertically(
                                     animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { fullWidth -> fullWidth / 2 }
+                                    initialOffsetY = { fullHeight -> fullHeight / 2 }
                                 ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
                                     .togetherWith(
-                                        slideOutHorizontally(
+                                        slideOutVertically(
                                             animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                            targetOffsetX = { fullWidth -> -fullWidth / 2 }
+                                            targetOffsetY = { fullHeight -> -fullHeight / 2 }
                                         ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                     )
                             } else {
-                                (slideInHorizontally(
+                                (slideInVertically(
                                     animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { fullWidth -> -fullWidth / 2 }
+                                    initialOffsetY = { fullHeight -> -fullHeight / 2 }
                                 ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
                                     .togetherWith(
-                                        slideOutHorizontally(
+                                        slideOutVertically(
                                             animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                            targetOffsetX = { fullWidth -> fullWidth / 2 }
+                                            targetOffsetY = { fullHeight -> fullHeight / 2 }
                                         ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                     )
                             }
@@ -658,21 +663,21 @@ private fun DriveHudClock(
     isDark: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var timeText by remember {
-        mutableStateOf(
-            java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-        )
-    }
+    var currentTime by remember { mutableStateOf(getCurrentTimeWithAmPm()) }
 
     LaunchedEffect(Unit) {
         while (true) {
-            delay(30_000L)
-            timeText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            delay(15_000L)
+            currentTime = getCurrentTimeWithAmPm()
         }
     }
 
     val badgeBg = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceVariant
     val textColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+
+    val timeParts = currentTime.split(" ")
+    val timeDigits = timeParts.getOrElse(0) { currentTime }
+    val amPmLabel = timeParts.getOrElse(1) { "" }
 
     Row(
         modifier = modifier
@@ -686,11 +691,28 @@ private fun DriveHudClock(
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(15.dp)
         )
-        Spacer(modifier = Modifier.width(5.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
-            text = timeText,
-            fontSize = 12.5.sp,
-            fontWeight = FontWeight.Bold,
+            text = buildAnnotatedString {
+                withStyle(
+                    SpanStyle(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        letterSpacing = 0.2.sp
+                    )
+                ) { append(timeDigits) }
+                if (amPmLabel.isNotEmpty()) {
+                    append("\u202F")
+                    withStyle(
+                        SpanStyle(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 8.5.sp,
+                            baselineShift = BaselineShift.Superscript,
+                            color = textColor.copy(alpha = 0.75f)
+                        )
+                    ) { append(amPmLabel) }
+                }
+            },
             color = textColor
         )
     }
