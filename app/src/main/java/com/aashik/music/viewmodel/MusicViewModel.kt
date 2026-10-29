@@ -148,6 +148,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appPrefs = application.getSharedPreferences("automotive_prefs", Context.MODE_PRIVATE)
 
+    // ── Crossfade Duration (Seconds, default 3s) ──
+    private val _crossfadeSeconds = MutableStateFlow(appPrefs.getInt("crossfade_seconds", 3))
+    val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds.asStateFlow()
+
     private val _autoResume = MutableStateFlow(appPrefs.getBoolean("auto_resume", true))
     val autoResume: StateFlow<Boolean> = _autoResume.asStateFlow()
 
@@ -224,6 +228,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         // Initialize Time Alignment and Bass Normalizer in Native Audio Core
         musicPlayer.setTimeAlignment(_timeAlignmentMode.value)
         musicPlayer.setBassNormalizer(_bassNormalizerMode.value)
+
+        // Initialize Crossfade
+        musicPlayer.setCrossfadeSeconds(_crossfadeSeconds.value)
     }
 
     fun setEqualizerEnabled(enabled: Boolean) {
@@ -472,6 +479,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoResume(enabled: Boolean) {
         _autoResume.value = enabled
         appPrefs.edit().putBoolean("auto_resume", enabled).apply()
+    }
+
+    fun setCrossfadeSeconds(seconds: Int) {
+        _crossfadeSeconds.value = seconds
+        appPrefs.edit().putInt("crossfade_seconds", seconds).apply()
+        musicPlayer.setCrossfadeSeconds(seconds)
     }
 
     fun updateArtworkCacheSize() {

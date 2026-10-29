@@ -118,6 +118,8 @@ private val BASS_NORM_NAMES = listOf(
     "Alpine Deep (+4dB)"
 )
 
+private val CROSSFADE_OPTIONS = listOf(0, 1, 2, 3, 5, 8)
+
 private val SLEEP_TIMER_OPTIONS = listOf(0, 15, 30, 45, 60)
 
 private fun formatSleepTimer(sec: Int): String {
@@ -785,6 +787,67 @@ private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
                         ) {
                             Text(
                                 text = if (mins == 0) "Off" else "${mins}m",
+                                fontSize = 10.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Crossfade Between Songs
+            val crossfadeSeconds by viewModel.crossfadeSeconds.collectAsState()
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Column {
+                    Text(
+                        text = "Crossfade Between Songs",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (crossfadeSeconds > 0)
+                            "Smoothly blends songs over ${crossfadeSeconds}s (Default: 3s)"
+                        else
+                            "No crossfade (gapless standard playback)",
+                        fontSize = 10.sp,
+                        color = if (crossfadeSeconds > 0) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    CROSSFADE_OPTIONS.forEach { sec ->
+                        val isSelected = (crossfadeSeconds == sec)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    shape = ChipPillShape
+                                )
+                                .clickable { viewModel.setCrossfadeSeconds(sec) }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = when (sec) {
+                                    0 -> "Off"
+                                    3 -> "3s (Def)"
+                                    else -> "${sec}s"
+                                },
                                 fontSize = 10.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimary

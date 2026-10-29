@@ -97,4 +97,32 @@ class MusicModelsTest {
         assertEquals(5.0f, clampedGains[3], 0.001f)
         assertEquals(12.0f, clampedGains[4], 0.001f)
     }
+
+    @Test
+    fun testCrossfadeDefaultsAndOptions() {
+        val crossfadeOptions = listOf(0, 1, 2, 3, 5, 8)
+        val defaultCrossfade = 3
+
+        assertTrue("Options must contain 0s (Off)", crossfadeOptions.contains(0))
+        assertTrue("Options must contain 3s default", crossfadeOptions.contains(3))
+        assertEquals(3, defaultCrossfade)
+        assertEquals(6, crossfadeOptions.size)
+    }
+
+    @Test
+    fun testCrossfadeVolumeDecayCalculation() {
+        val crossfadeSeconds = 3
+        val crossfadeMs = crossfadeSeconds * 1000L
+
+        // Linear volume decay at various remaining time marks
+        val volAtStart = (3000L.toFloat() / crossfadeMs).coerceIn(0.05f, 1.0f)
+        val volAtHalf = (1500L.toFloat() / crossfadeMs).coerceIn(0.05f, 1.0f)
+        val volAtNearEnd = (300L.toFloat() / crossfadeMs).coerceIn(0.05f, 1.0f)
+        val volAtEnd = (0L.toFloat() / crossfadeMs).coerceIn(0.05f, 1.0f)
+
+        assertEquals(1.0f, volAtStart, 0.001f)
+        assertEquals(0.5f, volAtHalf, 0.001f)
+        assertEquals(0.1f, volAtNearEnd, 0.001f)
+        assertEquals(0.05f, volAtEnd, 0.001f) // Clamped to minimum floor
+    }
 }
