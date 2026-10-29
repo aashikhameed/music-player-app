@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -72,24 +74,12 @@ import com.aashik.music.viewmodel.MusicViewModel
 private val SettingsContainerShape = RoundedCornerShape(18.dp)
 private val CardSectionShape = RoundedCornerShape(14.dp)
 private val ChipPillShape = RoundedCornerShape(10.dp)
-private val BandRowShape = RoundedCornerShape(10.dp)
 private val InfoBadgeShape = RoundedCornerShape(8.dp)
 private val ActionButtonShape = RoundedCornerShape(10.dp)
 
-private val AccentGoldColor = Color(0xFFFFD54F)
-private val MudCutWarningColor = Color(0xFFFF8A65)
-private val VocalCyanColor = Color(0xFF4DD0E1)
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
 private val RefetchGreenColor = Color(0xFF00E676)
-
-private val BAND_LABELS = listOf(
-    "60 Hz" to "Sub-Bass",
-    "250 Hz" to "Mud Cut (Door Resonance)",
-    "1.0 kHz" to "Vocal Body",
-    "3.5 kHz" to "Vocal Presence & Clarity",
-    "10 kHz" to "Treble Air & Sparkle"
-)
 
 private val PRESET_NAMES = listOf(
     "Flat",
@@ -98,30 +88,6 @@ private val PRESET_NAMES = listOf(
     "Punchy Bass",
     "Rock Dynamic",
     "Custom"
-)
-
-private val HPF_NAMES = listOf(
-    "Full Range (Off)",
-    "60 Hz Cut",
-    "80 Hz Cut (Door Speakers)"
-)
-
-private val TIME_ALIGN_NAMES = listOf(
-    "Center Stage",
-    "RHD Driver (India/UK)",
-    "LHD Driver (US/EU)"
-)
-
-private val BASS_NORM_NAMES = listOf(
-    "Natural Flat",
-    "Mild Dynamic (+2dB)",
-    "Deep Dynamic (+4dB)"
-)
-
-private val VIRTUAL_SURROUND_NAMES = listOf(
-    "Stereo Standard (Off)",
-    "Cabin Stage (+25%)",
-    "Concert Wide (+50%)"
 )
 
 private val CROSSFADE_OPTIONS = listOf(0, 1, 2, 3, 5, 8)
@@ -152,6 +118,7 @@ private fun formatCacheSize(bytes: Long): String {
 fun SettingsScreen(
     viewModel: MusicViewModel,
     onClose: () -> Unit,
+    onOpenEqualizer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -215,7 +182,7 @@ fun SettingsScreen(
 
                         Column(modifier = Modifier.weight(1f, fill = false)) {
                             Text(
-                                text = "Settings & Sound Preferences",
+                                text = "Settings & Preferences",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp
@@ -252,60 +219,23 @@ fun SettingsScreen(
                     }
                 }
 
-                // ── Content Layout: 2-Column in Landscape, Scrollable Column in Portrait ──
-                if (isLandscape) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Left Column: Audio DSP & Equalizer Tuning (weight 0.52f)
-                        Box(
-                            modifier = Modifier
-                                .weight(0.52f)
-                                .fillMaxHeight()
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                AudioDspSection(viewModel = viewModel)
-                                Spacer(modifier = Modifier.height(16.dp))
-                            }
-                        }
-
-                        // Right Column: Song Refetch, Theme, Playback, Cache & Diagnostics (weight 0.48f)
-                        Box(
-                            modifier = Modifier
-                                .weight(0.48f)
-                                .fillMaxHeight()
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                RefetchSection(viewModel = viewModel)
-                                ThemeDisplaySection(viewModel = viewModel)
-                                PlaybackPreferencesSection(viewModel = viewModel)
-                                CacheManagementSection(viewModel = viewModel)
-                                SystemInfoSection()
-                                Spacer(modifier = Modifier.height(16.dp))
-                            }
-                        }
-                    }
-                } else {
-                    // Portrait Layout: Single vertical scrollable column
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        RefetchSection(viewModel = viewModel)
-                        ThemeDisplaySection(viewModel = viewModel)
-                        AudioDspSection(viewModel = viewModel)
-                        PlaybackPreferencesSection(viewModel = viewModel)
-                        CacheManagementSection(viewModel = viewModel)
-                        SystemInfoSection()
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
+                // ── Unified Single Scrollable Column (No Split Screen) ──
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    EqualizerNavigationCard(
+                        viewModel = viewModel,
+                        onClick = onOpenEqualizer
+                    )
+                    RefetchSection(viewModel = viewModel)
+                    ThemeDisplaySection(viewModel = viewModel)
+                    PlaybackPreferencesSection(viewModel = viewModel)
+                    CacheManagementSection(viewModel = viewModel)
+                    SystemInfoSection()
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -953,461 +883,120 @@ private fun CacheManagementSection(viewModel: MusicViewModel) {
 }
 
 /**
- * Audio DSP & 5-Band Equalizer Settings Section.
- */
-/**
- * Reusable Sound Preset Chip with custom pill background and star for recommended preset.
+ * Acoustic Equalizer & Automotive DSP Navigation Card.
+ * Prominently surfaces the active equalizer profile and links to the dedicated EqualizerScreen.
  */
 @Composable
-private fun PresetChip(
-    name: String,
-    isSelected: Boolean,
-    isEnabled: Boolean,
-    isRecommended: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+private fun EqualizerNavigationCard(
+    viewModel: MusicViewModel,
+    onClick: () -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .background(
-                if (isSelected && isEnabled) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                shape = ChipPillShape
-            )
-            .clickable(enabled = isEnabled, onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 7.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            if (isRecommended) {
-                Icon(
-                    imageVector = Icons.Rounded.Star,
-                    contentDescription = null,
-                    tint = if (isSelected) AccentGoldColor else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(11.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-            }
-            Text(
-                text = name,
-                fontSize = 10.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-/**
- * Audio DSP & 5-Band Equalizer Settings Section.
- */
-@Composable
-private fun AudioDspSection(viewModel: MusicViewModel) {
     val isEnabled by viewModel.isEqualizerEnabled.collectAsState()
     val activePreset by viewModel.equalizerPreset.collectAsState()
-    val bandGains by viewModel.equalizerBands.collectAsState()
-    val hpfMode by viewModel.equalizerHpfMode.collectAsState()
-
-    val capsuleBg = AppGradients.capsule(isActive = false)
     val cardBorder = AppGradients.border(isActive = false)
+    val presetName = PRESET_NAMES.getOrElse(activePreset) { "Custom" }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape),
+            .clip(CardSectionShape)
+            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape)
+            .clickable(onClick = onClick),
         shape = CardSectionShape,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Section Title + Master Toggle
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f, fill = false),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.GraphicEq,
-                        contentDescription = null,
+                        contentDescription = "Equalizer",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Acoustic Equalizer & Automotive DSP",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (isEnabled) "ACTIVE" else "BYPASS",
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 6.dp)
-                    )
-                    Switch(
-                        checked = isEnabled,
-                        onCheckedChange = { viewModel.setEqualizerEnabled(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                }
-            }
-
-            // Sound Profiles — 2 rows of 3 equal-width chips (never overflows horizontally!)
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // Row 1: Flat, Acoustic Clarity, Vocal Separation
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    for (index in 0..2) {
-                        PresetChip(
-                            name = PRESET_NAMES[index],
-                            isSelected = (activePreset == index),
-                            isEnabled = isEnabled,
-                            isRecommended = (index == 1),
-                            onClick = { viewModel.setEqualizerPreset(index) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                // Row 2: Punchy Bass, Rock Dynamic, Custom
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    for (index in 3..5) {
-                        PresetChip(
-                            name = PRESET_NAMES[index],
-                            isSelected = (activePreset == index),
-                            isEnabled = isEnabled,
-                            isRecommended = false,
-                            onClick = { viewModel.setEqualizerPreset(index) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            // Subsonic HPF Selector
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(brush = capsuleBg, shape = BandRowShape)
-                    .border(width = 0.6.dp, brush = cardBorder, shape = BandRowShape)
-                    .padding(horizontal = 10.dp, vertical = 7.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Security,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Text(
-                        text = "Subsonic HPF (Door Speaker & Sub Protection):",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    HPF_NAMES.forEachIndexed { index, label ->
-                        val isSelected = (hpfMode == index)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    if (isSelected && isEnabled) MaterialTheme.colorScheme.secondary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                    shape = ChipPillShape
-                                )
-                                .clickable(enabled = isEnabled) {
-                                    viewModel.setEqualizerHpfMode(index)
-                                }
-                                .padding(vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 9.5.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onSecondary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Driver Soundstage Time Alignment (Automotive DSP Micro-Delay)
-            val timeAlign by viewModel.timeAlignmentMode.collectAsState()
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Text(
-                    text = "Driver Soundstage Time Alignment (Cabin Micro-Delay):",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    TIME_ALIGN_NAMES.forEachIndexed { index, name ->
-                        val isSelected = (timeAlign == index)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    if (isSelected && isEnabled) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                    shape = ChipPillShape
-                                )
-                                .clickable(enabled = isEnabled) { viewModel.setTimeAlignment(index) }
-                                .padding(vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = name,
-                                fontSize = 9.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Bass Normalizer & Loudness Contour
-            val bassNorm by viewModel.bassNormalizerMode.collectAsState()
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Text(
-                    text = "Acoustic Bass Normalizer & Dynamic Loudness Contour:",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    BASS_NORM_NAMES.forEachIndexed { index, name ->
-                        val isSelected = (bassNorm == index)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    if (isSelected && isEnabled) MaterialTheme.colorScheme.secondary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                    shape = ChipPillShape
-                                )
-                                .clickable(enabled = isEnabled) { viewModel.setBassNormalizer(index) }
-                                .padding(vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = name,
-                                fontSize = 9.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onSecondary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Virtual Surround / Cabin Soundstage Widener Row
-            val surroundMode by viewModel.virtualSurroundMode.collectAsState()
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "Virtual Surround & Cabin Soundstage Widener:",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    VIRTUAL_SURROUND_NAMES.forEachIndexed { index, name ->
-                        val isSelected = (surroundMode == index)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    if (isSelected && isEnabled) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                    shape = ChipPillShape
-                                )
-                                .clickable(enabled = isEnabled) { viewModel.setVirtualSurroundMode(index) }
-                                .padding(vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = name,
-                                fontSize = 9.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 5 EQ Band Sliders
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                BAND_LABELS.forEachIndexed { bandIndex, (freqLabel, roleLabel) ->
-                    val gain = bandGains.getOrElse(bandIndex) { 0.0f }
-                    val isMudZone = (bandIndex == 1) // 250 Hz Mud Cut
-                    val isVocalZone = (bandIndex == 2 || bandIndex == 3)
-
+                Column(modifier = Modifier.weight(1f, fill = false)) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                if (isMudZone) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                                shape = BandRowShape
-                            )
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(modifier = Modifier.width(96.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = freqLabel,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp,
-                                    color = if (isMudZone) MudCutWarningColor
-                                            else if (isVocalZone) VocalCyanColor
-                                            else MaterialTheme.colorScheme.onSurface
-                                )
-                                if (isMudZone) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .background(MudCutWarningColor.copy(alpha = 0.2f), shape = InfoBadgeShape)
-                                            .padding(horizontal = 3.dp, vertical = 1.dp)
-                                    ) {
-                                        Text(
-                                            text = "Cut",
-                                            fontSize = 7.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MudCutWarningColor
-                                        )
-                                    }
-                                }
-                            }
-                            Text(
-                                text = roleLabel,
-                                fontSize = 8.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Slider(
-                            value = gain,
-                            onValueChange = { newGain ->
-                                viewModel.setEqualizerBandGain(bandIndex, (newGain * 2).toInt() / 2f)
-                            },
-                            valueRange = -10f..10f,
-                            steps = 39,
-                            enabled = isEnabled,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 4.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = if (isMudZone) MudCutWarningColor else MaterialTheme.colorScheme.primary,
-                                activeTrackColor = if (isMudZone) MudCutWarningColor else MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                            )
+                        Text(
+                            text = "Acoustic Equalizer & DSP",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         Box(
-                            modifier = Modifier.width(48.dp),
-                            contentAlignment = Alignment.CenterEnd
+                            modifier = Modifier
+                                .background(
+                                    color = if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = InfoBadgeShape
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            val gainText = if (gain > 0f) "+${String.format("%.1f", gain)}" else String.format("%.1f", gain)
                             Text(
-                                text = "$gainText dB",
+                                text = if (isEnabled) "ACTIVE • $presetName" else "BYPASS",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (gain < 0f && isMudZone) MudCutWarningColor
-                                        else if (gain > 0f) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = "5-Band Graphic EQ • Subsonic HPF • Seat Time Alignment • Bass Normalizer",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
-            // Headroom status text
-            Text(
-                text = "• -2.5 dB digital headroom active (eliminates DAC clipping into external processor)",
-                fontSize = 9.5.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = onClick,
+                shape = ActionButtonShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier.height(34.dp)
+            ) {
+                Text(
+                    text = "Configure",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
-}
+} 
 
 /**
  * Hardware, Native Engine & Performance Info Section.

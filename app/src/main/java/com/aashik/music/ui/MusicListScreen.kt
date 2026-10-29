@@ -141,17 +141,29 @@ fun MusicListScreen(viewModel: MusicViewModel) {
 
     val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
     val isDriveModeOpen by viewModel.isDriveModeOpen.collectAsState()
+    val isEqualizerOpen by viewModel.isEqualizerOpen.collectAsState()
     val favoritePaths by viewModel.favoritePaths.collectAsState()
 
     // Handle system back button
-    BackHandler(enabled = isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
-        if (isDriveModeOpen) {
+    BackHandler(enabled = isEqualizerOpen || isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
+        if (isEqualizerOpen) {
+            viewModel.closeEqualizer()
+        } else if (isDriveModeOpen) {
             viewModel.closeDriveMode()
         } else if (isSettingsOpen) {
             viewModel.closeSettings()
         } else {
             viewModel.closeFolder()
         }
+    }
+
+    if (isEqualizerOpen) {
+        EqualizerScreen(
+            viewModel = viewModel,
+            onClose = { viewModel.closeEqualizer() },
+            modifier = Modifier.fillMaxSize()
+        )
+        return
     }
 
     if (isDriveModeOpen) {
@@ -167,6 +179,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         SettingsScreen(
             viewModel = viewModel,
             onClose = { viewModel.closeSettings() },
+            onOpenEqualizer = { viewModel.openEqualizer() },
             modifier = Modifier.fillMaxSize()
         )
         return
@@ -850,6 +863,7 @@ fun TopRightStatusClock(
     modifier: Modifier = Modifier
 ) {
     val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
+    val isEqualizerOpen by viewModel.isEqualizerOpen.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
 
     var currentTime by remember { mutableStateOf(getCurrentTimeWithAmPm()) }
@@ -882,6 +896,19 @@ fun TopRightStatusClock(
                 imageVector = Icons.Rounded.DirectionsCar,
                 contentDescription = "Drive HUD",
                 tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+
+        // Dedicated Equalizer DSP Button
+        IconButton(
+            onClick = { viewModel.openEqualizer() },
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.GraphicEq,
+                contentDescription = "Equalizer DSP",
+                tint = if (isEqualizerOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(19.dp)
             )
         }

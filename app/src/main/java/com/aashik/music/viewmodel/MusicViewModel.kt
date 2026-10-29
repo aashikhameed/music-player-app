@@ -339,6 +339,38 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _isEqualizerDialogOpen.value = !_isEqualizerDialogOpen.value
     }
 
+    private val _isEqualizerOpen = MutableStateFlow(false)
+    val isEqualizerOpen: StateFlow<Boolean> = _isEqualizerOpen.asStateFlow()
+
+    fun openEqualizer() {
+        _isEqualizerOpen.value = true
+    }
+
+    fun closeEqualizer() {
+        _isEqualizerOpen.value = false
+    }
+
+    fun toggleEqualizer() {
+        _isEqualizerOpen.value = !_isEqualizerOpen.value
+    }
+
+    fun getNextSong(): Song? {
+        val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
+        val list = if (_isShuffleOn.value) {
+            if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist
+        } else {
+            currentPlaylist
+        }
+        if (list.isEmpty()) return null
+        val curId = _currentSong.value?.id ?: return list.firstOrNull()
+        val index = list.indexOfFirst { it.id == curId }
+        return if (index in 0 until list.lastIndex) {
+            list[index + 1]
+        } else {
+            list.firstOrNull()
+        }
+    }
+
     fun openSettings() {
         _isSettingsOpen.value = true
     }

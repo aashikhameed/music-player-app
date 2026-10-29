@@ -124,6 +124,20 @@ fun BottomControlStrip(
                             )
                         }
 
+                        // Equalizer button in mini banner
+                        val isEqualizerOpen by viewModel.isEqualizerOpen.collectAsState()
+                        IconButton(
+                            onClick = { viewModel.toggleEqualizer() },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.GraphicEq,
+                                contentDescription = "Equalizer",
+                                tint = if (isEqualizerOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
                         // Settings button in mini banner (opens all options)
                         val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
                         IconButton(

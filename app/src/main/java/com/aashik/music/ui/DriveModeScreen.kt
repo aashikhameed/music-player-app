@@ -14,6 +14,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -76,6 +77,7 @@ private val BigArtworkShape = RoundedCornerShape(20.dp)
 private val DriverBadgeShape = RoundedCornerShape(8.dp)
 private val SwipeFeedbackBadgeShape = RoundedCornerShape(14.dp)
 private val ClockBadgeShape = RoundedCornerShape(8.dp)
+private val UpNextBadgeShape = RoundedCornerShape(8.dp)
 
 private val DriveHudBackground = Color(0xFF090D14)
 private val FavoriteRedColor = Color(0xFFFF5252)
@@ -425,6 +427,45 @@ fun DriveModeScreen(
                                 color = secondaryTextColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    val nextSong = viewModel.getNextSong()
+                    if (nextSong != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .background(
+                                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                    shape = UpNextBadgeShape
+                                )
+                                .clickable { viewModel.playNextSong() }
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.SkipNext,
+                                contentDescription = "Next Track",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "NEXT: ",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "${nextSong.title} • ${nextSong.artist}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = primaryTextColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                         }
                     }
