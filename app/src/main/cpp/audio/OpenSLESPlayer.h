@@ -9,7 +9,6 @@
 #include <memory>
 #include <atomic>
 #include <functional>
-#include <mutex>
 
 namespace audio {
 
@@ -54,12 +53,10 @@ private:
     std::function<void(size_t)> mOnBufferConsumed;
     AudioEqualizer mEqualizer;
 
-    // Shared OpenSL ES Engine & Output Mix Objects across active player instances
-    static SLObjectItf sEngineObject;
-    static SLEngineItf sEngine;
-    static SLObjectItf sOutputMixObject;
-    static int sEngineRefCount;
-    static std::mutex sEngineMutex;
+    // Dedicated OpenSL ES Objects
+    SLObjectItf mEngineObject = nullptr;
+    SLEngineItf mEngine = nullptr;
+    SLObjectItf mOutputMixObject = nullptr;
 
     SLObjectItf mPlayerObject = nullptr;
     SLPlayItf mPlayerPlay = nullptr;

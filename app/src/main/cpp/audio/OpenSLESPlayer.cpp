@@ -10,12 +10,6 @@
 
 namespace audio {
 
-SLObjectItf OpenSLESPlayer::sEngineObject = nullptr;
-SLEngineItf OpenSLESPlayer::sEngine = nullptr;
-SLObjectItf OpenSLESPlayer::sOutputMixObject = nullptr;
-int OpenSLESPlayer::sEngineRefCount = 0;
-std::mutex OpenSLESPlayer::sEngineMutex;
-
 OpenSLESPlayer::OpenSLESPlayer(std::shared_ptr<RingBuffer> ringBuffer)
     : mRingBuffer(std::move(ringBuffer)) {
 }
@@ -25,53 +19,44 @@ OpenSLESPlayer::~OpenSLESPlayer() {
 }
 
 bool OpenSLESPlayer::init() {
-    std::lock_guard<std::mutex> lock(sEngineMutex);
-    if (sEngineObject != nullptr) {
-        sEngineRefCount++;
+    if (mEngineObject != nullptr) {
         return true;
     }
 
-    SLresult result = slCreateEngine(&sEngineObject, 0, nullptr, 0, nullptr, nullptr);
+    SLresult result = slCreateEngine(&mEngineObject, 0, nullptr, 0, nullptr, nullptr);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("slCreateEngine failed: %d", result);
         return false;
     }
 
-    result = (*sEngineObject)->Realize(sEngineObject, SL_BOOLEAN_FALSE);
+    result = (*mEngineObject)->Realize(mEngineObject, SL_BOOLEAN_FALSE);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("Realize engine failed: %d", result);
-        (*sEngineObject)->Destroy(sEngineObject);
-        sEngineObject = nullptr;
+        shutdown();
         return false;
     }
 
-    result = (*sEngineObject)->GetInterface(sEngineObject, SL_IID_ENGINE, &sEngine);
+    result = (*mEngineObject)->GetInterface(mEngineObject, SL_IID_ENGINE, &mEngine);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("GetInterface SLEngine failed: %d", result);
-        (*sEngineObject)->Destroy(sEngineObject);
-        sEngineObject = nullptr;
+        shutdown();
         return false;
     }
 
-    result = (*sEngine)->CreateOutputMix(sEngine, &sOutputMixObject, 0, nullptr, nullptr);
+    result = (*mEngine)->CreateOutputMix(mEngine, &mOutputMixObject, 0, nullptr, nullptr);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("CreateOutputMix failed: %d", result);
-        (*sEngineObject)->Destroy(sEngineObject);
-        sEngineObject = nullptr;
+        shutdown();
         return false;
     }
 
-    result = (*sOutputMixObject)->Realize(sOutputMixObject, SL_BOOLEAN_FALSE);
+    result = (*mOutputMixObject)->Realize(mOutputMixObject, SL_BOOLEAN_FALSE);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("Realize OutputMix failed: %d", result);
-        (*sOutputMixObject)->Destroy(sOutputMixObject);
-        sOutputMixObject = nullptr;
-        (*sEngineObject)->Destroy(sEngineObject);
-        sEngineObject = nullptr;
+        shutdown();
         return false;
     }
 
-    sEngineRefCount = 1;
     LOGI("OpenSL ES engine and output mix initialized successfully");
     return true;
 }
@@ -79,27 +64,31 @@ bool OpenSLESPlayer::init() {
 void OpenSLESPlayer::shutdown() {
     stop();
     destroyPlayer();
+    mOnBufferConsumed = nullptr;
 
-    std::lock_guard<std::mutex> lock(sEngineMutex);
-    if (sEngineRefCount > 0) {
-        sEngineRefCount--;
+    if (mOutputMixObject) {
+        (*mOutputMixObject)->Destroy(mOutputMixObject);
+        mOutputMixObject = nullptr;
     }
-    if (sEngineRefCount == 0) {
-        if (sOutputMixObject) {
-            (*sOutputMixObject)->Destroy(sOutputMixObject);
-            sOutputMixObject = nullptr;
-        }
 
-        if (sEngineObject) {
-            (*sEngineObject)->Destroy(sEngineObject);
-            sEngineObject = nullptr;
-            sEngine = nullptr;
-        }
-        LOGI("OpenSL ES shared engine and output mix destroyed");
+    if (mEngineObject) {
+        (*mEngineObject)->Destroy(mEngineObject);
+        mEngineObject = nullptr;
+        mEngine = nullptr;
     }
+    LOGI("OpenSL ES engine and output mix destroyed");
 }
 
 void OpenSLESPlayer::destroyPlayer() {
+    mIsPlaying.store(false, std::memory_order_release);
+
+    if (mBufferQueue) {
+        (*mBufferQueue)->RegisterCallback(mBufferQueue, nullptr, nullptr);
+        (*mBufferQueue)->Clear(mBufferQueue);
+    }
+    if (mPlayerPlay) {
+        (*mPlayerPlay)->SetPlayState(mPlayerPlay, SL_PLAYSTATE_STOPPED);
+    }
     if (mPlayerObject) {
         (*mPlayerObject)->Destroy(mPlayerObject);
         mPlayerObject = nullptr;
@@ -128,7 +117,7 @@ static SLuint32 getOpenSLSamplingRate(int32_t sampleRate) {
 }
 
 bool OpenSLESPlayer::configureAudio(int32_t sampleRate, int32_t channelCount) {
-    if (!sEngine) {
+    if (!mEngine) {
         if (!init()) return false;
     }
 
@@ -162,14 +151,14 @@ bool OpenSLESPlayer::configureAudio(int32_t sampleRate, int32_t channelCount) {
     SLDataSource audioSrc = {&loc_bufq, &format_pcm};
 
     // 2. Data Sink: Output Mix
-    SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, sOutputMixObject};
+    SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, mOutputMixObject};
     SLDataSink audioSnk = {&loc_outmix, nullptr};
 
     // 3. Create Audio Player
-    const SLInterfaceID ids[2] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME};
+    const SLInterfaceID ids[2] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE, SL_IID_VOLUME};
     const SLboolean req[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
 
-    SLresult result = (*sEngine)->CreateAudioPlayer(sEngine, &mPlayerObject, &audioSrc, &audioSnk, 2, ids, req);
+    SLresult result = (*mEngine)->CreateAudioPlayer(mEngine, &mPlayerObject, &audioSrc, &audioSnk, 2, ids, req);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("CreateAudioPlayer failed: %d", result);
         return false;
@@ -189,7 +178,7 @@ bool OpenSLESPlayer::configureAudio(int32_t sampleRate, int32_t channelCount) {
         return false;
     }
 
-    result = (*mPlayerObject)->GetInterface(mPlayerObject, SL_IID_BUFFERQUEUE, &mBufferQueue);
+    result = (*mPlayerObject)->GetInterface(mPlayerObject, SL_IID_ANDROIDSIMPLEBUFFERQUEUE, &mBufferQueue);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("GetInterface SLBufferQueue failed: %d", result);
         destroyPlayer();
@@ -297,7 +286,6 @@ void OpenSLESPlayer::primeQueue() {
     SLresult res = (*mBufferQueue)->GetState(mBufferQueue, &state);
     if (res != SL_RESULT_SUCCESS) return;
 
-    // Only enqueue if the hardware buffer queue has run dry or was flushed
     if (state.count == 0) {
         for (size_t i = 0; i < NUM_QUEUE_BUFFERS; ++i) {
             uint8_t* currentBuffer = mQueueBuffers[mCurrentBufferIndex];
@@ -314,7 +302,6 @@ void OpenSLESPlayer::primeQueue() {
                 std::memset(currentBuffer + bytesRead, 0, QUEUE_BUFFER_SIZE - bytesRead);
             }
 
-            // Process audio DSP equalizer & filter chain
             mEqualizer.process(reinterpret_cast<int16_t*>(currentBuffer),
                                QUEUE_BUFFER_SIZE / sizeof(int16_t),
                                mSampleRate,
@@ -330,7 +317,6 @@ void OpenSLESPlayer::setVolume(float linearVolume) {
     mVolume = std::max(0.0f, std::min(1.0f, linearVolume));
     if (!mPlayerVolume) return;
 
-    // Linear volume to OpenSL ES millibels: 0.0 -> SL_MILLIBEL_MIN (-9600), 1.0 -> 0 mB
     SLmillibel millibel;
     if (mVolume <= 0.0001f) {
         millibel = SL_MILLIBEL_MIN;

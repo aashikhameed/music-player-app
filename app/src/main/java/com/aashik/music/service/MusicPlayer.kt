@@ -11,6 +11,7 @@ import com.aashik.music.model.Song
 import com.aashik.music.nativeaudio.NativeAudioBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,6 +67,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     // ── Crossfade State (default 3 seconds) ──
     private var crossfadeSeconds: Int = 3
     private var isTransitioning = false
+    private var autoCrossfadeTriggeredPath: String? = null
+    private var playJob: Job? = null
 
     init {
         val attrs = AudioAttributes.Builder()
@@ -140,17 +143,21 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             if (dur > (crossfadeMs + 2000L)) {
                 val remainingMs = dur - positionMs
                 if (remainingMs <= crossfadeMs) {
-                    isTransitioning = true
-                    scope.launch(Dispatchers.Main) {
-                        try {
-                            if (onCompletion != null) {
-                                onCompletion?.invoke()
-                            } else {
-                                playNext()
+                    val currentPath = _currentSongFlow.value?.path
+                    if (currentPath != null && currentPath != autoCrossfadeTriggeredPath) {
+                        autoCrossfadeTriggeredPath = currentPath
+                        isTransitioning = true
+                        scope.launch(Dispatchers.Main) {
+                            try {
+                                if (onCompletion != null) {
+                                    onCompletion?.invoke()
+                                } else {
+                                    playNext()
+                                }
+                            } finally {
+                                delay(1000L)
+                                isTransitioning = false
                             }
-                        } finally {
-                            delay(1000L)
-                            isTransitioning = false
                         }
                     }
                 }
@@ -163,7 +170,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     override fun onTrackEnded() {
-        if (!isTransitioning) {
+        val currentPath = _currentSongFlow.value?.path
+        if (currentPath != autoCrossfadeTriggeredPath && !isTransitioning) {
             isTransitioning = true
             scope.launch(Dispatchers.Main) {
                 try {
@@ -183,6 +191,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     override fun onError(errorCode: Int, message: String) {
         _isPlayingFlow.value = false
         isTransitioning = false
+        autoCrossfadeTriggeredPath = null
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -241,13 +250,16 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             return
         }
 
+        autoCrossfadeTriggeredPath = null
+        isTransitioning = false
         _currentSongFlow.value = song
         _positionFlow.value = 0L
         if (song.duration > 0) {
             _durationFlow.value = song.duration
         }
 
-        scope.launch(Dispatchers.IO) {
+        playJob?.cancel()
+        playJob = scope.launch(Dispatchers.IO) {
             val res = nativeBridge.playTrack(song.path, 0L)
             if (res == 0) {
                 _isPlayingFlow.value = true
@@ -266,6 +278,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun stop() {
+        playJob?.cancel()
+        autoCrossfadeTriggeredPath = null
+        isTransitioning = false
         nativeBridge.setVolume(1.0f)
         nativeBridge.stop()
         _positionFlow.value = 0L
