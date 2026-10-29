@@ -46,7 +46,8 @@ fun AlbumArtImage(
     modifier: Modifier = Modifier,
     size: Dp = 54.dp,
     borderRadius: Dp = 10.dp,
-    isPlaying: Boolean = false
+    isPlaying: Boolean = false,
+    isHighRes: Boolean = false
 ) {
     val shape = when (borderRadius) {
         10.dp -> Shape10
@@ -55,13 +56,27 @@ fun AlbumArtImage(
     }
     val context = LocalContext.current
 
-    var bitmap by remember(path) {
-        mutableStateOf<Bitmap?>(AlbumArtCache.get(path))
+    var bitmap by remember(path, isHighRes) {
+        mutableStateOf<Bitmap?>(
+            if (isHighRes) AlbumArtCache.getHighRes(path) ?: AlbumArtCache.get(path)
+            else AlbumArtCache.get(path)
+        )
     }
 
-    if (bitmap == null && path.isNotEmpty() && !AlbumArtCache.hasNoArt(path)) {
-        LaunchedEffect(path) {
-            bitmap = AlbumArtCache.getOrLoad(context, path) { loadAlbumArt(it) }
+    if (path.isNotEmpty() && !AlbumArtCache.hasNoArt(path)) {
+        if (isHighRes && AlbumArtCache.getHighRes(path) == null) {
+            LaunchedEffect(path) {
+                val loaded = AlbumArtCache.getOrLoadHighRes(path) {
+                    com.aashik.music.utils.loadAlbumArtHighRes(it)
+                }
+                if (loaded != null) {
+                    bitmap = loaded
+                }
+            }
+        } else if (bitmap == null) {
+            LaunchedEffect(path) {
+                bitmap = AlbumArtCache.getOrLoad(context, path) { loadAlbumArt(it) }
+            }
         }
     }
 

@@ -440,13 +440,12 @@ fun MediaLibraryContent(
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        val showScrubber = (selectedTab == LibraryTab.ALL_SONGS || selectedTab == LibraryTab.FAVORITES) && songs.size > 15
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(columns),
                             state = gridState,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(start = 8.dp, end = if (showScrubber) 28.dp else 8.dp),
+                                .padding(horizontal = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(bottom = 8.dp)
@@ -457,7 +456,7 @@ fun MediaLibraryContent(
                                 contentType = { "SongCard" }
                             ) { song ->
                                 val isPlaying = song.id == currentSongId
-                                val onCardClick = remember(song.id) { { viewModel.play(song) } }
+                                val onCardClick = remember(song.id) { { viewModel.play(song, playlist = songs) } }
                                 val onCardLongPress = remember(song.id) { { onSongLongPress(song) } }
                                 val isFav = favoritePaths.contains(song.path)
                                 val onFavClick = remember(song.path) { { viewModel.toggleFavorite(song.path) } }
@@ -470,17 +469,6 @@ fun MediaLibraryContent(
                                     onFavoriteClick = onFavClick
                                 )
                             }
-                        }
-
-                        if (showScrubber) {
-                            AlphabetScrubber(
-                                songs = songs,
-                                gridState = gridState,
-                                modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .fillMaxHeight()
-                                    .padding(end = 4.dp, top = 2.dp, bottom = 10.dp)
-                            )
                         }
                     }
                 }

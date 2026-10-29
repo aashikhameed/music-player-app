@@ -58,6 +58,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val scrollToIndex: StateFlow<Int?> = _scrollToIndex
 
     private var originalSongs: List<Song> = emptyList()
+    private var activePlaylist: List<Song> = emptyList()
+    private var activeShuffledSongs: MutableList<Song> = mutableListOf()
     private var shuffledSongs: MutableList<Song> = mutableListOf()
     private val _isShuffleOn = MutableStateFlow(true)
     val isShuffleOn: StateFlow<Boolean> = _isShuffleOn
@@ -501,7 +503,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             originalSongs = scanned
+            activePlaylist = scanned
             shuffledSongs = originalSongs.shuffled().toMutableList()
+            activeShuffledSongs = shuffledSongs
             _songs.value = originalSongs
             updateFolderList()
             updateArtworkCacheSize()
@@ -542,10 +546,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             originalSongs = loadedSongs
+            activePlaylist = loadedSongs
 
             if (shuffledSongs.isEmpty()) {
                 shuffledSongs = originalSongs.shuffled().toMutableList()
             }
+            activeShuffledSongs = shuffledSongs
 
             _songs.value = originalSongs
             updateFolderList()
@@ -574,8 +580,26 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun play(song: Song) {
+    fun play(song: Song, playlist: List<Song>? = null) {
         _currentSong.value = song
+
+        val targetList = playlist ?: when {
+            _songs.value.any { it.id == song.id } -> _songs.value
+            activePlaylist.any { it.id == song.id } -> activePlaylist
+            else -> originalSongs
+        }
+        activePlaylist = targetList
+
+        if (_isShuffleOn.value) {
+            val others = activePlaylist.filter { it.id != song.id }.shuffled()
+            activeShuffledSongs = (listOf(song) + others).toMutableList()
+            shuffledSongs = activeShuffledSongs
+        }
+
+        val queue = if (_isShuffleOn.value) activeShuffledSongs else activePlaylist
+        val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+        musicPlayer.setPlaylist(queue, startIndex)
+
         musicPlayer.play(song)
         viewModelScope.launch {
             songDao.saveLastPlayed(song)
@@ -584,8 +608,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playNextSong() {
-        val list = if (_isShuffleOn.value) shuffledSongs else _songs.value.ifEmpty { originalSongs }
+        val list = if (_isShuffleOn.value) {
+            if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else activePlaylist.shuffled().toMutableList().also { activeShuffledSongs = it }
+        } else {
+            if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
+        }
         if (list.isEmpty()) return
+
         val curId = _currentSong.value?.id
         val index = if (curId != null) list.indexOfFirst { it.id == curId } else -1
         val nextSong = if (index in 0 until list.lastIndex) {
@@ -593,14 +622,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             list[0]
         }
-        play(nextSong)
+        play(nextSong, playlist = activePlaylist)
         MusicController.play(nextSong)
         triggerScrollToCurrentSong()
     }
 
     fun playPreviousSong() {
-        val list = if (_isShuffleOn.value) shuffledSongs else _songs.value.ifEmpty { originalSongs }
+        val list = if (_isShuffleOn.value) {
+            if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else activePlaylist.shuffled().toMutableList().also { activeShuffledSongs = it }
+        } else {
+            if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
+        }
         if (list.isEmpty()) return
+
         val curId = _currentSong.value?.id
         val index = if (curId != null) list.indexOfFirst { it.id == curId } else -1
         val prevSong = if (index > 0) {
@@ -608,7 +642,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             list.last()
         }
-        play(prevSong)
+        play(prevSong, playlist = activePlaylist)
         MusicController.play(prevSong)
         triggerScrollToCurrentSong()
     }
@@ -616,23 +650,89 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleShuffle() {
         val newState = !_isShuffleOn.value
         _isShuffleOn.value = newState
-        val baseList = _songs.value.ifEmpty { originalSongs }
+        val baseList = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
 
         if (newState) {
             val current = _currentSong.value
-            val otherSongs = if (current != null) {
+            val others = if (current != null) {
                 baseList.filter { it.id != current.id }.shuffled()
             } else {
                 baseList.shuffled()
             }
-            shuffledSongs = if (current != null) {
-                (listOf(current) + otherSongs).toMutableList()
+            activeShuffledSongs = if (current != null) {
+                (listOf(current) + others).toMutableList()
             } else {
-                otherSongs.toMutableList()
+                others.toMutableList()
             }
+            shuffledSongs = activeShuffledSongs
         }
-        val activeList = if (newState) shuffledSongs else baseList
-        musicPlayer.setPlaylist(activeList, 0)
+        val activeList = if (newState) activeShuffledSongs else baseList
+        val startIndex = _currentSong.value?.let { cur -> activeList.indexOfFirst { it.id == cur.id } } ?: 0
+        musicPlayer.setPlaylist(activeList, startIndex.coerceAtLeast(0))
+    }
+
+    fun getCurrentFolderName(): String {
+        val currentFolder = _selectedFolder.value
+        if (currentFolder != null) {
+            return currentFolder.substringAfterLast('/', currentFolder)
+        }
+        val songPath = _currentSong.value?.path ?: return "All Songs"
+        val lastSlash = songPath.lastIndexOf('/')
+        return if (lastSlash > 0) {
+            val folderPath = songPath.substring(0, lastSlash)
+            folderPath.substringAfterLast('/', folderPath)
+        } else {
+            "All Songs"
+        }
+    }
+
+    fun playNextFolder() {
+        val folderList = _folders.value
+        if (folderList.isEmpty()) return
+        val currentSongPath = _currentSong.value?.path
+        val currentFolder = _selectedFolder.value ?: currentSongPath?.let { p ->
+            val lastSlash = p.lastIndexOf('/')
+            if (lastSlash > 0) p.substring(0, lastSlash) else null
+        }
+        val currentIndex = if (currentFolder != null) {
+            folderList.indexOfFirst { it.path == currentFolder }
+        } else -1
+
+        val nextIndex = if (currentIndex in 0 until folderList.lastIndex) currentIndex + 1 else 0
+        val targetFolder = folderList[nextIndex]
+        openFolderAndPlay(targetFolder.path)
+    }
+
+    fun playPreviousFolder() {
+        val folderList = _folders.value
+        if (folderList.isEmpty()) return
+        val currentSongPath = _currentSong.value?.path
+        val currentFolder = _selectedFolder.value ?: currentSongPath?.let { p ->
+            val lastSlash = p.lastIndexOf('/')
+            if (lastSlash > 0) p.substring(0, lastSlash) else null
+        }
+        val currentIndex = if (currentFolder != null) {
+            folderList.indexOfFirst { it.path == currentFolder }
+        } else -1
+
+        val prevIndex = if (currentIndex > 0) currentIndex - 1 else folderList.lastIndex
+        val targetFolder = folderList[prevIndex]
+        openFolderAndPlay(targetFolder.path)
+    }
+
+    fun openFolderAndPlay(folderPath: String) {
+        _selectedTab.value = LibraryTab.FOLDERS
+        _selectedFolder.value = folderPath
+        val folderSongs = originalSongs.filter {
+            val p = it.path
+            val lastSlash = p.lastIndexOf('/')
+            lastSlash > 0 && p.substring(0, lastSlash) == folderPath
+        }
+        _songs.value = folderSongs
+        if (folderSongs.isNotEmpty()) {
+            val firstSong = if (_isShuffleOn.value) folderSongs.shuffled().first() else folderSongs.first()
+            play(firstSong, playlist = folderSongs)
+        }
     }
 
     fun pause() {

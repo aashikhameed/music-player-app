@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
@@ -162,27 +163,53 @@ fun DriveModeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier
                             .background(
                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                 shape = DriverBadgeShape
                             )
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { viewModel.playPreviousFolder() },
+                            modifier = Modifier.size(32.dp)
+                        ) {
                             Icon(
-                                imageVector = Icons.Rounded.DirectionsCar,
-                                contentDescription = null,
+                                imageVector = Icons.Rounded.SkipPrevious,
+                                contentDescription = "Previous Folder",
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Drive Mode HUD • Blind Gestures Active",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                        }
+
+                        Icon(
+                            imageVector = Icons.Rounded.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = viewModel.getCurrentFolderName(),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+
+                        IconButton(
+                            onClick = { viewModel.playNextFolder() },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.SkipNext,
+                                contentDescription = "Next Folder",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -213,6 +240,7 @@ fun DriveModeScreen(
                             path = currentSong?.path.orEmpty(),
                             size = 140.dp,
                             borderRadius = 10.dp,
+                            isHighRes = true,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -247,8 +275,12 @@ fun DriveModeScreen(
 
                     Spacer(modifier = Modifier.height(2.dp))
 
+                    val folderName = viewModel.getCurrentFolderName()
+                    val albumStr = currentSong?.album.orEmpty()
+                    val secondaryText = if (albumStr.isNotBlank()) "$albumStr • 📁 $folderName" else "📁 $folderName"
+
                     Text(
-                        text = currentSong?.album.orEmpty(),
+                        text = secondaryText,
                         fontSize = 12.sp,
                         color = secondaryTextColor,
                         maxLines = 1,
@@ -264,6 +296,12 @@ fun DriveModeScreen(
                     )
                 }
             }
+
+            // ── Progress & Seek Bar ──
+            DriveHudSeekBar(
+                viewModel = viewModel,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             // ── Bottom Controls: Oversized buttons ──
             Row(
@@ -355,4 +393,32 @@ fun DriveModeScreen(
             }
         }
     }
+}
+
+/**
+ * Isolated leaf composable for the Drive HUD seek bar.
+ * Ensures 250ms playback ticks only recompose the seekbar and not the outer HUD screen.
+ */
+@Composable
+private fun DriveHudSeekBar(
+    viewModel: MusicViewModel,
+    modifier: Modifier = Modifier
+) {
+    val positionMs by viewModel.positionFlow.collectAsState()
+    val durationMs by viewModel.durationFlow.collectAsState()
+    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
+    val isPlaying by viewModel.isPlaying.collectAsState()
+
+    CustomHorizontalSeekBar(
+        progress = progress,
+        onProgressChanged = { viewModel.seekToFraction(it) },
+        isPlaying = isPlaying,
+        currentPositionMs = positionMs,
+        durationMs = durationMs,
+        waveSeed = 42,
+        showTimeLabels = true,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 2.dp)
+    )
 }

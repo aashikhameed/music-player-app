@@ -47,3 +47,44 @@ fun loadAlbumArt(path: String): Bitmap? {
         } catch (_: Exception) {}
     }
 }
+
+fun loadAlbumArtHighRes(path: String, targetSize: Int = 256): Bitmap? {
+    var retriever: MediaMetadataRetriever? = null
+    return try {
+        retriever = MediaMetadataRetriever()
+        retriever.setDataSource(path)
+        val rawArt = retriever.embeddedPicture ?: return null
+
+        val boundsOptions = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, boundsOptions)
+
+        var sampleSize = 1
+        while (boundsOptions.outWidth / sampleSize > targetSize * 2 || boundsOptions.outHeight / sampleSize > targetSize * 2) {
+            sampleSize *= 2
+        }
+
+        val decodeOptions = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = Bitmap.Config.RGB_565
+        }
+        val decoded = BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, decodeOptions) ?: return null
+
+        if (decoded.width <= targetSize && decoded.height <= targetSize) {
+            decoded
+        } else {
+            val scaled = Bitmap.createScaledBitmap(decoded, targetSize, targetSize, false)
+            if (scaled != decoded) {
+                decoded.recycle()
+            }
+            scaled
+        }
+    } catch (_: Exception) {
+        null
+    } finally {
+        try {
+            retriever?.release()
+        } catch (_: Exception) {}
+    }
+}

@@ -121,7 +121,33 @@ object AlbumArtCache {
 
     fun get(path: String): Bitmap? = memoryCache.get(path)
 
+    fun getHighRes(path: String): Bitmap? = memoryCache.get(path + "_hr")
+
     fun hasNoArt(path: String): Boolean = noArtPaths.contains(path)
+
+    suspend fun getOrLoadHighRes(
+        path: String,
+        loader: suspend (String) -> Bitmap?
+    ): Bitmap? {
+        val key = path + "_hr"
+        memoryCache.get(key)?.let { return it }
+        if (noArtPaths.contains(path)) return null
+
+        return withContext(Dispatchers.IO) {
+            memoryCache.get(key)?.let { return@withContext it }
+            decodeSemaphore.withPermit {
+                try {
+                    val loaded = loader(path)
+                    if (loaded != null) {
+                        memoryCache.put(key, loaded)
+                    }
+                    loaded
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
+    }
 
     suspend fun getOrLoad(
         context: Context,
