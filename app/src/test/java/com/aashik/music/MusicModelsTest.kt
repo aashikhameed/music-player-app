@@ -294,4 +294,63 @@ class MusicModelsTest {
         val formatted = String.format("%02d:%02d", remainingSec / 60, remainingSec % 60)
         assertEquals("29:00", formatted)
     }
+
+    @Test
+    fun testAppleCarPlayTransitionDirection() {
+        val playlist = listOf("Track 1", "Track 2", "Track 3", "Track 4")
+        var currentIndex = 0
+        var navDirection = 1
+
+        fun onNext() {
+            navDirection = 1
+            currentIndex = (currentIndex + 1) % playlist.size
+        }
+
+        fun onPrev() {
+            navDirection = -1
+            currentIndex = if (currentIndex > 0) currentIndex - 1 else playlist.lastIndex
+        }
+
+        onNext()
+        assertEquals(1, navDirection) // 1 = Next/Forward (Slide out left, slide in right)
+        assertEquals(1, currentIndex)
+
+        onNext()
+        assertEquals(1, navDirection)
+        assertEquals(2, currentIndex)
+
+        onPrev()
+        assertEquals(-1, navDirection) // -1 = Prev/Backward (Slide out right, slide in left)
+        assertEquals(1, currentIndex)
+
+        onPrev()
+        assertEquals(-1, navDirection)
+        assertEquals(0, currentIndex)
+
+        // Wrap backwards
+        onPrev()
+        assertEquals(-1, navDirection)
+        assertEquals(3, currentIndex)
+    }
+
+    @Test
+    fun testDualModeCrossfadeSelection() {
+        fun resolveCrossfadeDuration(isAutoCrossfade: Boolean, configuredSec: Float, isPlaying: Boolean): Float {
+            return when {
+                isAutoCrossfade -> configuredSec
+                isPlaying -> 0.12f // 120ms anti-pop micro-fade for manual skip
+                else -> 0.0f
+            }
+        }
+
+        // Automatic end-of-track crossfade uses full configured duration (3.0s)
+        assertEquals(3.0f, resolveCrossfadeDuration(isAutoCrossfade = true, configuredSec = 3.0f, isPlaying = true), 0.001f)
+        assertEquals(5.0f, resolveCrossfadeDuration(isAutoCrossfade = true, configuredSec = 5.0f, isPlaying = true), 0.001f)
+
+        // Manual skip during playback uses 120ms anti-pop micro-fade (CarPlay style)
+        assertEquals(0.12f, resolveCrossfadeDuration(isAutoCrossfade = false, configuredSec = 3.0f, isPlaying = true), 0.001f)
+
+        // Starting playback from stopped/paused state is instantaneous (0.0s)
+        assertEquals(0.0f, resolveCrossfadeDuration(isAutoCrossfade = false, configuredSec = 3.0f, isPlaying = false), 0.001f)
+    }
 }
