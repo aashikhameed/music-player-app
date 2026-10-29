@@ -21,21 +21,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.ViewColumn
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -73,6 +79,7 @@ private val MudCutWarningColor = Color(0xFFFF8A65)
 private val VocalCyanColor = Color(0xFF4DD0E1)
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
+private val RefetchGreenColor = Color(0xFF00E676)
 
 private val BAND_LABELS = listOf(
     "60 Hz" to "Sub-Bass",
@@ -97,9 +104,18 @@ private val HPF_NAMES = listOf(
     "80 Hz Cut (Alpine)"
 )
 
+private fun formatCacheSize(bytes: Long): String {
+    if (bytes <= 0) return "0 KB"
+    val kb = bytes / 1024.0
+    if (kb < 1024) return String.format("%.1f KB", kb)
+    val mb = kb / 1024.0
+    return String.format("%.2f MB", mb)
+}
+
 /**
  * Unified Automotive Settings Screen.
- * Consolidates Equalizer & DSP tuning, Theme, Grid Columns, Library Rescan, and Hardware Info.
+ * Consolidates Song Refetching, Lite/Dark Theme, Equalizer & DSP tuning, Cache Cleaning,
+ * Playback Preferences, Grid Layout, and Hardware Diagnostics.
  * Optimized for Blaupunkt Santa Rosa 985 (1280x720 @ 160 dpi).
  */
 @Composable
@@ -193,26 +209,28 @@ fun SettingsScreen(
                     .padding(top = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Left Column: Audio DSP & Equalizer Tuning (weight 0.58f)
+                // Left Column: Audio DSP & Equalizer Tuning (weight 0.55f)
                 Box(
                     modifier = Modifier
-                        .weight(0.58f)
+                        .weight(0.55f)
                         .fillMaxHeight()
                         .verticalScroll(rememberScrollState())
                 ) {
                     AudioDspSection(viewModel = viewModel)
                 }
 
-                // Right Column: Display, Library & System Info (weight 0.42f)
+                // Right Column: Song Refetch, Theme, Playback, Cache & Diagnostics (weight 0.45f)
                 Box(
                     modifier = Modifier
-                        .weight(0.42f)
+                        .weight(0.45f)
                         .fillMaxHeight()
                         .verticalScroll(rememberScrollState())
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        DisplaySection(viewModel = viewModel)
-                        LibrarySection(viewModel = viewModel)
+                        RefetchSection(viewModel = viewModel)
+                        ThemeDisplaySection(viewModel = viewModel)
+                        PlaybackPreferencesSection(viewModel = viewModel)
+                        CacheManagementSection(viewModel = viewModel)
                         SystemInfoSection()
                     }
                 }
@@ -225,11 +243,524 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                RefetchSection(viewModel = viewModel)
+                ThemeDisplaySection(viewModel = viewModel)
                 AudioDspSection(viewModel = viewModel)
-                DisplaySection(viewModel = viewModel)
-                LibrarySection(viewModel = viewModel)
+                PlaybackPreferencesSection(viewModel = viewModel)
+                CacheManagementSection(viewModel = viewModel)
                 SystemInfoSection()
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+    }
+}
+
+/**
+ * Song Refetch & Library Synchronization Section.
+ * Rescans physical storage & USB partitions and replaces stale Room entries.
+ */
+@Composable
+private fun RefetchSection(viewModel: MusicViewModel) {
+    val isRefetching by viewModel.isRefetching.collectAsState()
+    val refetchStatus by viewModel.refetchStatus.collectAsState()
+    val songs by viewModel.songs.collectAsState()
+    val folders by viewModel.folders.collectAsState()
+    val cardBorder = AppGradients.border(isActive = false)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape),
+        shape = CardSectionShape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Sync,
+                        contentDescription = null,
+                        tint = RefetchGreenColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "Song Refetch & Media Scan",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            shape = InfoBadgeShape
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${songs.size} Songs • ${folders.size} Folders",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Text(
+                text = "Deep-scans internal storage and plugged-in USB thumb drives to detect newly added or edited audio files.",
+                fontSize = 10.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (refetchStatus != null) {
+                Text(
+                    text = refetchStatus.orEmpty(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isRefetching) MaterialTheme.colorScheme.primary else RefetchGreenColor
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Button(
+                    onClick = { viewModel.refetchSongs() },
+                    enabled = !isRefetching,
+                    shape = ActionButtonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    if (isRefetching) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Scanning Storage...",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Refetch All Songs",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Lite / Dark Mode & Display Layout Section.
+ */
+@Composable
+private fun ThemeDisplaySection(viewModel: MusicViewModel) {
+    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val gridColumns by viewModel.gridColumns.collectAsState()
+    val cardBorder = AppGradients.border(isActive = false)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape),
+        shape = CardSectionShape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Tune,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Theme & Display Layout",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Lite / Dark Mode Selector Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "App Theme Mode",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isDarkTheme) "Dark Mode (Infotainment Night Mode)" else "Lite Mode (Day Driving High Contrast)",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Lite Mode Chip
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                if (!isDarkTheme) ThemeSunColor
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                shape = ChipPillShape
+                            )
+                            .clickable { if (isDarkTheme) viewModel.setThemeMode(false) }
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.LightMode,
+                                contentDescription = null,
+                                tint = if (!isDarkTheme) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Lite Mode",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (!isDarkTheme) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Dark Mode Chip
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                if (isDarkTheme) ThemeMoonColor
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                shape = ChipPillShape
+                            )
+                            .clickable { if (!isDarkTheme) viewModel.setThemeMode(true) }
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.DarkMode,
+                                contentDescription = null,
+                                tint = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Dark Mode",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Grid Column Setting Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "Library Grid Columns",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (gridColumns == 2) "2 Columns (Optimal touch targets)" else "3 Columns (Compact Layout)",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                if (gridColumns == 2) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                shape = ChipPillShape
+                            )
+                            .clickable { if (gridColumns != 2) viewModel.toggleGridColumns() }
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.GridView,
+                                contentDescription = null,
+                                tint = if (gridColumns == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "2 Columns",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (gridColumns == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                if (gridColumns == 3) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                shape = ChipPillShape
+                            )
+                            .clickable { if (gridColumns != 3) viewModel.toggleGridColumns() }
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.ViewColumn,
+                                contentDescription = null,
+                                tint = if (gridColumns == 3) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "3 Columns",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (gridColumns == 3) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Automotive Playback Behaviors Section.
+ */
+@Composable
+private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
+    val autoResume by viewModel.autoResume.collectAsState()
+    val cardBorder = AppGradients.border(isActive = false)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape),
+        shape = CardSectionShape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Automotive Playback Behaviors",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Auto-Resume Last Played Track",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Restores position and last song when the Santa Rosa headunit boots up",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Switch(
+                    checked = autoResume,
+                    onCheckedChange = { viewModel.setAutoResume(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Steering Mute Auto-Pause",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Seamlessly pauses audio when hardware volume stream is muted from steering wheel",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            shape = InfoBadgeShape
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Hardware Linked",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Cache & Storage Maintenance Section.
+ */
+@Composable
+private fun CacheManagementSection(viewModel: MusicViewModel) {
+    val cacheSize by viewModel.artworkCacheSize.collectAsState()
+    val cardBorder = AppGradients.border(isActive = false)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape),
+        shape = CardSectionShape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.DeleteSweep,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Artwork & Disk Cache Maintenance",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "Artwork Disk Cache: ${formatCacheSize(cacheSize)}",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "NEON-compressed JPEG thumbnails (64x64 RGB_565) + .noart markers",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Button(
+                    onClick = { viewModel.clearArtworkCache() },
+                    shape = ActionButtonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.CleaningServices,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Clear Cache",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -420,7 +951,7 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                             .padding(horizontal = 8.dp, vertical = 1.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.width(140.dp)) {
+                        Column(modifier = Modifier.width(135.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = freqLabel,
@@ -501,266 +1032,6 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
 }
 
 /**
- * Display & Interface Options Section.
- */
-@Composable
-private fun DisplaySection(viewModel: MusicViewModel) {
-    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
-    val gridColumns by viewModel.gridColumns.collectAsState()
-    val cardBorder = AppGradients.border(isActive = false)
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape),
-        shape = CardSectionShape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Tune,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = "Display & Interface",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            // Theme Setting Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "App Theme",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = if (isDarkTheme) "Dark Mode (Infotainment Night Mode)" else "Light Mode (Day Driving)",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isDarkTheme) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
-                        contentDescription = null,
-                        tint = if (isDarkTheme) ThemeMoonColor else ThemeSunColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Switch(
-                        checked = isDarkTheme,
-                        onCheckedChange = { viewModel.toggleTheme() },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = ThemeMoonColor,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                }
-            }
-
-            // Grid Column Setting Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Library Grid Columns",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = if (gridColumns == 2) "2 Columns (Optimal for Santa Rosa 985 touch)" else "3 Columns (Compact Layout)",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                if (gridColumns == 2) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                shape = ChipPillShape
-                            )
-                            .clickable { if (gridColumns != 2) viewModel.toggleGridColumns() }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Rounded.GridView,
-                                contentDescription = null,
-                                tint = if (gridColumns == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "2 Columns",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (gridColumns == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                if (gridColumns == 3) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                shape = ChipPillShape
-                            )
-                            .clickable { if (gridColumns != 3) viewModel.toggleGridColumns() }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Rounded.ViewColumn,
-                                contentDescription = null,
-                                tint = if (gridColumns == 3) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "3 Columns",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (gridColumns == 3) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Media Library & Storage Management Section.
- */
-@Composable
-private fun LibrarySection(viewModel: MusicViewModel) {
-    val songs by viewModel.songs.collectAsState()
-    val folders by viewModel.folders.collectAsState()
-    val cardBorder = AppGradients.border(isActive = false)
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape),
-        shape = CardSectionShape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = "Library & Storage",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column {
-                        Text(
-                            text = "${songs.size}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Tracks",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Column {
-                        Text(
-                            text = "${folders.size}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        Text(
-                            text = "Folders",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = { viewModel.loadSongs() },
-                    shape = ActionButtonShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        contentColor = MaterialTheme.colorScheme.primary
-                    ),
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Rescan Media",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
  * Hardware, Native Engine & Performance Info Section.
  */
 @Composable
@@ -791,7 +1062,7 @@ private fun SystemInfoSection() {
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Hardware & Audio Engine",
+                    text = "Hardware & Audio Engine Diagnostics",
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -805,6 +1076,11 @@ private fun SystemInfoSection() {
             )
             Text(
                 text = "Audio Core: C++ OpenSL ES 1.1 + Direct Form II Transposed Biquad DSP",
+                fontSize = 9.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Jitter Buffer: 96 KB Lock-Free SPSC RingBuffer (~550ms Headroom)",
                 fontSize = 9.5.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

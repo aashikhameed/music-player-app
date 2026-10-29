@@ -208,4 +208,10 @@ object AlbumArtCache {
         val cacheDir = File(context.cacheDir, "albumart")
         cacheDir.deleteRecursively()
     }
+
+    fun getDiskCacheSizeBytes(context: Context): Long {
+        val cacheDir = File(context.cacheDir, "albumart")
+        if (!cacheDir.exists()) return 0L
+        return cacheDir.listFiles()?.sumOf { it.length() } ?: 0L
+    }
 }

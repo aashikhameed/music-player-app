@@ -32,6 +32,6 @@ interface SongDao {
     @Query("SELECT * FROM songs ORDER BY title COLLATE NOCASE ASC")
     fun getAllSongsBlocking(): List<Song>
 
-
-
+    @Query("DELETE FROM songs")
+    suspend fun clearAll()
 }

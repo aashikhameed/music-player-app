@@ -131,6 +131,20 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isSettingsOpen = MutableStateFlow(false)
     val isSettingsOpen: StateFlow<Boolean> = _isSettingsOpen.asStateFlow()
 
+    private val _isRefetching = MutableStateFlow(false)
+    val isRefetching: StateFlow<Boolean> = _isRefetching.asStateFlow()
+
+    private val _refetchStatus = MutableStateFlow<String?>(null)
+    val refetchStatus: StateFlow<String?> = _refetchStatus.asStateFlow()
+
+    private val _artworkCacheSize = MutableStateFlow(0L)
+    val artworkCacheSize: StateFlow<Long> = _artworkCacheSize.asStateFlow()
+
+    private val appPrefs = application.getSharedPreferences("automotive_prefs", Context.MODE_PRIVATE)
+
+    private val _autoResume = MutableStateFlow(appPrefs.getBoolean("auto_resume", true))
+    val autoResume: StateFlow<Boolean> = _autoResume.asStateFlow()
+
     init {
         viewModelScope.launch {
             themePref.isDarkMode.collect {
@@ -162,6 +176,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
             loadSongs()
         }
+
+        updateArtworkCacheSize()
 
         // Initialize Native C++ Audio Equalizer DSP
         val initialEnabled = _isEqualizerEnabled.value
@@ -344,6 +360,71 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleTheme() {
         viewModelScope.launch {
             themePref.setDarkMode(!_isDarkTheme.value)
+        }
+    }
+
+    fun setThemeMode(isDark: Boolean) {
+        viewModelScope.launch {
+            themePref.setDarkMode(isDark)
+        }
+    }
+
+    fun setAutoResume(enabled: Boolean) {
+        _autoResume.value = enabled
+        appPrefs.edit().putBoolean("auto_resume", enabled).apply()
+    }
+
+    fun updateArtworkCacheSize() {
+        val context = getApplication<Application>().applicationContext
+        _artworkCacheSize.value = com.aashik.music.cache.AlbumArtCache.getDiskCacheSizeBytes(context)
+    }
+
+    fun clearArtworkCache() {
+        viewModelScope.launch {
+            val context = getApplication<Application>().applicationContext
+            com.aashik.music.cache.AlbumArtCache.clear(context)
+            updateArtworkCacheSize()
+        }
+    }
+
+    fun refetchSongs() {
+        viewModelScope.launch {
+            _isRefetching.value = true
+            _refetchStatus.value = "Deep scanning storage & USB drives..."
+            val context = getApplication<Application>().applicationContext
+            val scanned = withContext(Dispatchers.IO) {
+                val songs = AudioScanner.scan(context) { loaded, total ->
+                    _loadedCount.value = loaded
+                    _totalCount.value = total
+                }
+                songDao.clearAll()
+                songDao.insertAll(songs)
+                songs
+            }
+
+            originalSongs = scanned
+            shuffledSongs = originalSongs.shuffled().toMutableList()
+            _songs.value = originalSongs
+            updateFolderList()
+            updateArtworkCacheSize()
+
+            val preloadLimit = minOf(20, originalSongs.size)
+            val preloadPaths = ArrayList<String>(preloadLimit)
+            for (i in 0 until preloadLimit) {
+                preloadPaths.add(originalSongs[i].path)
+            }
+            com.aashik.music.cache.AlbumArtCache.preload(
+                context = context,
+                paths = preloadPaths
+            ) { path ->
+                com.aashik.music.utils.loadAlbumArt(path)
+            }
+
+            val activeList = if (_isShuffleOn.value) shuffledSongs else originalSongs
+            musicPlayer.setPlaylist(activeList, 0)
+
+            _refetchStatus.value = "Found ${scanned.size} songs in ${_folders.value.size} folders"
+            _isRefetching.value = false
         }
     }
 
