@@ -38,10 +38,10 @@ private val FolderCardShape = RoundedCornerShape(14.dp)
 private val FolderIconShape = RoundedCornerShape(10.dp)
 private val CountPillShape = RoundedCornerShape(6.dp)
 
-private val DarkFolderBg = Brush.linearGradient(listOf(Color(0xFF2B2113), Color(0xFF1B140A)))
-private val LightFolderBg = Brush.linearGradient(listOf(Color(0xFFFFFBEB), Color(0xFFFEF3C7)))
-private val DarkFolderBorder = Brush.linearGradient(listOf(Color(0xFFFFB300).copy(alpha = 0.5f), Color(0xFFFF8F00).copy(alpha = 0.2f)))
-private val LightFolderBorder = Brush.linearGradient(listOf(Color(0xFFF59E0B).copy(alpha = 0.5f), Color(0xFFD97706).copy(alpha = 0.25f)))
+private val DarkFolderBg = Color(0xFF261D10)
+private val LightFolderBg = Color(0xFFFEF3C7)
+private val DarkFolderBorder = Color(0xFFFFB300).copy(alpha = 0.35f)
+private val LightFolderBorder = Color(0xFFF59E0B).copy(alpha = 0.35f)
 private val DarkFolderIconTint = Color(0xFFFFB300)
 private val LightFolderIconTint = Color(0xFFD97706)
 private val DarkCountPillBg = Color(0xFF1E2638)
@@ -83,8 +83,7 @@ fun FolderCard(
             Box(
                 modifier = Modifier
                     .size(54.dp)
-                    .clip(FolderIconShape)
-                    .background(folderBg)
+                    .background(folderBg, shape = FolderIconShape)
                     .border(1.dp, folderBorder, FolderIconShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -123,8 +122,7 @@ fun FolderCard(
 
                     Box(
                         modifier = Modifier
-                            .clip(CountPillShape)
-                            .background(countPillBg)
+                            .background(countPillBg, shape = CountPillShape)
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(

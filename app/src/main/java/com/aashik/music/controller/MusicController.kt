@@ -9,22 +9,42 @@ object MusicController {
     var isPlaying: Boolean = false
         private set
 
-    var onStateChanged: (() -> Unit)? = null
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+
+    fun addListener(listener: () -> Unit) {
+        listeners.add(listener)
+    }
+
+    fun removeListener(listener: () -> Unit) {
+        listeners.remove(listener)
+    }
+
+    var onStateChanged: (() -> Unit)?
+        get() = null
+        set(value) {
+            value?.let { addListener(it) }
+        }
+
+    private fun notifyStateChanged() {
+        for (listener in listeners) {
+            listener.invoke()
+        }
+    }
 
     fun play(song: Song? = null) {
         song?.let { currentSong = it }
         isPlaying = true
-        onStateChanged?.invoke()
+        notifyStateChanged()
     }
 
     fun pause() {
         isPlaying = false
-        onStateChanged?.invoke()
+        notifyStateChanged()
     }
 
     fun togglePlayPause() {
         isPlaying = !isPlaying
-        onStateChanged?.invoke()
+        notifyStateChanged()
     }
 
     fun next(songs: List<Song>) {
@@ -33,7 +53,7 @@ object MusicController {
         if (index != -1 && index < songs.lastIndex) {
             currentSong = songs[index + 1]
             isPlaying = true
-            onStateChanged?.invoke()
+            notifyStateChanged()
         }
     }
 
@@ -43,7 +63,7 @@ object MusicController {
         if (index > 0) {
             currentSong = songs[index - 1]
             isPlaying = true
-            onStateChanged?.invoke()
+            notifyStateChanged()
         }
     }
 }

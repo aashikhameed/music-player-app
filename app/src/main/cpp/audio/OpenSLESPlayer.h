@@ -7,6 +7,7 @@
 #include <SLES/OpenSLES_Android.h>
 #include <memory>
 #include <atomic>
+#include <functional>
 
 namespace audio {
 
@@ -34,6 +35,10 @@ public:
 
     bool isPlaying() const { return mIsPlaying.load(std::memory_order_relaxed); }
 
+    void setOnBufferConsumedCallback(std::function<void(size_t)> callback) {
+        mOnBufferConsumed = std::move(callback);
+    }
+
     // Internal buffer queue callback method
     void onBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq);
 
@@ -42,6 +47,7 @@ private:
     static void bufferQueueCallbackStatic(SLAndroidSimpleBufferQueueItf bq, void* context);
 
     std::shared_ptr<RingBuffer> mRingBuffer;
+    std::function<void(size_t)> mOnBufferConsumed;
 
     // OpenSL ES Objects
     SLObjectItf mEngineObject = nullptr;

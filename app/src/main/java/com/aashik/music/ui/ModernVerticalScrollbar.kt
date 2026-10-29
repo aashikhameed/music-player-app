@@ -33,6 +33,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+private val TrackShape = RoundedCornerShape(2.dp)
+private val ThumbShape = RoundedCornerShape(4.dp)
+
 @Composable
 fun ModernVerticalScrollbar(
     gridState: LazyGridState,
@@ -47,7 +50,7 @@ fun ModernVerticalScrollbar(
 
     val density = LocalDensity.current
 
-    val scrollFraction by remember {
+    val scrollFraction by remember(totalItemCount) {
         derivedStateOf {
             if (totalItemCount <= 0) return@derivedStateOf 0f
             val firstVisibleIndex = gridState.firstVisibleItemIndex.toFloat()
@@ -68,17 +71,29 @@ fun ModernVerticalScrollbar(
                 trackHeightPx = it.size.height.toFloat()
             }
             .pointerInput(totalItemCount) {
+                var lastTargetItem = -1
+                var dragJob: kotlinx.coroutines.Job? = null
                 detectVerticalDragGestures(
                     onDragStart = { isDragging = true },
-                    onDragEnd = { isDragging = false },
-                    onDragCancel = { isDragging = false }
+                    onDragEnd = {
+                        isDragging = false
+                        dragJob = null
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        dragJob = null
+                    }
                 ) { change, _ ->
                     change.consume()
                     val y = change.position.y
                     val fraction = (y / trackHeightPx).coerceIn(0f, 1f)
                     val targetItem = (fraction * totalItemCount).toInt().coerceIn(0, max(0, totalItemCount - 1))
-                    coroutineScope.launch {
-                        gridState.scrollToItem(targetItem)
+                    if (targetItem != lastTargetItem) {
+                        lastTargetItem = targetItem
+                        dragJob?.cancel()
+                        dragJob = coroutineScope.launch {
+                            gridState.scrollToItem(targetItem)
+                        }
                     }
                 }
             },
@@ -90,14 +105,15 @@ fun ModernVerticalScrollbar(
                 .width(4.dp)
                 .fillMaxHeight()
                 .padding(vertical = 12.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .clip(TrackShape)
                 .background(trackColor)
         )
 
         // Floating Pill Thumb — using layout offset lambda to skip recomposition & layout passes
         val thumbHeightDp = 48.dp
-        val thumbHeightPx = with(density) { thumbHeightDp.toPx() }
-        val topPaddingPx = with(density) { 12.dp.toPx() }
+        val (thumbHeightPx, topPaddingPx) = remember(density) {
+            with(density) { thumbHeightDp.toPx() to 12.dp.toPx() }
+        }
         val maxTravelPx = max(0f, trackHeightPx - thumbHeightPx - topPaddingPx * 2f)
 
         Box(
@@ -109,7 +125,7 @@ fun ModernVerticalScrollbar(
                 }
                 .width(if (isDragging) 8.dp else 5.dp)
                 .height(thumbHeightDp)
-                .clip(RoundedCornerShape(4.dp))
+                .clip(ThumbShape)
                 .background(if (isDragging) MaterialTheme.colorScheme.secondary else thumbColor)
         )
     }

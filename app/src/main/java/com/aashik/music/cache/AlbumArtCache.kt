@@ -8,7 +8,11 @@ import android.util.LruCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -28,13 +32,20 @@ object AlbumArtCache {
     // Tracks known files without album art to skip redundant disk I/O & retriever calls
     private val noArtPaths = ConcurrentHashMap.newKeySet<String>()
 
+    // Deduplicate in-flight decode jobs for the same track
+    private val inFlightLoads = ConcurrentHashMap<String, kotlinx.coroutines.Deferred<Bitmap?>>()
+
+    // Concurrency throttle: at most 3 MediaMetadataRetriever decodes concurrently
+    private val decodeSemaphore = Semaphore(3)
+    private val cacheScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     // Throttle disk cache size checks to avoid flash I/O bottlenecks during scrolling
     private val diskWriteCount = AtomicInteger(0)
 
     private fun calculateMaxSize(): Int {
         val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
-        // Allocate up to 8MB max for cover art thumbnails
-        return (maxMemoryKb / 32).coerceIn(4096, 8192)
+        // Allocate up to 3MB max for 8KB cover art thumbnails (avoids GC pressure on 1-2GB RAM)
+        return (maxMemoryKb / 64).coerceIn(2048, 4096)
     }
 
     private const val MAX_DISK_CACHE_SIZE = 25L * 1024L * 1024L
@@ -42,7 +53,7 @@ object AlbumArtCache {
     private fun getAlbumArtFile(context: Context, path: String): File {
         val cacheDir = File(context.cacheDir, "albumart")
         if (!cacheDir.exists()) cacheDir.mkdirs()
-        val fileName = path.hashCode().toString() + ".webp"
+        val fileName = path.hashCode().toString() + ".jpg"
         return File(cacheDir, fileName)
     }
 
@@ -50,25 +61,34 @@ object AlbumArtCache {
         try {
             val file = getAlbumArtFile(context, path)
             FileOutputStream(file).use { out ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 75, out)
-                } else {
-                    @Suppress("DEPRECATION")
-                    bitmap.compress(Bitmap.CompressFormat.WEBP, 75, out)
-                }
+                // Fast NEON-accelerated JPEG encoding avoids pegging CPU cores during scrolling
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 75, out)
             }
-            if (diskWriteCount.incrementAndGet() % 50 == 0) {
-                enforceDiskLimit(file.parentFile)
+            if (diskWriteCount.incrementAndGet() % 100 == 0) {
+                cacheScope.launch {
+                    enforceDiskLimit(file.parentFile)
+                }
             }
         } catch (_: Exception) {}
     }
 
+    private fun getNoArtFile(context: Context, path: String): File {
+        val cacheDir = File(context.cacheDir, "albumart")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        val fileName = path.hashCode().toString() + ".noart"
+        return File(cacheDir, fileName)
+    }
+
     private fun loadFromDisk(context: Context, path: String): Bitmap? {
+        if (getNoArtFile(context, path).exists()) {
+            noArtPaths.add(path)
+            return null
+        }
         val file = getAlbumArtFile(context, path)
         return if (file.exists()) decodeScaledBitmap(file) else null
     }
 
-    private fun decodeScaledBitmap(file: File, maxSize: Int = 120): Bitmap? {
+    private fun decodeScaledBitmap(file: File, maxSize: Int = 64): Bitmap? {
         val options = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
@@ -101,6 +121,8 @@ object AlbumArtCache {
 
     fun get(path: String): Bitmap? = memoryCache.get(path)
 
+    fun hasNoArt(path: String): Boolean = noArtPaths.contains(path)
+
     suspend fun getOrLoad(
         context: Context,
         path: String,
@@ -112,7 +134,12 @@ object AlbumArtCache {
         // Fast path 2: Known missing artwork
         if (noArtPaths.contains(path)) return null
 
+        // Fast path 3: Return existing in-flight decode if already running
+        inFlightLoads[path]?.let { return it.await() }
+
         return withContext(Dispatchers.IO) {
+            memoryCache.get(path)?.let { return@withContext it }
+
             // Check disk cache first
             val diskBitmap = loadFromDisk(context, path)
             if (diskBitmap != null) {
@@ -120,16 +147,27 @@ object AlbumArtCache {
                 return@withContext diskBitmap
             }
 
-            // Load via MediaMetadataRetriever
-            val loadedBitmap = loader(path)
-            if (loadedBitmap != null) {
-                memoryCache.put(path, loadedBitmap)
-                saveToDisk(context, path, loadedBitmap)
-                loadedBitmap
-            } else {
-                noArtPaths.add(path)
-                null
+            // Deduplicate and throttle decoder concurrency
+            val deferred = async {
+                decodeSemaphore.withPermit {
+                    try {
+                        val loadedBitmap = loader(path)
+                        if (loadedBitmap != null) {
+                            memoryCache.put(path, loadedBitmap)
+                            saveToDisk(context, path, loadedBitmap)
+                            loadedBitmap
+                        } else {
+                            noArtPaths.add(path)
+                            try { getNoArtFile(context, path).createNewFile() } catch (_: Exception) {}
+                            null
+                        }
+                    } finally {
+                        inFlightLoads.remove(path)
+                    }
+                }
             }
+            inFlightLoads[path] = deferred
+            deferred.await()
         }
     }
 
@@ -138,11 +176,16 @@ object AlbumArtCache {
     private var preloadJob: Job? = null
 
     fun preload(context: Context, paths: List<String>, loader: suspend (String) -> Bitmap?) {
-        val unvisited = paths.filter { !memoryCache.snapshot().containsKey(it) && !noArtPaths.contains(it) }
-        preloadQueue.addAll(unvisited.map { context to it })
+        for (path in paths) {
+            if (memoryCache.get(path) == null && !noArtPaths.contains(path)) {
+                preloadQueue.add(context to path)
+            }
+        }
 
         if (preloadJob?.isActive != true && preloadQueue.isNotEmpty()) {
             preloadJob = CoroutineScope(Dispatchers.IO).launch {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_LOWEST)
+                kotlinx.coroutines.delay(600) // Yield CPU to initial UI composition
                 while (preloadQueue.isNotEmpty()) {
                     val (ctx, path) = preloadQueue.poll() ?: continue
                     try {

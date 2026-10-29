@@ -23,7 +23,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aashik.music.service.NotificationPlaybackService
 import com.aashik.music.theme.CarMusicTheme
 import com.aashik.music.viewmodel.MusicViewModel
-import com.aashik.music.viewmodel.ThemeViewModel
 
 @Composable
 fun MusicApp() {
@@ -36,8 +35,7 @@ fun MusicApp() {
     }
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    val themedViewModel: ThemeViewModel = viewModel()
-    val isDarkMode by themedViewModel.isDarkMode.collectAsState()
+    val isDarkMode by viewModel.isDarkTheme.collectAsState()
     val songs by viewModel.songs.collectAsState() // assuming you expose songs as StateFlow<List<Song>>
 
 

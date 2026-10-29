@@ -13,6 +13,7 @@ import com.aashik.music.repository.AudioScanner
 import com.aashik.music.service.MusicPlayer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -92,6 +93,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isDarkTheme = MutableStateFlow(false)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
+    // Grid columns: defaults to 2 for optimal automotive headunit rendering & large touch targets
+    private val _gridColumns = MutableStateFlow(2)
+    val gridColumns: StateFlow<Int> = _gridColumns.asStateFlow()
+
+    fun toggleGridColumns() {
+        _gridColumns.value = if (_gridColumns.value == 2) 3 else 2
+    }
+
     init {
         viewModelScope.launch {
             themePref.isDarkMode.collect {
@@ -134,30 +143,33 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
 
     private fun updateFolderList() {
-        // Run groupBy + sort on Default thread to avoid blocking Compose recompositions
+        // Run single-pass count map on background thread with zero intermediate list allocations
         viewModelScope.launch(Dispatchers.Default) {
-            val folderMap = originalSongs.groupBy {
-                val p = it.path
+            val countMap = LinkedHashMap<String, Int>()
+            for (song in originalSongs) {
+                val p = song.path
                 val lastSlash = p.lastIndexOf('/')
-                if (lastSlash > 0) p.substring(0, lastSlash) else "Root"
+                val folderPath = if (lastSlash > 0) p.substring(0, lastSlash) else "Root"
+                countMap[folderPath] = (countMap[folderPath] ?: 0) + 1
             }
-            val result = folderMap.map { (path, songList) ->
-                val folderName = path.substringAfterLast('/', path)
+            val result = countMap.map { (path, count) ->
                 MusicFolder(
-                    name = folderName,
+                    name = path.substringAfterLast('/', path),
                     path = path,
-                    songCount = songList.size
+                    songCount = count
                 )
             }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
             _folders.value = result
         }
     }
 
+    private var searchJob: Job? = null
+
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
-        // Dispatch filter work to Default (background) so main thread
-        // stays completely unblocked during search
-        viewModelScope.launch(Dispatchers.Default) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch(Dispatchers.Default) {
+            if (query.isNotEmpty()) kotlinx.coroutines.delay(100)
             applySearchFilter(query)
         }
     }
@@ -207,7 +219,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            originalSongs = loadedSongs.sortedBy { it.title.lowercase() }
+            originalSongs = loadedSongs
 
             if (shuffledSongs.isEmpty()) {
                 shuffledSongs = originalSongs.shuffled().toMutableList()
@@ -216,10 +228,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _songs.value = originalSongs
             updateFolderList()
 
-            // Background prefetch for cover art
+            // Background prefetch for cover art (first 20 visible items)
+            val preloadLimit = minOf(20, originalSongs.size)
+            val preloadPaths = ArrayList<String>(preloadLimit)
+            for (i in 0 until preloadLimit) {
+                preloadPaths.add(originalSongs[i].path)
+            }
             com.aashik.music.cache.AlbumArtCache.preload(
                 context = context,
-                paths = originalSongs.take(50).map { it.path }
+                paths = preloadPaths
             ) { path ->
                 com.aashik.music.utils.loadAlbumArt(path)
             }
@@ -368,6 +385,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 // 3. Remove from in-memory playlists
                 originalSongs = originalSongs.filter { it.id != song.id }
                 shuffledSongs.removeAll { it.id == song.id }
+                com.aashik.music.service.CarPlaybackService.instance?.let { carService ->
+                    carService.songList = carService.songList.filter { it.id != song.id }
+                }
 
                 // 4. Handle active playback if deleted track was currently playing
                 if (isCurrentSong) {

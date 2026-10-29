@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -39,6 +40,8 @@ import com.aashik.music.theme.AppGradients
 import kotlin.math.roundToInt
 
 private val TooltipShape = RoundedCornerShape(6.dp)
+private val InactiveDarkTrack = Color(0xFF263245)
+private val InactiveLightTrack = Color(0xFFCAD5E2)
 
 /**
  * High-Performance Automotive SeekBar.
@@ -65,7 +68,7 @@ fun CustomHorizontalSeekBar(
     val resolvedInactiveColor = if (inactiveColor != Color.Unspecified) {
         inactiveColor
     } else {
-        if (isDark) Color(0xFF263245) else Color(0xFFCAD5E2)
+        if (isDark) InactiveDarkTrack else InactiveLightTrack
     }
 
     var isDragging by remember { mutableStateOf(false) }
@@ -116,6 +119,7 @@ fun CustomHorizontalSeekBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(24.dp)
+                .onSizeChanged { barWidthPx = it.width.toFloat() }
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -153,7 +157,6 @@ fun CustomHorizontalSeekBar(
             val thumbRadiusPx = with(density) { if (isDragging) 7.dp.toPx() else 5.5.dp.toPx() }
 
             Canvas(modifier = Modifier.fillMaxSize()) {
-                barWidthPx = size.width
                 val canvasWidth = size.width
                 val canvasHeight = size.height
                 val centerY = canvasHeight / 2f

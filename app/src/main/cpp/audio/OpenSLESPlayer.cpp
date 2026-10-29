@@ -213,6 +213,10 @@ void OpenSLESPlayer::onBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq) {
         bytesRead = mRingBuffer->read(currentBuffer, QUEUE_BUFFER_SIZE);
     }
 
+    if (bytesRead > 0 && mOnBufferConsumed) {
+        mOnBufferConsumed(bytesRead);
+    }
+
     if (bytesRead < QUEUE_BUFFER_SIZE) {
         // Fill remainder with silence to avoid click/pop artifacts on buffer starvation
         std::memset(currentBuffer + bytesRead, 0, QUEUE_BUFFER_SIZE - bytesRead);
@@ -273,6 +277,9 @@ void OpenSLESPlayer::primeQueue() {
             size_t bytesRead = 0;
             if (mRingBuffer) {
                 bytesRead = mRingBuffer->read(currentBuffer, QUEUE_BUFFER_SIZE);
+            }
+            if (bytesRead > 0 && mOnBufferConsumed) {
+                mOnBufferConsumed(bytesRead);
             }
             if (bytesRead < QUEUE_BUFFER_SIZE) {
                 std::memset(currentBuffer + bytesRead, 0, QUEUE_BUFFER_SIZE - bytesRead);

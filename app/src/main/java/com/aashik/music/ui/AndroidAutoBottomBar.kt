@@ -41,11 +41,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.theme.AppGradients
+import com.aashik.music.utils.formatTime
 import com.aashik.music.viewmodel.MusicViewModel
 
 private val DockCardShape = RoundedCornerShape(16.dp)
 private val BadgeShape = RoundedCornerShape(4.dp)
 private val ArtPlaceholderShape = RoundedCornerShape(10.dp)
+
+private val StatusPlayingGreen = Color(0xFF00E676)
+private val StatusDarkGray = Color(0xFF475569)
+private val StatusLightGray = Color(0xFFB0BEC5)
 
 /**
  * Premium Automotive Media Dock — Blaupunkt Santa Rosa 985 (1280x720 @ 160 dpi)
@@ -75,11 +80,8 @@ fun AndroidAutoBottomBar(
     val primaryGradient = AppGradients.primaryButton()
 
     // Floating dock with transparent background
-    Surface(
-        color           = Color.Transparent,
-        shadowElevation = 0.dp,
-        tonalElevation  = 0.dp,
-        modifier        = modifier.fillMaxWidth()
+    Box(
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -154,9 +156,9 @@ fun AndroidAutoBottomBar(
                                     .size(6.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (isPlaying) Color(0xFF00E676)
-                                        else if (isDark) Color(0xFF475569)
-                                        else Color(0xFFB0BEC5)
+                                        if (isPlaying) StatusPlayingGreen
+                                        else if (isDark) StatusDarkGray
+                                        else StatusLightGray
                                     )
                             )
                             Text(
@@ -185,19 +187,18 @@ fun AndroidAutoBottomBar(
                                 modifier = Modifier.weight(1f, fill = false)
                             )
                             // Format badge
-                            val ext = currentSong?.path
-                                ?.substringAfterLast('.', "")
-                                ?.uppercase().orEmpty().take(4)
+                            val ext = currentSong?.getFileExtension().orEmpty()
                             if (ext.isNotEmpty()) {
                                 Box(
                                     modifier = Modifier
-                                        .clip(BadgeShape)
                                         .background(
                                             MaterialTheme.colorScheme.primary
-                                                .copy(alpha = if (isDark) 0.22f else 0.12f)
+                                                .copy(alpha = if (isDark) 0.22f else 0.12f),
+                                            shape = BadgeShape
                                         )
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
+
                                     Text(
                                         text       = ext,
                                         fontSize   = 9.sp,

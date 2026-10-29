@@ -20,6 +20,10 @@ AudioPlayer& AudioPlayer::getInstance() {
 AudioPlayer::AudioPlayer()
     : mRingBuffer(std::make_shared<RingBuffer>(96 * 1024)),
       mOutputPlayer(std::make_unique<OpenSLESPlayer>(mRingBuffer)) {
+    mOutputPlayer->setOnBufferConsumedCallback([this](size_t bytesConsumed) {
+        mRenderedBytes.fetch_add(bytesConsumed, std::memory_order_relaxed);
+        mDecoderCv.notify_one();
+    });
 }
 
 AudioPlayer::~AudioPlayer() {
@@ -73,6 +77,10 @@ ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPosi
 
     const AudioFormat& format = mDecoder->getFormat();
     mDurationMs.store(format.durationMs, std::memory_order_relaxed);
+    mStartPositionMs.store(startPositionMs, std::memory_order_relaxed);
+    mRenderedBytes.store(0, std::memory_order_relaxed);
+    mSampleRate.store(format.sampleRate, std::memory_order_relaxed);
+    mChannels.store(format.channelCount, std::memory_order_relaxed);
     mCurrentPositionMs.store(startPositionMs, std::memory_order_relaxed);
 
     {
@@ -183,7 +191,16 @@ float AudioPlayer::getVolume() const {
 }
 
 int64_t AudioPlayer::getCurrentPosition() const {
-    return mCurrentPositionMs.load(std::memory_order_relaxed);
+    int64_t baseMs = mStartPositionMs.load(std::memory_order_relaxed);
+    int64_t bytes = mRenderedBytes.load(std::memory_order_relaxed);
+    int32_t sr = mSampleRate.load(std::memory_order_relaxed);
+    int32_t ch = mChannels.load(std::memory_order_relaxed);
+    if (sr <= 0) sr = 44100;
+    if (ch <= 0) ch = 2;
+    int64_t playedMs = baseMs + (bytes * 1000LL) / (static_cast<int64_t>(sr) * ch * 2);
+    int64_t dur = mDurationMs.load(std::memory_order_relaxed);
+    if (dur > 0 && playedMs > dur) playedMs = dur;
+    return playedMs;
 }
 
 int64_t AudioPlayer::getDuration() const {
@@ -210,6 +227,13 @@ void AudioPlayer::decoderThreadLoop() {
     param.sched_priority = 2;
     pthread_setschedparam(pthread_self(), SCHED_RR, &param);
 
+    {
+        std::lock_guard<std::mutex> lock(mListenerMutex);
+        if (mListener.onThreadStarted) {
+            mListener.onThreadStarted();
+        }
+    }
+
     constexpr size_t CHUNK_SIZE = 8192;
     std::vector<uint8_t> decodeBuf(CHUNK_SIZE);
 
@@ -226,6 +250,8 @@ void AudioPlayer::decoderThreadLoop() {
             mRingBuffer->reset();
 
             if (mDecoder && mDecoder->seekTo(targetPos)) {
+                mStartPositionMs.store(targetPos, std::memory_order_release);
+                mRenderedBytes.store(0, std::memory_order_release);
                 mCurrentPositionMs.store(targetPos, std::memory_order_release);
                 lastReportedPos = targetPos;
                 lastPosReportTime = std::chrono::steady_clock::now();
@@ -247,10 +273,10 @@ void AudioPlayer::decoderThreadLoop() {
             continue;
         }
 
-        // If ring buffer is mostly full, wait briefly with CV
+        // If ring buffer is mostly full, wait on condition variable (notified on buffer drain by OpenSL ES)
         if (mRingBuffer->getAvailableWrite() < CHUNK_SIZE) {
             std::unique_lock<std::mutex> lock(mDecoderMutex);
-            mDecoderCv.wait_for(lock, std::chrono::milliseconds(5), [this] {
+            mDecoderCv.wait_for(lock, std::chrono::milliseconds(50), [this] {
                 return !mDecoderRunning.load(std::memory_order_relaxed) ||
                        mRingBuffer->getAvailableWrite() >= CHUNK_SIZE ||
                        mIsSeeking.load(std::memory_order_relaxed);
@@ -264,29 +290,32 @@ void AudioPlayer::decoderThreadLoop() {
 
         if (bytesDecoded > 0) {
             mRingBuffer->write(decodeBuf.data(), static_cast<size_t>(bytesDecoded));
-            mCurrentPositionMs.store(framePosMs, std::memory_order_release);
 
             // Re-prime hardware queue if it drained during a seek or starvation
             if (mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING) {
                 mOutputPlayer->primeQueue();
             }
 
+            // Real played position calculated from actual hardware PCM output
+            int64_t actualPositionMs = getCurrentPosition();
+            mCurrentPositionMs.store(actualPositionMs, std::memory_order_release);
+
             // Throttle position reports to ~250ms
             auto now = std::chrono::steady_clock::now();
             auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastPosReportTime).count();
-            if (elapsedMs >= 250 && framePosMs != lastReportedPos) {
-                lastReportedPos = framePosMs;
+            if (elapsedMs >= 250 && actualPositionMs != lastReportedPos) {
+                lastReportedPos = actualPositionMs;
                 lastPosReportTime = now;
                 std::lock_guard<std::mutex> lock(mListenerMutex);
                 if (mListener.onPositionChanged) {
-                    mListener.onPositionChanged(framePosMs);
+                    mListener.onPositionChanged(actualPositionMs);
                 }
             }
         } else if (mDecoder && mDecoder->isEof()) {
             // Wait until output player drains the remaining buffered PCM
             std::unique_lock<std::mutex> lock(mDecoderMutex);
             while (mRingBuffer->getAvailableRead() > 0 && mDecoderRunning.load(std::memory_order_relaxed)) {
-                mDecoderCv.wait_for(lock, std::chrono::milliseconds(5), [this] {
+                mDecoderCv.wait_for(lock, std::chrono::milliseconds(10), [this] {
                     return !mDecoderRunning.load(std::memory_order_relaxed) || mRingBuffer->getAvailableRead() == 0;
                 });
             }
@@ -304,7 +333,17 @@ void AudioPlayer::decoderThreadLoop() {
             }
         } else {
             // Temporary starvation from extractor, wait briefly
-            usleep(5000);
+            std::unique_lock<std::mutex> lock(mDecoderMutex);
+            mDecoderCv.wait_for(lock, std::chrono::milliseconds(10), [this] {
+                return !mDecoderRunning.load(std::memory_order_relaxed) || mIsSeeking.load(std::memory_order_relaxed);
+            });
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(mListenerMutex);
+        if (mListener.onThreadExiting) {
+            mListener.onThreadExiting();
         }
     }
 

@@ -46,7 +46,10 @@ public:
     // Free space in bytes for decoder thread to write
     size_t getAvailableWrite() const {
         // Leave 1 byte unwritten to disambiguate full from empty
-        return (mCapacity - 1) - getAvailableRead();
+        const size_t write = mWriteIndex.load(std::memory_order_relaxed);
+        const size_t read = mReadIndex.load(std::memory_order_acquire);
+        size_t availableRead = (write >= read) ? (write - read) : (mCapacity - (read - write));
+        return (mCapacity - 1) - availableRead;
     }
 
     // Write bytes into buffer (Producer / Decoder Thread)

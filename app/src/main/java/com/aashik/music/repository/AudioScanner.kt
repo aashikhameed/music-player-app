@@ -10,7 +10,6 @@ object AudioScanner {
         context: Context,
         onProgress: (loaded: Int, total: Int) -> Unit = { _, _ -> }
     ): List<Song> {
-        val songs = ArrayList<Song>(128)
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media.TITLE,
@@ -25,6 +24,9 @@ object AudioScanner {
         val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
 
         val cursor = context.contentResolver.query(uri, projection, selection, null, sortOrder)
+        val total = cursor?.count ?: 0
+        val songs = ArrayList<Song>(total.coerceAtLeast(16))
+
         cursor?.use {
             val titleCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artistCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
@@ -32,7 +34,6 @@ object AudioScanner {
             val durationCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val pathCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
-            val total = it.count
             var loaded = 0
 
             while (it.moveToNext()) {

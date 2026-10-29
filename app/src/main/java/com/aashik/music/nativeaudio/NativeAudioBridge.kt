@@ -75,9 +75,7 @@ class NativeAudioBridge private constructor() {
 
     @Suppress("unused")
     fun onPositionChanged(positionMs: Long) {
-        mainHandler.post {
-            listener?.onPositionChanged(positionMs)
-        }
+        listener?.onPositionChanged(positionMs)
     }
 
     @Suppress("unused")

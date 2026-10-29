@@ -89,6 +89,19 @@ static void registerCallbacks(JNIEnv* env, jobject bridgeObj) {
         if (attached) jni::detachEnv();
     };
 
+    listener.onThreadStarted = []() {
+        if (jni::g_jvm) {
+            JNIEnv* env = nullptr;
+            jni::g_jvm->AttachCurrentThread(&env, nullptr);
+        }
+    };
+
+    listener.onThreadExiting = []() {
+        if (jni::g_jvm) {
+            jni::g_jvm->DetachCurrentThread();
+        }
+    };
+
     audio::AudioPlayer::getInstance().setListener(listener);
 }
 

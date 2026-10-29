@@ -17,7 +17,7 @@ fun loadAlbumArt(path: String): Bitmap? {
         }
         BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, boundsOptions)
 
-        val targetSize = 128
+        val targetSize = 64 // 64px is crisp for 56dp @ 160dpi headunit and takes only 8KB in RGB_565
         var sampleSize = 1
         while (boundsOptions.outWidth / sampleSize > targetSize * 2 || boundsOptions.outHeight / sampleSize > targetSize * 2) {
             sampleSize *= 2
@@ -27,14 +27,13 @@ fun loadAlbumArt(path: String): Bitmap? {
         val decodeOptions = BitmapFactory.Options().apply {
             inSampleSize = sampleSize
             inPreferredConfig = Bitmap.Config.RGB_565
-            inDither = false
         }
         val decoded = BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, decodeOptions) ?: return null
 
         if (decoded.width <= targetSize && decoded.height <= targetSize) {
             decoded
         } else {
-            val scaled = Bitmap.createScaledBitmap(decoded, targetSize, targetSize, true)
+            val scaled = Bitmap.createScaledBitmap(decoded, targetSize, targetSize, false)
             if (scaled != decoded) {
                 decoded.recycle()
             }

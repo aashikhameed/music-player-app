@@ -8,11 +8,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.aashik.music.model.Song
 
-@Database(entities = [Song::class], version = 1, exportSchema = false)
+@Database(entities = [Song::class], version = 2, exportSchema = false)
 abstract class MusicDatabase : RoomDatabase() {
     abstract fun songDao(): SongDao
-    @Volatile
-    private var INSTANCE: MusicDatabase? = null
 
     companion object {
         @Volatile private var INSTANCE: MusicDatabase? = null
@@ -23,11 +21,13 @@ abstract class MusicDatabase : RoomDatabase() {
                     context.applicationContext,
                     MusicDatabase::class.java,
                     "music_db"
-                ).build()
+                )
+                .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }
         }
     }
-
 }

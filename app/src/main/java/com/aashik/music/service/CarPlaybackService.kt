@@ -11,18 +11,42 @@ import com.aashik.music.data.MusicDatabase
 import com.aashik.music.model.Song
 import com.aashik.music.viewmodel.MusicViewModel
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+
 class CarPlaybackService : MediaBrowserServiceCompat() {
 
     private lateinit var mediaSession: MediaSessionCompat
     private var viewModel: MusicViewModel? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    var songList: List<Song> = emptyList()
+
+    private val controllerListener: () -> Unit = {
+        val currentSong = viewModel?.currentSong?.value ?: MusicController.currentSong
+        val isPlaying = viewModel?.isPlaying?.value ?: MusicController.isPlaying
+        updateNowPlayingMetadata(currentSong)
+        updatePlaybackState(
+            if (isPlaying)
+                PlaybackStateCompat.STATE_PLAYING
+            else
+                PlaybackStateCompat.STATE_PAUSED
+        )
+    }
+
     companion object {
         var instance: CarPlaybackService? = null
     }
-    lateinit var songList: List<Song>
 
     override fun onCreate() {
         super.onCreate()
-        songList = MusicDatabase.getDatabase(this@CarPlaybackService).songDao().getAllSongsBlocking()
+        instance = this
+
+        serviceScope.launch(Dispatchers.IO) {
+            songList = MusicDatabase.getDatabase(this@CarPlaybackService).songDao().getAllSongs()
+        }
 
         mediaSession = MediaSessionCompat(this, "CarPlaybackService").apply {
             setFlags(
@@ -39,7 +63,7 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
                 }
 
                 override fun onSkipToNext() {
-                    MusicController.next(songList) // Keep a local copy of songList
+                    MusicController.next(songList)
                 }
 
                 override fun onSkipToPrevious() {
@@ -53,19 +77,7 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
             isActive = true
         }
 
-
-        // Watch for playback state changes
-        MusicController.onStateChanged = {
-            val currentSong = viewModel?.currentSong?.value
-            val isPlaying = viewModel?.isPlaying?.value ?: false
-            updateNowPlayingMetadata(currentSong)
-            updatePlaybackState(
-                if (isPlaying)
-                    PlaybackStateCompat.STATE_PLAYING
-                else
-                    PlaybackStateCompat.STATE_PAUSED
-            )
-        }
+        MusicController.addListener(controllerListener)
     }
 
 
@@ -122,6 +134,10 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
 
     override fun onDestroy() {
         super.onDestroy()
+        MusicController.removeListener(controllerListener)
+        serviceScope.cancel()
+        instance = null
+        viewModel = null
         mediaSession.release()
     }
 }

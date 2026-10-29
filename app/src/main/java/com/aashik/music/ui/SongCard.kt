@@ -34,10 +34,20 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.theme.AppGradients
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+
 private val SongCardShape = RoundedCornerShape(14.dp)
 private val ArtVignetteShape = RoundedCornerShape(10.dp)
 private val BadgeShape = RoundedCornerShape(6.dp)
-private val EqualizerBarShape = RoundedCornerShape(1.dp)
+
+private val BadgeDarkBg = Color(0xFF1E2638)
+private val BadgeLightBg = Color(0xFFE2E8F0)
+private val BadgeDarkText = Color(0xFF94A3B8)
+private val BadgeLightText = Color(0xFF475569)
+private val VignetteBlack = Color.Black.copy(alpha = 0.45f)
 
 @Composable
 fun LiveAnimatedEqualizer(
@@ -50,39 +60,24 @@ fun LiveAnimatedEqualizer(
     val h3 = if (isPlaying) 0.60f else 0.30f
     val h4 = if (isPlaying) 0.85f else 0.40f
 
-    Row(
-        modifier = modifier.height(18.dp).width(18.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        Box(
-            modifier = Modifier
-                .width(3.dp)
-                .fillMaxHeight(h1)
-                .clip(EqualizerBarShape)
-                .background(barColor)
-        )
-        Box(
-            modifier = Modifier
-                .width(3.dp)
-                .fillMaxHeight(h2)
-                .clip(EqualizerBarShape)
-                .background(barColor)
-        )
-        Box(
-            modifier = Modifier
-                .width(3.dp)
-                .fillMaxHeight(h3)
-                .clip(EqualizerBarShape)
-                .background(barColor)
-        )
-        Box(
-            modifier = Modifier
-                .width(3.dp)
-                .fillMaxHeight(h4)
-                .clip(EqualizerBarShape)
-                .background(barColor)
-        )
+    Canvas(modifier = modifier.size(18.dp)) {
+        val totalHeight = size.height
+        val barWidth = 3.dp.toPx()
+        val spacing = 2.dp.toPx()
+        val cornerRadius = CornerRadius(1.dp.toPx(), 1.dp.toPx())
+        val heights = floatArrayOf(h1, h2, h3, h4)
+
+        for (i in 0 until 4) {
+            val barH = totalHeight * heights[i]
+            val left = i * (barWidth + spacing)
+            val top = totalHeight - barH
+            drawRoundRect(
+                color = barColor,
+                topLeft = Offset(left, top),
+                size = Size(barWidth, barH),
+                cornerRadius = cornerRadius
+            )
+        }
     }
 }
 
@@ -100,10 +95,6 @@ fun SongCard(
     val cardGradient = AppGradients.card(isActive = isPlaying)
     val borderBrush = AppGradients.border(isActive = isPlaying)
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-
-    // Codec extension and duration format — memoized per track
-    val ext = remember(song.path) { song.path.substringAfterLast('.', "").uppercase().take(4) }
-    val formattedDuration = remember(song.duration) { formatSongDuration(song.duration) }
 
     Box(
         modifier = modifier
@@ -141,8 +132,8 @@ fun SongCard(
                     Box(
                         modifier = Modifier
                             .size(56.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color.Black.copy(alpha = 0.45f)),
+                            .clip(ArtVignetteShape)
+                            .background(VignetteBlack),
                         contentAlignment = Alignment.Center
                     ) {
                         LiveAnimatedEqualizer(
@@ -191,22 +182,21 @@ fun SongCard(
                     val badgeBg = if (isPlaying) {
                         MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.22f else 0.14f)
                     } else {
-                        if (isDark) Color(0xFF1E2638) else Color(0xFFE2E8F0)
+                        if (isDark) BadgeDarkBg else BadgeLightBg
                     }
                     val badgeTextColor = if (isPlaying) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
+                        if (isDark) BadgeDarkText else BadgeLightText
                     }
 
                     Box(
                         modifier = Modifier
-                            .clip(BadgeShape)
-                            .background(badgeBg)
+                            .background(badgeBg, shape = BadgeShape)
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = if (ext.isNotEmpty()) "$ext • $formattedDuration" else formattedDuration,
+                            text = song.getBadgeLabel(),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = badgeTextColor,
@@ -217,14 +207,4 @@ fun SongCard(
             }
         }
     }
-}
-
-private fun formatSongDuration(durationMs: Long): String {
-    if (durationMs <= 0) return "00:00"
-    val totalSeconds = (durationMs / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    val m = if (minutes < 10) "0$minutes" else minutes.toString()
-    val s = if (seconds < 10) "0$seconds" else seconds.toString()
-    return "$m:$s"
 }

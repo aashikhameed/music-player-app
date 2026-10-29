@@ -1,6 +1,5 @@
 package com.aashik.music.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -48,6 +47,9 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
+private val BottomDockShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+private val BannerShape = RoundedCornerShape(12.dp)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BottomControlStrip(
@@ -64,15 +66,11 @@ fun BottomControlStrip(
     val borderBrush = AppGradients.border(isActive = false)
     val primaryButtonGradient = AppGradients.primaryButton()
 
-    Surface(
-        color = Color.Transparent,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        shadowElevation = 0.dp,
-        tonalElevation = 0.dp,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(brush = dockGradient, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            .border(border = BorderStroke(1.dp, borderBrush), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            .background(brush = dockGradient, shape = BottomDockShape)
+            .border(width = 1.dp, brush = borderBrush, shape = BottomDockShape)
     ) {
         Column(
             modifier = Modifier
@@ -82,13 +80,11 @@ fun BottomControlStrip(
         ) {
             // Mini track information banner
             if (currentSong != null) {
-                val bannerShape = RoundedCornerShape(12.dp)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(bannerShape)
-                        .background(brush = capsuleGradient, shape = bannerShape)
-                        .border(border = BorderStroke(1.dp, borderBrush), shape = bannerShape)
+                        .background(brush = capsuleGradient, shape = BannerShape)
+                        .border(width = 1.dp, brush = borderBrush, shape = BannerShape)
                         .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     Row(

@@ -7,6 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -106,27 +107,27 @@ private val AutoTypography = Typography(
  * Eliminates drop shadows / elevations in favor of modern, high-contrast linear gradients.
  */
 object AppGradients {
-    // Pre-allocated static brushes — Zero heap allocation on recompositions
-    private val DarkCardActive = Brush.linearGradient(listOf(Color(0xFF0F2D44), Color(0xFF091C2B)))
-    private val LightCardActive = Brush.linearGradient(listOf(Color(0xFFE3F2FD), Color(0xFFCFE6FB)))
-    private val DarkCardInactive = Brush.linearGradient(listOf(Color(0xFF161C28), Color(0xFF10141E)))
-    private val LightCardInactive = Brush.linearGradient(listOf(Color(0xFFFFFFFF), Color(0xFFF7FAFD)))
+    // Pre-allocated static brushes — Zero fragment shader overhead for weak automotive GPUs
+    private val DarkCardActive = SolidColor(Color(0xFF0F2D44))
+    private val LightCardActive = SolidColor(Color(0xFFE3F2FD))
+    private val DarkCardInactive = SolidColor(Color(0xFF161C28))
+    private val LightCardInactive = SolidColor(Color(0xFFFFFFFF))
 
-    private val DarkDock = Brush.verticalGradient(listOf(Color(0xFF131824), Color(0xFF090C12)))
-    private val LightDock = Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFEFF4F9)))
+    private val DarkDock = SolidColor(Color(0xFF131824))
+    private val LightDock = SolidColor(Color(0xFFFFFFFF))
 
-    private val DarkCapsuleActive = Brush.linearGradient(listOf(Color(0xFF10334C), Color(0xFF0C2233)))
-    private val LightCapsuleActive = Brush.linearGradient(listOf(Color(0xFFDBEAFE), Color(0xFFBFDBFE)))
-    private val DarkCapsuleInactive = Brush.linearGradient(listOf(Color(0xFF19202E), Color(0xFF131824)))
-    private val LightCapsuleInactive = Brush.linearGradient(listOf(Color(0xFFFFFFFF), Color(0xFFEDF2F7)))
+    private val DarkCapsuleActive = SolidColor(Color(0xFF10334C))
+    private val LightCapsuleActive = SolidColor(Color(0xFFDBEAFE))
+    private val DarkCapsuleInactive = SolidColor(Color(0xFF19202E))
+    private val LightCapsuleInactive = SolidColor(Color(0xFFFFFFFF))
 
-    private val DarkPrimaryBtn = Brush.linearGradient(listOf(Color(0xFF00E5FF), Color(0xFF0091EA)))
-    private val LightPrimaryBtn = Brush.linearGradient(listOf(Color(0xFF0066FF), Color(0xFF0052D4)))
+    private val DarkPrimaryBtn = SolidColor(Color(0xFF00E5FF))
+    private val LightPrimaryBtn = SolidColor(Color(0xFF0066FF))
 
-    private val DarkBorderActive = Brush.linearGradient(listOf(Color(0xFF00E5FF).copy(alpha = 0.9f), Color(0xFF0091EA).copy(alpha = 0.45f)))
-    private val LightBorderActive = Brush.linearGradient(listOf(Color(0xFF0066FF).copy(alpha = 0.9f), Color(0xFF0052D4).copy(alpha = 0.45f)))
-    private val DarkBorderInactive = Brush.linearGradient(listOf(Color(0xFF283448).copy(alpha = 0.85f), Color(0xFF1B2332).copy(alpha = 0.5f)))
-    private val LightBorderInactive = Brush.linearGradient(listOf(Color(0xFFD2DEE9), Color(0xFFE2EAF1)))
+    private val DarkBorderActive = SolidColor(Color(0xFF00E5FF))
+    private val LightBorderActive = SolidColor(Color(0xFF0066FF))
+    private val DarkBorderInactive = SolidColor(Color(0xFF283448))
+    private val LightBorderInactive = SolidColor(Color(0xFFD2DEE9))
 
     @Composable
     fun card(isActive: Boolean = false): Brush {

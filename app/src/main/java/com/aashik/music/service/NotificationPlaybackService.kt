@@ -22,6 +22,8 @@ import com.aashik.music.model.Song
 import com.aashik.music.viewmodel.MusicViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -45,6 +47,19 @@ class NotificationPlaybackService : Service() {
     private val binder = LocalBinder()
     private lateinit var mediaSession: MediaSessionCompat
     private var viewModel: MusicViewModel? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var songCollectJob: kotlinx.coroutines.Job? = null
+    private var isPlayingJob: kotlinx.coroutines.Job? = null
+    private val controllerListener: () -> Unit = {
+        updateMetadata(MusicController.currentSong)
+        updateNotification()
+        updatePlaybackState(
+            if (MusicController.isPlaying)
+                PlaybackStateCompat.STATE_PLAYING
+            else
+                PlaybackStateCompat.STATE_PAUSED
+        )
+    }
 
     inner class LocalBinder : Binder() {
         fun getService(): NotificationPlaybackService = this@NotificationPlaybackService
@@ -58,16 +73,7 @@ class NotificationPlaybackService : Service() {
         setupMediaSession()
         instance = this
 
-        MusicController.onStateChanged = {
-            updateMetadata(MusicController.currentSong)
-            updateNotification()
-            updatePlaybackState(
-                if (MusicController.isPlaying)
-                    PlaybackStateCompat.STATE_PLAYING
-                else
-                    PlaybackStateCompat.STATE_PAUSED
-            )
-        }
+        MusicController.addListener(controllerListener)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -78,7 +84,8 @@ class NotificationPlaybackService : Service() {
     fun setViewModel(vm: MusicViewModel) {
         this.viewModel = vm
 
-        CoroutineScope(Dispatchers.Main).launch {
+        songCollectJob?.cancel()
+        songCollectJob = serviceScope.launch {
             vm.currentSong.collectLatest { song ->
                 song?.let {
                     updateMetadata(it)
@@ -87,7 +94,8 @@ class NotificationPlaybackService : Service() {
             }
         }
 
-        CoroutineScope(Dispatchers.Main).launch {
+        isPlayingJob?.cancel()
+        isPlayingJob = serviceScope.launch {
             vm.isPlaying.collectLatest {
                 updateNotification()
                 updatePlaybackState(if (it) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED)
@@ -154,16 +162,26 @@ class NotificationPlaybackService : Service() {
         )
     }
 
+    private var lastNotifiedSongId: String? = null
+    private var lastNotifiedIsPlaying: Boolean? = null
+
     private fun updateNotification() {
-        val isPlaying = viewModel?.isPlaying?.value ?: false
+        val song = viewModel?.currentSong?.value ?: MusicController.currentSong
+        val isPlaying = viewModel?.isPlaying?.value ?: MusicController.isPlaying
+        if (song?.id == lastNotifiedSongId && isPlaying == lastNotifiedIsPlaying) {
+            return
+        }
+        lastNotifiedSongId = song?.id
+        lastNotifiedIsPlaying = isPlaying
         val notification = buildNotification(isPlaying)
         startForeground(NOTIFICATION_ID, notification)
     }
 
     private fun buildNotification(isPlaying: Boolean): Notification {
+        val song = viewModel?.currentSong?.value ?: MusicController.currentSong
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(viewModel?.currentSong?.value?.title ?: "Unknown")
-            .setContentText(viewModel?.currentSong?.value?.artist ?: "")
+            .setContentTitle(song?.title ?: "Unknown")
+            .setContentText(song?.artist ?: "")
             .setSmallIcon(R.drawable.ic_music_note)
             .setContentIntent(openAppIntent())
             .addAction(
@@ -239,6 +257,10 @@ class NotificationPlaybackService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        MusicController.removeListener(controllerListener)
+        serviceScope.cancel()
+        instance = null
+        viewModel = null
         mediaSession.release()
     }
 

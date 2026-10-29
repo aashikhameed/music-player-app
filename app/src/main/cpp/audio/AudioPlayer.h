@@ -24,6 +24,8 @@ struct AudioPlayerListener {
     std::function<void(int64_t durationMs)> onDurationUpdated;
     std::function<void()> onTrackEnded;
     std::function<void(int32_t errorCode, const std::string& message)> onError;
+    std::function<void()> onThreadStarted;
+    std::function<void()> onThreadExiting;
 };
 
 /**
@@ -71,6 +73,11 @@ private:
     std::atomic<int64_t> mDurationMs{0};
     std::atomic<bool> mIsSeeking{false};
     std::atomic<int64_t> mPendingSeekMs{-1};
+
+    std::atomic<int64_t> mRenderedBytes{0};
+    std::atomic<int64_t> mStartPositionMs{0};
+    std::atomic<int32_t> mSampleRate{44100};
+    std::atomic<int32_t> mChannels{2};
 
     std::thread mDecoderThread;
     std::atomic<bool> mDecoderRunning{false};

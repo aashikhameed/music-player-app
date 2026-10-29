@@ -17,7 +17,7 @@ interface SongDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveLastPlayed(song: Song)
 
-    @Query("SELECT * FROM songs")
+    @Query("SELECT * FROM songs ORDER BY title COLLATE NOCASE ASC")
     suspend fun getAllSongs(): List<Song>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -29,8 +29,8 @@ interface SongDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(songs: List<Song>)
 
-    @Query("SELECT * FROM songs")
-    fun getAllSongsBlocking(): List<Song>  // Not suspend
+    @Query("SELECT * FROM songs ORDER BY title COLLATE NOCASE ASC")
+    fun getAllSongsBlocking(): List<Song>
 
 
 

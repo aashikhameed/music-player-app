@@ -2,7 +2,6 @@ package com.aashik.music.ui
 
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,8 +36,10 @@ import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.ViewColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -78,9 +79,23 @@ import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.withStyle
 import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
+import com.aashik.music.utils.getCurrentTimeWithAmPm
+import com.aashik.music.utils.formatTime
 import com.aashik.music.viewmodel.LibraryTab
 import com.aashik.music.viewmodel.MusicViewModel
 import java.io.File
+
+private val PortraitSongCardShape = RoundedCornerShape(20.dp)
+private val LandscapeFullSongShape = RoundedCornerShape(18.dp)
+private val HeaderCapsuleShape = RoundedCornerShape(14.dp)
+private val PillShape10 = RoundedCornerShape(10.dp)
+private val StatusCapsuleShape = RoundedCornerShape(12.dp)
+
+private val ThemeSunColor = Color(0xFFFFD54F)
+private val ThemeMoonColor = Color(0xFF7986CB)
+private val ClockPlayingGreen = Color(0xFF00E676)
+private val ClockDarkGray = Color(0xFF455A64)
+private val ClockLightGray = Color(0xFFB0BEC5)
 
 @Composable
 fun MusicListScreen(viewModel: MusicViewModel) {
@@ -181,14 +196,12 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 .padding(bottom = 6.dp)
                         )
 
-                        val portraitSongShape = RoundedCornerShape(20.dp)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .clip(portraitSongShape)
-                                .background(brush = AppGradients.card(isActive = false), shape = portraitSongShape)
-                                .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = portraitSongShape)
+                                .background(brush = AppGradients.card(isActive = false), shape = PortraitSongCardShape)
+                                .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = PortraitSongCardShape)
                                 .padding(8.dp)
                         ) {
                             MediaLibraryContent(
@@ -230,7 +243,6 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                     //   Spacer:     8dp
                     //   Library:    704 - 80 - 8 = 616dp
                     // ─────────────────────────────────────────────────────────────────────────
-                    val fullSongShape = RoundedCornerShape(18.dp)
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
@@ -244,13 +256,11 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth()
-                                    .clip(fullSongShape)
-                                    .background(brush = AppGradients.card(isActive = false), shape = fullSongShape)
-                                    .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = fullSongShape)
+                                    .background(brush = AppGradients.card(isActive = false), shape = LandscapeFullSongShape)
+                                    .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = LandscapeFullSongShape)
                                     .padding(horizontal = 10.dp, vertical = 8.dp)
                             ) {
-                                val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedFolder != null) &&
-                                        (songs.size > 5 || listState.canScrollForward || listState.canScrollBackward)
+                                val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedFolder != null) && songs.size > 5
                                 if (canScroll) {
                                     ModernVerticalScrollbar(
                                         gridState = listState,
@@ -288,7 +298,9 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                             .padding(bottom = 6.dp)
                                     )
 
-                                    // Song/folder grid — 3 columns fill the 1260dp width
+                                    val gridColumns by viewModel.gridColumns.collectAsState()
+
+                                    // Song/folder grid — optimized for automotive touch targets & weak GPUs
                                     MediaLibraryContent(
                                         viewModel = viewModel,
                                         selectedTab = selectedTab,
@@ -298,7 +310,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                         currentSongId = currentSongId,
                                         searchQuery = searchQuery,
                                         gridState = listState,
-                                        columns = 3,
+                                        columns = gridColumns,
                                         onSongLongPress = { songToDelete = it },
                                         modifier = Modifier.weight(1f)
                                     )
@@ -454,7 +466,6 @@ fun LibraryModeHeader(
     onBackFolder: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val headerShape = RoundedCornerShape(14.dp)
     val capsuleGrad = AppGradients.capsule(isActive = false)
     val borderBrush = AppGradients.border(isActive = false)
     val activeBorder = AppGradients.border(isActive = true)
@@ -472,9 +483,8 @@ fun LibraryModeHeader(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(headerShape)
-                        .background(brush = capsuleGrad, shape = headerShape)
-                        .border(border = BorderStroke(1.dp, activeBorder), shape = headerShape)
+                        .background(brush = capsuleGrad, shape = HeaderCapsuleShape)
+                        .border(width = 1.dp, brush = activeBorder, shape = HeaderCapsuleShape)
                         .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -567,13 +577,11 @@ fun LibraryModeHeader(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        val pillShape = RoundedCornerShape(10.dp)
                         Box(
                             modifier = Modifier
                                 .height(38.dp)
-                                .clip(pillShape)
-                                .background(brush = capsuleGrad, shape = pillShape)
-                                .border(border = BorderStroke(1.dp, borderBrush), shape = pillShape)
+                                .background(brush = capsuleGrad, shape = PillShape10)
+                                .border(width = 1.dp, brush = borderBrush, shape = PillShape10)
                                 .clickable(onClick = onBackFolder)
                         ) {
                             Row(
@@ -599,9 +607,8 @@ fun LibraryModeHeader(
                             modifier = Modifier
                                 .height(38.dp)
                                 .weight(1f)
-                                .clip(pillShape)
-                                .background(brush = capsuleGrad, shape = pillShape)
-                                .border(border = BorderStroke(1.dp, borderBrush), shape = pillShape)
+                                .background(brush = capsuleGrad, shape = PillShape10)
+                                .border(width = 1.dp, brush = borderBrush, shape = PillShape10)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -640,9 +647,9 @@ fun LibraryModeHeader(
                                         Surface(
                                             color = if (selectedTab == LibraryTab.ALL_SONGS)
                                                 MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f)
-                                            else
+                                             else
                                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            shape = RoundedCornerShape(10.dp)
+                                            shape = PillShape10
                                         ) {
                                             Text(
                                                 text = "$songCount",
@@ -665,7 +672,7 @@ fun LibraryModeHeader(
                                     modifier = Modifier.size(16.dp)
                                 )
                             },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = PillShape10,
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -688,7 +695,7 @@ fun LibraryModeHeader(
                                                 MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f)
                                             else
                                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            shape = RoundedCornerShape(10.dp)
+                                            shape = PillShape10
                                         ) {
                                             Text(
                                                 text = "$folderCount",
@@ -711,7 +718,7 @@ fun LibraryModeHeader(
                                     modifier = Modifier.size(16.dp)
                                 )
                             },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = PillShape10,
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -721,6 +728,7 @@ fun LibraryModeHeader(
                             )
                         )
                     }
+
                 }
 
                 // Top Right Action Cluster: Search + Status Clock
@@ -772,18 +780,36 @@ fun TopRightStatusClock(
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val capsuleGrad = AppGradients.capsule(isActive = false)
     val borderBrush = AppGradients.border(isActive = false)
-    val capsuleShape = RoundedCornerShape(12.dp)
 
     Row(
         modifier = modifier
             .height(38.dp)
-            .clip(capsuleShape)
-            .background(brush = capsuleGrad, shape = capsuleShape)
-            .border(BorderStroke(0.8.dp, borderBrush), capsuleShape)
+            .background(brush = capsuleGrad, shape = StatusCapsuleShape)
+            .border(width = 0.8.dp, brush = borderBrush, shape = StatusCapsuleShape)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        val gridColumns by viewModel.gridColumns.collectAsState()
+
+        // Grid Column Layout Toggle: 2 columns (optimal for low-spec GPU) vs 3 columns
+        IconButton(
+            onClick = { viewModel.toggleGridColumns() },
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = if (gridColumns == 2) Icons.Rounded.GridView else Icons.Rounded.ViewColumn,
+                contentDescription = "Toggle Grid Columns (${gridColumns} Columns)",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        VerticalDivider(
+            modifier = Modifier.height(18.dp).width(0.6.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        )
+
         // Theme Toggle: Sun / Moon
         IconButton(
             onClick = { viewModel.toggleTheme() },
@@ -792,7 +818,7 @@ fun TopRightStatusClock(
             Icon(
                 imageVector = if (isDarkTheme) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
                 contentDescription = "Toggle theme",
-                tint = if (isDarkTheme) Color(0xFFFFD54F) else Color(0xFF7986CB),
+                tint = if (isDarkTheme) ThemeSunColor else ThemeMoonColor,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -816,9 +842,9 @@ fun TopRightStatusClock(
                     .size(6.dp)
                     .clip(CircleShape)
                     .background(
-                        if (isPlaying) Color(0xFF00E676)
-                        else if (isDark) Color(0xFF455A64)
-                        else Color(0xFFB0BEC5)
+                        if (isPlaying) ClockPlayingGreen
+                        else if (isDark) ClockDarkGray
+                        else ClockLightGray
                     )
             )
             Text(
@@ -829,7 +855,7 @@ fun TopRightStatusClock(
                             fontSize = 13.5.sp,
                             letterSpacing = 0.3.sp
                         )
-                    ) { append(timeDigits) }
+                    ) { append(text = timeDigits) }
                     append("\u202F")
                     withStyle(
                         SpanStyle(
@@ -838,7 +864,7 @@ fun TopRightStatusClock(
                             baselineShift = BaselineShift.Superscript,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    ) { append(amPmLabel) }
+                    ) { append(text = amPmLabel) }
                 },
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -937,9 +963,35 @@ fun EmptySongsView(
  * Isolated recomposition boundary for the portrait seekbar.
  *
  * positionMs / durationMs / progress are high-frequency flows (update every 250 ms).
- * By reading them inside THIS composable instead of MusicListScreen, only this widget
- * recomposes on each tick — not the parent screen with its LazyVerticalGrid + header.
+ * By reading them inside IsolatedPortraitSeekBar, only the seekbar widget
+ * recomposes on each tick — BottomControlStrip remains static.
  */
+@Composable
+private fun IsolatedPortraitSeekBar(
+    viewModel: MusicViewModel,
+    currentSong: com.aashik.music.model.Song?
+) {
+    val positionMs by viewModel.positionFlow.collectAsState()
+    val durationMs by viewModel.durationFlow.collectAsState()
+    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
+    val isPlaying by viewModel.isPlaying.collectAsState()
+
+    CustomHorizontalSeekBar(
+        progress = progress,
+        onProgressChanged = { viewModel.seekToFraction(it) },
+        isPlaying = isPlaying,
+        currentPositionMs = positionMs,
+        durationMs = durationMs,
+        waveSeed = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
+        showTimeLabels = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+    )
+}
+
+private val PortraitDockShape = RoundedCornerShape(18.dp)
+
 @Composable
 private fun PortraitSeekBarSection(
     viewModel: MusicViewModel,
@@ -947,31 +999,16 @@ private fun PortraitSeekBarSection(
     isSearchOpen: Boolean,
     onToggleSearch: () -> Unit
 ) {
-    // These flows update every 250ms — isolated here so parent screen stays stable
-    val positionMs by viewModel.positionFlow.collectAsState()
-    val durationMs by viewModel.durationFlow.collectAsState()
-    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
-    val isPlaying by viewModel.isPlaying.collectAsState()
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(brush = AppGradients.card(isActive = false), shape = RoundedCornerShape(18.dp))
-            .border(border = BorderStroke(1.dp, AppGradients.border(isActive = false)), shape = RoundedCornerShape(18.dp))
+            .background(brush = AppGradients.card(isActive = false), shape = PortraitDockShape)
+            .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = PortraitDockShape)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        CustomHorizontalSeekBar(
-            progress = progress,
-            onProgressChanged = { viewModel.seekToFraction(it) },
-            isPlaying = isPlaying,
-            currentPositionMs = positionMs,
-            durationMs = durationMs,
-            waveSeed = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
-            showTimeLabels = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 2.dp)
+        IsolatedPortraitSeekBar(
+            viewModel = viewModel,
+            currentSong = currentSong
         )
         BottomControlStrip(
             viewModel = viewModel,

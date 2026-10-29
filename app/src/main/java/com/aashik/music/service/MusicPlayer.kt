@@ -175,12 +175,14 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             _durationFlow.value = song.duration
         }
 
-        val res = nativeBridge.playTrack(song.path, 0L)
-        if (res == 0) {
-            _isPlayingFlow.value = true
-            val nativeDur = nativeBridge.getDuration()
-            if (nativeDur > 0) {
-                _durationFlow.value = nativeDur
+        scope.launch(Dispatchers.IO) {
+            val res = nativeBridge.playTrack(song.path, 0L)
+            if (res == 0) {
+                _isPlayingFlow.value = true
+                val nativeDur = nativeBridge.getDuration()
+                if (nativeDur > 0) {
+                    _durationFlow.value = nativeDur
+                }
             }
         }
     }
@@ -218,6 +220,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun release() {
+        scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         nativeBridge.setListener(null)
         try {
             volumeReceiver?.let { context.unregisterReceiver(it) }
