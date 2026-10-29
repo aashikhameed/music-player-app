@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Proguard / R8 Optimization Rules for Blaupunkt Automotive Media Player
+# Proguard / R8 Optimization Rules for Automotive Media Player
 # ─────────────────────────────────────────────────────────────────────────────
 
 # 1. Native Audio JNI Bridge & Callbacks

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Button
@@ -38,14 +39,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
@@ -55,19 +57,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Precomputed shapes hoisted to top-level constants for Mali GPU fill rate & zero GC
 private val DriveHudContainerShape = RoundedCornerShape(0.dp)
 private val ExitButtonShape = RoundedCornerShape(12.dp)
 private val BigArtworkShape = RoundedCornerShape(20.dp)
 private val DriverBadgeShape = RoundedCornerShape(8.dp)
+private val SwipeFeedbackBadgeShape = RoundedCornerShape(14.dp)
+private val ClockBadgeShape = RoundedCornerShape(8.dp)
 
 private val DriveHudBackground = Color(0xFF090D14)
 private val FavoriteRedColor = Color(0xFFFF5252)
 
 /**
  * Full-Screen Distraction-Free Drive Mode HUD.
- * Designed for Blaupunkt Santa Rosa 985 (1280x720) dashboard visibility while driving.
+ * Designed for Automotive Headunit (1280x720) dashboard visibility while driving.
  * Features:
  * - Huge touch targets (80dp play/pause, 52dp skip).
  * - Blind swipe gestures (swipe left for next, swipe right for previous, tap to play/pause).
@@ -92,35 +98,54 @@ fun DriveModeScreen(
     val controlIconColor = if (isDark) Color.White else MaterialTheme.colorScheme.onBackground
     val controlInactiveColor = if (isDark) Color.White.copy(alpha = 0.65f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
 
-    var accumulatedDrag by remember { mutableFloatStateOf(0f) }
+    val swipeThresholdPx = with(androidx.compose.ui.platform.LocalDensity.current) { 56.dp.toPx() }
+    var swipeFeedbackText by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(color = hudBg, shape = DriveHudContainerShape)
             .statusBarsPadding()
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        viewModel.togglePlayPause()
+            .pointerInput(swipeThresholdPx) {
+                var accumulatedDrag = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        accumulatedDrag = 0f
+                    },
+                    onDragEnd = {
+                        if (accumulatedDrag < -swipeThresholdPx) {
+                            // Swiped Left -> Next Song
+                            viewModel.playNextSong()
+                            swipeFeedbackText = "⏭ Next Track"
+                            coroutineScope.launch {
+                                delay(900L)
+                                swipeFeedbackText = null
+                            }
+                        } else if (accumulatedDrag > swipeThresholdPx) {
+                            // Swiped Right -> Previous Song
+                            viewModel.playPreviousSong()
+                            swipeFeedbackText = "⏮ Previous Track"
+                            coroutineScope.launch {
+                                delay(900L)
+                                swipeFeedbackText = null
+                            }
+                        }
+                        accumulatedDrag = 0f
+                    },
+                    onDragCancel = {
+                        accumulatedDrag = 0f
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        accumulatedDrag += dragAmount
                     }
                 )
             }
             .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { accumulatedDrag = 0f },
-                    onDragEnd = {
-                        if (accumulatedDrag < -70f) {
-                            // Swiped Left -> Next Song
-                            viewModel.playNextSong()
-                        } else if (accumulatedDrag > 70f) {
-                            // Swiped Right -> Previous Song
-                            viewModel.playPreviousSong()
-                        }
-                        accumulatedDrag = 0f
-                    },
-                    onHorizontalDrag = { _, dragAmount ->
-                        accumulatedDrag += dragAmount
+                detectTapGestures(
+                    onDoubleTap = {
+                        viewModel.togglePlayPause()
                     }
                 )
             }
@@ -157,6 +182,35 @@ fun DriveModeScreen(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                // Center Telemetry: Digital Clock & Sleep Timer
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DriveHudClock(isDark = isDark)
+
+                    val sleepSec by viewModel.sleepTimerRemainingSec.collectAsState()
+                    if (sleepSec > 0) {
+                        val mins = (sleepSec / 60) + 1
+                        Row(
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    shape = ClockBadgeShape
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "💤 ${mins}m",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
 
                 Row(
@@ -229,7 +283,6 @@ fun DriveModeScreen(
                 Box(
                     modifier = Modifier
                         .size(140.dp)
-                        .clip(BigArtworkShape)
                         .background(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                             shape = BigArtworkShape
@@ -339,6 +392,19 @@ fun DriveModeScreen(
                     )
                 }
 
+                // Quick Skip -10s
+                IconButton(
+                    onClick = { viewModel.skipBackward10s() },
+                    modifier = Modifier.size(54.dp)
+                ) {
+                    Text(
+                        text = "-10s",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black,
+                        color = controlIconColor
+                    )
+                }
+
                 // Giant Play / Pause Button (80dp)
                 Box(
                     modifier = Modifier
@@ -361,6 +427,19 @@ fun DriveModeScreen(
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(48.dp)
+                    )
+                }
+
+                // Quick Skip +10s
+                IconButton(
+                    onClick = { viewModel.skipForward10s() },
+                    modifier = Modifier.size(54.dp)
+                ) {
+                    Text(
+                        text = "+10s",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black,
+                        color = controlIconColor
                     )
                 }
 
@@ -392,6 +471,23 @@ fun DriveModeScreen(
                 }
             }
         }
+
+        // ── Gesture Feedback Overlay Badge ──
+        if (swipeFeedbackText != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(color = Color(0xF2151D2A), shape = SwipeFeedbackBadgeShape)
+                    .padding(horizontal = 24.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = swipeFeedbackText.orEmpty(),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+            }
+        }
     }
 }
 
@@ -421,4 +517,51 @@ private fun DriveHudSeekBar(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 2.dp)
     )
+}
+
+/**
+ * Isolated leaf composable for the Drive HUD clock.
+ * Updates at 30s intervals without triggering recompositions of the outer HUD.
+ */
+@Composable
+private fun DriveHudClock(
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    var timeText by remember {
+        mutableStateOf(
+            java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000L)
+            timeText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+        }
+    }
+
+    val badgeBg = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+
+    Row(
+        modifier = modifier
+            .background(color = badgeBg, shape = ClockBadgeShape)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Schedule,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(15.dp)
+        )
+        Spacer(modifier = Modifier.width(5.dp))
+        Text(
+            text = timeText,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = textColor
+        )
+    }
 }

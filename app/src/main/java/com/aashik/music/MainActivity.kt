@@ -44,4 +44,38 @@ class MainActivity : ComponentActivity() {
             or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         )
     }
+
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        val player = com.aashik.music.service.MusicPlayer.getInstance(this)
+        return when (keyCode) {
+            android.view.KeyEvent.KEYCODE_MEDIA_NEXT,
+            android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                player.playNext()
+                true
+            }
+            android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+            android.view.KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                player.playPrevious()
+                true
+            }
+            android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                player.resume()
+                true
+            }
+            android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                player.pause()
+                true
+            }
+            android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+            android.view.KeyEvent.KEYCODE_HEADSETHOOK -> {
+                player.togglePlayPause()
+                true
+            }
+            android.view.KeyEvent.KEYCODE_MEDIA_STOP -> {
+                player.stop()
+                true
+            }
+            else -> super.onKeyDown(keyCode, event)
+        }
+    }
 }

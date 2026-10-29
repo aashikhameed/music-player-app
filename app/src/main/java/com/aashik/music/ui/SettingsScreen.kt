@@ -76,7 +76,7 @@ private val BandRowShape = RoundedCornerShape(10.dp)
 private val InfoBadgeShape = RoundedCornerShape(8.dp)
 private val ActionButtonShape = RoundedCornerShape(10.dp)
 
-private val AlpineGoldColor = Color(0xFFFFD54F)
+private val AccentGoldColor = Color(0xFFFFD54F)
 private val MudCutWarningColor = Color(0xFFFF8A65)
 private val VocalCyanColor = Color(0xFF4DD0E1)
 private val ThemeSunColor = Color(0xFFFFD54F)
@@ -93,7 +93,7 @@ private val BAND_LABELS = listOf(
 
 private val PRESET_NAMES = listOf(
     "Flat",
-    "Alpine Clarity",
+    "Acoustic Clarity",
     "Vocal Separation",
     "Punchy Bass",
     "Rock Dynamic",
@@ -103,7 +103,7 @@ private val PRESET_NAMES = listOf(
 private val HPF_NAMES = listOf(
     "Full Range (Off)",
     "60 Hz Cut",
-    "80 Hz Cut (Alpine)"
+    "80 Hz Cut (Door Speakers)"
 )
 
 private val TIME_ALIGN_NAMES = listOf(
@@ -115,7 +115,13 @@ private val TIME_ALIGN_NAMES = listOf(
 private val BASS_NORM_NAMES = listOf(
     "Natural Flat",
     "Mild Dynamic (+2dB)",
-    "Alpine Deep (+4dB)"
+    "Deep Dynamic (+4dB)"
+)
+
+private val VIRTUAL_SURROUND_NAMES = listOf(
+    "Stereo Standard (Off)",
+    "Cabin Stage (+25%)",
+    "Concert Wide (+50%)"
 )
 
 private val CROSSFADE_OPTIONS = listOf(0, 1, 2, 3, 5, 8)
@@ -140,7 +146,7 @@ private fun formatCacheSize(bytes: Long): String {
  * Unified Automotive Settings Screen.
  * Consolidates Song Refetching, Lite/Dark Theme, Equalizer & DSP tuning, Cache Cleaning,
  * Playback Preferences, Grid Layout, and Hardware Diagnostics.
- * Optimized for Blaupunkt Santa Rosa 985 (1280x720 @ 160 dpi).
+ * Optimized for Automotive Headunit (1280x720 @ 160 dpi).
  */
 @Composable
 fun SettingsScreen(
@@ -219,7 +225,7 @@ fun SettingsScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "Blaupunkt Santa Rosa 985 Automotive Setup",
+                                text = "Automotive Audio & Headunit Setup",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -687,7 +693,7 @@ private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Restores position and last song when the Santa Rosa headunit boots up",
+                        text = "Restores position and last song when the headunit boots up",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -950,14 +956,14 @@ private fun CacheManagementSection(viewModel: MusicViewModel) {
  * Audio DSP & 5-Band Equalizer Settings Section.
  */
 /**
- * Reusable Sound Preset Chip with custom pill background and star for Alpine.
+ * Reusable Sound Preset Chip with custom pill background and star for recommended preset.
  */
 @Composable
 private fun PresetChip(
     name: String,
     isSelected: Boolean,
     isEnabled: Boolean,
-    isAlpine: Boolean,
+    isRecommended: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -976,11 +982,11 @@ private fun PresetChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            if (isAlpine) {
+            if (isRecommended) {
                 Icon(
                     imageVector = Icons.Rounded.Star,
                     contentDescription = null,
-                    tint = if (isSelected) AlpineGoldColor else MaterialTheme.colorScheme.primary,
+                    tint = if (isSelected) AccentGoldColor else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(11.dp)
                 )
                 Spacer(modifier = Modifier.width(3.dp))
@@ -1041,7 +1047,7 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "Acoustic Equalizer & Alpine DSP",
+                        text = "Acoustic Equalizer & Automotive DSP",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -1071,7 +1077,7 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Row 1: Flat, Alpine Clarity, Vocal Separation
+                // Row 1: Flat, Acoustic Clarity, Vocal Separation
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1081,7 +1087,7 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                             name = PRESET_NAMES[index],
                             isSelected = (activePreset == index),
                             isEnabled = isEnabled,
-                            isAlpine = (index == 1),
+                            isRecommended = (index == 1),
                             onClick = { viewModel.setEqualizerPreset(index) },
                             modifier = Modifier.weight(1f)
                         )
@@ -1098,7 +1104,7 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                             name = PRESET_NAMES[index],
                             isSelected = (activePreset == index),
                             isEnabled = isEnabled,
-                            isAlpine = false,
+                            isRecommended = false,
                             onClick = { viewModel.setEqualizerPreset(index) },
                             modifier = Modifier.weight(1f)
                         )
@@ -1167,7 +1173,7 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                 }
             }
 
-            // Driver Soundstage Time Alignment (Alpine DSP Micro-Delay)
+            // Driver Soundstage Time Alignment (Automotive DSP Micro-Delay)
             val timeAlign by viewModel.timeAlignmentMode.collectAsState()
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -1246,6 +1252,52 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                                 fontSize = 9.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onSecondary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Virtual Surround / Cabin Soundstage Widener Row
+            val surroundMode by viewModel.virtualSurroundMode.collectAsState()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Virtual Surround & Cabin Soundstage Widener:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    VIRTUAL_SURROUND_NAMES.forEachIndexed { index, name ->
+                        val isSelected = (surroundMode == index)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(
+                                    if (isSelected && isEnabled) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                    shape = ChipPillShape
+                                )
+                                .clickable(enabled = isEnabled) { viewModel.setVirtualSurroundMode(index) }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = name,
+                                fontSize = 9.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -1396,7 +1448,7 @@ private fun SystemInfoSection() {
             }
 
             Text(
-                text = "Target Hardware: Blaupunkt Santa Rosa 985 (ARM Cortex-A53, Mali GPU)",
+                text = "Platform: Automotive Headunit (ARM64, Mali GPU)",
                 fontSize = 9.5.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

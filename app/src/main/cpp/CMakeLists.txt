@@ -41,7 +41,7 @@ target_link_libraries(audio-player
 )
 
 # ─── ARM aarch64 Compiler Optimizations ──────────────────────────────────────
-# Target: Blaupunkt Santa Rosa 985 — ARM Cortex-A55 aarch64 @ 2.5 GHz
+# Target: Automotive Headunit — ARM Cortex aarch64
 # -O3               Full optimization; eliminates bounds checks, inlines loops
 # -flto             Link-Time Optimization across all C++ translation units
 # -fvisibility=hidden Hide non-JNI symbols to allow devirtualization and smaller DSO

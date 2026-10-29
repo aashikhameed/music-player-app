@@ -15,12 +15,12 @@ android {
         applicationId = "com.aashik.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 22
-        versionName = "0.0.22"
+        versionCode = 23
+        versionName = "0.0.23"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
-            // Blaupunkt Santa Rosa 985 is ARM aarch64 only.
+            // Target automotive hardware is ARM aarch64 only.
             // Removing x86/x86_64/armeabi-v7a saves ~2 MB of APK install size.
             abiFilters.addAll(listOf("arm64-v8a"))
         }

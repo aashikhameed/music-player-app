@@ -10,7 +10,7 @@ namespace audio {
 
 enum EqualizerPreset : int32_t {
     PRESET_FLAT = 0,
-    PRESET_ALPINE_CLARITY = 1,
+    PRESET_ACOUSTIC_CLARITY = 1,
     PRESET_VOCAL_SEPARATION = 2,
     PRESET_BASS_PUNCH = 3,
     PRESET_ROCK_DYNAMIC = 4,
@@ -20,7 +20,7 @@ enum EqualizerPreset : int32_t {
 enum HpfMode : int32_t {
     HPF_OFF = 0,
     HPF_60HZ = 1,
-    HPF_80HZ = 2 // Recommended for Alpine door speakers
+    HPF_80HZ = 2 // Recommended for door speakers
 };
 
 enum TimeAlignmentMode : int32_t {
@@ -32,7 +32,13 @@ enum TimeAlignmentMode : int32_t {
 enum BassNormalizerMode : int32_t {
     BASS_NORM_OFF = 0,
     BASS_NORM_MILD = 1,   // Dynamic +2 dB low-end contour & peak control
-    BASS_NORM_DEEP = 2    // Full Alpine Deep Loudness (+4 dB warmth)
+    BASS_NORM_DEEP = 2    // Full Deep Dynamic Loudness (+4 dB warmth)
+};
+
+enum VirtualSurroundMode : int32_t {
+    SURROUND_OFF = 0,
+    SURROUND_CABIN = 1,   // Mild spatial stage widening (+25% side channel)
+    SURROUND_WIDE = 2     // Full automotive concert soundstage (+50% side channel)
 };
 
 // Second-order Direct Form II Transposed Biquad Filter
@@ -63,12 +69,12 @@ struct BiquadState {
 
 /**
  * Automotive Audio Equalizer & DSP Engine.
- * Specifically tuned for Blaupunkt Santa Rosa 985 + external processor + Alpine speakers.
+ * Specifically tuned for vehicle acoustics + external processor + door speakers.
  * 
  * Features:
- * - 2nd-order Butterworth Subsonic High-Pass Filter (HPF) to prevent Alpine door woofer excursion distortion.
+ * - 2nd-order Butterworth Subsonic High-Pass Filter (HPF) to prevent door woofer excursion distortion.
  * - 5-Band Biquad IIR Parametric EQ with dedicated 250 Hz mud-cut filter.
- * - Pre-cut headroom gain (-2.5 dB) to prevent DAC inter-sample clipping on Santa Rosa 985.
+ * - Pre-cut headroom gain (-2.5 dB) to prevent DAC inter-sample clipping on automotive headunit.
  * - Lock-free, zero-allocation real-time PCM processing.
  */
 class AudioEqualizer {
@@ -97,27 +103,44 @@ public:
     void setBassNormalizerMode(int32_t mode);
     int32_t getBassNormalizerMode() const { return mBassNormalizerMode.load(std::memory_order_relaxed); }
 
+    void setVirtualSurroundMode(int32_t mode);
+    int32_t getVirtualSurroundMode() const { return mVirtualSurroundMode.load(std::memory_order_relaxed); }
+
     // In-place 16-bit stereo PCM processing
     void process(int16_t* pcmData, size_t sampleCount, int32_t sampleRate, int32_t channels);
 
     void reset();
+
+    void copySettingsFrom(const AudioEqualizer& other) {
+        mEnabled.store(other.mEnabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mCurrentPreset.store(other.mCurrentPreset.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mHpfMode.store(other.mHpfMode.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mTimeAlignmentMode.store(other.mTimeAlignmentMode.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mBassNormalizerMode.store(other.mBassNormalizerMode.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mVirtualSurroundMode.store(other.mVirtualSurroundMode.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        for (size_t i = 0; i < NUM_BANDS; ++i) {
+            mBandGainsDb[i].store(other.mBandGainsDb[i].load(std::memory_order_relaxed), std::memory_order_relaxed);
+        }
+        mCoeffsDirty.store(true, std::memory_order_relaxed);
+    }
 
 private:
     void updateCoefficients(int32_t sampleRate);
     void applyPresetGains(int32_t preset);
 
     std::atomic<bool> mEnabled{true};
-    std::atomic<int32_t> mCurrentPreset{PRESET_ALPINE_CLARITY};
+    std::atomic<int32_t> mCurrentPreset{PRESET_ACOUSTIC_CLARITY};
     std::atomic<int32_t> mHpfMode{HPF_80HZ};
     std::atomic<int32_t> mTimeAlignmentMode{ALIGN_OFF};
     std::atomic<int32_t> mBassNormalizerMode{BASS_NORM_OFF};
+    std::atomic<int32_t> mVirtualSurroundMode{SURROUND_OFF};
 
     // 5 target frequencies:
     // Band 0: 60 Hz (Sub-bass / Low punch)
     // Band 1: 250 Hz (Mud Zone - car door acoustic cavity resonance)
     // Band 2: 1000 Hz (Vocal midrange body)
     // Band 3: 3500 Hz (Vocal presence / instrument clarity)
-    // Band 4: 10000 Hz (Treble air & Alpine tweeter shimmer)
+    // Band 4: 10000 Hz (Treble air & tweeter shimmer)
     static constexpr std::array<float, NUM_BANDS> BAND_FREQUENCIES = {
         60.0f, 250.0f, 1000.0f, 3500.0f, 10000.0f
     };

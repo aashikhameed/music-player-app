@@ -51,7 +51,7 @@ private val ChipPillShape = RoundedCornerShape(10.dp)
 private val BandRowShape = RoundedCornerShape(12.dp)
 private val InfoBadgeShape = RoundedCornerShape(8.dp)
 
-private val AlpineGoldColor = Color(0xFFFFD54F)
+private val AccentGoldColor = Color(0xFFFFD54F)
 private val MudCutWarningColor = Color(0xFFFF8A65)
 private val VocalCyanColor = Color(0xFF4DD0E1)
 
@@ -65,7 +65,7 @@ private val BAND_LABELS = listOf(
 
 private val PRESET_NAMES = listOf(
     "Flat",
-    "Alpine Clarity",
+    "Acoustic Clarity",
     "Vocal Separation",
     "Punchy Bass",
     "Rock Dynamic",
@@ -75,12 +75,12 @@ private val PRESET_NAMES = listOf(
 private val HPF_NAMES = listOf(
     "Full Range (Off)",
     "60 Hz Cut",
-    "80 Hz Cut (Alpine)"
+    "80 Hz Cut (Door Speakers)"
 )
 
 /**
  * Automotive Equalizer & Acoustic Separation DSP Dialog.
- * Specifically tuned for Blaupunkt Santa Rosa 985 & Alpine door speakers.
+ * Specifically tuned for automotive headunit & door speakers.
  */
 @Composable
 fun EqualizerDialog(
@@ -150,7 +150,7 @@ fun EqualizerDialog(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "Alpine DSP",
+                                        text = "Automotive DSP",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
@@ -158,7 +158,7 @@ fun EqualizerDialog(
                                 }
                             }
                             Text(
-                                text = "Acoustic separation for Santa Rosa 985 & Alpine door speakers",
+                                text = "Acoustic separation for vehicle cabin & door speakers",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -219,11 +219,11 @@ fun EqualizerDialog(
                             enabled = isEnabled,
                             label = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (index == 1) { // Alpine Clarity recommended
+                                    if (index == 1) { // Recommended profile
                                         Icon(
                                             imageVector = Icons.Rounded.Star,
                                             contentDescription = null,
-                                            tint = if (isSelected) AlpineGoldColor else MaterialTheme.colorScheme.primary,
+                                            tint = if (isSelected) AccentGoldColor else MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(13.dp)
                                         )
                                         Spacer(modifier = Modifier.width(3.dp))
@@ -412,7 +412,7 @@ fun EqualizerDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                     Text(
-                        text = "Keep Santa Rosa volume at ~75-80%",
+                        text = "Keep headunit volume at ~75-80%",
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary

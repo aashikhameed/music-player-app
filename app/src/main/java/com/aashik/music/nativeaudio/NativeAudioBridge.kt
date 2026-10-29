@@ -6,7 +6,7 @@ import android.util.Log
 
 /**
  * Kotlin JNI Bridge to C++ OpenSL ES Audio Engine.
- * Thread-safe interface for low-latency automotive playback on Blaupunkt Santa Rosa 985 (API 28).
+ * Thread-safe interface for low-latency automotive playback on Automotive Headunit (API 28).
  */
 class NativeAudioBridge private constructor() {
 
@@ -58,6 +58,7 @@ class NativeAudioBridge private constructor() {
     external fun getCurrentPosition(): Long
     external fun getDuration(): Long
     external fun setVolume(volume: Float)
+    external fun setCrossfadeDuration(seconds: Float)
     external fun getPlaybackState(): Int
     external fun setShuffleMode(enabled: Boolean)
     external fun setRepeatMode(mode: Int)
@@ -73,6 +74,8 @@ class NativeAudioBridge private constructor() {
     external fun getTimeAlignment(): Int
     external fun setBassNormalizer(mode: Int)
     external fun getBassNormalizer(): Int
+    external fun setVirtualSurroundMode(mode: Int)
+    external fun getVirtualSurroundMode(): Int
 
     // ─────────────────────────────────────────────────────────────────────────
     // Callbacks from C++ audio thread (must be non-blocking and post to main thread)

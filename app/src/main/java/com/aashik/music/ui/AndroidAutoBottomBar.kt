@@ -53,7 +53,7 @@ private val StatusDarkGray = Color(0xFF475569)
 private val StatusLightGray = Color(0xFFB0BEC5)
 
 /**
- * Premium Automotive Media Dock — Blaupunkt Santa Rosa 985 (1280x720 @ 160 dpi)
+ * Premium Automotive Media Dock — Automotive Headunit (1280x720 @ 160 dpi)
  * Highly optimized with scoped recompositions to isolate 250ms playback ticks from the dock UI.
  *
  * 2 Floating Segments:

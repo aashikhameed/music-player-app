@@ -111,10 +111,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isEqualizerEnabled = MutableStateFlow(eqPrefs.getBoolean("eq_enabled", true))
     val isEqualizerEnabled: StateFlow<Boolean> = _isEqualizerEnabled.asStateFlow()
 
-    private val _equalizerPreset = MutableStateFlow(eqPrefs.getInt("eq_preset", 1)) // Default: Alpine Clarity
+    private val _equalizerPreset = MutableStateFlow(eqPrefs.getInt("eq_preset", 1)) // Default: Acoustic Clarity
     val equalizerPreset: StateFlow<Int> = _equalizerPreset.asStateFlow()
 
-    private val _equalizerHpfMode = MutableStateFlow(eqPrefs.getInt("eq_hpf_mode", 2)) // Default: 80Hz (Alpine)
+    private val _equalizerHpfMode = MutableStateFlow(eqPrefs.getInt("eq_hpf_mode", 2)) // Default: 80Hz Cut
     val equalizerHpfMode: StateFlow<Int> = _equalizerHpfMode.asStateFlow()
 
     private val _equalizerBands = MutableStateFlow(
@@ -161,12 +161,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     )
     val favoritePaths: StateFlow<Set<String>> = _favoritePaths.asStateFlow()
 
-    // ── Automotive Time Alignment & Bass Normalizer (Alpine DSP) ──
+    // ── Automotive Time Alignment & Bass Normalizer (Automotive DSP) ──
     private val _timeAlignmentMode = MutableStateFlow(eqPrefs.getInt("time_alignment_mode", 0)) // 0: Center, 1: RHD, 2: LHD
     val timeAlignmentMode: StateFlow<Int> = _timeAlignmentMode.asStateFlow()
 
     private val _bassNormalizerMode = MutableStateFlow(eqPrefs.getInt("bass_normalizer_mode", 0)) // 0: Off, 1: Mild, 2: Deep
     val bassNormalizerMode: StateFlow<Int> = _bassNormalizerMode.asStateFlow()
+
+    private val _virtualSurroundMode = MutableStateFlow(eqPrefs.getInt("virtual_surround_mode", 0)) // 0: Off, 1: Cabin, 2: Wide
+    val virtualSurroundMode: StateFlow<Int> = _virtualSurroundMode.asStateFlow()
 
     // ── Sleep Timer / Battery Saver (Minutes) ──
     private val _sleepTimerMinutes = MutableStateFlow(0)
@@ -176,6 +179,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val sleepTimerRemainingSec: StateFlow<Int> = _sleepTimerRemainingSec.asStateFlow()
 
     private var sleepTimerJob: Job? = null
+    private var usbReceiver: android.content.BroadcastReceiver? = null
 
     init {
         viewModelScope.launch {
@@ -228,9 +232,27 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         // Initialize Time Alignment and Bass Normalizer in Native Audio Core
         musicPlayer.setTimeAlignment(_timeAlignmentMode.value)
         musicPlayer.setBassNormalizer(_bassNormalizerMode.value)
+        musicPlayer.setVirtualSurroundMode(_virtualSurroundMode.value)
 
         // Initialize Crossfade
         musicPlayer.setCrossfadeSeconds(_crossfadeSeconds.value)
+
+        // ── Auto-scan on USB Flash Drive insertion ──
+        try {
+            val receiver = object : android.content.BroadcastReceiver() {
+                override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                    refetchSongs()
+                }
+            }
+            usbReceiver = receiver
+            val filter = android.content.IntentFilter().apply {
+                addAction(android.content.Intent.ACTION_MEDIA_MOUNTED)
+                addAction(android.content.Intent.ACTION_MEDIA_UNMOUNTED)
+                addAction(android.content.Intent.ACTION_MEDIA_EJECT)
+                addDataScheme("file")
+            }
+            application.registerReceiver(receiver, filter)
+        } catch (_: Exception) {}
     }
 
     fun setEqualizerEnabled(enabled: Boolean) {
@@ -247,7 +269,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 _equalizerHpfMode.value = 0
                 _equalizerBands.value = listOf(0f, 0f, 0f, 0f, 0f)
             }
-            1 -> { // Alpine Clarity
+            1 -> { // Acoustic Clarity
                 _equalizerHpfMode.value = 2
                 _equalizerBands.value = listOf(0f, -4f, 1f, 2f, 3f)
             }
@@ -359,6 +381,20 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         musicPlayer.setBassNormalizer(mode)
     }
 
+    fun setVirtualSurroundMode(mode: Int) {
+        _virtualSurroundMode.value = mode
+        eqPrefs.edit().putInt("virtual_surround_mode", mode).apply()
+        musicPlayer.setVirtualSurroundMode(mode)
+    }
+
+    fun skipForward10s() {
+        musicPlayer.seekRelative(10_000L)
+    }
+
+    fun skipBackward10s() {
+        musicPlayer.seekRelative(-10_000L)
+    }
+
     fun setSleepTimer(minutes: Int) {
         _sleepTimerMinutes.value = minutes
         sleepTimerJob?.cancel()
@@ -459,7 +495,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _songs.value = baseList.filter {
                 it.title.contains(q, ignoreCase = true) ||
                 it.artist.contains(q, ignoreCase = true) ||
-                it.album.contains(q, ignoreCase = true)
+                it.album.contains(q, ignoreCase = true) ||
+                it.path.contains(q, ignoreCase = true)
             }
         }
     }
@@ -601,12 +638,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             activePlaylist.any { it.id == song.id } -> activePlaylist
             else -> originalSongs
         }
+        val isNewPlaylist = targetList != activePlaylist
         activePlaylist = targetList
 
         if (_isShuffleOn.value) {
-            val others = activePlaylist.filter { it.id != song.id }.shuffled()
-            activeShuffledSongs = (listOf(song) + others).toMutableList()
-            shuffledSongs = activeShuffledSongs
+            val isSongInShuffled = activeShuffledSongs.any { it.id == song.id }
+            if (isNewPlaylist || activeShuffledSongs.isEmpty() || !isSongInShuffled) {
+                val others = activePlaylist.filter { it.id != song.id }.shuffled()
+                activeShuffledSongs = (listOf(song) + others).toMutableList()
+                shuffledSongs = activeShuffledSongs
+            }
         }
 
         val queue = if (_isShuffleOn.value) activeShuffledSongs else activePlaylist
@@ -621,10 +662,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playNextSong() {
+        val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
         val list = if (_isShuffleOn.value) {
-            if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else activePlaylist.shuffled().toMutableList().also { activeShuffledSongs = it }
+            if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist.shuffled().toMutableList().also { activeShuffledSongs = it }
         } else {
-            if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
+            currentPlaylist
         }
         if (list.isEmpty()) return
 
@@ -635,16 +677,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             list[0]
         }
-        play(nextSong, playlist = activePlaylist)
+        play(nextSong, playlist = currentPlaylist)
         MusicController.play(nextSong)
         triggerScrollToCurrentSong()
     }
 
     fun playPreviousSong() {
+        val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
         val list = if (_isShuffleOn.value) {
-            if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else activePlaylist.shuffled().toMutableList().also { activeShuffledSongs = it }
+            if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist.shuffled().toMutableList().also { activeShuffledSongs = it }
         } else {
-            if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
+            currentPlaylist
         }
         if (list.isEmpty()) return
 
@@ -655,7 +698,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             list.last()
         }
-        play(prevSong, playlist = activePlaylist)
+        play(prevSong, playlist = currentPlaylist)
         MusicController.play(prevSong)
         triggerScrollToCurrentSong()
     }
@@ -824,7 +867,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
                 // 3. Remove from in-memory playlists
                 originalSongs = originalSongs.filter { it.id != song.id }
+                activePlaylist = activePlaylist.filter { it.id != song.id }
                 shuffledSongs.removeAll { it.id == song.id }
+                activeShuffledSongs.removeAll { it.id == song.id }
                 com.aashik.music.service.CarPlaybackService.instance?.let { carService ->
                     carService.songList = carService.songList.filter { it.id != song.id }
                 }
@@ -877,5 +922,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 e.printStackTrace()
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        sleepTimerJob?.cancel()
+        try {
+            usbReceiver?.let { getApplication<Application>().unregisterReceiver(it) }
+            usbReceiver = null
+        } catch (_: Exception) {}
     }
 }

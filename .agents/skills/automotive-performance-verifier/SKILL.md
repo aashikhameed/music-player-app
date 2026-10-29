@@ -1,12 +1,12 @@
 ---
 name: automotive-performance-verifier
 description: >-
-  Verifies, tests, and validates that all performance optimizations, memory budgets, and automotive hardware constraints are fully met for the Android Automotive Music Player on low-spec hardware (Blaupunkt Santa Rosa 985). Runs the automated verification runbook, static architecture audits, unit test suite, and release binary validation.
+  Verifies, tests, and validates that all performance optimizations, memory budgets, and automotive hardware constraints are fully met for the Android Automotive Music Player on low-spec hardware (Automotive Headunit). Runs the automated verification runbook, static architecture audits, unit test suite, and release binary validation.
 ---
 
 # Automotive Performance Verifier
 
-This skill acts as an automated verification gatekeeper for the **Blaupunkt Santa Rosa 985 Android Automotive Headunit** (1280×720 @ 160 dpi, ARM Cortex-A53 SoC, Mali GPU, 1–2 GB RAM, slow eMMC flash storage).
+This skill acts as an automated verification gatekeeper for the **Automotive Headunit** (1280×720 @ 160 dpi, ARM Cortex-A53 SoC, Mali GPU, 1–2 GB RAM, slow eMMC flash storage).
 
 It verifies that all source files comply with automotive performance constraints, that no regressions exist, that unit tests pass, and that the final release APK adheres to the strict size budget (< 4.0 MB) and architecture constraints (single `arm64-v8a` ABI).
 
@@ -60,5 +60,5 @@ bash .agents/skills/automotive-performance-verifier/scripts/verify_release.sh
 ---
 
 ## Result Interpretation
-- **100% PASS (0 Regressions)**: Codebase is verified production-ready for Blaupunkt Santa Rosa 985.
+- **100% PASS (0 Regressions)**: Codebase is verified production-ready for Automotive Headunit.
 - **Any FAIL**: Must resolve before deployment or release.

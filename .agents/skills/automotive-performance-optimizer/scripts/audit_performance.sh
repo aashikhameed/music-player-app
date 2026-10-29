@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 echo -e "${BOLD}${BLUE}========================================================================${NC}"
 echo -e "${BOLD}${BLUE}  Automotive Hardware Performance Audit — All Source Files Scan        ${NC}"
-echo -e "${BOLD}  Target: Blaupunkt Santa Rosa 985 (ARM Cortex-A53, Mali GPU, eMMC)   ${NC}"
+echo -e "${BOLD}  Target: Automotive Headunit (ARM Cortex-A53, Mali GPU, eMMC)         ${NC}"
 echo -e "${BOLD}${BLUE}========================================================================${NC}"
 
 TOTAL_FILES=0

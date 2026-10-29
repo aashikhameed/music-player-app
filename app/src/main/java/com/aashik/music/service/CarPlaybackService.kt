@@ -55,19 +55,39 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
             )
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
-                    MusicController.play()
+                    val player = MusicPlayer.getInstance(this@CarPlaybackService)
+                    if (viewModel != null) {
+                        viewModel?.resumeMusic()
+                    } else {
+                        player.resume()
+                        MusicController.play(player.currentSongFlow.value)
+                    }
                 }
 
                 override fun onPause() {
-                    MusicController.pause()
+                    val player = MusicPlayer.getInstance(this@CarPlaybackService)
+                    if (viewModel != null) {
+                        viewModel?.pause()
+                    } else {
+                        player.pause()
+                        MusicController.pause()
+                    }
                 }
 
                 override fun onSkipToNext() {
-                    MusicController.next(songList)
+                    if (viewModel != null) {
+                        viewModel?.playNextSong()
+                    } else {
+                        MusicPlayer.getInstance(this@CarPlaybackService).playNext()
+                    }
                 }
 
                 override fun onSkipToPrevious() {
-                    MusicController.previous(songList)
+                    if (viewModel != null) {
+                        viewModel?.playPreviousSong()
+                    } else {
+                        MusicPlayer.getInstance(this@CarPlaybackService).playPrevious()
+                    }
                 }
 
                 override fun onSeekTo(pos: Long) {
@@ -75,6 +95,8 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
                 }
 
                 override fun onStop() {
+                    val player = MusicPlayer.getInstance(this@CarPlaybackService)
+                    player.stop()
                     stopSelf()
                 }
             })

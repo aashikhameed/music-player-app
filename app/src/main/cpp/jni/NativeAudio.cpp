@@ -173,6 +173,12 @@ Java_com_aashik_music_nativeaudio_NativeAudioBridge_setVolume(
     audio::AudioPlayer::getInstance().setVolume(volume);
 }
 
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setCrossfadeDuration(
+    JNIEnv* env, jobject thiz, jfloat seconds) {
+    audio::AudioPlayer::getInstance().setCrossfadeDuration(seconds);
+}
+
 JNIEXPORT jint JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_getPlaybackState(JNIEnv* env, jobject thiz) {
     return static_cast<jint>(audio::AudioPlayer::getInstance().getState());
@@ -195,6 +201,7 @@ JNIEXPORT void JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerEnabled(
     JNIEnv* env, jobject thiz, jboolean enabled) {
     audio::AudioPlayer::getInstance().getEqualizer().setEnabled(enabled);
+    audio::AudioPlayer::getInstance().syncEqualizer();
 }
 
 JNIEXPORT jboolean JNICALL
@@ -207,6 +214,7 @@ JNIEXPORT void JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerPreset(
     JNIEnv* env, jobject thiz, jint preset) {
     audio::AudioPlayer::getInstance().getEqualizer().setPreset(preset);
+    audio::AudioPlayer::getInstance().syncEqualizer();
 }
 
 JNIEXPORT jint JNICALL
@@ -219,6 +227,7 @@ JNIEXPORT void JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerBandGain(
     JNIEnv* env, jobject thiz, jint band, jfloat gainDb) {
     audio::AudioPlayer::getInstance().getEqualizer().setBandGain(static_cast<size_t>(band), gainDb);
+    audio::AudioPlayer::getInstance().syncEqualizer();
 }
 
 JNIEXPORT jfloat JNICALL
@@ -231,6 +240,7 @@ JNIEXPORT void JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerHpfMode(
     JNIEnv* env, jobject thiz, jint mode) {
     audio::AudioPlayer::getInstance().getEqualizer().setHpfMode(mode);
+    audio::AudioPlayer::getInstance().syncEqualizer();
 }
 
 JNIEXPORT jint JNICALL
@@ -243,6 +253,7 @@ JNIEXPORT void JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_setTimeAlignment(
     JNIEnv* env, jobject thiz, jint mode) {
     audio::AudioPlayer::getInstance().getEqualizer().setTimeAlignmentMode(mode);
+    audio::AudioPlayer::getInstance().syncEqualizer();
 }
 
 JNIEXPORT jint JNICALL
@@ -255,12 +266,26 @@ JNIEXPORT void JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_setBassNormalizer(
     JNIEnv* env, jobject thiz, jint mode) {
     audio::AudioPlayer::getInstance().getEqualizer().setBassNormalizerMode(mode);
+    audio::AudioPlayer::getInstance().syncEqualizer();
 }
 
 JNIEXPORT jint JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_getBassNormalizer(
     JNIEnv* env, jobject thiz) {
     return static_cast<jint>(audio::AudioPlayer::getInstance().getEqualizer().getBassNormalizerMode());
+}
+
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setVirtualSurroundMode(
+    JNIEnv* env, jobject thiz, jint mode) {
+    audio::AudioPlayer::getInstance().getEqualizer().setVirtualSurroundMode(mode);
+    audio::AudioPlayer::getInstance().syncEqualizer();
+}
+
+JNIEXPORT jint JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getVirtualSurroundMode(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jint>(audio::AudioPlayer::getInstance().getEqualizer().getVirtualSurroundMode());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

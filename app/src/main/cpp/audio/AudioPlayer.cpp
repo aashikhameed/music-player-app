@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <chrono>
 #include <vector>
+#include <cmath>
 
 #define LOG_TAG "NativeAudioPlayer"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -17,24 +18,13 @@ AudioPlayer& AudioPlayer::getInstance() {
     return instance;
 }
 
-AudioPlayer::AudioPlayer()
-    : mRingBuffer(std::make_shared<RingBuffer>(96 * 1024)),
-      mOutputPlayer(std::make_unique<OpenSLESPlayer>(mRingBuffer)) {
-    mOutputPlayer->setOnBufferConsumedCallback([this](size_t bytesConsumed) {
-        mRenderedBytes.fetch_add(bytesConsumed, std::memory_order_relaxed);
-        mDecoderCv.notify_one();
-    });
-}
+AudioPlayer::AudioPlayer() = default;
 
 AudioPlayer::~AudioPlayer() {
     shutdown();
 }
 
 ResultCode AudioPlayer::init() {
-    if (!mOutputPlayer->init()) {
-        LOGE("Failed to initialize OpenSL ES output");
-        return ResultCode::ERROR_AUDIO_ENGINE_FAILED;
-    }
     setState(PlaybackState::INITIALIZED);
     LOGI("AudioPlayer initialized successfully");
     return ResultCode::OK;
@@ -42,7 +32,6 @@ ResultCode AudioPlayer::init() {
 
 void AudioPlayer::shutdown() {
     stop();
-    mOutputPlayer->shutdown();
     setState(PlaybackState::IDLE);
 }
 
@@ -62,108 +51,303 @@ void AudioPlayer::notifyError(ResultCode code, const std::string& message) {
     }
 }
 
+void AudioPlayer::setCrossfadeDuration(float seconds) {
+    mCrossfadeDurationSec.store(std::max(0.0f, seconds), std::memory_order_release);
+    LOGI("Crossfade duration set to %.1f seconds", seconds);
+}
+
+float AudioPlayer::getCrossfadeDuration() const {
+    return mCrossfadeDurationSec.load(std::memory_order_relaxed);
+}
+
+void AudioPlayer::syncEqualizer() {
+    std::lock_guard<std::mutex> lock(mTrackMutex);
+    if (mCurrentTrack && mCurrentTrack->outputPlayer) {
+        mCurrentTrack->outputPlayer->getEqualizer().copySettingsFrom(mEqualizer);
+    }
+}
+
+void AudioPlayer::stopTrackSession(std::unique_ptr<TrackSession>& session) {
+    if (!session) return;
+
+    if (session->outputPlayer) {
+        session->outputPlayer->stop();
+    }
+
+    session->decoderRunning.store(false, std::memory_order_release);
+    session->decoderCv.notify_all();
+
+    if (session->decoderThread.joinable()) {
+        session->decoderThread.join();
+    }
+
+    if (session->decoder) {
+        session->decoder->close();
+        session->decoder.reset();
+    }
+
+    if (session->outputPlayer) {
+        session->outputPlayer->shutdown();
+        session->outputPlayer.reset();
+    }
+
+    session.reset();
+}
+
+void AudioPlayer::stopFaderThread() {
+    mFaderRunning.store(false, std::memory_order_release);
+    mFaderCv.notify_all();
+    if (mFaderThread.joinable()) {
+        mFaderThread.join();
+    }
+}
+
+void AudioPlayer::startFaderThread(float durationSec) {
+    stopFaderThread();
+    mFaderRunning.store(true, std::memory_order_release);
+    mFaderThread = std::thread([this, durationSec]() {
+        pthread_setname_np(pthread_self(), "AudioFader");
+        auto startTime = std::chrono::steady_clock::now();
+        int64_t totalMs = static_cast<int64_t>(durationSec * 1000.0f);
+        if (totalMs <= 0) totalMs = 1;
+
+        while (mFaderRunning.load(std::memory_order_acquire)) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+            float p = static_cast<float>(elapsedMs) / static_cast<float>(totalMs);
+            if (p >= 1.0f) {
+                p = 1.0f;
+            }
+
+            // Equal-power crossfade curve
+            float angle = p * 1.57079632679f; // pi / 2
+            float master = mMasterVolume.load(std::memory_order_relaxed);
+            float fadeVol = std::cos(angle) * master;
+            float currVol = std::sin(angle) * master;
+
+            {
+                std::lock_guard<std::mutex> lock(mTrackMutex);
+                if (mFadingTrack && mFadingTrack->outputPlayer) {
+                    mFadingTrack->outputPlayer->setVolume(fadeVol);
+                }
+                if (mCurrentTrack && mCurrentTrack->outputPlayer) {
+                    mCurrentTrack->outputPlayer->setVolume(currVol);
+                }
+            }
+
+            if (p >= 1.0f) {
+                break;
+            }
+
+            std::unique_lock<std::mutex> faderLock(mFaderMutex);
+            mFaderCv.wait_for(faderLock, std::chrono::milliseconds(40), [this] {
+                return !mFaderRunning.load(std::memory_order_acquire);
+            });
+        }
+
+        // Crossfade complete: restore current track volume and clean up fading track
+        if (mFaderRunning.load(std::memory_order_acquire)) {
+            {
+                std::lock_guard<std::mutex> lock(mTrackMutex);
+                if (mCurrentTrack && mCurrentTrack->outputPlayer) {
+                    mCurrentTrack->outputPlayer->setVolume(mMasterVolume.load(std::memory_order_relaxed));
+                }
+            }
+            std::unique_ptr<TrackSession> toDelete;
+            {
+                std::lock_guard<std::mutex> lock(mTrackMutex);
+                toDelete = std::move(mFadingTrack);
+            }
+            if (toDelete) {
+                stopTrackSession(toDelete);
+            }
+        }
+    });
+}
+
 ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPositionMs) {
     LOGI("playTrack requested: %s (start: %lld ms)", filePath.c_str(), (long long)startPositionMs);
 
-    // Stop existing playback and drain decoder thread
-    stop();
+    float crossfadeSec = mCrossfadeDurationSec.load(std::memory_order_acquire);
+    bool shouldCrossfade = false;
+    {
+        std::lock_guard<std::mutex> lock(mTrackMutex);
+        shouldCrossfade = (crossfadeSec > 0.0f) &&
+                          (startPositionMs == 0) &&
+                          (mCurrentTrack != nullptr) &&
+                          (mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING);
+    }
 
-    mDecoder = AudioDecoder::create(filePath);
-    if (!mDecoder || !mDecoder->open(filePath)) {
+    // 1. Stop and join any active fader thread
+    stopFaderThread();
+
+    // 2. Prepare tracks: if crossfade active, transition current -> fading
+    std::unique_ptr<TrackSession> oldFading;
+    std::unique_ptr<TrackSession> oldCurrent;
+    {
+        std::lock_guard<std::mutex> lock(mTrackMutex);
+        if (mFadingTrack) {
+            oldFading = std::move(mFadingTrack);
+        }
+        if (shouldCrossfade) {
+            mFadingTrack = std::move(mCurrentTrack);
+        } else {
+            oldCurrent = std::move(mCurrentTrack);
+        }
+    }
+    if (oldFading) {
+        stopTrackSession(oldFading);
+    }
+    if (oldCurrent) {
+        stopTrackSession(oldCurrent);
+    }
+
+    // 3. Create new TrackSession
+    auto newTrack = std::make_unique<TrackSession>();
+    newTrack->filePath = filePath;
+    newTrack->ringBuffer = std::make_shared<RingBuffer>(96 * 1024);
+    newTrack->outputPlayer = std::make_unique<OpenSLESPlayer>(newTrack->ringBuffer);
+
+    // Copy acoustic DSP equalizer settings
+    newTrack->outputPlayer->getEqualizer().copySettingsFrom(mEqualizer);
+
+    if (!newTrack->outputPlayer->init()) {
+        LOGE("Failed to init OpenSLESPlayer for new track");
+        notifyError(ResultCode::ERROR_AUDIO_ENGINE_FAILED, "Failed to init audio output");
+        return ResultCode::ERROR_AUDIO_ENGINE_FAILED;
+    }
+
+    TrackSession* rawTrackPtr = newTrack.get();
+    newTrack->outputPlayer->setOnBufferConsumedCallback([rawTrackPtr](size_t bytesConsumed) {
+        rawTrackPtr->renderedBytes.fetch_add(bytesConsumed, std::memory_order_relaxed);
+        rawTrackPtr->decoderCv.notify_one();
+    });
+
+    newTrack->decoder = AudioDecoder::create(filePath);
+    if (!newTrack->decoder || !newTrack->decoder->open(filePath)) {
         LOGE("Could not open file: %s", filePath.c_str());
         notifyError(ResultCode::ERROR_UNSUPPORTED_FORMAT, "Cannot decode file format");
         return ResultCode::ERROR_UNSUPPORTED_FORMAT;
     }
 
-    const AudioFormat& format = mDecoder->getFormat();
-    mDurationMs.store(format.durationMs, std::memory_order_relaxed);
-    mStartPositionMs.store(startPositionMs, std::memory_order_relaxed);
-    mRenderedBytes.store(0, std::memory_order_relaxed);
-    mSampleRate.store(format.sampleRate, std::memory_order_relaxed);
-    mChannels.store(format.channelCount, std::memory_order_relaxed);
-    mCurrentPositionMs.store(startPositionMs, std::memory_order_relaxed);
+    const AudioFormat& format = newTrack->decoder->getFormat();
+    newTrack->durationMs.store(format.durationMs, std::memory_order_relaxed);
+    newTrack->startPositionMs.store(startPositionMs, std::memory_order_relaxed);
+    newTrack->renderedBytes.store(0, std::memory_order_relaxed);
+    newTrack->sampleRate.store(format.sampleRate, std::memory_order_relaxed);
+    newTrack->channels.store(format.channelCount, std::memory_order_relaxed);
+    newTrack->currentPositionMs.store(startPositionMs, std::memory_order_relaxed);
 
-    {
-        std::lock_guard<std::mutex> lock(mListenerMutex);
-        if (mListener.onDurationUpdated) {
-            mListener.onDurationUpdated(format.durationMs);
-        }
-    }
-
-    if (!mOutputPlayer->configureAudio(format.sampleRate, format.channelCount)) {
+    if (!newTrack->outputPlayer->configureAudio(format.sampleRate, format.channelCount)) {
         LOGE("Failed to configure OpenSL ES output for %d Hz, %d ch", format.sampleRate, format.channelCount);
         notifyError(ResultCode::ERROR_AUDIO_ENGINE_FAILED, "Audio output configuration failed");
         return ResultCode::ERROR_AUDIO_ENGINE_FAILED;
     }
 
     if (startPositionMs > 0) {
-        mDecoder->seekTo(startPositionMs);
+        newTrack->decoder->seekTo(startPositionMs);
     }
 
-    mRingBuffer->reset();
+    newTrack->ringBuffer->reset();
 
     // Start decoder background thread
-    mDecoderRunning.store(true, std::memory_order_release);
-    mDecoderThread = std::thread(&AudioPlayer::decoderThreadLoop, this);
-    pthread_setname_np(mDecoderThread.native_handle(), "AudioDecoder");
+    newTrack->decoderRunning.store(true, std::memory_order_release);
+    newTrack->decoderThread = std::thread(&AudioPlayer::decoderThreadLoop, this, rawTrackPtr);
+    pthread_setname_np(newTrack->decoderThread.native_handle(), "AudioDecoder");
 
-    // Wait until at least 8KB (2 OpenSL ES queue buffers) of PCM is pre-buffered or EOF reached
+    // Wait until at least 8KB of PCM is pre-buffered or EOF reached
     int waitCount = 0;
-    while (mRingBuffer->getAvailableRead() < 8 * 1024 && !mDecoder->isEof() && waitCount < 30) {
+    while (newTrack->ringBuffer->getAvailableRead() < 8 * 1024 && !newTrack->decoder->isEof() && waitCount < 30) {
         usleep(1000); // 1ms sleep for ultra-low startup latency
         waitCount++;
     }
 
-    if (!mOutputPlayer->play()) {
-        LOGE("OpenSLESPlayer::play failed");
+    float initialVol = shouldCrossfade ? 0.0f : mMasterVolume.load(std::memory_order_relaxed);
+    newTrack->outputPlayer->setVolume(initialVol);
+
+    if (!newTrack->outputPlayer->play()) {
+        LOGE("OpenSLESPlayer::play failed for new track");
         notifyError(ResultCode::ERROR_AUDIO_ENGINE_FAILED, "Cannot start OpenSL ES playback");
         return ResultCode::ERROR_AUDIO_ENGINE_FAILED;
     }
 
+    newTrack->state.store(PlaybackState::PLAYING, std::memory_order_relaxed);
+
+    {
+        std::lock_guard<std::mutex> lock(mTrackMutex);
+        mCurrentTrack = std::move(newTrack);
+    }
+
     setState(PlaybackState::PLAYING);
+
+    {
+        std::lock_guard<std::mutex> lock(mListenerMutex);
+        if (mListener.onDurationUpdated) {
+            mListener.onDurationUpdated(format.durationMs);
+        }
+        if (mListener.onPositionChanged) {
+            mListener.onPositionChanged(startPositionMs);
+        }
+    }
+
+    // 4. Start smooth crossfader if blending between tracks
+    if (shouldCrossfade) {
+        startFaderThread(crossfadeSec);
+    }
+
     return ResultCode::OK;
 }
 
 ResultCode AudioPlayer::pause() {
-    if (mState.load(std::memory_order_relaxed) != PlaybackState::PLAYING) {
-        return ResultCode::OK;
+    stopFaderThread();
+
+    std::unique_ptr<TrackSession> oldFading;
+    {
+        std::lock_guard<std::mutex> lock(mTrackMutex);
+        if (mFadingTrack) {
+            oldFading = std::move(mFadingTrack);
+        }
+        if (mCurrentTrack && mCurrentTrack->outputPlayer) {
+            mCurrentTrack->outputPlayer->pause();
+            mCurrentTrack->outputPlayer->setVolume(mMasterVolume.load(std::memory_order_relaxed));
+            mCurrentTrack->state.store(PlaybackState::PAUSED, std::memory_order_relaxed);
+        }
+    }
+    if (oldFading) {
+        stopTrackSession(oldFading);
     }
 
-    mOutputPlayer->pause();
     setState(PlaybackState::PAUSED);
     return ResultCode::OK;
 }
 
 ResultCode AudioPlayer::resume() {
-    if (mState.load(std::memory_order_relaxed) != PlaybackState::PAUSED) {
-        return ResultCode::OK;
-    }
-
-    if (mOutputPlayer->play()) {
-        setState(PlaybackState::PLAYING);
-        mDecoderCv.notify_one();
-        return ResultCode::OK;
+    std::lock_guard<std::mutex> lock(mTrackMutex);
+    if (mCurrentTrack && mCurrentTrack->outputPlayer) {
+        mCurrentTrack->outputPlayer->setVolume(mMasterVolume.load(std::memory_order_relaxed));
+        if (mCurrentTrack->outputPlayer->play()) {
+            mCurrentTrack->state.store(PlaybackState::PLAYING, std::memory_order_relaxed);
+            mCurrentTrack->decoderCv.notify_one();
+            setState(PlaybackState::PLAYING);
+            return ResultCode::OK;
+        }
     }
     return ResultCode::ERROR_AUDIO_ENGINE_FAILED;
 }
 
 ResultCode AudioPlayer::stop() {
-    // 1. Stop audio output
-    mOutputPlayer->stop();
+    stopFaderThread();
 
-    // 2. Stop and join decoder thread
-    mDecoderRunning.store(false, std::memory_order_release);
-    mDecoderCv.notify_all();
-    if (mDecoderThread.joinable()) {
-        mDecoderThread.join();
+    std::unique_ptr<TrackSession> fading;
+    std::unique_ptr<TrackSession> current;
+    {
+        std::lock_guard<std::mutex> lock(mTrackMutex);
+        fading = std::move(mFadingTrack);
+        current = std::move(mCurrentTrack);
     }
 
-    // 3. Close decoder and clear buffer
-    if (mDecoder) {
-        mDecoder->close();
-        mDecoder.reset();
-    }
-    mRingBuffer->reset();
+    if (fading) stopTrackSession(fading);
+    if (current) stopTrackSession(current);
 
     mCurrentPositionMs.store(0, std::memory_order_relaxed);
     setState(PlaybackState::STOPPED);
@@ -171,40 +355,57 @@ ResultCode AudioPlayer::stop() {
 }
 
 ResultCode AudioPlayer::seek(int64_t positionMs) {
-    if (!mDecoder) {
-        return ResultCode::ERROR_INVALID_STATE;
+    stopFaderThread();
+
+    std::unique_ptr<TrackSession> oldFading;
+    {
+        std::lock_guard<std::mutex> lock(mTrackMutex);
+        if (mFadingTrack) {
+            oldFading = std::move(mFadingTrack);
+        }
+        if (!mCurrentTrack || !mCurrentTrack->decoder) {
+            return ResultCode::ERROR_INVALID_STATE;
+        }
+        mCurrentTrack->outputPlayer->setVolume(mMasterVolume.load(std::memory_order_relaxed));
+        int64_t dur = mCurrentTrack->durationMs.load(std::memory_order_relaxed);
+        positionMs = std::max((int64_t)0, std::min(positionMs, dur));
+        mCurrentTrack->pendingSeekMs.store(positionMs, std::memory_order_release);
+        mCurrentTrack->isSeeking.store(true, std::memory_order_release);
+        mCurrentTrack->decoderCv.notify_one();
+    }
+    if (oldFading) {
+        stopTrackSession(oldFading);
     }
 
-    positionMs = std::max((int64_t)0, std::min(positionMs, mDurationMs.load(std::memory_order_relaxed)));
-    mPendingSeekMs.store(positionMs, std::memory_order_release);
-    mIsSeeking.store(true, std::memory_order_release);
-    mDecoderCv.notify_one();
     return ResultCode::OK;
 }
 
 void AudioPlayer::setVolume(float volume) {
-    mOutputPlayer->setVolume(volume);
+    mMasterVolume.store(std::max(0.0f, std::min(1.0f, volume)), std::memory_order_relaxed);
+    std::lock_guard<std::mutex> lock(mTrackMutex);
+    if (mCurrentTrack && mCurrentTrack->outputPlayer && !mFaderRunning.load(std::memory_order_relaxed)) {
+        mCurrentTrack->outputPlayer->setVolume(volume);
+    }
 }
 
 float AudioPlayer::getVolume() const {
-    return mOutputPlayer->getVolume();
+    return mMasterVolume.load(std::memory_order_relaxed);
 }
 
 int64_t AudioPlayer::getCurrentPosition() const {
-    int64_t baseMs = mStartPositionMs.load(std::memory_order_relaxed);
-    int64_t bytes = mRenderedBytes.load(std::memory_order_relaxed);
-    int32_t sr = mSampleRate.load(std::memory_order_relaxed);
-    int32_t ch = mChannels.load(std::memory_order_relaxed);
-    if (sr <= 0) sr = 44100;
-    if (ch <= 0) ch = 2;
-    int64_t playedMs = baseMs + (bytes * 1000LL) / (static_cast<int64_t>(sr) * ch * 2);
-    int64_t dur = mDurationMs.load(std::memory_order_relaxed);
-    if (dur > 0 && playedMs > dur) playedMs = dur;
-    return playedMs;
+    std::lock_guard<std::mutex> lock(mTrackMutex);
+    if (mCurrentTrack) {
+        return mCurrentTrack->getCurrentPosition();
+    }
+    return 0;
 }
 
 int64_t AudioPlayer::getDuration() const {
-    return mDurationMs.load(std::memory_order_relaxed);
+    std::lock_guard<std::mutex> lock(mTrackMutex);
+    if (mCurrentTrack) {
+        return mCurrentTrack->durationMs.load(std::memory_order_relaxed);
+    }
+    return 0;
 }
 
 PlaybackState AudioPlayer::getState() const {
@@ -216,13 +417,9 @@ void AudioPlayer::setListener(AudioPlayerListener listener) {
     mListener = std::move(listener);
 }
 
-void AudioPlayer::decoderThreadLoop() {
+void AudioPlayer::decoderThreadLoop(TrackSession* session) {
     pthread_setname_np(pthread_self(), "NativeAudioDec");
 
-    // ── Decoder thread: real-time round-robin scheduling ─────────────────────
-    // SCHED_RR prevents the kernel from preempting this thread when Compose is
-    // doing a recomposition pass, eliminating audio glitches under CPU load.
-    // Priority 2 = below SCHED_FIFO audio HAL (prio 8) but above normal tasks.
     struct sched_param param{};
     param.sched_priority = 2;
     pthread_setschedparam(pthread_self(), SCHED_RR, &param);
@@ -239,92 +436,112 @@ void AudioPlayer::decoderThreadLoop() {
 
     int64_t lastReportedPos = 0;
     auto lastPosReportTime = std::chrono::steady_clock::now();
+    auto& mDecoderCv = session->decoderCv;
 
-    while (mDecoderRunning.load(std::memory_order_acquire)) {
+    while (session->decoderRunning.load(std::memory_order_acquire)) {
         // Handle pending seek request
-        if (mIsSeeking.load(std::memory_order_acquire)) {
-            int64_t targetPos = mPendingSeekMs.load(std::memory_order_acquire);
-            mIsSeeking.store(false, std::memory_order_release);
+        if (session->isSeeking.load(std::memory_order_acquire)) {
+            int64_t targetPos = session->pendingSeekMs.load(std::memory_order_acquire);
+            session->isSeeking.store(false, std::memory_order_release);
 
-            mOutputPlayer->flush();
-            mRingBuffer->reset();
+            session->outputPlayer->flush();
+            session->ringBuffer->reset();
 
-            if (mDecoder && mDecoder->seekTo(targetPos)) {
-                mStartPositionMs.store(targetPos, std::memory_order_release);
-                mRenderedBytes.store(0, std::memory_order_release);
-                mCurrentPositionMs.store(targetPos, std::memory_order_release);
+            if (session->decoder && session->decoder->seekTo(targetPos)) {
+                session->startPositionMs.store(targetPos, std::memory_order_release);
+                session->renderedBytes.store(0, std::memory_order_release);
+                session->currentPositionMs.store(targetPos, std::memory_order_release);
                 lastReportedPos = targetPos;
                 lastPosReportTime = std::chrono::steady_clock::now();
-                std::lock_guard<std::mutex> lock(mListenerMutex);
-                if (mListener.onPositionChanged) {
-                    mListener.onPositionChanged(targetPos);
+
+                bool isCurrent = false;
+                {
+                    std::lock_guard<std::mutex> trackLock(mTrackMutex);
+                    isCurrent = (session == mCurrentTrack.get());
+                }
+                if (isCurrent) {
+                    std::lock_guard<std::mutex> lock(mListenerMutex);
+                    if (mListener.onPositionChanged) {
+                        mListener.onPositionChanged(targetPos);
+                    }
                 }
             }
         }
 
         // If paused, wait on condition variable
-        if (mState.load(std::memory_order_relaxed) == PlaybackState::PAUSED) {
-            std::unique_lock<std::mutex> lock(mDecoderMutex);
-            mDecoderCv.wait(lock, [this] {
-                return !mDecoderRunning.load(std::memory_order_relaxed) ||
-                       mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING ||
-                       mIsSeeking.load(std::memory_order_relaxed);
+        if (session->state.load(std::memory_order_relaxed) == PlaybackState::PAUSED) {
+            std::unique_lock<std::mutex> lock(session->decoderMutex);
+            mDecoderCv.wait(lock, [session] {
+                return !session->decoderRunning.load(std::memory_order_relaxed) ||
+                       session->state.load(std::memory_order_relaxed) == PlaybackState::PLAYING ||
+                       session->isSeeking.load(std::memory_order_relaxed);
             });
             continue;
         }
 
-        // If ring buffer is mostly full, wait on condition variable (notified on buffer drain by OpenSL ES)
-        if (mRingBuffer->getAvailableWrite() < CHUNK_SIZE) {
-            std::unique_lock<std::mutex> lock(mDecoderMutex);
-            mDecoderCv.wait_for(lock, std::chrono::milliseconds(50), [this] {
-                return !mDecoderRunning.load(std::memory_order_relaxed) ||
-                       mRingBuffer->getAvailableWrite() >= CHUNK_SIZE ||
-                       mIsSeeking.load(std::memory_order_relaxed);
+        // If ring buffer is mostly full, wait on condition variable
+        if (session->ringBuffer->getAvailableWrite() < CHUNK_SIZE) {
+            std::unique_lock<std::mutex> lock(session->decoderMutex);
+            mDecoderCv.wait_for(lock, std::chrono::milliseconds(50), [session] {
+                return !session->decoderRunning.load(std::memory_order_relaxed) ||
+                       session->ringBuffer->getAvailableWrite() >= CHUNK_SIZE ||
+                       session->isSeeking.load(std::memory_order_relaxed);
             });
             continue;
         }
 
         // Decode next PCM chunk
         int64_t framePosMs = 0;
-        int32_t bytesDecoded = mDecoder ? mDecoder->decode(decodeBuf.data(), CHUNK_SIZE, framePosMs) : 0;
+        int32_t bytesDecoded = session->decoder ? session->decoder->decode(decodeBuf.data(), CHUNK_SIZE, framePosMs) : 0;
 
         if (bytesDecoded > 0) {
-            mRingBuffer->write(decodeBuf.data(), static_cast<size_t>(bytesDecoded));
+            session->ringBuffer->write(decodeBuf.data(), static_cast<size_t>(bytesDecoded));
 
-            // Re-prime hardware queue if it drained during a seek or starvation
-            if (mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING) {
-                mOutputPlayer->primeQueue();
+            if (session->state.load(std::memory_order_relaxed) == PlaybackState::PLAYING) {
+                session->outputPlayer->primeQueue();
             }
 
-            // Real played position calculated from actual hardware PCM output
-            int64_t actualPositionMs = getCurrentPosition();
-            mCurrentPositionMs.store(actualPositionMs, std::memory_order_release);
+            bool isCurrent = false;
+            {
+                std::lock_guard<std::mutex> trackLock(mTrackMutex);
+                isCurrent = (session == mCurrentTrack.get());
+            }
 
-            // Throttle position reports to ~250ms
-            auto now = std::chrono::steady_clock::now();
-            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastPosReportTime).count();
-            if (elapsedMs >= 250 && actualPositionMs != lastReportedPos) {
-                lastReportedPos = actualPositionMs;
-                lastPosReportTime = now;
-                std::lock_guard<std::mutex> lock(mListenerMutex);
-                if (mListener.onPositionChanged) {
-                    mListener.onPositionChanged(actualPositionMs);
+            if (isCurrent) {
+                int64_t actualPositionMs = session->getCurrentPosition();
+                session->currentPositionMs.store(actualPositionMs, std::memory_order_release);
+                mCurrentPositionMs.store(actualPositionMs, std::memory_order_relaxed);
+
+                auto now = std::chrono::steady_clock::now();
+                auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastPosReportTime).count();
+                if (elapsedMs >= 250 && actualPositionMs != lastReportedPos) {
+                    lastReportedPos = actualPositionMs;
+                    lastPosReportTime = now;
+                    std::lock_guard<std::mutex> lock(mListenerMutex);
+                    if (mListener.onPositionChanged) {
+                        mListener.onPositionChanged(actualPositionMs);
+                    }
                 }
             }
-        } else if (mDecoder && mDecoder->isEof()) {
-            // Wait until output player drains the remaining buffered PCM
-            std::unique_lock<std::mutex> lock(mDecoderMutex);
-            while (mRingBuffer->getAvailableRead() > 0 && mDecoderRunning.load(std::memory_order_relaxed)) {
-                mDecoderCv.wait_for(lock, std::chrono::milliseconds(10), [this] {
-                    return !mDecoderRunning.load(std::memory_order_relaxed) || mRingBuffer->getAvailableRead() == 0;
+        } else if (session->decoder && session->decoder->isEof()) {
+            std::unique_lock<std::mutex> lock(session->decoderMutex);
+            while (session->ringBuffer->getAvailableRead() > 0 && session->decoderRunning.load(std::memory_order_relaxed)) {
+                mDecoderCv.wait_for(lock, std::chrono::milliseconds(10), [session] {
+                    return !session->decoderRunning.load(std::memory_order_relaxed) || session->ringBuffer->getAvailableRead() == 0;
                 });
             }
 
-            if (mDecoderRunning.load(std::memory_order_relaxed)) {
-                LOGI("Track reached natural completion");
-                setState(PlaybackState::COMPLETED);
+            if (session->decoderRunning.load(std::memory_order_relaxed)) {
+                bool isCurrent = false;
                 {
-                    std::lock_guard<std::mutex> lock(mListenerMutex);
+                    std::lock_guard<std::mutex> trackLock(mTrackMutex);
+                    isCurrent = (session == mCurrentTrack.get());
+                }
+
+                if (isCurrent) {
+                    LOGI("Track reached natural completion");
+                    setState(PlaybackState::COMPLETED);
+                    std::lock_guard<std::mutex> lockListener(mListenerMutex);
                     if (mListener.onTrackEnded) {
                         mListener.onTrackEnded();
                     }
@@ -332,10 +549,9 @@ void AudioPlayer::decoderThreadLoop() {
                 break;
             }
         } else {
-            // Temporary starvation from extractor, wait briefly
-            std::unique_lock<std::mutex> lock(mDecoderMutex);
-            mDecoderCv.wait_for(lock, std::chrono::milliseconds(10), [this] {
-                return !mDecoderRunning.load(std::memory_order_relaxed) || mIsSeeking.load(std::memory_order_relaxed);
+            std::unique_lock<std::mutex> lock(session->decoderMutex);
+            mDecoderCv.wait_for(lock, std::chrono::milliseconds(10), [session] {
+                return !session->decoderRunning.load(std::memory_order_relaxed) || session->isSeeking.load(std::memory_order_relaxed);
             });
         }
     }
@@ -347,7 +563,7 @@ void AudioPlayer::decoderThreadLoop() {
         }
     }
 
-    LOGI("Decoder thread loop terminated");
+    LOGI("Decoder thread loop terminated for track: %s", session->filePath.c_str());
 }
 
 } // namespace audio

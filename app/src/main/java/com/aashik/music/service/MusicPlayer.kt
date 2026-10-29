@@ -11,12 +11,10 @@ import com.aashik.music.model.Song
 import com.aashik.music.nativeaudio.NativeAudioBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -67,9 +65,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     // ── Crossfade State (default 3 seconds) ──
     private var crossfadeSeconds: Int = 3
-    private var fadeOutJob: Job? = null
-    private var fadeInJob: Job? = null
-    @Volatile private var isFadingOut = false
+    private var isTransitioning = false
 
     init {
         val attrs = AudioAttributes.Builder()
@@ -84,11 +80,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     AudioManager.AUDIOFOCUS_LOSS -> pause()
                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> nativeBridge.setVolume(0.2f)
-                    AudioManager.AUDIOFOCUS_GAIN -> {
-                        if (!isFadingOut && fadeInJob?.isActive != true) {
-                            nativeBridge.setVolume(1.0f)
-                        }
-                    }
+                    AudioManager.AUDIOFOCUS_GAIN -> nativeBridge.setVolume(1.0f)
                 }
             }
             .build()
@@ -143,36 +135,22 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
         if (crossfadeSeconds > 0 && _isPlayingFlow.value && !isTransitioning) {
             val dur = _durationFlow.value
+            val crossfadeMs = crossfadeSeconds * 1000L
             // Only crossfade if the song is longer than crossfade duration + 2 seconds
-            if (dur > (crossfadeSeconds * 1000L + 2000L)) {
-                val crossfadeMs = crossfadeSeconds * 1000L
+            if (dur > (crossfadeMs + 2000L)) {
                 val remainingMs = dur - positionMs
-
-                if (remainingMs <= 350L && !isTransitioning) {
-                    isFadingOut = false
-                    fadeOutJob?.cancel()
-                    onTrackEnded()
-                } else if (remainingMs in 351L..crossfadeMs && !isFadingOut) {
-                    isFadingOut = true
-                    fadeOutJob?.cancel()
-                    fadeOutJob = scope.launch(Dispatchers.Default) {
-                        val startRemaining = remainingMs
-                        val startTimestamp = System.currentTimeMillis()
-                        while (isActive && _isPlayingFlow.value) {
-                            val elapsed = System.currentTimeMillis() - startTimestamp
-                            val currentRemaining = startRemaining - elapsed
-                            if (currentRemaining <= 300L) {
-                                break
+                if (remainingMs <= crossfadeMs) {
+                    isTransitioning = true
+                    scope.launch(Dispatchers.Main) {
+                        try {
+                            if (onCompletion != null) {
+                                onCompletion?.invoke()
+                            } else {
+                                playNext()
                             }
-                            val vol = (currentRemaining.toFloat() / crossfadeMs).coerceIn(0.05f, 1.0f)
-                            nativeBridge.setVolume(vol)
-                            delay(50L)
-                        }
-                        if (isActive && _isPlayingFlow.value && !isTransitioning) {
-                            nativeBridge.setVolume(0.05f)
-                            withContext(Dispatchers.Main) {
-                                onTrackEnded()
-                            }
+                        } finally {
+                            delay(1000L)
+                            isTransitioning = false
                         }
                     }
                 }
@@ -184,12 +162,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         _durationFlow.value = if (durationMs > 0) durationMs else 1L
     }
 
-    private var isTransitioning = false
-
     override fun onTrackEnded() {
-        _isPlayingFlow.value = false
-        fadeOutJob?.cancel()
-        isFadingOut = false
         if (!isTransitioning) {
             isTransitioning = true
             scope.launch(Dispatchers.Main) {
@@ -200,7 +173,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                         playNext()
                     }
                 } finally {
-                    delay(400)
+                    delay(400L)
                     isTransitioning = false
                 }
             }
@@ -208,9 +181,6 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     override fun onError(errorCode: Int, message: String) {
-        fadeOutJob?.cancel()
-        fadeInJob?.cancel()
-        isFadingOut = false
         _isPlayingFlow.value = false
         isTransitioning = false
     }
@@ -221,12 +191,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     fun setCrossfadeSeconds(seconds: Int) {
         crossfadeSeconds = seconds
-        if (seconds == 0) {
-            fadeOutJob?.cancel()
-            fadeInJob?.cancel()
-            isFadingOut = false
-            nativeBridge.setVolume(1.0f)
-        }
+        nativeBridge.setCrossfadeDuration(seconds.toFloat())
     }
 
     fun getCrossfadeSeconds(): Int = crossfadeSeconds
@@ -266,10 +231,6 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun play(song: Song) {
-        fadeOutJob?.cancel()
-        fadeInJob?.cancel()
-        isFadingOut = false
-        isTransitioning = false
         val idx = playlist.indexOfFirst { it.id == song.id }
         if (idx != -1) {
             currentIndex = idx
@@ -286,12 +247,6 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             _durationFlow.value = song.duration
         }
 
-        if (crossfadeSeconds > 0) {
-            nativeBridge.setVolume(0.05f)
-        } else {
-            nativeBridge.setVolume(1.0f)
-        }
-
         scope.launch(Dispatchers.IO) {
             val res = nativeBridge.playTrack(song.path, 0L)
             if (res == 0) {
@@ -300,43 +255,17 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                 if (nativeDur > 0) {
                     _durationFlow.value = nativeDur
                 }
-
-                if (crossfadeSeconds > 0) {
-                    fadeInJob?.cancel()
-                    fadeInJob = scope.launch(Dispatchers.Default) {
-                        val crossfadeMs = crossfadeSeconds * 1000L
-                        val steps = 20
-                        val stepDelay = crossfadeMs / steps
-                        for (i in 1..steps) {
-                            delay(stepDelay)
-                            if (!_isPlayingFlow.value || isFadingOut) break
-                            val vol = (i.toFloat() / steps).coerceIn(0.05f, 1.0f)
-                            nativeBridge.setVolume(vol)
-                        }
-                        if (_isPlayingFlow.value && !isFadingOut) {
-                            nativeBridge.setVolume(1.0f)
-                        }
-                    }
-                } else {
-                    nativeBridge.setVolume(1.0f)
-                }
             }
         }
     }
 
     fun pause() {
-        fadeOutJob?.cancel()
-        fadeInJob?.cancel()
-        isFadingOut = false
         nativeBridge.pause()
         _isPlayingFlow.value = false
         audioManager.abandonAudioFocusRequest(focusRequest)
     }
 
     fun stop() {
-        fadeOutJob?.cancel()
-        fadeInJob?.cancel()
-        isFadingOut = false
         nativeBridge.setVolume(1.0f)
         nativeBridge.stop()
         _positionFlow.value = 0L
@@ -351,9 +280,6 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun resume() {
-        fadeOutJob?.cancel()
-        fadeInJob?.cancel()
-        isFadingOut = false
         val result = audioManager.requestAudioFocus(focusRequest)
         if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             nativeBridge.setVolume(1.0f)
@@ -362,10 +288,22 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         }
     }
 
+    fun togglePlayPause() {
+        if (_isPlayingFlow.value) {
+            pause()
+        } else {
+            resume()
+        }
+    }
+
+    fun seekRelative(deltaMs: Long) {
+        val curPos = _positionFlow.value
+        val dur = _durationFlow.value.coerceAtLeast(1L)
+        val target = (curPos + deltaMs).coerceIn(0L, dur)
+        seekTo(target)
+    }
+
     fun seekTo(position: Long) {
-        fadeOutJob?.cancel()
-        fadeInJob?.cancel()
-        isFadingOut = false
         nativeBridge.setVolume(1.0f)
         nativeBridge.seek(position)
         _positionFlow.value = position
@@ -406,6 +344,12 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun getBassNormalizer(): Int = nativeBridge.getBassNormalizer()
+
+    fun setVirtualSurroundMode(mode: Int) {
+        nativeBridge.setVirtualSurroundMode(mode)
+    }
+
+    fun getVirtualSurroundMode(): Int = nativeBridge.getVirtualSurroundMode()
 
     fun release() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()

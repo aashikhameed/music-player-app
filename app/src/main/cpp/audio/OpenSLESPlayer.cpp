@@ -10,6 +10,12 @@
 
 namespace audio {
 
+SLObjectItf OpenSLESPlayer::sEngineObject = nullptr;
+SLEngineItf OpenSLESPlayer::sEngine = nullptr;
+SLObjectItf OpenSLESPlayer::sOutputMixObject = nullptr;
+int OpenSLESPlayer::sEngineRefCount = 0;
+std::mutex OpenSLESPlayer::sEngineMutex;
+
 OpenSLESPlayer::OpenSLESPlayer(std::shared_ptr<RingBuffer> ringBuffer)
     : mRingBuffer(std::move(ringBuffer)) {
 }
@@ -19,44 +25,53 @@ OpenSLESPlayer::~OpenSLESPlayer() {
 }
 
 bool OpenSLESPlayer::init() {
-    if (mEngineObject != nullptr) {
+    std::lock_guard<std::mutex> lock(sEngineMutex);
+    if (sEngineObject != nullptr) {
+        sEngineRefCount++;
         return true;
     }
 
-    SLresult result = slCreateEngine(&mEngineObject, 0, nullptr, 0, nullptr, nullptr);
+    SLresult result = slCreateEngine(&sEngineObject, 0, nullptr, 0, nullptr, nullptr);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("slCreateEngine failed: %d", result);
         return false;
     }
 
-    result = (*mEngineObject)->Realize(mEngineObject, SL_BOOLEAN_FALSE);
+    result = (*sEngineObject)->Realize(sEngineObject, SL_BOOLEAN_FALSE);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("Realize engine failed: %d", result);
-        shutdown();
+        (*sEngineObject)->Destroy(sEngineObject);
+        sEngineObject = nullptr;
         return false;
     }
 
-    result = (*mEngineObject)->GetInterface(mEngineObject, SL_IID_ENGINE, &mEngine);
+    result = (*sEngineObject)->GetInterface(sEngineObject, SL_IID_ENGINE, &sEngine);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("GetInterface SLEngine failed: %d", result);
-        shutdown();
+        (*sEngineObject)->Destroy(sEngineObject);
+        sEngineObject = nullptr;
         return false;
     }
 
-    result = (*mEngine)->CreateOutputMix(mEngine, &mOutputMixObject, 0, nullptr, nullptr);
+    result = (*sEngine)->CreateOutputMix(sEngine, &sOutputMixObject, 0, nullptr, nullptr);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("CreateOutputMix failed: %d", result);
-        shutdown();
+        (*sEngineObject)->Destroy(sEngineObject);
+        sEngineObject = nullptr;
         return false;
     }
 
-    result = (*mOutputMixObject)->Realize(mOutputMixObject, SL_BOOLEAN_FALSE);
+    result = (*sOutputMixObject)->Realize(sOutputMixObject, SL_BOOLEAN_FALSE);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("Realize OutputMix failed: %d", result);
-        shutdown();
+        (*sOutputMixObject)->Destroy(sOutputMixObject);
+        sOutputMixObject = nullptr;
+        (*sEngineObject)->Destroy(sEngineObject);
+        sEngineObject = nullptr;
         return false;
     }
 
+    sEngineRefCount = 1;
     LOGI("OpenSL ES engine and output mix initialized successfully");
     return true;
 }
@@ -65,15 +80,22 @@ void OpenSLESPlayer::shutdown() {
     stop();
     destroyPlayer();
 
-    if (mOutputMixObject) {
-        (*mOutputMixObject)->Destroy(mOutputMixObject);
-        mOutputMixObject = nullptr;
+    std::lock_guard<std::mutex> lock(sEngineMutex);
+    if (sEngineRefCount > 0) {
+        sEngineRefCount--;
     }
+    if (sEngineRefCount == 0) {
+        if (sOutputMixObject) {
+            (*sOutputMixObject)->Destroy(sOutputMixObject);
+            sOutputMixObject = nullptr;
+        }
 
-    if (mEngineObject) {
-        (*mEngineObject)->Destroy(mEngineObject);
-        mEngineObject = nullptr;
-        mEngine = nullptr;
+        if (sEngineObject) {
+            (*sEngineObject)->Destroy(sEngineObject);
+            sEngineObject = nullptr;
+            sEngine = nullptr;
+        }
+        LOGI("OpenSL ES shared engine and output mix destroyed");
     }
 }
 
@@ -106,7 +128,7 @@ static SLuint32 getOpenSLSamplingRate(int32_t sampleRate) {
 }
 
 bool OpenSLESPlayer::configureAudio(int32_t sampleRate, int32_t channelCount) {
-    if (!mEngine) {
+    if (!sEngine) {
         if (!init()) return false;
     }
 
@@ -140,14 +162,14 @@ bool OpenSLESPlayer::configureAudio(int32_t sampleRate, int32_t channelCount) {
     SLDataSource audioSrc = {&loc_bufq, &format_pcm};
 
     // 2. Data Sink: Output Mix
-    SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, mOutputMixObject};
+    SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, sOutputMixObject};
     SLDataSink audioSnk = {&loc_outmix, nullptr};
 
     // 3. Create Audio Player
     const SLInterfaceID ids[2] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME};
     const SLboolean req[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
 
-    SLresult result = (*mEngine)->CreateAudioPlayer(mEngine, &mPlayerObject, &audioSrc, &audioSnk, 2, ids, req);
+    SLresult result = (*sEngine)->CreateAudioPlayer(sEngine, &mPlayerObject, &audioSrc, &audioSnk, 2, ids, req);
     if (result != SL_RESULT_SUCCESS) {
         LOGE("CreateAudioPlayer failed: %d", result);
         return false;

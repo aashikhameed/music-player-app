@@ -28,9 +28,44 @@ struct AudioPlayerListener {
     std::function<void()> onThreadExiting;
 };
 
+struct TrackSession {
+    std::string filePath;
+    std::shared_ptr<RingBuffer> ringBuffer;
+    std::unique_ptr<AudioDecoder> decoder;
+    std::unique_ptr<OpenSLESPlayer> outputPlayer;
+
+    std::thread decoderThread;
+    std::atomic<bool> decoderRunning{false};
+    std::mutex decoderMutex;
+    std::condition_variable decoderCv;
+
+    std::atomic<PlaybackState> state{PlaybackState::IDLE};
+    std::atomic<int64_t> currentPositionMs{0};
+    std::atomic<int64_t> durationMs{0};
+    std::atomic<int64_t> renderedBytes{0};
+    std::atomic<int64_t> startPositionMs{0};
+    std::atomic<int32_t> sampleRate{44100};
+    std::atomic<int32_t> channels{2};
+    std::atomic<bool> isSeeking{false};
+    std::atomic<int64_t> pendingSeekMs{-1};
+
+    int64_t getCurrentPosition() const {
+        int64_t baseMs = startPositionMs.load(std::memory_order_relaxed);
+        int64_t bytes = renderedBytes.load(std::memory_order_relaxed);
+        int32_t sr = sampleRate.load(std::memory_order_relaxed);
+        int32_t ch = channels.load(std::memory_order_relaxed);
+        if (sr <= 0) sr = 44100;
+        if (ch <= 0) ch = 2;
+        int64_t playedMs = baseMs + (bytes * 1000LL) / (static_cast<int64_t>(sr) * ch * 2);
+        int64_t dur = durationMs.load(std::memory_order_relaxed);
+        if (dur > 0 && playedMs > dur) playedMs = dur;
+        return playedMs;
+    }
+};
+
 /**
  * Master Native Audio Engine.
- * Coordinates decoding thread, lock-free ring buffer, and OpenSL ES audio output.
+ * Supports seamless equal-power crossfade between tracks on low-spec automotive hardware.
  */
 class AudioPlayer {
 public:
@@ -51,39 +86,42 @@ public:
     void setVolume(float volume);
     float getVolume() const;
 
+    void setCrossfadeDuration(float seconds);
+    float getCrossfadeDuration() const;
+
     int64_t getCurrentPosition() const;
     int64_t getDuration() const;
     PlaybackState getState() const;
 
     void setListener(AudioPlayerListener listener);
     PlaylistManager& getPlaylistManager() { return mPlaylistManager; }
-    AudioEqualizer& getEqualizer() { return mOutputPlayer->getEqualizer(); }
+    AudioEqualizer& getEqualizer() { return mEqualizer; }
+    void syncEqualizer();
 
 private:
-    void decoderThreadLoop();
+    void decoderThreadLoop(TrackSession* session);
+    void startFaderThread(float durationSec);
+    void stopFaderThread();
+    void stopTrackSession(std::unique_ptr<TrackSession>& session);
     void setState(PlaybackState state);
     void notifyError(ResultCode code, const std::string& message);
 
-    std::shared_ptr<RingBuffer> mRingBuffer;
-    std::unique_ptr<AudioDecoder> mDecoder;
-    std::unique_ptr<OpenSLESPlayer> mOutputPlayer;
     PlaylistManager mPlaylistManager;
+    AudioEqualizer mEqualizer;
+
+    std::unique_ptr<TrackSession> mCurrentTrack;
+    std::unique_ptr<TrackSession> mFadingTrack;
+    mutable std::mutex mTrackMutex;
+
+    std::thread mFaderThread;
+    std::atomic<bool> mFaderRunning{false};
+    std::mutex mFaderMutex;
+    std::condition_variable mFaderCv;
 
     std::atomic<PlaybackState> mState{PlaybackState::IDLE};
     std::atomic<int64_t> mCurrentPositionMs{0};
-    std::atomic<int64_t> mDurationMs{0};
-    std::atomic<bool> mIsSeeking{false};
-    std::atomic<int64_t> mPendingSeekMs{-1};
-
-    std::atomic<int64_t> mRenderedBytes{0};
-    std::atomic<int64_t> mStartPositionMs{0};
-    std::atomic<int32_t> mSampleRate{44100};
-    std::atomic<int32_t> mChannels{2};
-
-    std::thread mDecoderThread;
-    std::atomic<bool> mDecoderRunning{false};
-    std::mutex mDecoderMutex;
-    std::condition_variable mDecoderCv;
+    std::atomic<float> mMasterVolume{1.0f};
+    std::atomic<float> mCrossfadeDurationSec{3.0f};
 
     AudioPlayerListener mListener;
     std::mutex mListenerMutex;

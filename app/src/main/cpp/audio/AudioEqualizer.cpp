@@ -9,8 +9,8 @@ namespace audio {
 #endif
 
 AudioEqualizer::AudioEqualizer() {
-    // Default to Alpine Clarity preset
-    applyPresetGains(PRESET_ALPINE_CLARITY);
+    // Default to Acoustic Clarity preset
+    applyPresetGains(PRESET_ACOUSTIC_CLARITY);
     updateCoefficients(44100);
 }
 
@@ -36,13 +36,13 @@ void AudioEqualizer::applyPresetGains(int32_t preset) {
             mBandGainsDb[4].store(0.0f, std::memory_order_relaxed);
             break;
 
-        case PRESET_ALPINE_CLARITY:
-            // Tuned for Blaupunkt Santa Rosa 985 + external processor + Alpine speakers:
+        case PRESET_ACOUSTIC_CLARITY:
+            // Tuned for vehicle cabin + external processor + door speakers:
             // - HPF at 80 Hz eliminates woofer excursion distortion
             // - Mud cut (-4.0 dB) at 250 Hz eliminates hollow door resonance
             // - +1.0 dB at 1 kHz brings vocal fundamentals forward
             // - +2.0 dB at 3.5 kHz adds crisp vocal/instrument separation
-            // - +3.0 dB at 10 kHz brings out Alpine tweeter sparkle
+            // - +3.0 dB at 10 kHz brings out tweeter sparkle
             mHpfMode.store(HPF_80HZ, std::memory_order_relaxed);
             mBandGainsDb[0].store(0.0f, std::memory_order_relaxed);
             mBandGainsDb[1].store(-4.0f, std::memory_order_relaxed);
@@ -114,6 +114,10 @@ void AudioEqualizer::setTimeAlignmentMode(int32_t mode) {
 
 void AudioEqualizer::setBassNormalizerMode(int32_t mode) {
     mBassNormalizerMode.store(mode, std::memory_order_relaxed);
+}
+
+void AudioEqualizer::setVirtualSurroundMode(int32_t mode) {
+    mVirtualSurroundMode.store(mode, std::memory_order_relaxed);
 }
 
 void AudioEqualizer::reset() {
@@ -280,7 +284,7 @@ void AudioEqualizer::updateCoefficients(int32_t sampleRate) {
         float g = mBandGainsDb[i].load(std::memory_order_relaxed);
         if (g > maxBoost) maxBoost = g;
     }
-    // Base pre-cut is -2.5 dB (0.75f) to prevent DAC inter-sample clipping on Santa Rosa 985
+    // Base pre-cut is -2.5 dB (0.75f) to prevent DAC inter-sample clipping on automotive headunit
     float totalPrecutDb = -2.5f - std::max(0.0f, maxBoost * 0.75f);
     mPreampGain = std::pow(10.0f, totalPrecutDb / 20.0f);
 
@@ -299,6 +303,7 @@ void AudioEqualizer::process(int16_t* pcmData, size_t sampleCount, int32_t sampl
     int32_t hpf = mHpfMode.load(std::memory_order_relaxed);
     int32_t timeAlign = mTimeAlignmentMode.load(std::memory_order_relaxed);
     int32_t bassNorm = mBassNormalizerMode.load(std::memory_order_relaxed);
+    int32_t surroundMode = mVirtualSurroundMode.load(std::memory_order_relaxed);
     bool applyHpf = (hpf != HPF_OFF);
     size_t numChannels = (channels == 1) ? 1 : 2;
 
@@ -336,6 +341,15 @@ void AudioEqualizer::process(int16_t* pcmData, size_t sampleCount, int32_t sampl
                 else if (sampleL < -28000.0f) sampleL = -28000.0f + (sampleL + 28000.0f) * 0.45f;
                 if (sampleR > 28000.0f) sampleR = 28000.0f + (sampleR - 28000.0f) * 0.45f;
                 else if (sampleR < -28000.0f) sampleR = -28000.0f + (sampleR + 28000.0f) * 0.45f;
+            }
+
+            // Virtual Surround / Stereo Stage Widener
+            if (surroundMode != SURROUND_OFF) {
+                float width = (surroundMode == SURROUND_WIDE) ? 1.45f : 1.25f;
+                float mid = (sampleL + sampleR) * 0.5f;
+                float side = (sampleL - sampleR) * 0.5f * width;
+                sampleL = mid + side;
+                sampleR = mid - side;
             }
 
             // Driver Seat Soundstage Time Alignment (~1.0 ms micro-delay)

@@ -1,12 +1,12 @@
 ---
 name: automotive-performance-optimizer
 description: >-
-  Audits, profiles, optimizes, and verifies performance for the Android Automotive Music Player on low-spec hardware (Blaupunkt Santa Rosa 985, Cortex-A53, Mali GPU, eMMC storage). Use whenever the user asks to look for optimizations, audit performance bottlenecks, check UI frame rate drops, or build the release APK.
+  Audits, profiles, optimizes, and verifies performance for the Android Automotive Music Player on low-spec hardware (Automotive Headunit, Cortex-A53, Mali GPU, eMMC storage). Use whenever the user asks to look for optimizations, audit performance bottlenecks, check UI frame rate drops, or build the release APK.
 ---
 
 # Automotive Performance Optimizer
 
-This skill provides an automated audit, profiling checklist, and optimization workflow tailored for the **Blaupunkt Santa Rosa 985 Android Automotive Headunit** (1280×720 @ 160 dpi, ARM Cortex-A53 SoC, Mali GPU, 1–2 GB RAM, slow eMMC flash storage).
+This skill provides an automated audit, profiling checklist, and optimization workflow tailored for the **Automotive Headunit** (1280×720 @ 160 dpi, ARM Cortex-A53 SoC, Mali GPU, 1–2 GB RAM, slow eMMC flash storage).
 
 ---
 

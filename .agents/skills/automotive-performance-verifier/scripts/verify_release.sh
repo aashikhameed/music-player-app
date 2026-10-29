@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 echo -e "${BOLD}${BLUE}========================================================================${NC}"
 echo -e "${BOLD}${BLUE}  Automotive Release & Performance Verification Agent                    ${NC}"
-echo -e "${BOLD}  Target: Blaupunkt Santa Rosa 985 (ARM Cortex-A53, Mali GPU, eMMC)     ${NC}"
+echo -e "${BOLD}  Target: Automotive Headunit (ARM Cortex-A53, Mali GPU, eMMC)           ${NC}"
 echo -e "${BOLD}${BLUE}========================================================================${NC}"
 
 VERIFY_FAILURES=0
@@ -103,7 +103,7 @@ fi
 echo -e "\n${BOLD}${BLUE}========================================================================${NC}"
 if [ "$VERIFY_FAILURES" -eq 0 ]; then
     echo -e "${BOLD}${GREEN}VERIFICATION COMPLETED: ALL GATES PASSED (0 Issues Found)${NC}"
-    echo -e "${BOLD}${GREEN}Hardware: Blaupunkt Santa Rosa 985 verified fully optimized & production ready.${NC}"
+    echo -e "${BOLD}${GREEN}Hardware: Automotive Headunit verified fully optimized & production ready.${NC}"
     echo -e "${BOLD}${BLUE}========================================================================${NC}"
     exit 0
 else

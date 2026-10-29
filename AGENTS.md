@@ -1,5 +1,5 @@
 # Android Automotive Performance & Optimization Agent Rules
-Target Hardware: Blaupunkt Santa Rosa 985 (1280×720 @ 160 dpi, ARM64 Cortex-A53 SoC, Mali GPU, 1–2 GB RAM, slow eMMC flash storage).
+Target Hardware: Automotive Headunit (1280×720 @ 160 dpi, ARM64 Cortex-A53 SoC, Mali GPU, 1–2 GB RAM, slow eMMC flash storage).
 
 Whenever developing, optimizing, or reviewing code in this repository, the agent MUST enforce the following constraints:
 
