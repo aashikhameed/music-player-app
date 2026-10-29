@@ -14,7 +14,7 @@
   Engineered with modern <b>Jetpack Compose</b> and a bare-metal <b>C++17 OpenSL ES native audio engine</b> for flawless 60 FPS playback on low-memory ARM Cortex / Mali GPU automotive hardware.
 </p>
 
-[**Download Latest APK (v0.0.26)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
+[**Download Latest APK (v0.0.27)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
 
 ---
 

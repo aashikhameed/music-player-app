@@ -9,6 +9,7 @@ import com.aashik.music.controller.MusicController
 import com.aashik.music.data.MusicDatabase
 import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
+import com.aashik.music.model.NavigatingTrack
 import com.aashik.music.pref.ThemePreference
 import com.aashik.music.repository.AudioScanner
 import com.aashik.music.service.MusicPlayer
@@ -172,8 +173,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val virtualSurroundMode: StateFlow<Int> = _virtualSurroundMode.asStateFlow()
 
     // ── Navigation Transition Direction (1 = Next/Forward, -1 = Prev/Backward) ──
+    private var transitionSeq: Long = 0L
     private val _navigationDirection = MutableStateFlow(1)
     val navigationDirection: StateFlow<Int> = _navigationDirection.asStateFlow()
+
+    private val _navigatingTrack = MutableStateFlow(NavigatingTrack(song = null, direction = 1, transitionId = 0L))
+    val navigatingTrack: StateFlow<NavigatingTrack> = _navigatingTrack.asStateFlow()
 
     // ── Sleep Timer / Battery Saver (Minutes) ──
     private val _sleepTimerMinutes = MutableStateFlow(0)
@@ -213,6 +218,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             val saved = songDao.getLastPlayed()
             if (saved != null) {
                 _currentSong.value = saved
+                _navigatingTrack.value = NavigatingTrack(song = saved, direction = 1, transitionId = ++transitionSeq)
             }
             loadSongs()
         }
@@ -634,7 +640,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun play(song: Song, playlist: List<Song>? = null, isAutoCrossfade: Boolean = false) {
+    fun play(
+        song: Song,
+        playlist: List<Song>? = null,
+        isAutoCrossfade: Boolean = false,
+        direction: Int? = null
+    ) {
         val currentId = _currentSong.value?.id
         _currentSong.value = song
 
@@ -646,13 +657,25 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val isNewPlaylist = targetList != activePlaylist
         activePlaylist = targetList
 
-        if (currentId != null && !isAutoCrossfade) {
-            val oldIdx = targetList.indexOfFirst { it.id == currentId }
-            val newIdx = targetList.indexOfFirst { it.id == song.id }
+        val targetDir = if (direction != null) {
+            direction
+        } else if (isAutoCrossfade) {
+            1
+        } else if (currentId != null) {
+            val effectiveQueue = if (_isShuffleOn.value && activeShuffledSongs.isNotEmpty()) activeShuffledSongs else targetList
+            val oldIdx = effectiveQueue.indexOfFirst { it.id == currentId }
+            val newIdx = effectiveQueue.indexOfFirst { it.id == song.id }
             if (oldIdx != -1 && newIdx != -1) {
-                _navigationDirection.value = if (newIdx >= oldIdx) 1 else -1
-            }
-        }
+                if (newIdx >= oldIdx) 1 else -1
+            } else 1
+        } else 1
+
+        _navigationDirection.value = targetDir
+        _navigatingTrack.value = NavigatingTrack(
+            song = song,
+            direction = targetDir,
+            transitionId = ++transitionSeq
+        )
 
         if (_isShuffleOn.value) {
             val isSongInShuffled = activeShuffledSongs.any { it.id == song.id }
@@ -691,7 +714,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             list[0]
         }
-        play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade)
+        play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
         MusicController.play(nextSong)
         triggerScrollToCurrentSong()
     }
@@ -713,7 +736,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             list.last()
         }
-        play(prevSong, playlist = currentPlaylist, isAutoCrossfade = false)
+        play(prevSong, playlist = currentPlaylist, isAutoCrossfade = false, direction = -1)
         MusicController.play(prevSong)
         triggerScrollToCurrentSong()
     }

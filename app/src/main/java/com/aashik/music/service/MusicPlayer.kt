@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.util.Log
 import com.aashik.music.model.Song
 import com.aashik.music.nativeaudio.NativeAudioBridge
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,8 @@ import kotlinx.coroutines.withContext
 class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackListener {
 
     companion object {
+        private const val TAG = "MusicPlayer"
+
         @Volatile
         private var instance: MusicPlayer? = null
 
@@ -245,9 +248,14 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             currentIndex = idx
             _currentIndexFlow.value = idx
         }
-        val result = audioManager.requestAudioFocus(focusRequest)
-        if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            return
+        try {
+            val result = audioManager.requestAudioFocus(focusRequest)
+            if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED &&
+                result != AudioManager.AUDIOFOCUS_REQUEST_DELAYED) {
+                Log.w(TAG, "Audio focus not granted ($result), proceeding with playback anyway on automotive headunit")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Audio focus request failed: ${e.message}")
         }
 
         autoCrossfadeTriggeredPath = null
@@ -267,6 +275,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                 if (nativeDur > 0) {
                     _durationFlow.value = nativeDur
                 }
+            } else {
+                Log.e(TAG, "nativeBridge.playTrack returned error code $res for track: ${song.path}")
             }
         }
     }
@@ -295,12 +305,14 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun resume() {
-        val result = audioManager.requestAudioFocus(focusRequest)
-        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            nativeBridge.setVolume(1.0f)
-            nativeBridge.resume()
-            _isPlayingFlow.value = true
+        try {
+            audioManager.requestAudioFocus(focusRequest)
+        } catch (e: Exception) {
+            Log.w(TAG, "Audio focus request on resume failed: ${e.message}")
         }
+        nativeBridge.setVolume(1.0f)
+        nativeBridge.resume()
+        _isPlayingFlow.value = true
     }
 
     fun togglePlayPause() {

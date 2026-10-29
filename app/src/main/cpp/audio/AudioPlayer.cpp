@@ -55,6 +55,7 @@ void AudioPlayer::shutdown() {
 
 void AudioPlayer::setState(PlaybackState state) {
     mState.store(state, std::memory_order_relaxed);
+    mDecoderCv.notify_all();
     std::lock_guard<std::mutex> lock(mListenerMutex);
     if (mListener.onPlaybackStateChanged) {
         mListener.onPlaybackStateChanged(state);
@@ -181,6 +182,8 @@ ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPosi
         mDecoder->seekTo(startPositionMs);
     }
 
+    setState(PlaybackState::PLAYING);
+
     // Start decoder background thread
     mDecoderRunning.store(true, std::memory_order_release);
     mDecoderThread = std::thread(&AudioPlayer::decoderThreadLoop, this);
@@ -189,7 +192,7 @@ ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPosi
     // Wait until at least 8KB of PCM is pre-buffered or EOF reached via event-driven CV
     {
         std::unique_lock<std::mutex> lock(mDecoderMutex);
-        mDecoderCv.wait_for(lock, std::chrono::milliseconds(30), [this] {
+        mDecoderCv.wait_for(lock, std::chrono::milliseconds(150), [this] {
             return mRingBuffer->getAvailableRead() >= 8 * 1024 || (mDecoder && mDecoder->isEof());
         });
     }
@@ -200,7 +203,6 @@ ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPosi
         return ResultCode::ERROR_AUDIO_ENGINE_FAILED;
     }
 
-    setState(PlaybackState::PLAYING);
     return ResultCode::OK;
 }
 

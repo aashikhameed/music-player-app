@@ -156,7 +156,7 @@ bool OpenSLESPlayer::configureAudio(int32_t sampleRate, int32_t channelCount) {
 
     // 3. Create Audio Player
     const SLInterfaceID ids[2] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE, SL_IID_VOLUME};
-    const SLboolean req[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
+    const SLboolean req[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_FALSE};
 
     SLresult result = (*mEngine)->CreateAudioPlayer(mEngine, &mPlayerObject, &audioSrc, &audioSnk, 2, ids, req);
     if (result != SL_RESULT_SUCCESS) {

@@ -48,3 +48,10 @@ data class Song(
     }
 }
 
+@Immutable
+data class NavigatingTrack(
+    val song: Song? = null,
+    val direction: Int = 1,
+    val transitionId: Long = 0L
+)
+

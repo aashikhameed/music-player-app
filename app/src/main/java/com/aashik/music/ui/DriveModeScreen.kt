@@ -98,7 +98,7 @@ fun DriveModeScreen(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val favoritePaths by viewModel.favoritePaths.collectAsState()
     val isFavorite = currentSong?.path?.let { favoritePaths.contains(it) } ?: false
-    val navDirection by viewModel.navigationDirection.collectAsState()
+    val navigatingTrack by viewModel.navigatingTrack.collectAsState()
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val hudBg = if (isDark) DriveHudBackground else MaterialTheme.colorScheme.background
@@ -300,9 +300,9 @@ fun DriveModeScreen(
                         .clip(BigArtworkShape)
                 ) {
                     AnimatedContent(
-                        targetState = currentSong,
+                        targetState = navigatingTrack,
                         transitionSpec = {
-                            if (navDirection >= 0) {
+                            if (targetState.direction >= 0) {
                                 // Next Track: Enter from right, exit to left
                                 (slideInHorizontally(
                                     animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
@@ -329,7 +329,8 @@ fun DriveModeScreen(
                             }
                         },
                         label = "DriveHudArtworkTransition"
-                    ) { song ->
+                    ) { track ->
+                        val song = track.song
                         if (song != null) {
                             AlbumArtImage(
                                 path = song.path,
@@ -362,34 +363,35 @@ fun DriveModeScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     AnimatedContent(
-                        targetState = currentSong,
+                        targetState = navigatingTrack,
                         transitionSpec = {
-                            if (navDirection >= 0) {
-                                (slideInVertically(
-                                    animationSpec = tween(durationMillis = 300, delayMillis = 40, easing = FastOutSlowInEasing),
-                                    initialOffsetY = { it / 4 }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 280, delayMillis = 40)))
+                            if (targetState.direction >= 0) {
+                                (slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> fullWidth / 2 }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
                                     .togetherWith(
-                                        slideOutVertically(
-                                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-                                            targetOffsetY = { -it / 4 }
+                                        slideOutHorizontally(
+                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { fullWidth -> -fullWidth / 2 }
                                         ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                     )
                             } else {
-                                (slideInVertically(
-                                    animationSpec = tween(durationMillis = 300, delayMillis = 40, easing = FastOutSlowInEasing),
-                                    initialOffsetY = { -it / 4 }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 280, delayMillis = 40)))
+                                (slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> -fullWidth / 2 }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
                                     .togetherWith(
-                                        slideOutVertically(
-                                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-                                            targetOffsetY = { it / 4 }
+                                        slideOutHorizontally(
+                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { fullWidth -> fullWidth / 2 }
                                         ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                     )
                             }
                         },
                         label = "DriveHudTypographyTransition"
-                    ) { song ->
+                    ) { track ->
+                        val song = track.song
                         Column {
                             Text(
                                 text = song?.title ?: "No Song Playing",

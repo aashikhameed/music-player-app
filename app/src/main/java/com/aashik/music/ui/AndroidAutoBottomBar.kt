@@ -84,7 +84,7 @@ fun AndroidAutoBottomBar(
     val isPlaying   by viewModel.isPlaying.collectAsState()
     val isShuffleOn by viewModel.isShuffleOn.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
-    val navDirection by viewModel.navigationDirection.collectAsState()
+    val navigatingTrack by viewModel.navigatingTrack.collectAsState()
 
     val isDark          = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val capsuleGrad     = AppGradients.capsule(isActive = false)
@@ -125,9 +125,9 @@ fun AndroidAutoBottomBar(
                     contentAlignment = Alignment.Center
                 ) {
                     AnimatedContent(
-                        targetState = currentSong,
+                        targetState = navigatingTrack,
                         transitionSpec = {
-                            if (navDirection >= 0) {
+                            if (targetState.direction >= 0) {
                                 (slideInHorizontally(
                                     animationSpec = tween(300, easing = FastOutSlowInEasing),
                                     initialOffsetX = { fullWidth -> fullWidth }
@@ -152,7 +152,8 @@ fun AndroidAutoBottomBar(
                             }
                         },
                         label = "DockArtworkTransition"
-                    ) { song ->
+                    ) { track ->
+                        val song = track.song
                         if (song != null) {
                             AlbumArtImage(
                                 path         = song.path,
@@ -192,18 +193,36 @@ fun AndroidAutoBottomBar(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         AnimatedContent(
-                            targetState = currentSong,
+                            targetState = navigatingTrack,
                             transitionSpec = {
-                                (fadeIn(animationSpec = tween(220, delayMillis = 30)) +
-                                 slideInVertically(animationSpec = tween(220, delayMillis = 30)) { it / 4 })
-                                    .togetherWith(
-                                        fadeOut(animationSpec = tween(160)) +
-                                        slideOutVertically(animationSpec = tween(160)) { -it / 4 }
-                                    )
+                                if (targetState.direction >= 0) {
+                                    (slideInHorizontally(
+                                        animationSpec = tween(280, delayMillis = 30, easing = FastOutSlowInEasing),
+                                        initialOffsetX = { fullWidth -> fullWidth / 2 }
+                                    ) + fadeIn(animationSpec = tween(240, delayMillis = 30)))
+                                        .togetherWith(
+                                            slideOutHorizontally(
+                                                animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                                targetOffsetX = { fullWidth -> -fullWidth / 2 }
+                                            ) + fadeOut(animationSpec = tween(160))
+                                        )
+                                } else {
+                                    (slideInHorizontally(
+                                        animationSpec = tween(280, delayMillis = 30, easing = FastOutSlowInEasing),
+                                        initialOffsetX = { fullWidth -> -fullWidth / 2 }
+                                    ) + fadeIn(animationSpec = tween(240, delayMillis = 30)))
+                                        .togetherWith(
+                                            slideOutHorizontally(
+                                                animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                                targetOffsetX = { fullWidth -> fullWidth / 2 }
+                                            ) + fadeOut(animationSpec = tween(160))
+                                        )
+                                }
                             },
                             label = "DockMetadataTransition",
                             modifier = Modifier.weight(1f, fill = false)
-                        ) { song ->
+                        ) { track ->
+                            val song = track.song
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
