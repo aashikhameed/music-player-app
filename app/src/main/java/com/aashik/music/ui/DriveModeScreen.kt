@@ -1,8 +1,17 @@
 package com.aashik.music.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -89,6 +98,7 @@ fun DriveModeScreen(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val favoritePaths by viewModel.favoritePaths.collectAsState()
     val isFavorite = currentSong?.path?.let { favoritePaths.contains(it) } ?: false
+    val navDirection by viewModel.navigationDirection.collectAsState()
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val hudBg = if (isDark) DriveHudBackground else MaterialTheme.colorScheme.background
@@ -279,7 +289,7 @@ fun DriveModeScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                // Large Album Art Box
+                // Large Album Art Box with Apple CarPlay horizontal slide transition
                 Box(
                     modifier = Modifier
                         .size(140.dp)
@@ -287,58 +297,135 @@ fun DriveModeScreen(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                             shape = BigArtworkShape
                         )
+                        .clip(BigArtworkShape)
                 ) {
-                    if (currentSong != null) {
-                        AlbumArtImage(
-                            path = currentSong?.path.orEmpty(),
-                            size = 140.dp,
-                            borderRadius = 10.dp,
-                            isHighRes = true,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                    AnimatedContent(
+                        targetState = currentSong,
+                        transitionSpec = {
+                            if (navDirection >= 0) {
+                                // Next Track: Enter from right, exit to left
+                                (slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> fullWidth }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                    .togetherWith(
+                                        slideOutHorizontally(
+                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { fullWidth -> -fullWidth }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                    )
+                            } else {
+                                // Previous Track: Enter from left, exit to right
+                                (slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> -fullWidth }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                    .togetherWith(
+                                        slideOutHorizontally(
+                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { fullWidth -> fullWidth }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                    )
+                            }
+                        },
+                        label = "DriveHudArtworkTransition"
+                    ) { song ->
+                        if (song != null) {
+                            AlbumArtImage(
+                                path = song.path,
+                                size = 140.dp,
+                                borderRadius = 10.dp,
+                                isHighRes = true,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.DirectionsCar,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.width(28.dp))
 
-                // Song Info (Large, high-contrast text for driver glance)
+                // Song Info (Large, high-contrast text for driver glance with Apple CarPlay smooth crossfade)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = currentSong?.title ?: "No Song Playing",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        color = primaryTextColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    AnimatedContent(
+                        targetState = currentSong,
+                        transitionSpec = {
+                            if (navDirection >= 0) {
+                                (slideInVertically(
+                                    animationSpec = tween(durationMillis = 300, delayMillis = 40, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { it / 4 }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 280, delayMillis = 40)))
+                                    .togetherWith(
+                                        slideOutVertically(
+                                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                            targetOffsetY = { -it / 4 }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                    )
+                            } else {
+                                (slideInVertically(
+                                    animationSpec = tween(durationMillis = 300, delayMillis = 40, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { -it / 4 }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 280, delayMillis = 40)))
+                                    .togetherWith(
+                                        slideOutVertically(
+                                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                            targetOffsetY = { it / 4 }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                    )
+                            }
+                        },
+                        label = "DriveHudTypographyTransition"
+                    ) { song ->
+                        Column {
+                            Text(
+                                text = song?.title ?: "No Song Playing",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Black,
+                                color = primaryTextColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = currentSong?.artist ?: "Select a track to start",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                            Text(
+                                text = song?.artist ?: "Select a track to start",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
 
-                    val folderName = viewModel.getCurrentFolderName()
-                    val albumStr = currentSong?.album.orEmpty()
-                    val secondaryText = if (albumStr.isNotBlank()) "$albumStr • 📁 $folderName" else "📁 $folderName"
+                            val folderName = viewModel.getCurrentFolderName()
+                            val albumStr = song?.album.orEmpty()
+                            val secondaryText = if (albumStr.isNotBlank()) "$albumStr • 📁 $folderName" else "📁 $folderName"
 
-                    Text(
-                        text = secondaryText,
-                        fontSize = 12.sp,
-                        color = secondaryTextColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                            Text(
+                                text = secondaryText,
+                                fontSize = 12.sp,
+                                color = secondaryTextColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 

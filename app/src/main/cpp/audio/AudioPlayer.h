@@ -42,7 +42,7 @@ public:
     ResultCode init();
     void shutdown();
 
-    ResultCode playTrack(const std::string& filePath, int64_t startPositionMs = 0);
+    ResultCode playTrack(const std::string& filePath, int64_t startPositionMs = 0, bool isAutoCrossfade = false);
     ResultCode pause();
     ResultCode resume();
     ResultCode stop();
@@ -87,6 +87,7 @@ private:
     std::atomic<int32_t> mSampleRate{44100};
     std::atomic<int32_t> mChannels{2};
     std::atomic<float> mCrossfadeDurationSec{3.0f};
+    std::atomic<float> mActiveCrossfadeDurationSec{0.0f};
 
     std::thread mDecoderThread;
     std::atomic<bool> mDecoderRunning{false};

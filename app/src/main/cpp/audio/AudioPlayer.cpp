@@ -78,16 +78,27 @@ float AudioPlayer::getCrossfadeDuration() const {
     return mCrossfadeDurationSec.load(std::memory_order_relaxed);
 }
 
-ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPositionMs) {
-    LOGI("playTrack requested: %s (start: %lld ms)", filePath.c_str(), (long long)startPositionMs);
+ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPositionMs, bool isAutoCrossfade) {
+    LOGI("playTrack requested: %s (start: %lld ms, autoCrossfade: %d)",
+         filePath.c_str(), (long long)startPositionMs, isAutoCrossfade ? 1 : 0);
 
     std::lock_guard<std::mutex> playLock(mPlayMutex);
 
-    float crossfadeSec = mCrossfadeDurationSec.load(std::memory_order_acquire);
+    float crossfadeSec = 0.0f;
+    if (isAutoCrossfade) {
+        // Natural end-of-track transition: use user-configured duration (default 3.0s)
+        crossfadeSec = mCrossfadeDurationSec.load(std::memory_order_acquire);
+    } else if (mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING && startPositionMs == 0) {
+        // Manual track switch (Next/Prev / user tap): fast 120ms anti-pop micro-fade (Apple CarPlay behavior)
+        crossfadeSec = 0.12f;
+    }
+
     bool shouldCrossfade = (crossfadeSec > 0.0f) &&
                            (startPositionMs == 0) &&
                            (mDecoder != nullptr) &&
                            (mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING);
+
+    mActiveCrossfadeDurationSec.store(shouldCrossfade ? crossfadeSec : 0.0f, std::memory_order_release);
 
     // Stop and join the decoder thread before swapping decoders
     mDecoderRunning.store(false, std::memory_order_release);
@@ -175,11 +186,12 @@ ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPosi
     mDecoderThread = std::thread(&AudioPlayer::decoderThreadLoop, this);
     pthread_setname_np(mDecoderThread.native_handle(), "AudioDecoder");
 
-    // Wait until at least 8KB of PCM is pre-buffered or EOF reached
-    int waitCount = 0;
-    while (mRingBuffer->getAvailableRead() < 8 * 1024 && !mDecoder->isEof() && waitCount < 30) {
-        usleep(1000); // 1ms sleep for ultra-low startup latency
-        waitCount++;
+    // Wait until at least 8KB of PCM is pre-buffered or EOF reached via event-driven CV
+    {
+        std::unique_lock<std::mutex> lock(mDecoderMutex);
+        mDecoderCv.wait_for(lock, std::chrono::milliseconds(30), [this] {
+            return mRingBuffer->getAvailableRead() >= 8 * 1024 || (mDecoder && mDecoder->isEof());
+        });
     }
 
     if (!mOutputPlayer->play()) {
@@ -311,7 +323,7 @@ void AudioPlayer::decoderThreadLoop() {
     int64_t lastReportedPos = 0;
     auto lastPosReportTime = std::chrono::steady_clock::now();
 
-    float crossfadeSec = mCrossfadeDurationSec.load(std::memory_order_acquire);
+    float crossfadeSec = mActiveCrossfadeDurationSec.load(std::memory_order_acquire);
     int32_t sr = mSampleRate.load(std::memory_order_relaxed);
     int32_t ch = mChannels.load(std::memory_order_relaxed);
     if (sr <= 0) sr = 44100;
@@ -412,6 +424,7 @@ void AudioPlayer::decoderThreadLoop() {
             }
 
             mRingBuffer->write(decodeBuf.data(), static_cast<size_t>(bytesDecoded));
+            mDecoderCv.notify_one();
 
             if (mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING) {
                 mOutputPlayer->primeQueue();

@@ -50,7 +50,7 @@ class NativeAudioBridge private constructor() {
 
     external fun init(): Int
     external fun shutdown()
-    external fun playTrack(filepath: String, positionMs: Long = 0L): Int
+    external fun playTrack(filepath: String, positionMs: Long = 0L, isAutoCrossfade: Boolean = false): Int
     external fun pause()
     external fun resume()
     external fun stop()

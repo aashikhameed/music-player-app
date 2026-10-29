@@ -1,5 +1,15 @@
 package com.aashik.music.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -73,6 +84,7 @@ fun AndroidAutoBottomBar(
     val isPlaying   by viewModel.isPlaying.collectAsState()
     val isShuffleOn by viewModel.isShuffleOn.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
+    val navDirection by viewModel.navigationDirection.collectAsState()
 
     val isDark          = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val capsuleGrad     = AppGradients.capsule(isActive = false)
@@ -105,29 +117,63 @@ fun AndroidAutoBottomBar(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Album art (never recomposes on progress ticks)
-                Box(contentAlignment = Alignment.Center) {
-                    if (currentSong != null) {
-                        AlbumArtImage(
-                            path         = currentSong?.path.orEmpty(),
-                            size         = 50.dp,
-                            borderRadius = 10.dp,
-                            isPlaying    = isPlaying
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(ArtPlaceholderShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector        = Icons.Rounded.MusicNote,
-                                contentDescription = null,
-                                tint               = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                                modifier           = Modifier.size(24.dp)
+                // Album art with Apple CarPlay style slide transition
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(ArtPlaceholderShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedContent(
+                        targetState = currentSong,
+                        transitionSpec = {
+                            if (navDirection >= 0) {
+                                (slideInHorizontally(
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> fullWidth }
+                                ) + fadeIn(animationSpec = tween(240)))
+                                    .togetherWith(
+                                        slideOutHorizontally(
+                                            animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { fullWidth -> -fullWidth }
+                                        ) + fadeOut(animationSpec = tween(180))
+                                    )
+                            } else {
+                                (slideInHorizontally(
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> -fullWidth }
+                                ) + fadeIn(animationSpec = tween(240)))
+                                    .togetherWith(
+                                        slideOutHorizontally(
+                                            animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { fullWidth -> fullWidth }
+                                        ) + fadeOut(animationSpec = tween(180))
+                                    )
+                            }
+                        },
+                        label = "DockArtworkTransition"
+                    ) { song ->
+                        if (song != null) {
+                            AlbumArtImage(
+                                path         = song.path,
+                                size         = 50.dp,
+                                borderRadius = 10.dp,
+                                isPlaying    = isPlaying
                             )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector        = Icons.Rounded.MusicNote,
+                                    contentDescription = null,
+                                    tint               = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                    modifier           = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -145,48 +191,62 @@ fun AndroidAutoBottomBar(
                         verticalAlignment     = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            modifier              = Modifier.weight(1f, fill = false),
-                            verticalAlignment     = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            // Playback status dot
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (isPlaying) StatusPlayingGreen
-                                        else if (isDark) StatusDarkGray
-                                        else StatusLightGray
+                        AnimatedContent(
+                            targetState = currentSong,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(220, delayMillis = 30)) +
+                                 slideInVertically(animationSpec = tween(220, delayMillis = 30)) { it / 4 })
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(160)) +
+                                        slideOutVertically(animationSpec = tween(160)) { -it / 4 }
                                     )
-                            )
-                            Text(
-                                text     = currentSong?.title ?: "No media playing",
-                                style    = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight    = FontWeight.Bold,
-                                    fontSize      = 14.sp,
-                                    letterSpacing = 0.15.sp
-                                ),
-                                color    = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            Text(
-                                text     = "•",
-                                color    = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                                fontSize = 11.sp
-                            )
-                            Text(
-                                text     = currentSong?.artist ?: "Select a track",
-                                style    = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            // Format badge
+                            },
+                            label = "DockMetadataTransition",
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) { song ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                // Playback status dot
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isPlaying) StatusPlayingGreen
+                                            else if (isDark) StatusDarkGray
+                                            else StatusLightGray
+                                        )
+                                )
+                                Text(
+                                    text     = song?.title ?: "No media playing",
+                                    style    = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight    = FontWeight.Bold,
+                                        fontSize      = 14.sp,
+                                        letterSpacing = 0.15.sp
+                                    ),
+                                    color    = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                Text(
+                                    text     = "•",
+                                    color    = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text     = song?.artist ?: "Select a track",
+                                    style    = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                            }
+                        }
+                        // Format badge
                             val ext = currentSong?.getFileExtension().orEmpty()
                             if (ext.isNotEmpty()) {
                                 Box(
@@ -207,7 +267,6 @@ fun AndroidAutoBottomBar(
                                     )
                                 }
                             }
-                        }
 
                         // Scoped Time Display (only this element recomposes on time changes)
                         BottomBarTimeCounter(viewModel = viewModel)

@@ -14,7 +14,7 @@
   Engineered with modern <b>Jetpack Compose</b> and a bare-metal <b>C++17 OpenSL ES native audio engine</b> for flawless 60 FPS playback on low-memory ARM Cortex / Mali GPU automotive hardware.
 </p>
 
-[**Download Latest APK (v0.0.24)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
+[**Download Latest APK (v0.0.25)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
 
 ---
 
@@ -49,6 +49,7 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 ### 🎛️ Driver-First Automotive UI & Floating Media Dock
 - **Glanceable Touch Targets**: Oversized cards and spacious dock controls strictly complying with automotive distraction guidelines.
 - **Unified Floating Media Dock**: Dual-segment floating capsule housing track metadata, codec badges, scoped real-time seekbar, and tactile playback controls.
+- **Apple CarPlay Style Visual Transitions**: Horizontal card sliding transitions for album artwork (`slideInHorizontally` / `slideOutHorizontally`) and smooth crossfading typography (`AnimatedContent`) across the HUD and bottom dock.
 - **Hardware-Accelerated Seekbar**: Direct Canvas-rendered scrubbing bar with live time bubble tooltip; zero heavy trigonometry animation overhead.
 - **Live Canvas Equalizer**: In-place 4-bar dynamic equalizer drawn directly on Canvas inside `SongCard`, eliminating Compose `LayoutNode` hierarchy churn.
 - **Adaptive Day & Night Theme**: Instant high-contrast toggle between Solar Amber/Light and Midnight Obsidian/Dark palettes designed for glare resistance and night driving.
@@ -59,10 +60,11 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 - **Visual Swipe Feedback**: Instant directional badge overlay confirming queue navigation before automatically dismissing.
 - **Tactile 10-Second Skip**: Dedicated 10s forward and rewind controls for rapid audio scrubbing while driving.
 - **Live HUD Track Progress**: Full seekbar scrubber and folder switching directly accessible without leaving the drive interface.
-- **High-Contrast Track Typography**: Massive title and artist display legible from driver seating distance.
+- **High-Contrast Track Typography**: Massive title and artist display with silky-smooth vertical slide transitions legible from driver distance.
 
-### 🔀 Seamless Real-Time Crossfade Engine
-- **Native C++ Linear Crossfading**: The upcoming song smoothly begins playing during the fade-out of the ending track with zero silence gap.
+### 🔀 Refined Apple CarPlay Style Crossfade & Audio Transition Engine
+- **Natural Track Completion (Equal-Power Crossfade)**: The ending song smoothly fades out while the upcoming track fades in over user-configured duration (default 3.0s) with zero gap.
+- **Instant Manual Track Skipping**: Manual Next/Previous, SWC, and swipe gestures immediately switch tracks with an ultra-clean 120ms anti-pop micro-fade, avoiding conflicting audio overlap.
 - **Configurable Durations**: Selectable crossfade lengths (0s Off, 1s, 2s, 3s, 5s, 8s — Default: 3 seconds) customizable in Settings.
 - **Hardware State Synchronization**: Native OpenSL ES mixing handles track transition seamlessly without Java main looper stall.
 

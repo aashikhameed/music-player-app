@@ -129,9 +129,9 @@ Java_com_aashik_music_nativeaudio_NativeAudioBridge_shutdown(JNIEnv* env, jobjec
 
 JNIEXPORT jint JNICALL
 Java_com_aashik_music_nativeaudio_NativeAudioBridge_playTrack(
-    JNIEnv* env, jobject thiz, jstring filepath, jlong position_ms) {
+    JNIEnv* env, jobject thiz, jstring filepath, jlong position_ms, jboolean is_auto_crossfade) {
     std::string path = jni::jstringToString(env, filepath);
-    auto res = audio::AudioPlayer::getInstance().playTrack(path, position_ms);
+    auto res = audio::AudioPlayer::getInstance().playTrack(path, position_ms, is_auto_crossfade == JNI_TRUE);
     return static_cast<jint>(res);
 }
 
@@ -305,7 +305,7 @@ Java_com_example_musicplayer_NativeAudio_shutdown(JNIEnv* env, jobject thiz) {
 JNIEXPORT jint JNICALL
 Java_com_example_musicplayer_NativeAudio_playTrack(
     JNIEnv* env, jobject thiz, jstring filepath, jlong position_ms) {
-    return Java_com_aashik_music_nativeaudio_NativeAudioBridge_playTrack(env, thiz, filepath, position_ms);
+    return Java_com_aashik_music_nativeaudio_NativeAudioBridge_playTrack(env, thiz, filepath, position_ms, JNI_FALSE);
 }
 
 JNIEXPORT void JNICALL

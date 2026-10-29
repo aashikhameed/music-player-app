@@ -58,7 +58,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     val currentIndexFlow: StateFlow<Int> = _currentIndexFlow
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    var onCompletion: (() -> Unit)? = null
+    var onCompletion: ((isAutoCrossfade: Boolean) -> Unit)? = null
 
     private var volumeReceiver: BroadcastReceiver? = null
     private var playlist: List<Song> = emptyList()
@@ -150,9 +150,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                         scope.launch(Dispatchers.Main) {
                             try {
                                 if (onCompletion != null) {
-                                    onCompletion?.invoke()
+                                    onCompletion?.invoke(true)
                                 } else {
-                                    playNext()
+                                    playNext(isAutoCrossfade = true)
                                 }
                             } finally {
                                 delay(1000L)
@@ -176,9 +176,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             scope.launch(Dispatchers.Main) {
                 try {
                     if (onCompletion != null) {
-                        onCompletion?.invoke()
+                        onCompletion?.invoke(false)
                     } else {
-                        playNext()
+                        playNext(isAutoCrossfade = false)
                     }
                 } finally {
                     delay(400L)
@@ -215,7 +215,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         _currentIndexFlow.value = currentIndex
     }
 
-    fun playNext() {
+    fun playNext(isAutoCrossfade: Boolean = false) {
         if (playlist.isEmpty()) return
         val curId = _currentSongFlow.value?.id
         val idx = if (curId != null) playlist.indexOfFirst { it.id == curId } else currentIndex
@@ -223,7 +223,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         currentIndex = nextIdx
         _currentIndexFlow.value = nextIdx
         val nextSong = playlist[nextIdx]
-        play(nextSong)
+        play(nextSong, isAutoCrossfade)
         com.aashik.music.controller.MusicController.play(nextSong)
     }
 
@@ -235,11 +235,11 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         currentIndex = prevIdx
         _currentIndexFlow.value = prevIdx
         val prevSong = playlist[prevIdx]
-        play(prevSong)
+        play(prevSong, isAutoCrossfade = false)
         com.aashik.music.controller.MusicController.play(prevSong)
     }
 
-    fun play(song: Song) {
+    fun play(song: Song, isAutoCrossfade: Boolean = false) {
         val idx = playlist.indexOfFirst { it.id == song.id }
         if (idx != -1) {
             currentIndex = idx
@@ -260,7 +260,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
         playJob?.cancel()
         playJob = scope.launch(Dispatchers.IO) {
-            val res = nativeBridge.playTrack(song.path, 0L)
+            val res = nativeBridge.playTrack(song.path, 0L, isAutoCrossfade)
             if (res == 0) {
                 _isPlayingFlow.value = true
                 val nativeDur = nativeBridge.getDuration()
