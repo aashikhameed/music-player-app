@@ -40,7 +40,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
 
-    private val musicPlayer = MusicPlayer(application)
+    private val musicPlayer = MusicPlayer.getInstance(application)
     private val songDao = MusicDatabase.getDatabase(application).songDao()
 
     private val _isLoading = MutableStateFlow(false)
@@ -105,6 +105,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             themePref.isDarkMode.collect {
                 _isDarkTheme.value = it
+            }
+        }
+
+        viewModelScope.launch {
+            musicPlayer.isPlayingFlow.collect {
+                _isPlaying.value = it
+            }
+        }
+        viewModelScope.launch {
+            musicPlayer.currentSongFlow.collect { song ->
+                if (song != null) {
+                    _currentSong.value = song
+                }
             }
         }
 
@@ -241,6 +254,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 com.aashik.music.utils.loadAlbumArt(path)
             }
 
+            val activeList = if (_isShuffleOn.value) shuffledSongs else originalSongs
+            musicPlayer.setPlaylist(activeList, 0)
+
             if (_currentSong.value == null) {
                 _currentSong.value = shuffledSongs.firstOrNull()
             }
@@ -306,6 +322,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 otherSongs.toMutableList()
             }
         }
+        val activeList = if (newState) shuffledSongs else baseList
+        musicPlayer.setPlaylist(activeList, 0)
     }
 
     fun pause() {

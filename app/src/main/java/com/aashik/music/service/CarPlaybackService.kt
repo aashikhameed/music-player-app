@@ -70,6 +70,10 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
                     MusicController.previous(songList)
                 }
 
+                override fun onSeekTo(pos: Long) {
+                    MusicPlayer.getInstance(this@CarPlaybackService).seekTo(pos)
+                }
+
                 override fun onStop() {
                     stopSelf()
                 }
@@ -113,11 +117,15 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
             MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, song.title)
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, song.artist)
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, if (song.duration > 0) song.duration else -1L)
                 .build()
         )
     }
 
     private fun updatePlaybackState(state: Int) {
+        val player = MusicPlayer.getInstance(this)
+        val pos = player.positionFlow.value
+        val speed = if (state == PlaybackStateCompat.STATE_PLAYING) 1f else 0f
         mediaSession.setPlaybackState(
             PlaybackStateCompat.Builder()
                 .setActions(
@@ -125,9 +133,10 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
                             PlaybackStateCompat.ACTION_PAUSE or
                             PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
                             PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                            PlaybackStateCompat.ACTION_SEEK_TO or
                             PlaybackStateCompat.ACTION_STOP
                 )
-                .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1f)
+                .setState(state, pos.coerceAtLeast(0L), speed, android.os.SystemClock.elapsedRealtime())
                 .build()
         )
     }

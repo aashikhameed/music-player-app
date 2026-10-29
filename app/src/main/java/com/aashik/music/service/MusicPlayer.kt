@@ -24,6 +24,17 @@ import kotlinx.coroutines.withContext
  */
 class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackListener {
 
+    companion object {
+        @Volatile
+        private var instance: MusicPlayer? = null
+
+        fun getInstance(context: Context): MusicPlayer {
+            return instance ?: synchronized(this) {
+                instance ?: MusicPlayer(context.applicationContext).also { instance = it }
+            }
+        }
+    }
+
     private val nativeBridge = NativeAudioBridge.instance
 
     private val audioManager: AudioManager =
@@ -131,7 +142,11 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             isTransitioning = true
             scope.launch(Dispatchers.Main) {
                 try {
-                    onCompletion?.invoke()
+                    if (onCompletion != null) {
+                        onCompletion?.invoke()
+                    } else {
+                        playNext()
+                    }
                 } finally {
                     delay(400)
                     isTransitioning = false
@@ -157,13 +172,39 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         playlist = songs
         currentIndex = startIndex
         _currentIndexFlow.value = currentIndex
-        if (startIndex in playlist.indices) {
-            play(playlist[currentIndex])
-        }
+    }
+
+    fun playNext() {
+        if (playlist.isEmpty()) return
+        val curId = _currentSongFlow.value?.id
+        val idx = if (curId != null) playlist.indexOfFirst { it.id == curId } else currentIndex
+        val nextIdx = if (idx in 0 until playlist.lastIndex) idx + 1 else 0
+        currentIndex = nextIdx
+        _currentIndexFlow.value = nextIdx
+        val nextSong = playlist[nextIdx]
+        play(nextSong)
+        com.aashik.music.controller.MusicController.play(nextSong)
+    }
+
+    fun playPrevious() {
+        if (playlist.isEmpty()) return
+        val curId = _currentSongFlow.value?.id
+        val idx = if (curId != null) playlist.indexOfFirst { it.id == curId } else currentIndex
+        val prevIdx = if (idx > 0) idx - 1 else playlist.lastIndex
+        currentIndex = prevIdx
+        _currentIndexFlow.value = prevIdx
+        val prevSong = playlist[prevIdx]
+        play(prevSong)
+        com.aashik.music.controller.MusicController.play(prevSong)
     }
 
     fun play(song: Song) {
         isTransitioning = false
+        val idx = playlist.indexOfFirst { it.id == song.id }
+        if (idx != -1) {
+            currentIndex = idx
+            _currentIndexFlow.value = idx
+        }
         val result = audioManager.requestAudioFocus(focusRequest)
         if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             return
