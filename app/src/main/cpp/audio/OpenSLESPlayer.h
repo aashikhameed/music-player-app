@@ -3,6 +3,7 @@
 
 #include "RingBuffer.h"
 #include "Types.h"
+#include "AudioEqualizer.h"
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 #include <memory>
@@ -35,6 +36,8 @@ public:
 
     bool isPlaying() const { return mIsPlaying.load(std::memory_order_relaxed); }
 
+    AudioEqualizer& getEqualizer() { return mEqualizer; }
+
     void setOnBufferConsumedCallback(std::function<void(size_t)> callback) {
         mOnBufferConsumed = std::move(callback);
     }
@@ -48,6 +51,7 @@ private:
 
     std::shared_ptr<RingBuffer> mRingBuffer;
     std::function<void(size_t)> mOnBufferConsumed;
+    AudioEqualizer mEqualizer;
 
     // OpenSL ES Objects
     SLObjectItf mEngineObject = nullptr;

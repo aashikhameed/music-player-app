@@ -222,6 +222,12 @@ void OpenSLESPlayer::onBufferQueueCallback(SLAndroidSimpleBufferQueueItf bq) {
         std::memset(currentBuffer + bytesRead, 0, QUEUE_BUFFER_SIZE - bytesRead);
     }
 
+    // Process audio DSP equalizer & filter chain
+    mEqualizer.process(reinterpret_cast<int16_t*>(currentBuffer),
+                       QUEUE_BUFFER_SIZE / sizeof(int16_t),
+                       mSampleRate,
+                       mChannelCount);
+
     (*bq)->Enqueue(bq, currentBuffer, QUEUE_BUFFER_SIZE);
 }
 
@@ -258,6 +264,7 @@ void OpenSLESPlayer::flush() {
         (*mBufferQueue)->Clear(mBufferQueue);
     }
     mCurrentBufferIndex = 0;
+    mEqualizer.reset();
 }
 
 void OpenSLESPlayer::primeQueue() {
@@ -284,6 +291,13 @@ void OpenSLESPlayer::primeQueue() {
             if (bytesRead < QUEUE_BUFFER_SIZE) {
                 std::memset(currentBuffer + bytesRead, 0, QUEUE_BUFFER_SIZE - bytesRead);
             }
+
+            // Process audio DSP equalizer & filter chain
+            mEqualizer.process(reinterpret_cast<int16_t*>(currentBuffer),
+                               QUEUE_BUFFER_SIZE / sizeof(int16_t),
+                               mSampleRate,
+                               mChannelCount);
+
             (*mBufferQueue)->Enqueue(mBufferQueue, currentBuffer, QUEUE_BUFFER_SIZE);
         }
         (*mPlayerPlay)->SetPlayState(mPlayerPlay, SL_PLAYSTATE_PLAYING);

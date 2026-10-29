@@ -191,6 +191,54 @@ Java_com_aashik_music_nativeaudio_NativeAudioBridge_setRepeatMode(
         static_cast<audio::RepeatMode>(mode));
 }
 
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerEnabled(
+    JNIEnv* env, jobject thiz, jboolean enabled) {
+    audio::AudioPlayer::getInstance().getEqualizer().setEnabled(enabled);
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_isEqualizerEnabled(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jboolean>(audio::AudioPlayer::getInstance().getEqualizer().isEnabled());
+}
+
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerPreset(
+    JNIEnv* env, jobject thiz, jint preset) {
+    audio::AudioPlayer::getInstance().getEqualizer().setPreset(preset);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getEqualizerPreset(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jint>(audio::AudioPlayer::getInstance().getEqualizer().getPreset());
+}
+
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerBandGain(
+    JNIEnv* env, jobject thiz, jint band, jfloat gainDb) {
+    audio::AudioPlayer::getInstance().getEqualizer().setBandGain(static_cast<size_t>(band), gainDb);
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getEqualizerBandGain(
+    JNIEnv* env, jobject thiz, jint band) {
+    return static_cast<jfloat>(audio::AudioPlayer::getInstance().getEqualizer().getBandGain(static_cast<size_t>(band)));
+}
+
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerHpfMode(
+    JNIEnv* env, jobject thiz, jint mode) {
+    audio::AudioPlayer::getInstance().getEqualizer().setHpfMode(mode);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getEqualizerHpfMode(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jint>(audio::AudioPlayer::getInstance().getEqualizer().getHpfMode());
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Compatibility Aliases for prompt specification com.example.musicplayer.NativeAudio
 // ─────────────────────────────────────────────────────────────────────────────
@@ -263,6 +311,54 @@ JNIEXPORT void JNICALL
 Java_com_example_musicplayer_NativeAudio_setRepeatMode(
     JNIEnv* env, jobject thiz, jint mode) {
     Java_com_aashik_music_nativeaudio_NativeAudioBridge_setRepeatMode(env, thiz, mode);
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_musicplayer_NativeAudio_setEqualizerEnabled(
+    JNIEnv* env, jobject thiz, jboolean enabled) {
+    Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerEnabled(env, thiz, enabled);
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_example_musicplayer_NativeAudio_isEqualizerEnabled(
+    JNIEnv* env, jobject thiz) {
+    return Java_com_aashik_music_nativeaudio_NativeAudioBridge_isEqualizerEnabled(env, thiz);
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_musicplayer_NativeAudio_setEqualizerPreset(
+    JNIEnv* env, jobject thiz, jint preset) {
+    Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerPreset(env, thiz, preset);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_example_musicplayer_NativeAudio_getEqualizerPreset(
+    JNIEnv* env, jobject thiz) {
+    return Java_com_aashik_music_nativeaudio_NativeAudioBridge_getEqualizerPreset(env, thiz);
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_musicplayer_NativeAudio_setEqualizerBandGain(
+    JNIEnv* env, jobject thiz, jint band, jfloat gainDb) {
+    Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerBandGain(env, thiz, band, gainDb);
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_example_musicplayer_NativeAudio_getEqualizerBandGain(
+    JNIEnv* env, jobject thiz, jint band) {
+    return Java_com_aashik_music_nativeaudio_NativeAudioBridge_getEqualizerBandGain(env, thiz, band);
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_musicplayer_NativeAudio_setEqualizerHpfMode(
+    JNIEnv* env, jobject thiz, jint mode) {
+    Java_com_aashik_music_nativeaudio_NativeAudioBridge_setEqualizerHpfMode(env, thiz, mode);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_example_musicplayer_NativeAudio_getEqualizerHpfMode(
+    JNIEnv* env, jobject thiz) {
+    return Java_com_aashik_music_nativeaudio_NativeAudioBridge_getEqualizerHpfMode(env, thiz);
 }
 
 } // extern "C"

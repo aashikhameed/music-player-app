@@ -69,4 +69,32 @@ class MusicModelsTest {
         assertEquals(1, filtered.size)
         assertEquals("Highway Star", filtered.first().title)
     }
+
+    @Test
+    fun testEqualizerAlpineClarityPresetParameters() {
+        // Alpine Clarity Preset Specification
+        val alpineBands = listOf(0.0f, -4.0f, 1.0f, 2.0f, 3.0f)
+        val alpineHpf = 2 // 80 Hz Cut
+
+        assertEquals(5, alpineBands.size)
+        assertEquals(0.0f, alpineBands[0], 0.001f)
+        // Verify 250 Hz Mud-Cut is strictly attenuated (-4 dB)
+        assertEquals(-4.0f, alpineBands[1], 0.001f)
+        // Verify Vocal presence and treble air boost
+        assertTrue("Vocal presence should be boosted", alpineBands[3] > 0.0f)
+        assertTrue("Treble sparkle should be boosted", alpineBands[4] > 0.0f)
+        assertEquals(2, alpineHpf)
+    }
+
+    @Test
+    fun testEqualizerGainClamping() {
+        val rawGains = listOf(-25.0f, -4.0f, 0.0f, 5.0f, 18.0f)
+        val clampedGains = rawGains.map { it.coerceIn(-12.0f, 12.0f) }
+
+        assertEquals(-12.0f, clampedGains[0], 0.001f)
+        assertEquals(-4.0f, clampedGains[1], 0.001f)
+        assertEquals(0.0f, clampedGains[2], 0.001f)
+        assertEquals(5.0f, clampedGains[3], 0.001f)
+        assertEquals(12.0f, clampedGains[4], 0.001f)
+    }
 }

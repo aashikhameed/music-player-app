@@ -260,6 +260,30 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         _positionFlow.value = position
     }
 
+    fun setEqualizerEnabled(enabled: Boolean) {
+        nativeBridge.setEqualizerEnabled(enabled)
+    }
+
+    fun isEqualizerEnabled(): Boolean = nativeBridge.isEqualizerEnabled()
+
+    fun setEqualizerPreset(preset: Int) {
+        nativeBridge.setEqualizerPreset(preset)
+    }
+
+    fun getEqualizerPreset(): Int = nativeBridge.getEqualizerPreset()
+
+    fun setEqualizerBandGain(band: Int, gainDb: Float) {
+        nativeBridge.setEqualizerBandGain(band, gainDb)
+    }
+
+    fun getEqualizerBandGain(band: Int): Float = nativeBridge.getEqualizerBandGain(band)
+
+    fun setEqualizerHpfMode(mode: Int) {
+        nativeBridge.setEqualizerHpfMode(mode)
+    }
+
+    fun getEqualizerHpfMode(): Int = nativeBridge.getEqualizerHpfMode()
+
     fun release() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         nativeBridge.setListener(null)

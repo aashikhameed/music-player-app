@@ -22,6 +22,7 @@ add_library(audio-player SHARED
     audio/AudioPlayer.cpp
     audio/AudioDecoder.cpp
     audio/OpenSLESPlayer.cpp
+    audio/AudioEqualizer.cpp
     audio/PlaylistManager.cpp
     jni/NativeAudio.cpp
 )

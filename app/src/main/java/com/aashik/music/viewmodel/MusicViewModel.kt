@@ -1,6 +1,7 @@
 package com.aashik.music.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import android.provider.MediaStore
@@ -101,6 +102,32 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _gridColumns.value = if (_gridColumns.value == 2) 3 else 2
     }
 
+    // ── Equalizer / Audio DSP State (Persisted in SharedPreferences) ──
+    private val eqPrefs = application.getSharedPreferences("equalizer_settings", Context.MODE_PRIVATE)
+
+    private val _isEqualizerEnabled = MutableStateFlow(eqPrefs.getBoolean("eq_enabled", true))
+    val isEqualizerEnabled: StateFlow<Boolean> = _isEqualizerEnabled.asStateFlow()
+
+    private val _equalizerPreset = MutableStateFlow(eqPrefs.getInt("eq_preset", 1)) // Default: Alpine Clarity
+    val equalizerPreset: StateFlow<Int> = _equalizerPreset.asStateFlow()
+
+    private val _equalizerHpfMode = MutableStateFlow(eqPrefs.getInt("eq_hpf_mode", 2)) // Default: 80Hz (Alpine)
+    val equalizerHpfMode: StateFlow<Int> = _equalizerHpfMode.asStateFlow()
+
+    private val _equalizerBands = MutableStateFlow(
+        listOf(
+            eqPrefs.getFloat("eq_band_0", 0.0f),
+            eqPrefs.getFloat("eq_band_1", -4.0f), // Mud Cut default
+            eqPrefs.getFloat("eq_band_2", 1.0f),
+            eqPrefs.getFloat("eq_band_3", 2.0f),
+            eqPrefs.getFloat("eq_band_4", 3.0f)
+        )
+    )
+    val equalizerBands: StateFlow<List<Float>> = _equalizerBands.asStateFlow()
+
+    private val _isEqualizerDialogOpen = MutableStateFlow(false)
+    val isEqualizerDialogOpen: StateFlow<Boolean> = _isEqualizerDialogOpen.asStateFlow()
+
     init {
         viewModelScope.launch {
             themePref.isDarkMode.collect {
@@ -132,6 +159,94 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
             loadSongs()
         }
+
+        // Initialize Native C++ Audio Equalizer DSP
+        val initialEnabled = _isEqualizerEnabled.value
+        val initialPreset = _equalizerPreset.value
+        val initialHpf = _equalizerHpfMode.value
+        val initialBands = _equalizerBands.value
+        musicPlayer.setEqualizerEnabled(initialEnabled)
+        musicPlayer.setEqualizerPreset(initialPreset)
+        musicPlayer.setEqualizerHpfMode(initialHpf)
+        if (initialPreset == 5) {
+            initialBands.forEachIndexed { index, gain ->
+                musicPlayer.setEqualizerBandGain(index, gain)
+            }
+        }
+    }
+
+    fun setEqualizerEnabled(enabled: Boolean) {
+        _isEqualizerEnabled.value = enabled
+        musicPlayer.setEqualizerEnabled(enabled)
+        eqPrefs.edit().putBoolean("eq_enabled", enabled).apply()
+    }
+
+    fun setEqualizerPreset(preset: Int) {
+        _equalizerPreset.value = preset
+        musicPlayer.setEqualizerPreset(preset)
+        when (preset) {
+            0 -> { // Flat
+                _equalizerHpfMode.value = 0
+                _equalizerBands.value = listOf(0f, 0f, 0f, 0f, 0f)
+            }
+            1 -> { // Alpine Clarity
+                _equalizerHpfMode.value = 2
+                _equalizerBands.value = listOf(0f, -4f, 1f, 2f, 3f)
+            }
+            2 -> { // Vocal Separation
+                _equalizerHpfMode.value = 2
+                _equalizerBands.value = listOf(-2f, -5f, 2f, 3f, 1f)
+            }
+            3 -> { // Bass Punch
+                _equalizerHpfMode.value = 1
+                _equalizerBands.value = listOf(3f, -3f, 0f, 1f, 2f)
+            }
+            4 -> { // Rock Dynamic
+                _equalizerHpfMode.value = 1
+                _equalizerBands.value = listOf(2f, -2f, 0f, 2f, 3f)
+            }
+        }
+        eqPrefs.edit()
+            .putInt("eq_preset", preset)
+            .putInt("eq_hpf_mode", _equalizerHpfMode.value)
+            .putFloat("eq_band_0", _equalizerBands.value[0])
+            .putFloat("eq_band_1", _equalizerBands.value[1])
+            .putFloat("eq_band_2", _equalizerBands.value[2])
+            .putFloat("eq_band_3", _equalizerBands.value[3])
+            .putFloat("eq_band_4", _equalizerBands.value[4])
+            .apply()
+    }
+
+    fun setEqualizerBandGain(bandIndex: Int, gainDb: Float) {
+        val current = _equalizerBands.value.toMutableList()
+        if (bandIndex in current.indices) {
+            current[bandIndex] = gainDb
+            _equalizerBands.value = current
+            _equalizerPreset.value = 5 // Custom
+            musicPlayer.setEqualizerBandGain(bandIndex, gainDb)
+            eqPrefs.edit()
+                .putInt("eq_preset", 5)
+                .putFloat("eq_band_$bandIndex", gainDb)
+                .apply()
+        }
+    }
+
+    fun setEqualizerHpfMode(mode: Int) {
+        _equalizerHpfMode.value = mode
+        musicPlayer.setEqualizerHpfMode(mode)
+        eqPrefs.edit().putInt("eq_hpf_mode", mode).apply()
+    }
+
+    fun openEqualizerDialog() {
+        _isEqualizerDialogOpen.value = true
+    }
+
+    fun closeEqualizerDialog() {
+        _isEqualizerDialogOpen.value = false
+    }
+
+    fun toggleEqualizerDialog() {
+        _isEqualizerDialogOpen.value = !_isEqualizerDialogOpen.value
     }
 
     fun selectTab(tab: LibraryTab) {

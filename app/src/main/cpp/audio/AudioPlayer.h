@@ -57,6 +57,7 @@ public:
 
     void setListener(AudioPlayerListener listener);
     PlaylistManager& getPlaylistManager() { return mPlaylistManager; }
+    AudioEqualizer& getEqualizer() { return mOutputPlayer->getEqualizer(); }
 
 private:
     void decoderThreadLoop();

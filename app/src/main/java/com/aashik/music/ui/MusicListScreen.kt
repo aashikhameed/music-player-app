@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.Search
@@ -160,6 +161,15 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         },
         onDismiss = { songToDelete = null }
     )
+
+    // Automotive Equalizer & Acoustic Separation DSP Dialog
+    val isEqOpen by viewModel.isEqualizerDialogOpen.collectAsState()
+    if (isEqOpen) {
+        EqualizerDialog(
+            viewModel = viewModel,
+            onDismiss = { viewModel.closeEqualizerDialog() }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
@@ -819,6 +829,25 @@ fun TopRightStatusClock(
                 imageVector = if (isDarkTheme) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
                 contentDescription = "Toggle theme",
                 tint = if (isDarkTheme) ThemeSunColor else ThemeMoonColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        VerticalDivider(
+            modifier = Modifier.height(18.dp).width(0.6.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        )
+
+        // Equalizer DSP Button
+        val isEqEnabled by viewModel.isEqualizerEnabled.collectAsState()
+        IconButton(
+            onClick = { viewModel.toggleEqualizerDialog() },
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.GraphicEq,
+                contentDescription = "Equalizer & DSP",
+                tint = if (isEqEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                 modifier = Modifier.size(18.dp)
             )
         }

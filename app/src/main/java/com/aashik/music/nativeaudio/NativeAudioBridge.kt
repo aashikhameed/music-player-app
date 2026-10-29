@@ -61,6 +61,14 @@ class NativeAudioBridge private constructor() {
     external fun getPlaybackState(): Int
     external fun setShuffleMode(enabled: Boolean)
     external fun setRepeatMode(mode: Int)
+    external fun setEqualizerEnabled(enabled: Boolean)
+    external fun isEqualizerEnabled(): Boolean
+    external fun setEqualizerPreset(preset: Int)
+    external fun getEqualizerPreset(): Int
+    external fun setEqualizerBandGain(band: Int, gainDb: Float)
+    external fun getEqualizerBandGain(band: Int): Float
+    external fun setEqualizerHpfMode(mode: Int)
+    external fun getEqualizerHpfMode(): Int
 
     // ─────────────────────────────────────────────────────────────────────────
     // Callbacks from C++ audio thread (must be non-blocking and post to main thread)
