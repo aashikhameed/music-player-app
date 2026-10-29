@@ -163,6 +163,15 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         return
     }
 
+    if (isSettingsOpen) {
+        SettingsScreen(
+            viewModel = viewModel,
+            onClose = { viewModel.closeSettings() },
+            modifier = Modifier.fillMaxSize()
+        )
+        return
+    }
+
     LaunchedEffect(scrollToIndex) {
         scrollToIndex?.let { index ->
             if (index in songs.indices) {
@@ -208,59 +217,49 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                             .statusBarsPadding()
                             .padding(horizontal = 10.dp, vertical = 8.dp)
                     ) {
-                        if (isSettingsOpen) {
-                            SettingsScreen(
+                        // Header Bar with In-Place Search
+                        LibraryModeHeader(
+                            selectedTab = selectedTab,
+                            selectedFolder = selectedFolder,
+                            songCount = songs.size,
+                            folderCount = folders.size,
+                            favoriteCount = favoritePaths.size,
+                            searchQuery = searchQuery,
+                            onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                            isSearchOpen = isSearchOpen,
+                            onToggleSearch = {
+                                isSearchOpen = !isSearchOpen
+                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                            },
+                            onTabSelected = { viewModel.selectTab(it) },
+                            onBackFolder = { viewModel.closeFolder() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp)
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .background(brush = AppGradients.card(isActive = false), shape = PortraitSongCardShape)
+                                .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = PortraitSongCardShape)
+                                .padding(8.dp)
+                        ) {
+                            MediaLibraryContent(
                                 viewModel = viewModel,
-                                onClose = { viewModel.closeSettings() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                            )
-                        } else {
-                            // Header Bar with In-Place Search
-                            LibraryModeHeader(
                                 selectedTab = selectedTab,
                                 selectedFolder = selectedFolder,
-                                songCount = songs.size,
-                                folderCount = folders.size,
-                                favoriteCount = favoritePaths.size,
+                                folders = folders,
+                                songs = songs,
+                                currentSongId = currentSongId,
+                                favoritePaths = favoritePaths,
                                 searchQuery = searchQuery,
-                                onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                                isSearchOpen = isSearchOpen,
-                                onToggleSearch = {
-                                    isSearchOpen = !isSearchOpen
-                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                },
-                                onTabSelected = { viewModel.selectTab(it) },
-                                onBackFolder = { viewModel.closeFolder() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 6.dp)
+                                gridState = listState,
+                                columns = 1,
+                                onSongLongPress = { songToDelete = it },
+                                modifier = Modifier.fillMaxSize()
                             )
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                                    .background(brush = AppGradients.card(isActive = false), shape = PortraitSongCardShape)
-                                    .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = PortraitSongCardShape)
-                                    .padding(8.dp)
-                            ) {
-                                MediaLibraryContent(
-                                    viewModel = viewModel,
-                                    selectedTab = selectedTab,
-                                    selectedFolder = selectedFolder,
-                                    folders = folders,
-                                    songs = songs,
-                                    currentSongId = currentSongId,
-                                    favoritePaths = favoritePaths,
-                                    searchQuery = searchQuery,
-                                    gridState = listState,
-                                    columns = 1,
-                                    onSongLongPress = { songToDelete = it },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -286,7 +285,6 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                     //   Bottom bar: 80dp
                     //   Spacer:     8dp
                     //   Library:    704 - 80 - 8 = 616dp
-                    // ─────────────────────────────────────────────────────────────────────────
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
@@ -295,81 +293,71 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                         Column(
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            if (isSettingsOpen) {
-                                SettingsScreen(
-                                    viewModel = viewModel,
-                                    onClose = { viewModel.closeSettings() },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth()
-                                )
-                            } else {
-                                // ── Library Panel (songs + header) ──
-                                Row(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth()
-                                        .background(brush = AppGradients.card(isActive = false), shape = LandscapeFullSongShape)
-                                        .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = LandscapeFullSongShape)
-                                        .padding(horizontal = 10.dp, vertical = 8.dp)
-                                ) {
-                                    val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedFolder != null) && songs.size > 5
-                                    if (canScroll) {
-                                        ModernVerticalScrollbar(
-                                            gridState = listState,
-                                            totalItemCount = songs.size,
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .padding(vertical = 4.dp)
-                                        )
-                                    }
-
-                                    Column(
+                            // ── Library Panel (songs + header) ──
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .background(brush = AppGradients.card(isActive = false), shape = LandscapeFullSongShape)
+                                    .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = LandscapeFullSongShape)
+                                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                            ) {
+                                val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedFolder != null) && songs.size > 5
+                                if (canScroll) {
+                                    ModernVerticalScrollbar(
+                                        gridState = listState,
+                                        totalItemCount = songs.size,
                                         modifier = Modifier
-                                            .weight(1f)
                                             .fillMaxHeight()
-                                            .padding(start = if (canScroll) 6.dp else 0.dp)
-                                    ) {
-                                        // Header: 46dp tall — tab chips + search icon + time/status
-                                        LibraryModeHeader(
-                                            viewModel = viewModel,
-                                            selectedTab = selectedTab,
-                                            selectedFolder = selectedFolder,
-                                            songCount = songs.size,
-                                            folderCount = folders.size,
-                                            favoriteCount = favoritePaths.size,
-                                            searchQuery = searchQuery,
-                                            onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                                            isSearchOpen = isSearchOpen,
-                                            onToggleSearch = {
-                                                isSearchOpen = !isSearchOpen
-                                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                            },
-                                            onTabSelected = { viewModel.selectTab(it) },
-                                            onBackFolder = { viewModel.closeFolder() },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(bottom = 6.dp)
-                                        )
+                                            .padding(vertical = 4.dp)
+                                    )
+                                }
 
-                                        val gridColumns by viewModel.gridColumns.collectAsState()
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .padding(start = if (canScroll) 6.dp else 0.dp)
+                                ) {
+                                    // Header: 46dp tall — tab chips + search icon + time/status
+                                    LibraryModeHeader(
+                                        viewModel = viewModel,
+                                        selectedTab = selectedTab,
+                                        selectedFolder = selectedFolder,
+                                        songCount = songs.size,
+                                        folderCount = folders.size,
+                                        favoriteCount = favoritePaths.size,
+                                        searchQuery = searchQuery,
+                                        onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                                        isSearchOpen = isSearchOpen,
+                                        onToggleSearch = {
+                                            isSearchOpen = !isSearchOpen
+                                            if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                        },
+                                        onTabSelected = { viewModel.selectTab(it) },
+                                        onBackFolder = { viewModel.closeFolder() },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 6.dp)
+                                    )
 
-                                        // Song/folder grid — optimized for automotive touch targets & weak GPUs
-                                        MediaLibraryContent(
-                                            viewModel = viewModel,
-                                            selectedTab = selectedTab,
-                                            selectedFolder = selectedFolder,
-                                            folders = folders,
-                                            songs = songs,
-                                            currentSongId = currentSongId,
-                                            favoritePaths = favoritePaths,
-                                            searchQuery = searchQuery,
-                                            gridState = listState,
-                                            columns = gridColumns,
-                                            onSongLongPress = { songToDelete = it },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
+                                    val gridColumns by viewModel.gridColumns.collectAsState()
+
+                                    // Song/folder grid — optimized for automotive touch targets & weak GPUs
+                                    MediaLibraryContent(
+                                        viewModel = viewModel,
+                                        selectedTab = selectedTab,
+                                        selectedFolder = selectedFolder,
+                                        folders = folders,
+                                        songs = songs,
+                                        currentSongId = currentSongId,
+                                        favoritePaths = favoritePaths,
+                                        searchQuery = searchQuery,
+                                        gridState = listState,
+                                        columns = gridColumns,
+                                        onSongLongPress = { songToDelete = it },
+                                        modifier = Modifier.weight(1f)
+                                    )
                                 }
                             }
 

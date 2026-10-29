@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CleaningServices
@@ -150,126 +152,153 @@ fun SettingsScreen(
     val cardBg = AppGradients.card(isActive = false)
     val cardBorder = AppGradients.border(isActive = false)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(brush = cardBg, shape = SettingsContainerShape)
-            .border(width = 1.dp, brush = cardBorder, shape = SettingsContainerShape)
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        modifier = modifier.fillMaxSize()
     ) {
-        // ── Top Header Navigation Bar ──
-        Row(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxSize()
+                .then(
+                    if (!isLandscape) {
+                        Modifier
+                            .statusBarsPadding()
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    } else {
+                        Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                    }
+                )
+                .background(brush = cardBg, shape = SettingsContainerShape)
+                .border(width = 1.dp, brush = cardBorder, shape = SettingsContainerShape)
+                .padding(horizontal = if (isLandscape) 14.dp else 10.dp, vertical = if (isLandscape) 10.dp else 8.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier.size(36.dp)
+            Column(modifier = Modifier.fillMaxSize()) {
+                // ── Top Header Navigation Bar ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Back to Library",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                    Row(
+                        modifier = Modifier.weight(1f, fill = false),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(
+                            onClick = onClose,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "Back to Library",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
 
-                Icon(
-                    imageVector = Icons.Rounded.Settings,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
 
-                Column {
-                    Text(
-                        text = "Settings & Sound Preferences",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
+                            Text(
+                                text = "Settings & Sound Preferences",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Blaupunkt Santa Rosa 985 Automotive Setup",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(
+                        onClick = onClose,
+                        shape = ActionButtonShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Blaupunkt Santa Rosa 985 Automotive Setup",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Button(
-                onClick = onClose,
-                shape = ActionButtonShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.height(34.dp)
-            ) {
-                Text(
-                    text = "Done",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // ── Content Layout: 2-Column in Landscape, Scrollable Column in Portrait ──
-        if (isLandscape) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Left Column: Audio DSP & Equalizer Tuning (weight 0.55f)
-                Box(
-                    modifier = Modifier
-                        .weight(0.55f)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    AudioDspSection(viewModel = viewModel)
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Text(
+                            text = "Done",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
-                // Right Column: Song Refetch, Theme, Playback, Cache & Diagnostics (weight 0.45f)
-                Box(
-                    modifier = Modifier
-                        .weight(0.45f)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // ── Content Layout: 2-Column in Landscape, Scrollable Column in Portrait ──
+                if (isLandscape) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Left Column: Audio DSP & Equalizer Tuning (weight 0.52f)
+                        Box(
+                            modifier = Modifier
+                                .weight(0.52f)
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                AudioDspSection(viewModel = viewModel)
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+
+                        // Right Column: Song Refetch, Theme, Playback, Cache & Diagnostics (weight 0.48f)
+                        Box(
+                            modifier = Modifier
+                                .weight(0.48f)
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                RefetchSection(viewModel = viewModel)
+                                ThemeDisplaySection(viewModel = viewModel)
+                                PlaybackPreferencesSection(viewModel = viewModel)
+                                CacheManagementSection(viewModel = viewModel)
+                                SystemInfoSection()
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+                    }
+                } else {
+                    // Portrait Layout: Single vertical scrollable column
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         RefetchSection(viewModel = viewModel)
                         ThemeDisplaySection(viewModel = viewModel)
+                        AudioDspSection(viewModel = viewModel)
                         PlaybackPreferencesSection(viewModel = viewModel)
                         CacheManagementSection(viewModel = viewModel)
                         SystemInfoSection()
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
-            }
-        } else {
-            // Portrait Layout: Single vertical scrollable column
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                RefetchSection(viewModel = viewModel)
-                ThemeDisplaySection(viewModel = viewModel)
-                AudioDspSection(viewModel = viewModel)
-                PlaybackPreferencesSection(viewModel = viewModel)
-                CacheManagementSection(viewModel = viewModel)
-                SystemInfoSection()
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -285,7 +314,6 @@ private fun RefetchSection(viewModel: MusicViewModel) {
     val refetchStatus by viewModel.refetchStatus.collectAsState()
     val songs by viewModel.songs.collectAsState()
     val folders by viewModel.folders.collectAsState()
-    val favoritePaths by viewModel.favoritePaths.collectAsState()
     val cardBorder = AppGradients.border(isActive = false)
 
     Surface(
@@ -308,7 +336,8 @@ private fun RefetchSection(viewModel: MusicViewModel) {
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Sync,
@@ -319,7 +348,9 @@ private fun RefetchSection(viewModel: MusicViewModel) {
                     Text(
                         text = "Song Refetch & Media Scan",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -332,10 +363,11 @@ private fun RefetchSection(viewModel: MusicViewModel) {
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "${songs.size} Songs • ${folders.size} Folders • ${favoritePaths.size} Favorites",
+                        text = "${songs.size} Songs • ${folders.size} Folders",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
                     )
                 }
             }
@@ -445,7 +477,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 6.dp)) {
                     Text(
                         text = "App Theme Mode",
                         fontSize = 12.sp,
@@ -455,7 +487,9 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                     Text(
                         text = if (isDarkTheme) "Dark Mode (Infotainment Night Mode)" else "Lite Mode (Day Driving High Contrast)",
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -469,7 +503,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                                 shape = ChipPillShape
                             )
                             .clickable { if (isDarkTheme) viewModel.setThemeMode(false) }
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -480,7 +514,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Lite Mode",
+                                text = "Lite",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (!isDarkTheme) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
@@ -497,7 +531,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                                 shape = ChipPillShape
                             )
                             .clickable { if (!isDarkTheme) viewModel.setThemeMode(true) }
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -508,7 +542,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Dark Mode",
+                                text = "Dark",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
@@ -524,7 +558,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 6.dp)) {
                     Text(
                         text = "Library Grid Columns",
                         fontSize = 12.sp,
@@ -534,7 +568,9 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                     Text(
                         text = if (gridColumns == 2) "2 Columns (Optimal touch targets)" else "3 Columns (Compact Layout)",
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -547,7 +583,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                                 shape = ChipPillShape
                             )
                             .clickable { if (gridColumns != 2) viewModel.toggleGridColumns() }
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -558,7 +594,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
-                                text = "2 Columns",
+                                text = "2 Cols",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (gridColumns == 2) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -574,7 +610,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                                 shape = ChipPillShape
                             )
                             .clickable { if (gridColumns != 3) viewModel.toggleGridColumns() }
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -585,7 +621,7 @@ private fun ThemeDisplaySection(viewModel: MusicViewModel) {
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
-                                text = "3 Columns",
+                                text = "3 Cols",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (gridColumns == 3) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -705,12 +741,11 @@ private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
             val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsState()
             val sleepTimerRemainingSec by viewModel.sleepTimerRemainingSec.collectAsState()
 
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column {
                     Text(
                         text = "Parked Battery-Saver (Sleep Timer)",
                         fontSize = 12.sp,
@@ -724,26 +759,33 @@ private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
                             "Auto-pauses playback when listening with engine off",
                         fontSize = 10.sp,
                         color = if (sleepTimerMinutes > 0) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     SLEEP_TIMER_OPTIONS.forEach { mins ->
                         val isSelected = (sleepTimerMinutes == mins)
                         Box(
                             modifier = Modifier
+                                .weight(1f)
                                 .background(
                                     if (isSelected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                                     shape = ChipPillShape
                                 )
                                 .clickable { viewModel.setSleepTimer(mins) }
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = if (mins == 0) "Off" else "${mins}m",
-                                fontSize = 9.5.sp,
+                                fontSize = 10.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -799,7 +841,7 @@ private fun CacheManagementSection(viewModel: MusicViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                     Text(
                         text = "Artwork Disk Cache: ${formatCacheSize(cacheSize)}",
                         fontSize = 11.5.sp,
@@ -809,7 +851,9 @@ private fun CacheManagementSection(viewModel: MusicViewModel) {
                     Text(
                         text = "NEON-compressed JPEG thumbnails (64x64 RGB_565) + .noart markers",
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -835,6 +879,58 @@ private fun CacheManagementSection(viewModel: MusicViewModel) {
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Audio DSP & 5-Band Equalizer Settings Section.
+ */
+/**
+ * Reusable Sound Preset Chip with custom pill background and star for Alpine.
+ */
+@Composable
+private fun PresetChip(
+    name: String,
+    isSelected: Boolean,
+    isEnabled: Boolean,
+    isAlpine: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .background(
+                if (isSelected && isEnabled) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                shape = ChipPillShape
+            )
+            .clickable(enabled = isEnabled, onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (isAlpine) {
+                Icon(
+                    imageVector = Icons.Rounded.Star,
+                    contentDescription = null,
+                    tint = if (isSelected) AlpineGoldColor else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(11.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+            }
+            Text(
+                text = name,
+                fontSize = 10.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -907,96 +1003,101 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                 }
             }
 
-            // Sound Profiles
-            Row(
+            // Sound Profiles — 2 rows of 3 equal-width chips (never overflows horizontally!)
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                PRESET_NAMES.forEachIndexed { index, name ->
-                    val isSelected = (activePreset == index)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { viewModel.setEqualizerPreset(index) },
-                        enabled = isEnabled,
-                        label = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (index == 1) { // Alpine Clarity
-                                    Icon(
-                                        imageVector = Icons.Rounded.Star,
-                                        contentDescription = null,
-                                        tint = if (isSelected) AlpineGoldColor else MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                }
-                                Text(
-                                    text = name,
-                                    fontSize = 10.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        },
-                        shape = ChipPillShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                // Row 1: Flat, Alpine Clarity, Vocal Separation
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    for (index in 0..2) {
+                        PresetChip(
+                            name = PRESET_NAMES[index],
+                            isSelected = (activePreset == index),
+                            isEnabled = isEnabled,
+                            isAlpine = (index == 1),
+                            onClick = { viewModel.setEqualizerPreset(index) },
+                            modifier = Modifier.weight(1f)
                         )
-                    )
+                    }
+                }
+
+                // Row 2: Punchy Bass, Rock Dynamic, Custom
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    for (index in 3..5) {
+                        PresetChip(
+                            name = PRESET_NAMES[index],
+                            isSelected = (activePreset == index),
+                            isEnabled = isEnabled,
+                            isAlpine = false,
+                            onClick = { viewModel.setEqualizerPreset(index) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
             // Subsonic HPF Selector
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(brush = capsuleBg, shape = BandRowShape)
                     .border(width = 0.6.dp, brush = cardBorder, shape = BandRowShape)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Security,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Text(
-                        text = "Subsonic HPF:",
+                        text = "Subsonic HPF (Door Speaker & Sub Protection):",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     HPF_NAMES.forEachIndexed { index, label ->
                         val isSelected = (hpfMode == index)
                         Box(
                             modifier = Modifier
+                                .weight(1f)
                                 .background(
                                     if (isSelected && isEnabled) MaterialTheme.colorScheme.secondary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                                     shape = ChipPillShape
                                 )
                                 .clickable(enabled = isEnabled) {
                                     viewModel.setEqualizerHpfMode(index)
                                 }
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = label,
                                 fontSize = 9.5.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onSecondary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -1007,17 +1108,17 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
             val timeAlign by viewModel.timeAlignmentMode.collectAsState()
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Text(
                     text = "Driver Soundstage Time Alignment (Cabin Micro-Delay):",
-                    fontSize = 10.5.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     TIME_ALIGN_NAMES.forEachIndexed { index, name ->
                         val isSelected = (timeAlign == index)
@@ -1026,19 +1127,21 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                                 .weight(1f)
                                 .background(
                                     if (isSelected && isEnabled) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                                     shape = ChipPillShape
                                 )
                                 .clickable(enabled = isEnabled) { viewModel.setTimeAlignment(index) }
-                                .padding(vertical = 5.dp),
+                                .padding(vertical = 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = name,
-                                fontSize = 8.5.sp,
+                                fontSize = 9.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -1049,17 +1152,17 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
             val bassNorm by viewModel.bassNormalizerMode.collectAsState()
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Text(
                     text = "Acoustic Bass Normalizer & Dynamic Loudness Contour:",
-                    fontSize = 10.5.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     BASS_NORM_NAMES.forEachIndexed { index, name ->
                         val isSelected = (bassNorm == index)
@@ -1068,19 +1171,21 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                                 .weight(1f)
                                 .background(
                                     if (isSelected && isEnabled) MaterialTheme.colorScheme.secondary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                                     shape = ChipPillShape
                                 )
                                 .clickable(enabled = isEnabled) { viewModel.setBassNormalizer(index) }
-                                .padding(vertical = 5.dp),
+                                .padding(vertical = 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = name,
-                                fontSize = 8.5.sp,
+                                fontSize = 9.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onSecondary
-                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -1105,10 +1210,10 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
                                 shape = BandRowShape
                             )
-                            .padding(horizontal = 8.dp, vertical = 1.dp),
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.width(135.dp)) {
+                        Column(modifier = Modifier.width(96.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = freqLabel,
@@ -1126,7 +1231,7 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                                             .padding(horizontal = 3.dp, vertical = 1.dp)
                                     ) {
                                         Text(
-                                            text = "Mud Cut",
+                                            text = "Cut",
                                             fontSize = 7.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = MudCutWarningColor
@@ -1136,9 +1241,10 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                             }
                             Text(
                                 text = roleLabel,
-                                fontSize = 9.sp,
+                                fontSize = 8.5.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -1152,7 +1258,7 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                             enabled = isEnabled,
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(horizontal = 6.dp),
+                                .padding(horizontal = 4.dp),
                             colors = SliderDefaults.colors(
                                 thumbColor = if (isMudZone) MudCutWarningColor else MaterialTheme.colorScheme.primary,
                                 activeTrackColor = if (isMudZone) MudCutWarningColor else MaterialTheme.colorScheme.primary,
@@ -1161,13 +1267,13 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                         )
 
                         Box(
-                            modifier = Modifier.width(50.dp),
+                            modifier = Modifier.width(48.dp),
                             contentAlignment = Alignment.CenterEnd
                         ) {
                             val gainText = if (gain > 0f) "+${String.format("%.1f", gain)}" else String.format("%.1f", gain)
                             Text(
                                 text = "$gainText dB",
-                                fontSize = 10.5.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (gain < 0f && isMudZone) MudCutWarningColor
                                         else if (gain > 0f) MaterialTheme.colorScheme.primary
