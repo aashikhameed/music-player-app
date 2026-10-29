@@ -120,6 +120,43 @@ void AudioEqualizer::setVirtualSurroundMode(int32_t mode) {
     mVirtualSurroundMode.store(mode, std::memory_order_relaxed);
 }
 
+void AudioEqualizer::setSpeedCompensation(float speedKmh, int32_t mode) {
+    mCurrentSpeedKmh.store(speedKmh, std::memory_order_relaxed);
+    mScvcMode.store(mode, std::memory_order_relaxed);
+    if (mode == SCVC_OFF || speedKmh <= 15.0f) {
+        mSpeedGainDb.store(0.0f, std::memory_order_relaxed);
+        return;
+    }
+
+    float excessSpeed = speedKmh - 15.0f; // Compensation starts above 15 km/h
+    float db = 0.0f;
+    switch (mode) {
+        case SCVC_MILD:
+            db = std::min(3.0f, excessSpeed * (1.0f / 30.0f));
+            break;
+        case SCVC_MODERATE:
+            db = std::min(5.0f, excessSpeed * (1.5f / 20.0f));
+            break;
+        case SCVC_DYNAMIC:
+            db = std::min(7.0f, excessSpeed * (2.0f / 15.0f));
+            break;
+        default:
+            db = 0.0f;
+            break;
+    }
+    mSpeedGainDb.store(db, std::memory_order_relaxed);
+}
+
+void AudioEqualizer::setBalance(float balance) {
+    // Clamp to [-1.0f, 1.0f]
+    mBalance.store(std::max(-1.0f, std::min(1.0f, balance)), std::memory_order_relaxed);
+}
+
+void AudioEqualizer::setFader(float fader) {
+    // Clamp to [-1.0f, 1.0f]
+    mFader.store(std::max(-1.0f, std::min(1.0f, fader)), std::memory_order_relaxed);
+}
+
 void AudioEqualizer::reset() {
     for (size_t ch = 0; ch < MAX_CHANNELS; ++ch) {
         for (size_t b = 0; b < NUM_BANDS; ++b) {
@@ -309,6 +346,20 @@ void AudioEqualizer::process(int16_t* pcmData, size_t sampleCount, int32_t sampl
 
     float preamp = mPreampGain;
 
+    // Speed-Compensated Volume Control (SCVC) Gain Multiplier
+    float speedDb = mSpeedGainDb.load(std::memory_order_relaxed);
+    float speedMultiplier = (speedDb > 0.01f) ? std::pow(10.0f, speedDb / 20.0f) : 1.0f;
+
+    // 4-Way Balance & Fader Gains
+    float balance = mBalance.load(std::memory_order_relaxed);
+    float fader = mFader.load(std::memory_order_relaxed);
+    float balL = (balance <= 0.0f) ? 1.0f : (1.0f - balance);
+    float balR = (balance >= 0.0f) ? 1.0f : (1.0f + balance);
+    float faderFrontGain = (fader >= 0.0f) ? (1.0f + fader * 0.15f) : (1.0f + fader * 0.3f);
+
+    float totalGainL = balL * faderFrontGain * speedMultiplier;
+    float totalGainR = balR * faderFrontGain * speedMultiplier;
+
     if (numChannels == 2) {
         // Stereo interleaved PCM [L, R, L, R, ...]
         size_t numFrames = sampleCount / 2;
@@ -367,12 +418,17 @@ void AudioEqualizer::process(int16_t* pcmData, size_t sampleCount, int32_t sampl
                 sampleL = delayedL;
             }
 
+            // Apply SCVC & Balance/Fader Gains
+            sampleL *= totalGainL;
+            sampleR *= totalGainR;
+
             // Soft saturation / clamping back to 16-bit signed PCM
             pcmData[idxL] = static_cast<int16_t>(std::clamp(sampleL, -32767.0f, 32767.0f));
             pcmData[idxR] = static_cast<int16_t>(std::clamp(sampleR, -32767.0f, 32767.0f));
         }
     } else {
         // Mono PCM
+        float monoGain = faderFrontGain * speedMultiplier;
         for (size_t s = 0; s < sampleCount; ++s) {
             float sample = static_cast<float>(pcmData[s]) * preamp;
 
@@ -391,6 +447,7 @@ void AudioEqualizer::process(int16_t* pcmData, size_t sampleCount, int32_t sampl
                 else if (sample < -28000.0f) sample = -28000.0f + (sample + 28000.0f) * 0.45f;
             }
 
+            sample *= monoGain;
             pcmData[s] = static_cast<int16_t>(std::clamp(sample, -32767.0f, 32767.0f));
         }
     }

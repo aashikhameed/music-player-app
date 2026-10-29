@@ -1,7 +1,14 @@
 package com.aashik.music.viewmodel
 
+import android.Manifest
 import android.app.Application
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Bundle
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import android.provider.MediaStore
@@ -172,6 +179,36 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _virtualSurroundMode = MutableStateFlow(eqPrefs.getInt("virtual_surround_mode", 0)) // 0: Off, 1: Cabin, 2: Wide
     val virtualSurroundMode: StateFlow<Int> = _virtualSurroundMode.asStateFlow()
 
+    // ── SCVC (Speed-Compensated Volume Control) ──
+    private val _scvcMode = MutableStateFlow(appPrefs.getInt("scvc_mode", 0)) // 0: Off, 1: Mild, 2: Moderate, 3: Dynamic
+    val scvcMode: StateFlow<Int> = _scvcMode.asStateFlow()
+
+    private val _currentSpeedKmh = MutableStateFlow(0f)
+    val currentSpeedKmh: StateFlow<Float> = _currentSpeedKmh.asStateFlow()
+
+    private val _scvcGainDb = MutableStateFlow(0f)
+    val scvcGainDb: StateFlow<Float> = _scvcGainDb.asStateFlow()
+
+    private val _testSpeedSimulation = MutableStateFlow(false)
+    val testSpeedSimulation: StateFlow<Boolean> = _testSpeedSimulation.asStateFlow()
+
+    private val _testSpeedKmh = MutableStateFlow(60f)
+    val testSpeedKmh: StateFlow<Float> = _testSpeedKmh.asStateFlow()
+
+    // ── 4-Way Balance & Fader (Cabin Acoustic Grid) ──
+    private val _balance = MutableStateFlow(eqPrefs.getFloat("eq_balance", 0.0f)) // -1.0 (Left) to +1.0 (Right)
+    val balance: StateFlow<Float> = _balance.asStateFlow()
+
+    private val _fader = MutableStateFlow(eqPrefs.getFloat("eq_fader", 0.0f)) // -1.0 (Rear) to +1.0 (Front)
+    val fader: StateFlow<Float> = _fader.asStateFlow()
+
+    // ── Play Queue & "Play Next" State ──
+    private val _userQueue = MutableStateFlow<List<Song>>(emptyList())
+    val userQueue: StateFlow<List<Song>> = _userQueue.asStateFlow()
+
+    private val _isQueueOpen = MutableStateFlow(false)
+    val isQueueOpen: StateFlow<Boolean> = _isQueueOpen.asStateFlow()
+
     // ── Navigation Transition Direction (1 = Next/Forward, -1 = Prev/Backward) ──
     private var transitionSeq: Long = 0L
     private val _navigationDirection = MutableStateFlow(1)
@@ -189,6 +226,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private var sleepTimerJob: Job? = null
     private var usbReceiver: android.content.BroadcastReceiver? = null
+    private var locationManager: LocationManager? = null
+    private val locationListener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            if (!_testSpeedSimulation.value) {
+                val speed = if (location.hasSpeed()) (location.speed * 3.6f) else 0f
+                applySpeedUpdate(speed)
+            }
+        }
+        @Deprecated("Deprecated in Java")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) {}
+    }
 
     init {
         viewModelScope.launch {
@@ -247,6 +297,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         // Initialize Crossfade
         musicPlayer.setCrossfadeSeconds(_crossfadeSeconds.value)
 
+        // Initialize 4-Way Balance & Fader in Native Audio Core
+        musicPlayer.setBalance(_balance.value)
+        musicPlayer.setFader(_fader.value)
+
+        // Initialize SCVC
+        setupLocationUpdates()
+        val initialEffectiveSpeed = if (_testSpeedSimulation.value) _testSpeedKmh.value else _currentSpeedKmh.value
+        applySpeedUpdate(initialEffectiveSpeed)
+
         // ── Auto-scan on USB Flash Drive insertion ──
         try {
             val receiver = object : android.content.BroadcastReceiver() {
@@ -263,6 +322,122 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
             application.registerReceiver(receiver, filter)
         } catch (_: Exception) {}
+    }
+
+    fun setupLocationUpdates() {
+        val app = getApplication<Application>()
+        if (locationManager == null) {
+            locationManager = app.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+        }
+        val lm = locationManager ?: return
+        val hasFine = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!hasFine && !hasCoarse) return
+
+        try {
+            lm.removeUpdates(locationListener)
+            if (_scvcMode.value > 0) {
+                if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 1.0f, locationListener)
+                }
+                if (lm.isProviderEnabled(LocationManager.PASSIVE_PROVIDER)) {
+                    lm.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 1000L, 1.0f, locationListener)
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun applySpeedUpdate(speedKmh: Float) {
+        val clampedSpeed = speedKmh.coerceAtLeast(0f)
+        _currentSpeedKmh.value = clampedSpeed
+        musicPlayer.setSpeedCompensation(clampedSpeed, _scvcMode.value)
+        _scvcGainDb.value = musicPlayer.getSpeedCompensationDb()
+    }
+
+    fun setScvcMode(mode: Int) {
+        _scvcMode.value = mode
+        appPrefs.edit().putInt("scvc_mode", mode).apply()
+        setupLocationUpdates()
+        val effectiveSpeed = if (_testSpeedSimulation.value) _testSpeedKmh.value else _currentSpeedKmh.value
+        applySpeedUpdate(effectiveSpeed)
+    }
+
+    fun setTestSpeedSimulation(enabled: Boolean) {
+        _testSpeedSimulation.value = enabled
+        val speed = if (enabled) _testSpeedKmh.value else _currentSpeedKmh.value
+        applySpeedUpdate(speed)
+    }
+
+    fun setTestSpeedKmh(speed: Float) {
+        _testSpeedKmh.value = speed
+        if (_testSpeedSimulation.value) {
+            applySpeedUpdate(speed)
+        }
+    }
+
+    // ── Balance & Fader ──
+    fun setBalance(bal: Float) {
+        val clamped = bal.coerceIn(-1.0f, 1.0f)
+        _balance.value = clamped
+        musicPlayer.setBalance(clamped)
+        eqPrefs.edit().putFloat("eq_balance", clamped).apply()
+    }
+
+    fun setFader(fad: Float) {
+        val clamped = fad.coerceIn(-1.0f, 1.0f)
+        _fader.value = clamped
+        musicPlayer.setFader(clamped)
+        eqPrefs.edit().putFloat("eq_fader", clamped).apply()
+    }
+
+    fun resetBalanceFader() {
+        setBalance(0.0f)
+        setFader(0.0f)
+    }
+
+    fun setAcousticFocus(bal: Float, fad: Float) {
+        setBalance(bal)
+        setFader(fad)
+    }
+
+    // ── Play Queue & "Play Next" ──
+    fun openQueue() { _isQueueOpen.value = true }
+    fun closeQueue() { _isQueueOpen.value = false }
+    fun toggleQueue() { _isQueueOpen.value = !_isQueueOpen.value }
+
+    fun playNext(song: Song) {
+        val current = _userQueue.value.toMutableList()
+        current.removeAll { it.id == song.id }
+        current.add(0, song)
+        _userQueue.value = current
+    }
+
+    fun addToQueue(song: Song) {
+        val current = _userQueue.value.toMutableList()
+        current.removeAll { it.id == song.id }
+        current.add(song)
+        _userQueue.value = current
+    }
+
+    fun removeFromQueue(index: Int) {
+        val current = _userQueue.value.toMutableList()
+        if (index in current.indices) {
+            current.removeAt(index)
+            _userQueue.value = current
+        }
+    }
+
+    fun clearQueue() {
+        _userQueue.value = emptyList()
+    }
+
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        val list = _userQueue.value.toMutableList()
+        if (fromIndex in list.indices && toIndex in list.indices && fromIndex != toIndex) {
+            val item = list.removeAt(fromIndex)
+            list.add(toIndex, item)
+            _userQueue.value = list
+        }
     }
 
     fun setEqualizerEnabled(enabled: Boolean) {
@@ -355,6 +530,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun getNextSong(): Song? {
+        val queued = _userQueue.value.firstOrNull()
+        if (queued != null) return queued
         val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
         val list = if (_isShuffleOn.value) {
             if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist
@@ -730,6 +907,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playNextSong(isAutoCrossfade: Boolean = false) {
+        if (_userQueue.value.isNotEmpty()) {
+            val queued = _userQueue.value.first()
+            _userQueue.value = _userQueue.value.drop(1)
+            play(queued, playlist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value, isAutoCrossfade = isAutoCrossfade, direction = 1)
+            MusicController.play(queued)
+            triggerScrollToCurrentSong()
+            return
+        }
         _navigationDirection.value = 1
         val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
         val list = if (_isShuffleOn.value) {
@@ -940,6 +1125,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 activePlaylist = activePlaylist.filter { it.id != song.id }
                 shuffledSongs.removeAll { it.id == song.id }
                 activeShuffledSongs.removeAll { it.id == song.id }
+                _userQueue.value = _userQueue.value.filter { it.id != song.id }
                 com.aashik.music.service.CarPlaybackService.instance?.let { carService ->
                     carService.songList = carService.songList.filter { it.id != song.id }
                 }
@@ -1000,6 +1186,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         try {
             usbReceiver?.let { getApplication<Application>().unregisterReceiver(it) }
             usbReceiver = null
+        } catch (_: Exception) {}
+        try {
+            locationManager?.removeUpdates(locationListener)
+            locationManager = null
         } catch (_: Exception) {}
     }
 }

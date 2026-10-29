@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Pause
@@ -136,6 +137,31 @@ fun BottomControlStrip(
                                 tint = if (isEqualizerOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                                 modifier = Modifier.size(20.dp)
                             )
+                        }
+
+                        // Playback Queue button in mini banner
+                        val isQueueOpen by viewModel.isQueueOpen.collectAsState()
+                        val userQueue by viewModel.userQueue.collectAsState()
+                        IconButton(
+                            onClick = { viewModel.toggleQueue() },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                                    contentDescription = "Queue",
+                                    tint = if (isQueueOpen || userQueue.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                if (userQueue.isNotEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(6.dp)
+                                            .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
+                                    )
+                                }
+                            }
                         }
 
                         // Settings button in mini banner (opens all options)

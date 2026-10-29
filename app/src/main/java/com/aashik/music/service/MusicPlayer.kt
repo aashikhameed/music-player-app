@@ -378,6 +378,24 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     fun getVirtualSurroundMode(): Int = nativeBridge.getVirtualSurroundMode()
 
+    fun setSpeedCompensation(speedKmh: Float, mode: Int) {
+        nativeBridge.setSpeedCompensation(speedKmh, mode)
+    }
+
+    fun getSpeedCompensationDb(): Float = nativeBridge.getSpeedCompensationDb()
+
+    fun setBalance(balance: Float) {
+        nativeBridge.setBalance(balance)
+    }
+
+    fun getBalance(): Float = nativeBridge.getBalance()
+
+    fun setFader(fader: Float) {
+        nativeBridge.setFader(fader)
+    }
+
+    fun getFader(): Float = nativeBridge.getFader()
+
     fun release() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         nativeBridge.setListener(null)

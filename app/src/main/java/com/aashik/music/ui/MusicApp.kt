@@ -44,10 +44,14 @@ fun MusicApp() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(
                 Manifest.permission.READ_MEDIA_AUDIO,
-                Manifest.permission.POST_NOTIFICATIONS
+                Manifest.permission.POST_NOTIFICATIONS,
+                Manifest.permission.ACCESS_FINE_LOCATION
             )
         } else {
-            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            arrayOf(
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
         }
     }
 
@@ -65,6 +69,9 @@ fun MusicApp() {
             grants[Manifest.permission.READ_MEDIA_AUDIO] == true
         } else {
             grants[Manifest.permission.READ_EXTERNAL_STORAGE] == true
+        }
+        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+            viewModel.setupLocationUpdates()
         }
         if (audioGranted) {
             viewModel.loadSongs()

@@ -288,6 +288,45 @@ Java_com_aashik_music_nativeaudio_NativeAudioBridge_getVirtualSurroundMode(
     return static_cast<jint>(audio::AudioPlayer::getInstance().getEqualizer().getVirtualSurroundMode());
 }
 
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setSpeedCompensation(
+    JNIEnv* env, jobject thiz, jfloat speedKmh, jint mode) {
+    audio::AudioPlayer::getInstance().getEqualizer().setSpeedCompensation(speedKmh, mode);
+    audio::AudioPlayer::getInstance().syncEqualizer();
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getSpeedCompensationDb(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jfloat>(audio::AudioPlayer::getInstance().getEqualizer().getSpeedCompensationDb());
+}
+
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setBalance(
+    JNIEnv* env, jobject thiz, jfloat balance) {
+    audio::AudioPlayer::getInstance().getEqualizer().setBalance(balance);
+    audio::AudioPlayer::getInstance().syncEqualizer();
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getBalance(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jfloat>(audio::AudioPlayer::getInstance().getEqualizer().getBalance());
+}
+
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setFader(
+    JNIEnv* env, jobject thiz, jfloat fader) {
+    audio::AudioPlayer::getInstance().getEqualizer().setFader(fader);
+    audio::AudioPlayer::getInstance().syncEqualizer();
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getFader(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jfloat>(audio::AudioPlayer::getInstance().getEqualizer().getFader());
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Compatibility Aliases for prompt specification com.example.musicplayer.NativeAudio
 // ─────────────────────────────────────────────────────────────────────────────

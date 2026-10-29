@@ -76,6 +76,12 @@ class NativeAudioBridge private constructor() {
     external fun getBassNormalizer(): Int
     external fun setVirtualSurroundMode(mode: Int)
     external fun getVirtualSurroundMode(): Int
+    external fun setSpeedCompensation(speedKmh: Float, mode: Int)
+    external fun getSpeedCompensationDb(): Float
+    external fun setBalance(balance: Float)
+    external fun getBalance(): Float
+    external fun setFader(fader: Float)
+    external fun getFader(): Float
 
     // ─────────────────────────────────────────────────────────────────────────
     // Callbacks from C++ audio thread (must be non-blocking and post to main thread)

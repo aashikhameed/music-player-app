@@ -55,10 +55,18 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.roundToInt
+
 // Top-level precomputed shapes for Mali GPU fill rate & zero GC allocation
 private val EqContainerShape = RoundedCornerShape(16.dp)
 private val EqCardShape = RoundedCornerShape(12.dp)
 private val EqChipShape = RoundedCornerShape(8.dp)
+private val GridBorderShape = RoundedCornerShape(10.dp)
 private val ActionBtnShape = RoundedCornerShape(10.dp)
 
 private val BAND_INFO = listOf(
@@ -359,7 +367,12 @@ fun EqualizerScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // ── Section 3: High-Pass Filter (Door Protection) ──
+                // ── Section 3: 4-Way Balance & Fader Acoustic Grid ──
+                BalanceFaderCard(viewModel = viewModel)
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // ── Section 4: High-Pass Filter (Door Protection) ──
                 DspCard(title = "Door Speaker High-Pass Filter (HPF)", icon = Icons.Rounded.Speed) {
                     Text(
                         text = "Cuts ultra-low frequencies from door woofers to eliminate door panel rattle and prevent voice coil distortion.",
@@ -491,6 +504,302 @@ fun EqualizerScreen(
 }
 
 @Composable
+private fun BalanceFaderCard(viewModel: MusicViewModel) {
+    val balance by viewModel.balance.collectAsState()
+    val fader by viewModel.fader.collectAsState()
+
+    DspCard(title = "4-Way Balance & Fader Acoustic Grid", icon = Icons.Rounded.SpatialAudio) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Preset Focus Buttons Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = (balance == 0f && fader == 0f),
+                    onClick = { viewModel.setAcousticFocus(0f, 0f) },
+                    label = { Text("Center", fontSize = 10.5.sp) },
+                    shape = EqChipShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ),
+                    modifier = Modifier.height(30.dp)
+                )
+
+                FilterChip(
+                    selected = (balance == -0.35f && fader == 0.25f),
+                    onClick = { viewModel.setAcousticFocus(-0.35f, 0.25f) },
+                    label = { Text("Driver LHD", fontSize = 10.5.sp) },
+                    shape = EqChipShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ),
+                    modifier = Modifier.height(30.dp)
+                )
+
+                FilterChip(
+                    selected = (balance == 0.35f && fader == 0.25f),
+                    onClick = { viewModel.setAcousticFocus(0.35f, 0.25f) },
+                    label = { Text("Driver RHD", fontSize = 10.5.sp) },
+                    shape = EqChipShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ),
+                    modifier = Modifier.height(30.dp)
+                )
+
+                FilterChip(
+                    selected = (balance == 0f && fader == 0.5f),
+                    onClick = { viewModel.setAcousticFocus(0f, 0.5f) },
+                    label = { Text("Front", fontSize = 10.5.sp) },
+                    shape = EqChipShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ),
+                    modifier = Modifier.height(30.dp)
+                )
+
+                FilterChip(
+                    selected = (balance == 0f && fader == -0.5f),
+                    onClick = { viewModel.setAcousticFocus(0f, -0.5f) },
+                    label = { Text("Rear", fontSize = 10.5.sp) },
+                    shape = EqChipShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ),
+                    modifier = Modifier.height(30.dp)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                IconButton(
+                    onClick = { viewModel.resetBalanceFader() },
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.RestartAlt,
+                        contentDescription = "Reset Balance and Fader",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // 2D Touch Grid Canvas & Sliders
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Interactive 2D Soundstage Touchpad
+                val primaryColor = MaterialTheme.colorScheme.primary
+                val gridBgColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+
+                Box(
+                    modifier = Modifier
+                        .size(width = 190.dp, height = 130.dp)
+                        .background(gridBgColor, shape = GridBorderShape)
+                        .border(1.dp, gridLineColor, GridBorderShape)
+                        .pointerInput(Unit) {
+                            detectTapGestures { offset ->
+                                val normX = ((offset.x / size.width) * 2f - 1f).coerceIn(-1f, 1f)
+                                val normY = -((offset.y / size.height) * 2f - 1f).coerceIn(-1f, 1f)
+                                viewModel.setBalance(normX)
+                                viewModel.setFader(normY)
+                            }
+                        }
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, _ ->
+                                change.consume()
+                                val normX = ((change.position.x / size.width) * 2f - 1f).coerceIn(-1f, 1f)
+                                val normY = -((change.position.y / size.height) * 2f - 1f).coerceIn(-1f, 1f)
+                                viewModel.setBalance(normX)
+                                viewModel.setFader(normY)
+                            }
+                        }
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
+                        val cx = w / 2f
+                        val cy = h / 2f
+
+                        // Crosshairs
+                        drawLine(
+                            color = gridLineColor,
+                            start = Offset(cx, 0f),
+                            end = Offset(cx, h),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                        drawLine(
+                            color = gridLineColor,
+                            start = Offset(0f, cy),
+                            end = Offset(w, cy),
+                            strokeWidth = 1.dp.toPx()
+                        )
+
+                        // 4 Speaker Corner Indicators
+                        val speakerColor = primaryColor.copy(alpha = 0.35f)
+                        val spRad = 4.dp.toPx()
+                        drawCircle(speakerColor, spRad, Offset(16.dp.toPx(), 16.dp.toPx()))
+                        drawCircle(speakerColor, spRad, Offset(w - 16.dp.toPx(), 16.dp.toPx()))
+                        drawCircle(speakerColor, spRad, Offset(16.dp.toPx(), h - 16.dp.toPx()))
+                        drawCircle(speakerColor, spRad, Offset(w - 16.dp.toPx(), h - 16.dp.toPx()))
+
+                        // Focal Puck Position (balance maps to x, fader maps to -y)
+                        val puckX = cx + balance * (cx - 18.dp.toPx())
+                        val puckY = cy - fader * (cy - 18.dp.toPx())
+
+                        // Outer acoustic halo
+                        drawCircle(
+                            color = primaryColor.copy(alpha = 0.25f),
+                            radius = 16.dp.toPx(),
+                            center = Offset(puckX, puckY)
+                        )
+                        // Inner focal puck
+                        drawCircle(
+                            color = primaryColor,
+                            radius = 8.dp.toPx(),
+                            center = Offset(puckX, puckY)
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 3.dp.toPx(),
+                            center = Offset(puckX, puckY)
+                        )
+                    }
+
+                    // Cabin Axis Labels
+                    Text(
+                        text = "FRONT",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 2.dp)
+                    )
+                    Text(
+                        text = "REAR",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp)
+                    )
+                    Text(
+                        text = "L",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp)
+                    )
+                    Text(
+                        text = "R",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp)
+                    )
+                }
+
+                // Fine Adjustment Sliders
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Balance Slider
+                    val balPercent = (balance * 100).roundToInt()
+                    val balText = when {
+                        balPercent < 0 -> "Left ${-balPercent}%"
+                        balPercent > 0 -> "Right $balPercent%"
+                        else -> "Center"
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Balance (L ↔ R):",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = balText,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Slider(
+                        value = balance,
+                        onValueChange = { viewModel.setBalance(it) },
+                        valueRange = -1.0f..1.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(26.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // Fader Slider
+                    val fadPercent = (fader * 100).roundToInt()
+                    val fadText = when {
+                        fadPercent > 0 -> "Front +$fadPercent%"
+                        fadPercent < 0 -> "Rear ${fadPercent}%"
+                        else -> "Center"
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Fader (Rear ↔ Front):",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = fadText,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Slider(
+                        value = fader,
+                        onValueChange = { viewModel.setFader(it) },
+                        valueRange = -1.0f..1.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(26.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DspCard(
     title: String,
     icon: ImageVector,
@@ -500,8 +809,7 @@ private fun DspCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(EqCardShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), shape = EqCardShape)
             .border(width = 0.8.dp, brush = cardBorder, shape = EqCardShape)
             .padding(12.dp)
     ) {

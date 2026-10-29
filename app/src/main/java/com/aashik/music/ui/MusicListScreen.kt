@@ -37,13 +37,15 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MusicOff
+import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.ViewColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -142,11 +144,14 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
     val isDriveModeOpen by viewModel.isDriveModeOpen.collectAsState()
     val isEqualizerOpen by viewModel.isEqualizerOpen.collectAsState()
+    val isQueueOpen by viewModel.isQueueOpen.collectAsState()
     val favoritePaths by viewModel.favoritePaths.collectAsState()
 
     // Handle system back button
-    BackHandler(enabled = isEqualizerOpen || isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
-        if (isEqualizerOpen) {
+    BackHandler(enabled = isQueueOpen || isEqualizerOpen || isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
+        if (isQueueOpen) {
+            viewModel.closeQueue()
+        } else if (isEqualizerOpen) {
             viewModel.closeEqualizer()
         } else if (isDriveModeOpen) {
             viewModel.closeDriveMode()
@@ -194,7 +199,19 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         }
     }
 
+    var songForActionMenu by remember { mutableStateOf<Song?>(null) }
     var songToDelete by remember { mutableStateOf<Song?>(null) }
+
+    // Song Actions Dialog ("Play Next", "Add to Queue", "Favorite", "Delete")
+    SongActionDialog(
+        song = songForActionMenu,
+        isFavorite = songForActionMenu?.let { favoritePaths.contains(it.path) } == true,
+        onPlayNext = { song -> viewModel.playNext(song) },
+        onAddToQueue = { song -> viewModel.addToQueue(song) },
+        onToggleFavorite = { path -> viewModel.toggleFavorite(path) },
+        onDeleteRequest = { song -> songToDelete = song },
+        onDismiss = { songForActionMenu = null }
+    )
 
     // Reusable Delete Confirmation Dialog
     DeleteSongDialog(
@@ -270,7 +287,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 searchQuery = searchQuery,
                                 gridState = listState,
                                 columns = 1,
-                                onSongLongPress = { songToDelete = it },
+                                onSongLongPress = { songForActionMenu = it },
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -368,7 +385,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                         searchQuery = searchQuery,
                                         gridState = listState,
                                         columns = gridColumns,
-                                        onSongLongPress = { songToDelete = it },
+                                        onSongLongPress = { songForActionMenu = it },
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
@@ -389,6 +406,15 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                     }
                 }
             }
+        }
+
+        // Overlay Slide-over Playback Queue Drawer
+        if (isQueueOpen) {
+            QueueDrawer(
+                viewModel = viewModel,
+                onClose = { viewModel.closeQueue() },
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
@@ -487,6 +513,179 @@ fun MediaLibraryContent(
                 }
             }
         }
+    }
+}
+
+/**
+ * Contextual Song Actions Modal Dialog ("Play Next", "Add to Queue", "Favorite", "Delete").
+ */
+@Composable
+fun SongActionDialog(
+    song: Song?,
+    isFavorite: Boolean,
+    onPlayNext: (Song) -> Unit,
+    onAddToQueue: (Song) -> Unit,
+    onToggleFavorite: (String) -> Unit,
+    onDeleteRequest: (Song) -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (song != null) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Column {
+                    Text(
+                        text = song.title.ifEmpty { "Unknown Title" },
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = song.artist.ifEmpty { "Unknown Artist" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Play Next Button
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onPlayNext(song)
+                                onDismiss()
+                            },
+                        shape = PillShape10,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Play Next (Top of Queue)",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Add to Queue Button
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onAddToQueue(song)
+                                onDismiss()
+                            },
+                        shape = PillShape10,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Add to End of Queue",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Favorite Button
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onToggleFavorite(song.path)
+                                onDismiss()
+                            },
+                        shape = PillShape10,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = null,
+                                tint = if (isFavorite) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Delete Button
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onDismiss()
+                                onDeleteRequest(song)
+                            },
+                        shape = PillShape10,
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DeleteSweep,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Delete Song from Storage",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }
 

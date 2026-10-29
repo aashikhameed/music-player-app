@@ -14,7 +14,7 @@
   Engineered with modern <b>Jetpack Compose</b> and a bare-metal <b>C++17 OpenSL ES native audio engine</b> for flawless 60 FPS playback on low-memory ARM Cortex / Mali GPU automotive hardware.
 </p>
 
-[**Download Latest APK (v0.0.28)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
+[**Download Latest APK (v0.0.29)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
 
 ---
 
@@ -35,7 +35,7 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 | Performance Metric | Measured Value | Industry Standard | Automotive Benchmark Result |
 | :--- | :--- | :--- | :--- |
 | **UI Jank Rate** | **0.84%** (34 / 4,067 frames) | < 5.00% | 🟢 **>99.1% Fluid 60 FPS** |
-| **Release APK Size** | **3.51 MB** (ARM64-v8a) | 25–60 MB | 🟢 **88% Smaller Footprint** |
+| **Release APK Size** | **3.54 MB** (ARM64-v8a) | 25–60 MB | 🟢 **88% Smaller Footprint** |
 | **Java Heap Footprint** | **13.1 MB** | 60–100 MB | 🟢 **Zero Out-Of-Memory Risk** |
 | **Total Memory (PSS)** | **~111 MB** | 200–350 MB | 🟢 **Smooth on 1–2 GB RAM Units** |
 | **Artwork Memory Cache** | **Capped at 2–4 MB** (64×64 RGB_565) | 20–50 MB | 🟢 **8 KB Per Cached Thumbnail** |
@@ -54,6 +54,25 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 - **Live Canvas Equalizer**: In-place 4-bar dynamic equalizer drawn directly on Canvas inside `SongCard`, eliminating Compose `LayoutNode` hierarchy churn.
 - **Adaptive Day & Night Theme**: Instant high-contrast toggle between Solar Amber/Light and Midnight Obsidian/Dark palettes designed for glare resistance and night driving.
 - **Continuous Automotive Digital Clock**: Synchronized clock island with glanceable 12-hour AM/PM indicator.
+
+### 📋 Playback Queue Drawer & "Play Next" Management
+- **Slide-Over Queue Drawer**: Instant slide-out drawer accessible from both landscape and portrait bottom bars without disrupting current playback.
+- **Prioritized User Queue**: Supports **"Play Next"** (inserts track at head of queue) and **"Add to End of Queue"** via contextual song long-press action menu.
+- **Tactile Up/Down Reordering**: Reorder queued tracks on-the-fly with oversized automotive up/down touch buttons.
+- **Queue Notification Badge**: Dock and bottom control strip display active queue badge showing total tracks waiting in line.
+- **Upcoming Playlist Preview**: Clear indicator displaying the next song in rotation once the manual queue finishes.
+
+### 🏎️ Speed-Compensated Volume Control (SCVC / Auto-Volume)
+- **Automatic Noise Compensation**: Automatically scales playback output gain dynamically based on vehicle GPS driving speed to overcome cabin wind, road, and engine noise.
+- **4 Compensation Curves**: Selectable modes: **Off**, **Mild (+3 dB)**, **Moderate (+5 dB)**, and **Dynamic (+7 dB)**.
+- **Sub-15 km/h Silence Threshold**: Prevents unnecessary volume swelling when idling at traffic lights or driving at parking speeds.
+- **Bench / Desk Test Simulation Mode**: Interactive speed slider allowing real-time DSP gain testing on emulator or workbench units without vehicle movement.
+
+### 🎚️ 4-Way Balance & Fader Acoustic Grid
+- **Interactive 2D Cabin Soundstage Grid**: Touchpad and joystick interface to position audio focal point across Front/Rear and Left/Right vehicle quadrants.
+- **Quick Focal Presets**: Instant one-touch presets for **Center Stage**, **Driver Focus (LHD)**, **Driver Focus (RHD)**, **Front Stage**, and **Rear Lounge**.
+- **Dual Fine-Tuning Sliders**: Micro-adjust Left/Right balance and Rear/Front fader presence with percentage readouts.
+- **Zero-Allocation Native DSP**: Integrated directly into OpenSL ES sample processing loop with zero GC overhead.
 
 ### 🚗 Full-Screen Distraction-Free Drive Mode HUD
 - **Blind Gesture Navigation**: Swipe left for Next Song, swipe right for Previous Song, and tap anywhere to Play/Pause.

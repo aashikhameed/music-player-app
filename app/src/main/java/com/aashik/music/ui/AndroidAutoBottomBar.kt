@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -83,6 +84,8 @@ fun AndroidAutoBottomBar(
     // High frequency flows (progress, position) are scoped inside BottomBarTimeCounter and BottomBarSeekBar
     val isPlaying   by viewModel.isPlaying.collectAsState()
     val isShuffleOn by viewModel.isShuffleOn.collectAsState()
+    val isQueueOpen by viewModel.isQueueOpen.collectAsState()
+    val userQueue   by viewModel.userQueue.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val navigatingTrack by viewModel.navigatingTrack.collectAsState()
 
@@ -107,7 +110,7 @@ fun AndroidAutoBottomBar(
             // ─── Segment 1: Combined Track Info & Seeker (Left) ───────────────────
             Row(
                 modifier = Modifier
-                    .weight(0.68f)
+                    .weight(0.65f)
                     .fillMaxHeight()
                     .clip(DockCardShape)
                     .background(brush = capsuleGrad, shape = DockCardShape)
@@ -302,14 +305,14 @@ fun AndroidAutoBottomBar(
             // Never recomposes during playback! Only on button clicks or play/pause state change.
             Row(
                 modifier = Modifier
-                    .weight(0.32f)
+                    .weight(0.35f)
                     .fillMaxHeight()
                     .clip(DockCardShape)
                     .background(brush = capsuleGrad, shape = DockCardShape)
                     .border(width = 0.8.dp, brush = borderBrush, shape = DockCardShape)
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 6.dp),
                 verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
             ) {
                 // Shuffle
                 Box(
@@ -390,6 +393,37 @@ fun AndroidAutoBottomBar(
                         tint               = MaterialTheme.colorScheme.onSurface,
                         modifier           = Modifier.size(26.dp)
                     )
+                }
+
+                // Playback Queue Drawer Button
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isQueueOpen || userQueue.isNotEmpty())
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                            else Color.Transparent
+                        )
+                        .clickable { viewModel.toggleQueue() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector        = Icons.AutoMirrored.Rounded.QueueMusic,
+                        contentDescription = "Playback Queue",
+                        tint               = if (isQueueOpen || userQueue.isNotEmpty()) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                        modifier           = Modifier.size(20.dp)
+                    )
+
+                    if (userQueue.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(6.dp)
+                                .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
+                        )
+                    }
                 }
             }
         }

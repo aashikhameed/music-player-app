@@ -41,6 +41,13 @@ enum VirtualSurroundMode : int32_t {
     SURROUND_WIDE = 2     // Full automotive concert soundstage (+50% side channel)
 };
 
+enum ScvcMode : int32_t {
+    SCVC_OFF = 0,
+    SCVC_MILD = 1,       // +1.0 dB per 30 km/h, max +3 dB
+    SCVC_MODERATE = 2,   // +1.5 dB per 20 km/h, max +5 dB
+    SCVC_DYNAMIC = 3     // +2.0 dB per 15 km/h, max +7 dB
+};
+
 // Second-order Direct Form II Transposed Biquad Filter
 struct BiquadCoeffs {
     float b0 = 1.0f;
@@ -75,6 +82,8 @@ struct BiquadState {
  * - 2nd-order Butterworth Subsonic High-Pass Filter (HPF) to prevent door woofer excursion distortion.
  * - 5-Band Biquad IIR Parametric EQ with dedicated 250 Hz mud-cut filter.
  * - Pre-cut headroom gain (-2.5 dB) to prevent DAC inter-sample clipping on automotive headunit.
+ * - Speed-Compensated Volume Control (SCVC) with gentle speed-dependent acoustic gain.
+ * - 4-Way Balance & Fader soundstage focal positioning.
  * - Lock-free, zero-allocation real-time PCM processing.
  */
 class AudioEqualizer {
@@ -106,6 +115,16 @@ public:
     void setVirtualSurroundMode(int32_t mode);
     int32_t getVirtualSurroundMode() const { return mVirtualSurroundMode.load(std::memory_order_relaxed); }
 
+    void setSpeedCompensation(float speedKmh, int32_t mode);
+    float getSpeedCompensationDb() const { return mSpeedGainDb.load(std::memory_order_relaxed); }
+    int32_t getScvcMode() const { return mScvcMode.load(std::memory_order_relaxed); }
+
+    void setBalance(float balance);
+    float getBalance() const { return mBalance.load(std::memory_order_relaxed); }
+
+    void setFader(float fader);
+    float getFader() const { return mFader.load(std::memory_order_relaxed); }
+
     // In-place 16-bit stereo PCM processing
     void process(int16_t* pcmData, size_t sampleCount, int32_t sampleRate, int32_t channels);
 
@@ -118,6 +137,11 @@ public:
         mTimeAlignmentMode.store(other.mTimeAlignmentMode.load(std::memory_order_relaxed), std::memory_order_relaxed);
         mBassNormalizerMode.store(other.mBassNormalizerMode.load(std::memory_order_relaxed), std::memory_order_relaxed);
         mVirtualSurroundMode.store(other.mVirtualSurroundMode.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mScvcMode.store(other.mScvcMode.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mCurrentSpeedKmh.store(other.mCurrentSpeedKmh.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mSpeedGainDb.store(other.mSpeedGainDb.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mBalance.store(other.mBalance.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        mFader.store(other.mFader.load(std::memory_order_relaxed), std::memory_order_relaxed);
         for (size_t i = 0; i < NUM_BANDS; ++i) {
             mBandGainsDb[i].store(other.mBandGainsDb[i].load(std::memory_order_relaxed), std::memory_order_relaxed);
         }
@@ -134,6 +158,11 @@ private:
     std::atomic<int32_t> mTimeAlignmentMode{ALIGN_OFF};
     std::atomic<int32_t> mBassNormalizerMode{BASS_NORM_OFF};
     std::atomic<int32_t> mVirtualSurroundMode{SURROUND_OFF};
+    std::atomic<int32_t> mScvcMode{SCVC_OFF};
+    std::atomic<float> mCurrentSpeedKmh{0.0f};
+    std::atomic<float> mSpeedGainDb{0.0f};
+    std::atomic<float> mBalance{0.0f};
+    std::atomic<float> mFader{0.0f};
 
     // 5 target frequencies:
     // Band 0: 60 Hz (Sub-bass / Low punch)
