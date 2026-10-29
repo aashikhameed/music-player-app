@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.ViewColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -136,9 +137,15 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         }
     }
 
+    val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
+
     // Handle system back button
-    BackHandler(enabled = selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
-        viewModel.closeFolder()
+    BackHandler(enabled = isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
+        if (isSettingsOpen) {
+            viewModel.closeSettings()
+        } else {
+            viewModel.closeFolder()
+        }
     }
 
     LaunchedEffect(scrollToIndex) {
@@ -186,47 +193,57 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                             .statusBarsPadding()
                             .padding(horizontal = 10.dp, vertical = 8.dp)
                     ) {
-                        // Header Bar with In-Place Search
-                        LibraryModeHeader(
-                            selectedTab = selectedTab,
-                            selectedFolder = selectedFolder,
-                            songCount = songs.size,
-                            folderCount = folders.size,
-                            searchQuery = searchQuery,
-                            onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                            isSearchOpen = isSearchOpen,
-                            onToggleSearch = {
-                                isSearchOpen = !isSearchOpen
-                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                            },
-                            onTabSelected = { viewModel.selectTab(it) },
-                            onBackFolder = { viewModel.closeFolder() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 6.dp)
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .background(brush = AppGradients.card(isActive = false), shape = PortraitSongCardShape)
-                                .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = PortraitSongCardShape)
-                                .padding(8.dp)
-                        ) {
-                            MediaLibraryContent(
+                        if (isSettingsOpen) {
+                            SettingsScreen(
                                 viewModel = viewModel,
+                                onClose = { viewModel.closeSettings() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                            )
+                        } else {
+                            // Header Bar with In-Place Search
+                            LibraryModeHeader(
                                 selectedTab = selectedTab,
                                 selectedFolder = selectedFolder,
-                                folders = folders,
-                                songs = songs,
-                                currentSongId = currentSongId,
+                                songCount = songs.size,
+                                folderCount = folders.size,
                                 searchQuery = searchQuery,
-                                gridState = listState,
-                                columns = 1,
-                                onSongLongPress = { songToDelete = it },
-                                modifier = Modifier.fillMaxSize()
+                                onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                                isSearchOpen = isSearchOpen,
+                                onToggleSearch = {
+                                    isSearchOpen = !isSearchOpen
+                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                },
+                                onTabSelected = { viewModel.selectTab(it) },
+                                onBackFolder = { viewModel.closeFolder() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 6.dp)
                             )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .background(brush = AppGradients.card(isActive = false), shape = PortraitSongCardShape)
+                                    .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = PortraitSongCardShape)
+                                    .padding(8.dp)
+                            ) {
+                                MediaLibraryContent(
+                                    viewModel = viewModel,
+                                    selectedTab = selectedTab,
+                                    selectedFolder = selectedFolder,
+                                    folders = folders,
+                                    songs = songs,
+                                    currentSongId = currentSongId,
+                                    searchQuery = searchQuery,
+                                    gridState = listState,
+                                    columns = 1,
+                                    onSongLongPress = { songToDelete = it },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -261,69 +278,79 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                         Column(
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            // ── Library Panel (songs + header) ──
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .background(brush = AppGradients.card(isActive = false), shape = LandscapeFullSongShape)
-                                    .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = LandscapeFullSongShape)
-                                    .padding(horizontal = 10.dp, vertical = 8.dp)
-                            ) {
-                                val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedFolder != null) && songs.size > 5
-                                if (canScroll) {
-                                    ModernVerticalScrollbar(
-                                        gridState = listState,
-                                        totalItemCount = songs.size,
-                                        modifier = Modifier
-                                            .fillMaxHeight()
-                                            .padding(vertical = 4.dp)
-                                    )
-                                }
-
-                                Column(
+                            if (isSettingsOpen) {
+                                SettingsScreen(
+                                    viewModel = viewModel,
+                                    onClose = { viewModel.closeSettings() },
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight()
-                                        .padding(start = if (canScroll) 6.dp else 0.dp)
+                                        .fillMaxWidth()
+                                )
+                            } else {
+                                // ── Library Panel (songs + header) ──
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                        .background(brush = AppGradients.card(isActive = false), shape = LandscapeFullSongShape)
+                                        .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = LandscapeFullSongShape)
+                                        .padding(horizontal = 10.dp, vertical = 8.dp)
                                 ) {
-                                    // Header: 46dp tall — tab chips + search icon + time/status
-                                    LibraryModeHeader(
-                                        viewModel = viewModel,
-                                        selectedTab = selectedTab,
-                                        selectedFolder = selectedFolder,
-                                        songCount = songs.size,
-                                        folderCount = folders.size,
-                                        searchQuery = searchQuery,
-                                        onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                                        isSearchOpen = isSearchOpen,
-                                        onToggleSearch = {
-                                            isSearchOpen = !isSearchOpen
-                                            if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                        },
-                                        onTabSelected = { viewModel.selectTab(it) },
-                                        onBackFolder = { viewModel.closeFolder() },
+                                    val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedFolder != null) && songs.size > 5
+                                    if (canScroll) {
+                                        ModernVerticalScrollbar(
+                                            gridState = listState,
+                                            totalItemCount = songs.size,
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .padding(vertical = 4.dp)
+                                        )
+                                    }
+
+                                    Column(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = 6.dp)
-                                    )
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                            .padding(start = if (canScroll) 6.dp else 0.dp)
+                                    ) {
+                                        // Header: 46dp tall — tab chips + search icon + time/status
+                                        LibraryModeHeader(
+                                            viewModel = viewModel,
+                                            selectedTab = selectedTab,
+                                            selectedFolder = selectedFolder,
+                                            songCount = songs.size,
+                                            folderCount = folders.size,
+                                            searchQuery = searchQuery,
+                                            onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                                            isSearchOpen = isSearchOpen,
+                                            onToggleSearch = {
+                                                isSearchOpen = !isSearchOpen
+                                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                            },
+                                            onTabSelected = { viewModel.selectTab(it) },
+                                            onBackFolder = { viewModel.closeFolder() },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(bottom = 6.dp)
+                                        )
 
-                                    val gridColumns by viewModel.gridColumns.collectAsState()
+                                        val gridColumns by viewModel.gridColumns.collectAsState()
 
-                                    // Song/folder grid — optimized for automotive touch targets & weak GPUs
-                                    MediaLibraryContent(
-                                        viewModel = viewModel,
-                                        selectedTab = selectedTab,
-                                        selectedFolder = selectedFolder,
-                                        folders = folders,
-                                        songs = songs,
-                                        currentSongId = currentSongId,
-                                        searchQuery = searchQuery,
-                                        gridState = listState,
-                                        columns = gridColumns,
-                                        onSongLongPress = { songToDelete = it },
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                        // Song/folder grid — optimized for automotive touch targets & weak GPUs
+                                        MediaLibraryContent(
+                                            viewModel = viewModel,
+                                            selectedTab = selectedTab,
+                                            selectedFolder = selectedFolder,
+                                            folders = folders,
+                                            songs = songs,
+                                            currentSongId = currentSongId,
+                                            searchQuery = searchQuery,
+                                            gridState = listState,
+                                            columns = gridColumns,
+                                            onSongLongPress = { songToDelete = it },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
                                 }
                             }
 
@@ -776,7 +803,7 @@ fun TopRightStatusClock(
     viewModel: MusicViewModel,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
 
     var currentTime by remember { mutableStateOf(getCurrentTimeWithAmPm()) }
@@ -800,63 +827,6 @@ fun TopRightStatusClock(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        val gridColumns by viewModel.gridColumns.collectAsState()
-
-        // Grid Column Layout Toggle: 2 columns (optimal for low-spec GPU) vs 3 columns
-        IconButton(
-            onClick = { viewModel.toggleGridColumns() },
-            modifier = Modifier.size(28.dp)
-        ) {
-            Icon(
-                imageVector = if (gridColumns == 2) Icons.Rounded.GridView else Icons.Rounded.ViewColumn,
-                contentDescription = "Toggle Grid Columns (${gridColumns} Columns)",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-
-        VerticalDivider(
-            modifier = Modifier.height(18.dp).width(0.6.dp),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-        )
-
-        // Theme Toggle: Sun / Moon
-        IconButton(
-            onClick = { viewModel.toggleTheme() },
-            modifier = Modifier.size(28.dp)
-        ) {
-            Icon(
-                imageVector = if (isDarkTheme) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
-                contentDescription = "Toggle theme",
-                tint = if (isDarkTheme) ThemeSunColor else ThemeMoonColor,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-
-        VerticalDivider(
-            modifier = Modifier.height(18.dp).width(0.6.dp),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-        )
-
-        // Equalizer DSP Button
-        val isEqEnabled by viewModel.isEqualizerEnabled.collectAsState()
-        IconButton(
-            onClick = { viewModel.toggleEqualizerDialog() },
-            modifier = Modifier.size(28.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.GraphicEq,
-                contentDescription = "Equalizer & DSP",
-                tint = if (isEqEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                modifier = Modifier.size(18.dp)
-            )
-        }
-
-        VerticalDivider(
-            modifier = Modifier.height(18.dp).width(0.6.dp),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-        )
-
         // 12-hour clock
         val timeParts = currentTime.split(" ")
         val timeDigits = timeParts.getOrElse(0) { currentTime }
@@ -896,6 +866,24 @@ fun TopRightStatusClock(
                     ) { append(text = amPmLabel) }
                 },
                 color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        VerticalDivider(
+            modifier = Modifier.height(18.dp).width(0.6.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        )
+
+        // Settings Screen Button
+        IconButton(
+            onClick = { viewModel.toggleSettings() },
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Settings,
+                contentDescription = "Settings",
+                tint = if (isSettingsOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(19.dp)
             )
         }
     }

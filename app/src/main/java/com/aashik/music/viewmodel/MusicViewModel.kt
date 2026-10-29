@@ -128,6 +128,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isEqualizerDialogOpen = MutableStateFlow(false)
     val isEqualizerDialogOpen: StateFlow<Boolean> = _isEqualizerDialogOpen.asStateFlow()
 
+    private val _isSettingsOpen = MutableStateFlow(false)
+    val isSettingsOpen: StateFlow<Boolean> = _isSettingsOpen.asStateFlow()
+
     init {
         viewModelScope.launch {
             themePref.isDarkMode.collect {
@@ -247,6 +250,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleEqualizerDialog() {
         _isEqualizerDialogOpen.value = !_isEqualizerDialogOpen.value
+    }
+
+    fun openSettings() {
+        _isSettingsOpen.value = true
+    }
+
+    fun closeSettings() {
+        _isSettingsOpen.value = false
+    }
+
+    fun toggleSettings() {
+        _isSettingsOpen.value = !_isSettingsOpen.value
     }
 
     fun selectTab(tab: LibraryTab) {

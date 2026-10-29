@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.ShuffleOn
 import androidx.compose.material.icons.rounded.SkipNext
@@ -123,29 +124,16 @@ fun BottomControlStrip(
                             )
                         }
 
-                        // Equalizer DSP button in mini banner
-                        val isEqEnabled by viewModel.isEqualizerEnabled.collectAsState()
+                        // Settings button in mini banner (opens all options)
+                        val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
                         IconButton(
-                            onClick = { viewModel.toggleEqualizerDialog() },
+                            onClick = { viewModel.toggleSettings() },
                             modifier = Modifier.size(34.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.GraphicEq,
-                                contentDescription = "Equalizer",
-                                tint = if (isEqEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        // Theme toggle button in mini banner
-                        IconButton(
-                            onClick = { viewModel.toggleTheme() },
-                            modifier = Modifier.size(34.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.LightMode,
-                                contentDescription = "Theme",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                imageVector = Icons.Rounded.Settings,
+                                contentDescription = "Settings",
+                                tint = if (isSettingsOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
