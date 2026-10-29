@@ -69,6 +69,10 @@ class NativeAudioBridge private constructor() {
     external fun getEqualizerBandGain(band: Int): Float
     external fun setEqualizerHpfMode(mode: Int)
     external fun getEqualizerHpfMode(): Int
+    external fun setTimeAlignment(mode: Int)
+    external fun getTimeAlignment(): Int
+    external fun setBassNormalizer(mode: Int)
+    external fun getBassNormalizer(): Int
 
     // ─────────────────────────────────────────────────────────────────────────
     // Callbacks from C++ audio thread (must be non-blocking and post to main thread)

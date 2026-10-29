@@ -28,7 +28,8 @@ import java.io.File
 
 enum class LibraryTab {
     ALL_SONGS,
-    FOLDERS
+    FOLDERS,
+    FAVORITES
 }
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
@@ -131,6 +132,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isSettingsOpen = MutableStateFlow(false)
     val isSettingsOpen: StateFlow<Boolean> = _isSettingsOpen.asStateFlow()
 
+    private val _isDriveModeOpen = MutableStateFlow(false)
+    val isDriveModeOpen: StateFlow<Boolean> = _isDriveModeOpen.asStateFlow()
+
     private val _isRefetching = MutableStateFlow(false)
     val isRefetching: StateFlow<Boolean> = _isRefetching.asStateFlow()
 
@@ -144,6 +148,28 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _autoResume = MutableStateFlow(appPrefs.getBoolean("auto_resume", true))
     val autoResume: StateFlow<Boolean> = _autoResume.asStateFlow()
+
+    // ── Favorites State (persisted in SharedPreferences) ──
+    private val _favoritePaths = MutableStateFlow<Set<String>>(
+        appPrefs.getStringSet("favorite_paths", emptySet())?.toSet() ?: emptySet()
+    )
+    val favoritePaths: StateFlow<Set<String>> = _favoritePaths.asStateFlow()
+
+    // ── Automotive Time Alignment & Bass Normalizer (Alpine DSP) ──
+    private val _timeAlignmentMode = MutableStateFlow(eqPrefs.getInt("time_alignment_mode", 0)) // 0: Center, 1: RHD, 2: LHD
+    val timeAlignmentMode: StateFlow<Int> = _timeAlignmentMode.asStateFlow()
+
+    private val _bassNormalizerMode = MutableStateFlow(eqPrefs.getInt("bass_normalizer_mode", 0)) // 0: Off, 1: Mild, 2: Deep
+    val bassNormalizerMode: StateFlow<Int> = _bassNormalizerMode.asStateFlow()
+
+    // ── Sleep Timer / Battery Saver (Minutes) ──
+    private val _sleepTimerMinutes = MutableStateFlow(0)
+    val sleepTimerMinutes: StateFlow<Int> = _sleepTimerMinutes.asStateFlow()
+
+    private val _sleepTimerRemainingSec = MutableStateFlow(0)
+    val sleepTimerRemainingSec: StateFlow<Int> = _sleepTimerRemainingSec.asStateFlow()
+
+    private var sleepTimerJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -192,6 +218,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 musicPlayer.setEqualizerBandGain(index, gain)
             }
         }
+
+        // Initialize Time Alignment and Bass Normalizer in Native Audio Core
+        musicPlayer.setTimeAlignment(_timeAlignmentMode.value)
+        musicPlayer.setBassNormalizer(_bassNormalizerMode.value)
     }
 
     fun setEqualizerEnabled(enabled: Boolean) {
@@ -280,13 +310,74 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _isSettingsOpen.value = !_isSettingsOpen.value
     }
 
+    fun openDriveMode() {
+        _isDriveModeOpen.value = true
+    }
+
+    fun closeDriveMode() {
+        _isDriveModeOpen.value = false
+    }
+
+    fun toggleDriveMode() {
+        _isDriveModeOpen.value = !_isDriveModeOpen.value
+    }
+
+    fun toggleFavorite(path: String) {
+        val current = _favoritePaths.value.toMutableSet()
+        if (current.contains(path)) {
+            current.remove(path)
+        } else {
+            current.add(path)
+        }
+        _favoritePaths.value = current
+        appPrefs.edit().putStringSet("favorite_paths", current).apply()
+        if (_selectedTab.value == LibraryTab.FAVORITES) {
+            viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
+        }
+    }
+
+    fun isFavorite(path: String): Boolean = _favoritePaths.value.contains(path)
+
+    fun setTimeAlignment(mode: Int) {
+        _timeAlignmentMode.value = mode
+        eqPrefs.edit().putInt("time_alignment_mode", mode).apply()
+        musicPlayer.setTimeAlignment(mode)
+    }
+
+    fun setBassNormalizer(mode: Int) {
+        _bassNormalizerMode.value = mode
+        eqPrefs.edit().putInt("bass_normalizer_mode", mode).apply()
+        musicPlayer.setBassNormalizer(mode)
+    }
+
+    fun setSleepTimer(minutes: Int) {
+        _sleepTimerMinutes.value = minutes
+        sleepTimerJob?.cancel()
+        if (minutes <= 0) {
+            _sleepTimerRemainingSec.value = 0
+            return
+        }
+        _sleepTimerRemainingSec.value = minutes * 60
+        sleepTimerJob = viewModelScope.launch {
+            while (_sleepTimerRemainingSec.value > 0) {
+                kotlinx.coroutines.delay(1000)
+                _sleepTimerRemainingSec.value -= 1
+            }
+            musicPlayer.pause()
+            _sleepTimerMinutes.value = 0
+        }
+    }
+
     fun selectTab(tab: LibraryTab) {
         _selectedTab.value = tab
-        if (tab == LibraryTab.ALL_SONGS) {
-            _selectedFolder.value = null
-            viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
-        } else {
-            updateFolderList()
+        when (tab) {
+            LibraryTab.ALL_SONGS, LibraryTab.FAVORITES -> {
+                _selectedFolder.value = null
+                viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
+            }
+            LibraryTab.FOLDERS -> {
+                updateFolderList()
+            }
         }
     }
 
@@ -335,14 +426,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun applySearchFilter(query: String) {
         val selectedFolder = _selectedFolder.value
-        val baseList = if (selectedFolder != null) {
-            originalSongs.filter {
-                val p = it.path
-                val lastSlash = p.lastIndexOf('/')
-                lastSlash > 0 && p.substring(0, lastSlash) == selectedFolder
+        val tab = _selectedTab.value
+        val baseList = when {
+            tab == LibraryTab.FAVORITES -> {
+                originalSongs.filter { _favoritePaths.value.contains(it.path) }
             }
-        } else {
-            originalSongs
+            selectedFolder != null -> {
+                originalSongs.filter {
+                    val p = it.path
+                    val lastSlash = p.lastIndexOf('/')
+                    lastSlash > 0 && p.substring(0, lastSlash) == selectedFolder
+                }
+            }
+            else -> {
+                originalSongs
+            }
         }
 
         if (query.isBlank()) {

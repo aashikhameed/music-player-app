@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.ViewColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -138,14 +140,27 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     }
 
     val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
+    val isDriveModeOpen by viewModel.isDriveModeOpen.collectAsState()
+    val favoritePaths by viewModel.favoritePaths.collectAsState()
 
     // Handle system back button
-    BackHandler(enabled = isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
-        if (isSettingsOpen) {
+    BackHandler(enabled = isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
+        if (isDriveModeOpen) {
+            viewModel.closeDriveMode()
+        } else if (isSettingsOpen) {
             viewModel.closeSettings()
         } else {
             viewModel.closeFolder()
         }
+    }
+
+    if (isDriveModeOpen) {
+        DriveModeScreen(
+            viewModel = viewModel,
+            onClose = { viewModel.closeDriveMode() },
+            modifier = Modifier.fillMaxSize()
+        )
+        return
     }
 
     LaunchedEffect(scrollToIndex) {
@@ -208,6 +223,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 selectedFolder = selectedFolder,
                                 songCount = songs.size,
                                 folderCount = folders.size,
+                                favoriteCount = favoritePaths.size,
                                 searchQuery = searchQuery,
                                 onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
                                 isSearchOpen = isSearchOpen,
@@ -237,6 +253,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                     folders = folders,
                                     songs = songs,
                                     currentSongId = currentSongId,
+                                    favoritePaths = favoritePaths,
                                     searchQuery = searchQuery,
                                     gridState = listState,
                                     columns = 1,
@@ -320,6 +337,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                             selectedFolder = selectedFolder,
                                             songCount = songs.size,
                                             folderCount = folders.size,
+                                            favoriteCount = favoritePaths.size,
                                             searchQuery = searchQuery,
                                             onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
                                             isSearchOpen = isSearchOpen,
@@ -344,6 +362,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                             folders = folders,
                                             songs = songs,
                                             currentSongId = currentSongId,
+                                            favoritePaths = favoritePaths,
                                             searchQuery = searchQuery,
                                             gridState = listState,
                                             columns = gridColumns,
@@ -385,6 +404,7 @@ fun MediaLibraryContent(
     folders: List<MusicFolder>,
     songs: List<Song>,
     currentSongId: String?,
+    favoritePaths: Set<String>,
     searchQuery: String,
     gridState: LazyGridState,
     columns: Int,
@@ -402,7 +422,7 @@ fun MediaLibraryContent(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),   // 8dp on 1280px wide screen
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 8.dp)
                     ) {
@@ -420,6 +440,9 @@ fun MediaLibraryContent(
                     }
                 }
             }
+            selectedTab == LibraryTab.FAVORITES && songs.isEmpty() -> {
+                EmptyFavoritesView(modifier = Modifier.fillMaxSize())
+            }
             else -> {
                 if (songs.isEmpty()) {
                     EmptySongsView(
@@ -428,29 +451,47 @@ fun MediaLibraryContent(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(columns),
-                        state = gridState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),   // 8dp on 1280px wide screen
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 8.dp)
-                    ) {
-                        items(
-                            items = songs,
-                            key = { it.id },
-                            contentType = { "SongCard" }
-                        ) { song ->
-                            val isPlaying = song.id == currentSongId
-                            val onCardClick = remember(song.id) { { viewModel.play(song) } }
-                            val onCardLongPress = remember(song.id) { { onSongLongPress(song) } }
-                            SongCard(
-                                song = song,
-                                isPlaying = isPlaying,
-                                onClick = onCardClick,
-                                onLongPress = onCardLongPress
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        val showScrubber = (selectedTab == LibraryTab.ALL_SONGS || selectedTab == LibraryTab.FAVORITES) && songs.size > 15
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            state = gridState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = 8.dp, end = if (showScrubber) 28.dp else 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(bottom = 8.dp)
+                        ) {
+                            items(
+                                items = songs,
+                                key = { it.id },
+                                contentType = { "SongCard" }
+                            ) { song ->
+                                val isPlaying = song.id == currentSongId
+                                val onCardClick = remember(song.id) { { viewModel.play(song) } }
+                                val onCardLongPress = remember(song.id) { { onSongLongPress(song) } }
+                                val isFav = favoritePaths.contains(song.path)
+                                val onFavClick = remember(song.path) { { viewModel.toggleFavorite(song.path) } }
+                                SongCard(
+                                    song = song,
+                                    isPlaying = isPlaying,
+                                    onClick = onCardClick,
+                                    onLongPress = onCardLongPress,
+                                    isFavorite = isFav,
+                                    onFavoriteClick = onFavClick
+                                )
+                            }
+                        }
+
+                        if (showScrubber) {
+                            AlphabetScrubber(
+                                songs = songs,
+                                gridState = gridState,
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight()
+                                    .padding(end = 4.dp, top = 2.dp, bottom = 10.dp)
                             )
                         }
                     }
@@ -495,6 +536,7 @@ fun LibraryModeHeader(
     selectedFolder: String?,
     songCount: Int = 0,
     folderCount: Int = 0,
+    favoriteCount: Int = 0,
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
     isSearchOpen: Boolean,
@@ -764,6 +806,52 @@ fun LibraryModeHeader(
                                 labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
+
+                        FilterChip(
+                            selected = selectedTab == LibraryTab.FAVORITES,
+                            onClick = { onTabSelected(LibraryTab.FAVORITES) },
+                            label = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Favorites", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                    if (favoriteCount > 0) {
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Surface(
+                                            color = if (selectedTab == LibraryTab.FAVORITES)
+                                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f)
+                                            else
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            shape = PillShape10
+                                        ) {
+                                            Text(
+                                                text = "$favoriteCount",
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (selectedTab == LibraryTab.FAVORITES)
+                                                    MaterialTheme.colorScheme.onPrimary
+                                                else
+                                                    MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.Star,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            shape = PillShape10,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
                     }
 
                 }
@@ -827,6 +915,24 @@ fun TopRightStatusClock(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        // Drive Mode HUD Button
+        IconButton(
+            onClick = { viewModel.openDriveMode() },
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.DirectionsCar,
+                contentDescription = "Drive HUD",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+
+        VerticalDivider(
+            modifier = Modifier.height(18.dp).width(0.6.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        )
+
         // 12-hour clock
         val timeParts = currentTime.split(" ")
         val timeDigits = timeParts.getOrElse(0) { currentTime }
@@ -884,6 +990,44 @@ fun TopRightStatusClock(
                 contentDescription = "Settings",
                 tint = if (isSettingsOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(19.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun EmptyFavoritesView(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Star,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(64.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "No favorite tracks yet",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Tap the star icon on any song card to pin your favorite tracks here",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
         }
     }

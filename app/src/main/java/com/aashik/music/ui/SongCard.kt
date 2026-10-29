@@ -16,6 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +53,7 @@ private val BadgeLightBg = Color(0xFFE2E8F0)
 private val BadgeDarkText = Color(0xFF94A3B8)
 private val BadgeLightText = Color(0xFF475569)
 private val VignetteBlack = Color.Black.copy(alpha = 0.45f)
+private val FavoriteStarGold = Color(0xFFFFD54F)
 
 @Composable
 fun LiveAnimatedEqualizer(
@@ -89,7 +95,9 @@ fun SongCard(
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
-    cardWidth: Dp? = null
+    cardWidth: Dp? = null,
+    isFavorite: Boolean = false,
+    onFavoriteClick: (() -> Unit)? = null
 ) {
     val widthModifier = if (cardWidth != null) Modifier.width(cardWidth) else Modifier.fillMaxWidth()
     val cardGradient = AppGradients.card(isActive = isPlaying)
@@ -201,6 +209,18 @@ fun SongCard(
                             fontWeight = FontWeight.Bold,
                             color = badgeTextColor,
                             letterSpacing = 0.4.sp
+                        )
+                    }
+
+                    if (onFavoriteClick != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                            contentDescription = if (isFavorite) "Favorite" else "Not favorite",
+                            tint = if (isFavorite) FavoriteStarGold else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            modifier = Modifier
+                                .size(17.dp)
+                                .clickable { onFavoriteClick() }
                         )
                     }
                 }

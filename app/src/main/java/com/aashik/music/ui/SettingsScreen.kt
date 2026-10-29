@@ -104,6 +104,26 @@ private val HPF_NAMES = listOf(
     "80 Hz Cut (Alpine)"
 )
 
+private val TIME_ALIGN_NAMES = listOf(
+    "Center Stage",
+    "RHD Driver (India/UK)",
+    "LHD Driver (US/EU)"
+)
+
+private val BASS_NORM_NAMES = listOf(
+    "Natural Flat",
+    "Mild Dynamic (+2dB)",
+    "Alpine Deep (+4dB)"
+)
+
+private val SLEEP_TIMER_OPTIONS = listOf(0, 15, 30, 45, 60)
+
+private fun formatSleepTimer(sec: Int): String {
+    val m = sec / 60
+    val s = sec % 60
+    return String.format("%02d:%02d", m, s)
+}
+
 private fun formatCacheSize(bytes: Long): String {
     if (bytes <= 0) return "0 KB"
     val kb = bytes / 1024.0
@@ -265,6 +285,7 @@ private fun RefetchSection(viewModel: MusicViewModel) {
     val refetchStatus by viewModel.refetchStatus.collectAsState()
     val songs by viewModel.songs.collectAsState()
     val folders by viewModel.folders.collectAsState()
+    val favoritePaths by viewModel.favoritePaths.collectAsState()
     val cardBorder = AppGradients.border(isActive = false)
 
     Surface(
@@ -311,7 +332,7 @@ private fun RefetchSection(viewModel: MusicViewModel) {
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "${songs.size} Songs • ${folders.size} Folders",
+                        text = "${songs.size} Songs • ${folders.size} Folders • ${favoritePaths.size} Favorites",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -679,6 +700,58 @@ private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
                     )
                 }
             }
+
+            // Parked Battery-Saver / Sleep Timer
+            val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsState()
+            val sleepTimerRemainingSec by viewModel.sleepTimerRemainingSec.collectAsState()
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Parked Battery-Saver (Sleep Timer)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (sleepTimerMinutes > 0)
+                            "Auto-pausing in ${formatSleepTimer(sleepTimerRemainingSec)} to protect car battery"
+                        else
+                            "Auto-pauses playback when listening with engine off",
+                        fontSize = 10.sp,
+                        color = if (sleepTimerMinutes > 0) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SLEEP_TIMER_OPTIONS.forEach { mins ->
+                        val isSelected = (sleepTimerMinutes == mins)
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    shape = ChipPillShape
+                                )
+                                .clickable { viewModel.setSleepTimer(mins) }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (mins == 0) "Off" else "${mins}m",
+                                fontSize = 9.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -921,6 +994,90 @@ private fun AudioDspSection(viewModel: MusicViewModel) {
                             Text(
                                 text = label,
                                 fontSize = 9.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onSecondary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Driver Soundstage Time Alignment (Alpine DSP Micro-Delay)
+            val timeAlign by viewModel.timeAlignmentMode.collectAsState()
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Driver Soundstage Time Alignment (Cabin Micro-Delay):",
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    TIME_ALIGN_NAMES.forEachIndexed { index, name ->
+                        val isSelected = (timeAlign == index)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(
+                                    if (isSelected && isEnabled) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    shape = ChipPillShape
+                                )
+                                .clickable(enabled = isEnabled) { viewModel.setTimeAlignment(index) }
+                                .padding(vertical = 5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = name,
+                                fontSize = 8.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Bass Normalizer & Loudness Contour
+            val bassNorm by viewModel.bassNormalizerMode.collectAsState()
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Acoustic Bass Normalizer & Dynamic Loudness Contour:",
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    BASS_NORM_NAMES.forEachIndexed { index, name ->
+                        val isSelected = (bassNorm == index)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(
+                                    if (isSelected && isEnabled) MaterialTheme.colorScheme.secondary
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    shape = ChipPillShape
+                                )
+                                .clickable(enabled = isEnabled) { viewModel.setBassNormalizer(index) }
+                                .padding(vertical = 5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = name,
+                                fontSize = 8.5.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected && isEnabled) MaterialTheme.colorScheme.onSecondary
                                 else MaterialTheme.colorScheme.onSurfaceVariant

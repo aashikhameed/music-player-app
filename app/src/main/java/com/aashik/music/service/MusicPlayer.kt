@@ -284,6 +284,18 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     fun getEqualizerHpfMode(): Int = nativeBridge.getEqualizerHpfMode()
 
+    fun setTimeAlignment(mode: Int) {
+        nativeBridge.setTimeAlignment(mode)
+    }
+
+    fun getTimeAlignment(): Int = nativeBridge.getTimeAlignment()
+
+    fun setBassNormalizer(mode: Int) {
+        nativeBridge.setBassNormalizer(mode)
+    }
+
+    fun getBassNormalizer(): Int = nativeBridge.getBassNormalizer()
+
     fun release() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         nativeBridge.setListener(null)

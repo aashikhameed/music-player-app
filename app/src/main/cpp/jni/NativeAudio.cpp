@@ -239,6 +239,30 @@ Java_com_aashik_music_nativeaudio_NativeAudioBridge_getEqualizerHpfMode(
     return static_cast<jint>(audio::AudioPlayer::getInstance().getEqualizer().getHpfMode());
 }
 
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setTimeAlignment(
+    JNIEnv* env, jobject thiz, jint mode) {
+    audio::AudioPlayer::getInstance().getEqualizer().setTimeAlignmentMode(mode);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getTimeAlignment(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jint>(audio::AudioPlayer::getInstance().getEqualizer().getTimeAlignmentMode());
+}
+
+JNIEXPORT void JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_setBassNormalizer(
+    JNIEnv* env, jobject thiz, jint mode) {
+    audio::AudioPlayer::getInstance().getEqualizer().setBassNormalizerMode(mode);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_aashik_music_nativeaudio_NativeAudioBridge_getBassNormalizer(
+    JNIEnv* env, jobject thiz) {
+    return static_cast<jint>(audio::AudioPlayer::getInstance().getEqualizer().getBassNormalizerMode());
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Compatibility Aliases for prompt specification com.example.musicplayer.NativeAudio
 // ─────────────────────────────────────────────────────────────────────────────
@@ -359,6 +383,30 @@ JNIEXPORT jint JNICALL
 Java_com_example_musicplayer_NativeAudio_getEqualizerHpfMode(
     JNIEnv* env, jobject thiz) {
     return Java_com_aashik_music_nativeaudio_NativeAudioBridge_getEqualizerHpfMode(env, thiz);
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_musicplayer_NativeAudio_setTimeAlignment(
+    JNIEnv* env, jobject thiz, jint mode) {
+    Java_com_aashik_music_nativeaudio_NativeAudioBridge_setTimeAlignment(env, thiz, mode);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_example_musicplayer_NativeAudio_getTimeAlignment(
+    JNIEnv* env, jobject thiz) {
+    return Java_com_aashik_music_nativeaudio_NativeAudioBridge_getTimeAlignment(env, thiz);
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_musicplayer_NativeAudio_setBassNormalizer(
+    JNIEnv* env, jobject thiz, jint mode) {
+    Java_com_aashik_music_nativeaudio_NativeAudioBridge_setBassNormalizer(env, thiz, mode);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_example_musicplayer_NativeAudio_getBassNormalizer(
+    JNIEnv* env, jobject thiz) {
+    return Java_com_aashik_music_nativeaudio_NativeAudioBridge_getBassNormalizer(env, thiz);
 }
 
 } // extern "C"

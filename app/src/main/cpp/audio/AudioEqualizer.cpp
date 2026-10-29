@@ -108,6 +108,14 @@ void AudioEqualizer::setHpfMode(int32_t mode) {
     mCoeffsDirty.store(true, std::memory_order_release);
 }
 
+void AudioEqualizer::setTimeAlignmentMode(int32_t mode) {
+    mTimeAlignmentMode.store(mode, std::memory_order_relaxed);
+}
+
+void AudioEqualizer::setBassNormalizerMode(int32_t mode) {
+    mBassNormalizerMode.store(mode, std::memory_order_relaxed);
+}
+
 void AudioEqualizer::reset() {
     for (size_t ch = 0; ch < MAX_CHANNELS; ++ch) {
         for (size_t b = 0; b < NUM_BANDS; ++b) {
@@ -115,6 +123,10 @@ void AudioEqualizer::reset() {
         }
         mHpfStates[ch].reset();
     }
+    mDelayBufferL.fill(0.0f);
+    mDelayBufferR.fill(0.0f);
+    mDelayIndexL = 0;
+    mDelayIndexR = 0;
 }
 
 static BiquadCoeffs computeLowShelf(float f0, float fs, float gainDb, float Q) {
@@ -285,6 +297,8 @@ void AudioEqualizer::process(int16_t* pcmData, size_t sampleCount, int32_t sampl
     }
 
     int32_t hpf = mHpfMode.load(std::memory_order_relaxed);
+    int32_t timeAlign = mTimeAlignmentMode.load(std::memory_order_relaxed);
+    int32_t bassNorm = mBassNormalizerMode.load(std::memory_order_relaxed);
     bool applyHpf = (hpf != HPF_OFF);
     size_t numChannels = (channels == 1) ? 1 : 2;
 
@@ -312,6 +326,33 @@ void AudioEqualizer::process(int16_t* pcmData, size_t sampleCount, int32_t sampl
                 sampleR = mBandStates[1][b].process(sampleR, mBandCoeffs[b]);
             }
 
+            // Bass Normalizer & Dynamic Loudness Contour
+            if (bassNorm != BASS_NORM_OFF) {
+                float contour = (bassNorm == BASS_NORM_DEEP) ? 1.35f : 1.18f;
+                sampleL *= contour;
+                sampleR *= contour;
+                // Warm acoustic soft knee
+                if (sampleL > 28000.0f) sampleL = 28000.0f + (sampleL - 28000.0f) * 0.45f;
+                else if (sampleL < -28000.0f) sampleL = -28000.0f + (sampleL + 28000.0f) * 0.45f;
+                if (sampleR > 28000.0f) sampleR = 28000.0f + (sampleR - 28000.0f) * 0.45f;
+                else if (sampleR < -28000.0f) sampleR = -28000.0f + (sampleR + 28000.0f) * 0.45f;
+            }
+
+            // Driver Seat Soundstage Time Alignment (~1.0 ms micro-delay)
+            if (timeAlign == ALIGN_DRIVER_RHD) {
+                // Delay Right channel so sound reaches driver simultaneously with Left speaker
+                float delayedR = mDelayBufferR[mDelayIndexR];
+                mDelayBufferR[mDelayIndexR] = sampleR;
+                mDelayIndexR = (mDelayIndexR + 1) % TIME_ALIGN_DELAY_SAMPLES;
+                sampleR = delayedR;
+            } else if (timeAlign == ALIGN_DRIVER_LHD) {
+                // Delay Left channel for LHD driver seat
+                float delayedL = mDelayBufferL[mDelayIndexL];
+                mDelayBufferL[mDelayIndexL] = sampleL;
+                mDelayIndexL = (mDelayIndexL + 1) % TIME_ALIGN_DELAY_SAMPLES;
+                sampleL = delayedL;
+            }
+
             // Soft saturation / clamping back to 16-bit signed PCM
             pcmData[idxL] = static_cast<int16_t>(std::clamp(sampleL, -32767.0f, 32767.0f));
             pcmData[idxR] = static_cast<int16_t>(std::clamp(sampleR, -32767.0f, 32767.0f));
@@ -327,6 +368,13 @@ void AudioEqualizer::process(int16_t* pcmData, size_t sampleCount, int32_t sampl
 
             for (size_t b = 0; b < NUM_BANDS; ++b) {
                 sample = mBandStates[0][b].process(sample, mBandCoeffs[b]);
+            }
+
+            if (bassNorm != BASS_NORM_OFF) {
+                float contour = (bassNorm == BASS_NORM_DEEP) ? 1.35f : 1.18f;
+                sample *= contour;
+                if (sample > 28000.0f) sample = 28000.0f + (sample - 28000.0f) * 0.45f;
+                else if (sample < -28000.0f) sample = -28000.0f + (sample + 28000.0f) * 0.45f;
             }
 
             pcmData[s] = static_cast<int16_t>(std::clamp(sample, -32767.0f, 32767.0f));

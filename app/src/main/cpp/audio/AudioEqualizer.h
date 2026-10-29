@@ -23,6 +23,18 @@ enum HpfMode : int32_t {
     HPF_80HZ = 2 // Recommended for Alpine door speakers
 };
 
+enum TimeAlignmentMode : int32_t {
+    ALIGN_OFF = 0,
+    ALIGN_DRIVER_RHD = 1, // Delays Right speaker (~1.0ms) for RHD driver seat
+    ALIGN_DRIVER_LHD = 2  // Delays Left speaker (~1.0ms) for LHD driver seat
+};
+
+enum BassNormalizerMode : int32_t {
+    BASS_NORM_OFF = 0,
+    BASS_NORM_MILD = 1,   // Dynamic +2 dB low-end contour & peak control
+    BASS_NORM_DEEP = 2    // Full Alpine Deep Loudness (+4 dB warmth)
+};
+
 // Second-order Direct Form II Transposed Biquad Filter
 struct BiquadCoeffs {
     float b0 = 1.0f;
@@ -79,6 +91,12 @@ public:
     void setHpfMode(int32_t mode);
     int32_t getHpfMode() const { return mHpfMode.load(std::memory_order_relaxed); }
 
+    void setTimeAlignmentMode(int32_t mode);
+    int32_t getTimeAlignmentMode() const { return mTimeAlignmentMode.load(std::memory_order_relaxed); }
+
+    void setBassNormalizerMode(int32_t mode);
+    int32_t getBassNormalizerMode() const { return mBassNormalizerMode.load(std::memory_order_relaxed); }
+
     // In-place 16-bit stereo PCM processing
     void process(int16_t* pcmData, size_t sampleCount, int32_t sampleRate, int32_t channels);
 
@@ -91,6 +109,8 @@ private:
     std::atomic<bool> mEnabled{true};
     std::atomic<int32_t> mCurrentPreset{PRESET_ALPINE_CLARITY};
     std::atomic<int32_t> mHpfMode{HPF_80HZ};
+    std::atomic<int32_t> mTimeAlignmentMode{ALIGN_OFF};
+    std::atomic<int32_t> mBassNormalizerMode{BASS_NORM_OFF};
 
     // 5 target frequencies:
     // Band 0: 60 Hz (Sub-bass / Low punch)
@@ -120,6 +140,13 @@ private:
     // Filter states per channel (L / R)
     std::array<std::array<BiquadState, NUM_BANDS>, MAX_CHANNELS> mBandStates{};
     std::array<BiquadState, MAX_CHANNELS> mHpfStates{};
+
+    // Time-alignment circular delay line (~1.0 ms delay buffer, 48 samples)
+    static constexpr size_t TIME_ALIGN_DELAY_SAMPLES = 48;
+    std::array<float, TIME_ALIGN_DELAY_SAMPLES> mDelayBufferL{};
+    std::array<float, TIME_ALIGN_DELAY_SAMPLES> mDelayBufferR{};
+    size_t mDelayIndexL = 0;
+    size_t mDelayIndexR = 0;
 };
 
 } // namespace audio
