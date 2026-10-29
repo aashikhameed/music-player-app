@@ -24,8 +24,6 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.ShuffleOn
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -53,7 +51,6 @@ private val ArtPlaceholderShape = RoundedCornerShape(10.dp)
 private val StatusPlayingGreen = Color(0xFF00E676)
 private val StatusDarkGray = Color(0xFF475569)
 private val StatusLightGray = Color(0xFFB0BEC5)
-private val StarGold = Color(0xFFFFD54F)
 
 /**
  * Premium Automotive Media Dock — Blaupunkt Santa Rosa 985 (1280x720 @ 160 dpi)
@@ -76,8 +73,6 @@ fun AndroidAutoBottomBar(
     val isPlaying   by viewModel.isPlaying.collectAsState()
     val isShuffleOn by viewModel.isShuffleOn.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
-    val favoritePaths by viewModel.favoritePaths.collectAsState()
-    val isFavorite = currentSong?.path?.let { favoritePaths.contains(it) } ?: false
 
     val isDark          = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val capsuleGrad     = AppGradients.capsule(isActive = false)
@@ -238,28 +233,6 @@ fun AndroidAutoBottomBar(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
             ) {
-                // Favorite Star
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isFavorite)
-                                StarGold.copy(alpha = 0.18f)
-                            else Color.Transparent
-                        )
-                        .clickable { currentSong?.path?.let { viewModel.toggleFavorite(it) } },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector        = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                        contentDescription = "Favorite",
-                        tint               = if (isFavorite) StarGold
-                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                        modifier           = Modifier.size(20.dp)
-                    )
-                }
-
                 // Shuffle
                 Box(
                     modifier = Modifier

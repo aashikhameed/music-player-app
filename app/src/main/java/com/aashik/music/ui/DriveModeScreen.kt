@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,12 +83,21 @@ fun DriveModeScreen(
     val favoritePaths by viewModel.favoritePaths.collectAsState()
     val isFavorite = currentSong?.path?.let { favoritePaths.contains(it) } ?: false
 
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val hudBg = if (isDark) DriveHudBackground else MaterialTheme.colorScheme.background
+    val primaryTextColor = if (isDark) Color.White else MaterialTheme.colorScheme.onBackground
+    val secondaryTextColor = if (isDark) Color.White.copy(alpha = 0.65f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val hintTextColor = if (isDark) Color.White.copy(alpha = 0.45f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+    val controlIconColor = if (isDark) Color.White else MaterialTheme.colorScheme.onBackground
+    val controlInactiveColor = if (isDark) Color.White.copy(alpha = 0.65f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+
     var accumulatedDrag by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(color = DriveHudBackground, shape = DriveHudContainerShape)
+            .background(color = hudBg, shape = DriveHudContainerShape)
+            .statusBarsPadding()
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
@@ -128,7 +139,8 @@ fun DriveModeScreen(
                     onClick = onClose,
                     shape = ExitButtonShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        containerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                         else MaterialTheme.colorScheme.surfaceVariant,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     modifier = Modifier.height(40.dp)
@@ -217,7 +229,7 @@ fun DriveModeScreen(
                         text = currentSong?.title ?: "No Song Playing",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Black,
-                        color = Color.White,
+                        color = primaryTextColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -238,7 +250,7 @@ fun DriveModeScreen(
                     Text(
                         text = currentSong?.album.orEmpty(),
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = secondaryTextColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -248,7 +260,7 @@ fun DriveModeScreen(
                     Text(
                         text = "Swipe ← / → to change track • Double-tap to pause",
                         fontSize = 10.5.sp,
-                        color = Color.White.copy(alpha = 0.45f)
+                        color = hintTextColor
                     )
                 }
             }
@@ -261,7 +273,7 @@ fun DriveModeScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Favorite Star Button
+                // Favorite Heart Button
                 IconButton(
                     onClick = {
                         currentSong?.path?.let { viewModel.toggleFavorite(it) }
@@ -271,7 +283,7 @@ fun DriveModeScreen(
                     Icon(
                         imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                         contentDescription = "Toggle Favorite",
-                        tint = if (isFavorite) FavoriteRedColor else Color.White.copy(alpha = 0.7f),
+                        tint = if (isFavorite) FavoriteRedColor else controlInactiveColor,
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -284,7 +296,7 @@ fun DriveModeScreen(
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = "Previous Song",
-                        tint = Color.White,
+                        tint = controlIconColor,
                         modifier = Modifier.size(46.dp)
                     )
                 }
@@ -322,7 +334,7 @@ fun DriveModeScreen(
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
                         contentDescription = "Next Song",
-                        tint = Color.White,
+                        tint = controlIconColor,
                         modifier = Modifier.size(46.dp)
                     )
                 }
@@ -337,7 +349,7 @@ fun DriveModeScreen(
                         text = if (isShuffleOn) "SHUF" else "SEQ",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Black,
-                        color = if (isShuffleOn) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.5f)
+                        color = if (isShuffleOn) MaterialTheme.colorScheme.primary else controlInactiveColor
                     )
                 }
             }

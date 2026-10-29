@@ -42,12 +42,11 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.ViewColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -100,6 +99,7 @@ private val ThemeMoonColor = Color(0xFF7986CB)
 private val ClockPlayingGreen = Color(0xFF00E676)
 private val ClockDarkGray = Color(0xFF455A64)
 private val ClockLightGray = Color(0xFFB0BEC5)
+private val FavoriteHeartRed = Color(0xFFFF5252)
 
 @Composable
 fun MusicListScreen(viewModel: MusicViewModel) {
@@ -699,166 +699,148 @@ fun LibraryModeHeader(
                         }
                     }
                 } else {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        FilterChip(
-                            selected = selectedTab == LibraryTab.ALL_SONGS,
-                            onClick = { onTabSelected(LibraryTab.ALL_SONGS) },
-                            label = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("All Songs", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                                    if (songCount > 0) {
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Surface(
-                                            color = if (selectedTab == LibraryTab.ALL_SONGS)
-                                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f)
-                                             else
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            shape = PillShape10
-                                        ) {
-                                            Text(
-                                                text = "$songCount",
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (selectedTab == LibraryTab.ALL_SONGS)
-                                                    MaterialTheme.colorScheme.onPrimary
-                                                else
-                                                    MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            shape = PillShape10,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
-
-                        FilterChip(
-                            selected = selectedTab == LibraryTab.FOLDERS,
-                            onClick = { onTabSelected(LibraryTab.FOLDERS) },
-                            label = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Folders", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                                    if (folderCount > 0) {
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Surface(
-                                            color = if (selectedTab == LibraryTab.FOLDERS)
-                                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f)
-                                            else
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            shape = PillShape10
-                                        ) {
-                                            Text(
-                                                text = "$folderCount",
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (selectedTab == LibraryTab.FOLDERS)
-                                                    MaterialTheme.colorScheme.onPrimary
-                                                else
-                                                    MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.Folder,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            shape = PillShape10,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
-
-                        FilterChip(
-                            selected = selectedTab == LibraryTab.FAVORITES,
-                            onClick = { onTabSelected(LibraryTab.FAVORITES) },
-                            label = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Favorites", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                                    if (favoriteCount > 0) {
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Surface(
-                                            color = if (selectedTab == LibraryTab.FAVORITES)
-                                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f)
-                                            else
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            shape = PillShape10
-                                        ) {
-                                            Text(
-                                                text = "$favoriteCount",
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (selectedTab == LibraryTab.FAVORITES)
-                                                    MaterialTheme.colorScheme.onPrimary
-                                                else
-                                                    MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.Star,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            shape = PillShape10,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
+                    // Left Section Title & Count Badge
+                    val (sectionTitle, sectionCount) = when (selectedTab) {
+                        LibraryTab.ALL_SONGS -> "All Songs" to songCount
+                        LibraryTab.FOLDERS -> "Folders" to folderCount
+                        LibraryTab.FAVORITES -> "Favorites" to favoriteCount
                     }
 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = sectionTitle,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        if (sectionCount > 0) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                shape = PillShape10
+                            ) {
+                                Text(
+                                    text = "$sectionCount",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
                 }
 
-                // Top Right Action Cluster: Search + Status Clock
+                // Top Right Action Cluster: Navigation Mode Icons + Search + Status Clock
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IconButton(
-                        onClick = onToggleSearch,
-                        modifier = Modifier.size(36.dp)
+                    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+                    // Compact Navigation & Search Capsule
+                    Row(
+                        modifier = Modifier
+                            .height(38.dp)
+                            .background(brush = capsuleGrad, shape = PillShape10)
+                            .border(width = 0.8.dp, brush = borderBrush, shape = PillShape10)
+                            .padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                        // 1. All Songs Icon Button
+                        val isAllSongs = selectedTab == LibraryTab.ALL_SONGS
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isAllSongs)
+                                        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.25f else 0.18f)
+                                    else Color.Transparent
+                                )
+                                .clickable { onTabSelected(LibraryTab.ALL_SONGS) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                                contentDescription = "All Songs",
+                                tint = if (isAllSongs) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+
+                        // 2. Folders Icon Button
+                        val isFolders = selectedTab == LibraryTab.FOLDERS
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isFolders)
+                                        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.25f else 0.18f)
+                                    else Color.Transparent
+                                )
+                                .clickable { onTabSelected(LibraryTab.FOLDERS) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Folder,
+                                contentDescription = "Folders",
+                                tint = if (isFolders) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+
+                        // 3. Favorites Heart Icon Button
+                        val isFavorites = selectedTab == LibraryTab.FAVORITES
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isFavorites)
+                                        FavoriteHeartRed.copy(alpha = if (isDark) 0.25f else 0.18f)
+                                    else Color.Transparent
+                                )
+                                .clickable { onTabSelected(LibraryTab.FAVORITES) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorites) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = "Favorites",
+                                tint = if (isFavorites) FavoriteHeartRed
+                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+
+                        VerticalDivider(
+                            modifier = Modifier
+                                .height(18.dp)
+                                .width(0.6.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                         )
+
+                        // 4. Search Icon Button
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .clickable(onClick = onToggleSearch),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
                     }
 
                     if (viewModel != null) {
@@ -995,9 +977,9 @@ fun EmptyFavoritesView(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(24.dp)
         ) {
             Icon(
-                imageVector = Icons.Rounded.Star,
+                imageVector = Icons.Rounded.Favorite,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = FavoriteHeartRed.copy(alpha = 0.6f),
                 modifier = Modifier.size(64.dp)
             )
 
@@ -1012,7 +994,7 @@ fun EmptyFavoritesView(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Tap the star icon on any song card to pin your favorite tracks here",
+                text = "Tap the heart icon on any song card to pin your favorite tracks here",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

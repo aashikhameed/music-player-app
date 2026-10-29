@@ -18,8 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -53,7 +53,7 @@ private val BadgeLightBg = Color(0xFFE2E8F0)
 private val BadgeDarkText = Color(0xFF94A3B8)
 private val BadgeLightText = Color(0xFF475569)
 private val VignetteBlack = Color.Black.copy(alpha = 0.45f)
-private val FavoriteStarGold = Color(0xFFFFD54F)
+private val FavoriteHeartRed = Color(0xFFFF5252)
 
 @Composable
 fun LiveAnimatedEqualizer(
@@ -215,9 +215,9 @@ fun SongCard(
                     if (onFavoriteClick != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Icon(
-                            imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                             contentDescription = if (isFavorite) "Favorite" else "Not favorite",
-                            tint = if (isFavorite) FavoriteStarGold else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            tint = if (isFavorite) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                             modifier = Modifier
                                 .size(17.dp)
                                 .clickable { onFavoriteClick() }
