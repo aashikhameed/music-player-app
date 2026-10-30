@@ -501,4 +501,182 @@ object OnlineStreamRepository {
 
         filtered
     }
+
+    suspend fun searchPlaylists(query: String, limit: Int = 8): List<ExploreShelfItem> = withContext(Dispatchers.IO) {
+        val q = query.trim()
+        if (q.isBlank()) return@withContext emptyList()
+        var conn: HttpURLConnection? = null
+        try {
+            val encodedQuery = URLEncoder.encode(q, "UTF-8")
+            val urlString = "$API_BASE?__call=search.getPlaylistResults&_format=json&_marker=0&api_version=4&ctx=android&q=$encodedQuery&p=1&n=$limit"
+            val url = URL(urlString)
+            conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 4000
+                readTimeout = 5000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                setRequestProperty("Accept", "application/json")
+            }
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val text = conn.inputStream.bufferedReader().use(BufferedReader::readText)
+                val root = JSONObject(text)
+                val arr = root.optJSONArray("results") ?: return@withContext emptyList()
+                val list = ArrayList<ExploreShelfItem>(arr.length())
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i) ?: continue
+                    val id = item.optString("id", "")
+                    val title = unescapeHtml(item.optString("title", ""))
+                    if (id.isBlank() || title.isBlank()) continue
+                    val subtitle = unescapeHtml(item.optString("subtitle", "Playlist"))
+                    val image = item.optString("image", "").replace("150x150", "500x500")
+                    list.add(ExploreShelfItem(id = id, title = title, subtitle = subtitle, artworkUrl = image, type = "playlist"))
+                }
+                return@withContext list
+            }
+            emptyList()
+        } catch (e: Exception) {
+            Log.w(TAG, "searchPlaylists failed: ${e.message}")
+            emptyList()
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    suspend fun searchAlbums(query: String, limit: Int = 8): List<ExploreShelfItem> = withContext(Dispatchers.IO) {
+        val q = query.trim()
+        if (q.isBlank()) return@withContext emptyList()
+        var conn: HttpURLConnection? = null
+        try {
+            val encodedQuery = URLEncoder.encode(q, "UTF-8")
+            val urlString = "$API_BASE?__call=search.getAlbumResults&_format=json&_marker=0&api_version=4&ctx=android&q=$encodedQuery&p=1&n=$limit"
+            val url = URL(urlString)
+            conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 4000
+                readTimeout = 5000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                setRequestProperty("Accept", "application/json")
+            }
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val text = conn.inputStream.bufferedReader().use(BufferedReader::readText)
+                val root = JSONObject(text)
+                val arr = root.optJSONArray("results") ?: return@withContext emptyList()
+                val list = ArrayList<ExploreShelfItem>(arr.length())
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i) ?: continue
+                    val id = item.optString("id", "")
+                    val title = unescapeHtml(item.optString("title", ""))
+                    if (id.isBlank() || title.isBlank()) continue
+                    val subtitle = unescapeHtml(item.optString("subtitle", "Album"))
+                    val image = item.optString("image", "").replace("150x150", "500x500")
+                    list.add(ExploreShelfItem(id = id, title = title, subtitle = subtitle, artworkUrl = image, type = "album"))
+                }
+                return@withContext list
+            }
+            emptyList()
+        } catch (e: Exception) {
+            Log.w(TAG, "searchAlbums failed: ${e.message}")
+            emptyList()
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    suspend fun fetchPlaylistSongs(listId: String): List<Song> = withContext(Dispatchers.IO) {
+        if (listId.isBlank()) return@withContext emptyList()
+        var conn: HttpURLConnection? = null
+        try {
+            val urlString = "$API_BASE?__call=playlist.getDetails&_format=json&_marker=0&api_version=4&ctx=android&listid=$listId"
+            val url = URL(urlString)
+            conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 4000
+                readTimeout = 5000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                setRequestProperty("Accept", "application/json")
+            }
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val text = conn.inputStream.bufferedReader().use(BufferedReader::readText)
+                val root = JSONObject(text)
+                val arr = root.optJSONArray("list") ?: root.optJSONArray("songs") ?: return@withContext emptyList()
+                val songs = ArrayList<Song>(arr.length())
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i) ?: continue
+                    val song = parseSongItem(item) ?: continue
+                    songs.add(song)
+                }
+                return@withContext songs
+            }
+            emptyList()
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchPlaylistSongs failed: ${e.message}")
+            emptyList()
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    suspend fun fetchAlbumSongs(albumId: String): List<Song> = withContext(Dispatchers.IO) {
+        if (albumId.isBlank()) return@withContext emptyList()
+        var conn: HttpURLConnection? = null
+        try {
+            val urlString = "$API_BASE?__call=content.getAlbumDetails&_format=json&_marker=0&api_version=4&ctx=android&albumid=$albumId"
+            val url = URL(urlString)
+            conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 4000
+                readTimeout = 5000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                setRequestProperty("Accept", "application/json")
+            }
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val text = conn.inputStream.bufferedReader().use(BufferedReader::readText)
+                val root = JSONObject(text)
+                val arr = root.optJSONArray("list") ?: root.optJSONArray("songs") ?: return@withContext emptyList()
+                val songs = ArrayList<Song>(arr.length())
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i) ?: continue
+                    val song = parseSongItem(item) ?: continue
+                    songs.add(song)
+                }
+                return@withContext songs
+            }
+            emptyList()
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchAlbumSongs failed: ${e.message}")
+            emptyList()
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    suspend fun fetchCategoryDetails(genre: String): ExploreCategoryDetails = withContext(Dispatchers.IO) {
+        val songs = searchSongs("$genre Top Songs", limit = 10)
+        val featuredPlaylists = searchPlaylists(genre, limit = 8)
+        val communityPlaylists = searchPlaylists("$genre Hits", limit = 8).ifEmpty { searchPlaylists("$genre Viral", limit = 8) }
+        val albums = searchAlbums(genre, limit = 8)
+        ExploreCategoryDetails(
+            genre = genre,
+            songs = songs,
+            featuredPlaylists = featuredPlaylists,
+            communityPlaylists = communityPlaylists,
+            albums = albums
+        )
+    }
 }
+
+data class ExploreShelfItem(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val artworkUrl: String,
+    val type: String
+)
+
+data class ExploreCategoryDetails(
+    val genre: String,
+    val songs: List<Song>,
+    val featuredPlaylists: List<ExploreShelfItem>,
+    val communityPlaylists: List<ExploreShelfItem>,
+    val albums: List<ExploreShelfItem>
+)

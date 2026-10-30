@@ -201,6 +201,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _categorySongs = MutableStateFlow<List<Song>>(emptyList())
     val categorySongs: StateFlow<List<Song>> = _categorySongs.asStateFlow()
 
+    private val _exploreCategoryDetails = MutableStateFlow<com.aashik.music.service.ExploreCategoryDetails?>(null)
+    val exploreCategoryDetails: StateFlow<com.aashik.music.service.ExploreCategoryDetails?> = _exploreCategoryDetails.asStateFlow()
+
     private val _isLoadingCategorySongs = MutableStateFlow(false)
     val isLoadingCategorySongs: StateFlow<Boolean> = _isLoadingCategorySongs.asStateFlow()
 
@@ -793,17 +796,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun openRadioCategory(category: RadioCategory) {
         _selectedRadioCategory.value = category
         _categorySongs.value = emptyList()
+        _exploreCategoryDetails.value = null
         categorySearchJob?.cancel()
         categorySearchJob = viewModelScope.launch {
             _isLoadingCategorySongs.value = true
             try {
-                val query = "${category.title} Hits"
-                val results = OnlineStreamRepository.searchSongs(query, limit = 20)
-                val finalSongs = if (results.isNotEmpty()) {
-                    results
-                } else {
-                    OnlineStreamRepository.searchSongs(category.title, limit = 20)
-                }
+                val details = OnlineStreamRepository.fetchCategoryDetails(category.title)
+                _exploreCategoryDetails.value = details
+                val finalSongs = if (details.songs.isNotEmpty()) details.songs else OnlineStreamRepository.searchSongs("${category.title} Hits", limit = 15)
                 for (s in finalSongs) {
                     OnlineStreamRepository.registerSongGenre(s.id, category.title)
                     OnlineStreamRepository.registerSongGenre(s.path, category.title)
@@ -820,7 +820,36 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun closeRadioCategory() {
         _selectedRadioCategory.value = null
         _categorySongs.value = emptyList()
+        _exploreCategoryDetails.value = null
         categorySearchJob?.cancel()
+    }
+
+    fun playShelfItem(item: com.aashik.music.service.ExploreShelfItem) {
+        categorySearchJob?.cancel()
+        categorySearchJob = viewModelScope.launch {
+            _isLoadingCategorySongs.value = true
+            try {
+                val songs = if (item.type == "playlist") {
+                    OnlineStreamRepository.fetchPlaylistSongs(item.id)
+                } else {
+                    OnlineStreamRepository.fetchAlbumSongs(item.id)
+                }
+                if (songs.isNotEmpty()) {
+                    for (s in songs) {
+                        _selectedRadioCategory.value?.title?.let { genre ->
+                            OnlineStreamRepository.registerSongGenre(s.id, genre)
+                            OnlineStreamRepository.registerSongGenre(s.path, genre)
+                        }
+                    }
+                    _categorySongs.value = songs
+                    play(songs.first(), playlist = songs)
+                }
+            } catch (e: Exception) {
+                Log.w("MusicViewModel", "Failed to play shelf item ${item.title}: ${e.message}")
+            } finally {
+                _isLoadingCategorySongs.value = false
+            }
+        }
     }
 
     fun playRadioStation(station: RadioStation) {

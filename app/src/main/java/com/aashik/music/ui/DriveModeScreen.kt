@@ -1,5 +1,6 @@
 package com.aashik.music.ui
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -61,8 +62,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalConfiguration
+import com.aashik.music.model.NavigatingTrack
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -154,6 +158,9 @@ fun DriveModeScreen(
     }
 
     var isNightDimmerActive by rememberSaveable { mutableStateOf(false) }
+
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val hudBg = when {
@@ -449,15 +456,35 @@ fun DriveModeScreen(
                 }
             }
 
-            // ── Center Stage: 3-Column Layout (Left Actions | Hero Artwork & Track Info | Right EQ Presets) ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            if (isPortrait) {
+                MobileDriveHudStage(
+                    viewModel = viewModel,
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                    isFavorite = isFavorite,
+                    navigatingTrack = navigatingTrack,
+                    isRadioActive = isRadioActive,
+                    upcomingSongs = upcomingSongs,
+                    isDark = isDark,
+                    isNightDimmerActive = isNightDimmerActive,
+                    isQueueOpen = isQueueOpen,
+                    primaryTextColor = primaryTextColor,
+                    controlInactiveColor = controlInactiveColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(vertical = 4.dp)
+                )
+            } else {
+                // ── Landscape Infotainment Stage: 3-Column Layout ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                 // Left Column: Quick Actions (Favorite & Queue Drawer)
                 Column(
                     modifier = Modifier.width(76.dp),
@@ -731,6 +758,7 @@ fun DriveModeScreen(
                     modifier = Modifier.width(76.dp)
                 )
             }
+        }
 
             // ── Bottom Row: Seeker Bar and Playback Controls ──
             val bottomCardBg = when {
@@ -1280,6 +1308,202 @@ private fun HudSingleNextSongCard(
                     contentDescription = "Play Next",
                     tint = accentColor,
                     modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobileDriveHudStage(
+    viewModel: MusicViewModel,
+    currentSong: Song?,
+    isPlaying: Boolean,
+    isFavorite: Boolean,
+    navigatingTrack: NavigatingTrack,
+    isRadioActive: Boolean,
+    upcomingSongs: List<Song>,
+    isDark: Boolean,
+    isNightDimmerActive: Boolean,
+    isQueueOpen: Boolean,
+    primaryTextColor: Color,
+    controlInactiveColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceEvenly
+    ) {
+        // Hero Album Artwork with Apple CarPlay horizontal slide transition
+        Box(
+            modifier = Modifier
+                .size(190.dp)
+                .background(
+                    color = if (isNightDimmerActive) Color(0xFF0D1117)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    shape = BigArtworkShape
+                )
+                .clip(BigArtworkShape)
+        ) {
+            AnimatedContent(
+                targetState = navigatingTrack,
+                transitionSpec = {
+                    if (targetState.direction >= 0) {
+                        (slideInHorizontally(
+                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                            initialOffsetX = { fullWidth -> fullWidth }
+                        ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                            .togetherWith(
+                                slideOutHorizontally(
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    targetOffsetX = { fullWidth -> -fullWidth }
+                                ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                            )
+                    } else {
+                        (slideInHorizontally(
+                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                            initialOffsetX = { fullWidth -> -fullWidth }
+                        ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                            .togetherWith(
+                                slideOutHorizontally(
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    targetOffsetX = { fullWidth -> fullWidth }
+                                ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                            )
+                    }
+                },
+                label = "MobileCarPlaySlideTransition"
+            ) { navState ->
+                val song = navState.song
+                if (song != null) {
+                    AlbumArtImage(
+                        path = song.path,
+                        size = 190.dp,
+                        borderRadius = 20.dp,
+                        isPlaying = isPlaying,
+                        isHighRes = true,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+
+        // Song Info Typography (Title, Artist, Album)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        ) {
+            if (currentSong?.isStream() == true) {
+                Surface(
+                    shape = DriverBadgeShape,
+                    color = Color(0xFF00E676).copy(alpha = 0.15f),
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Text(
+                        text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF00E676),
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = currentSong?.title ?: "No Song Playing",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black,
+                color = primaryTextColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+
+            val albumStr = currentSong?.album.orEmpty()
+            val artistStr = currentSong?.artist ?: "Select a track to start"
+            Text(
+                text = if (albumStr.isNotBlank() && albumStr != currentSong?.title) "$artistStr • $albumStr" else artistStr,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+
+        // Single Next Song Card
+        HudSingleNextSongCard(
+            nextSong = upcomingSongs.firstOrNull(),
+            isRadioActive = isRadioActive,
+            isDark = isDark,
+            isNightDimmer = isNightDimmerActive,
+            onPlayNext = { song -> viewModel.play(song, direction = 1) }
+        )
+
+        // Quick Actions Row: Favorite, EQ Presets, Queue
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Favorite Button
+            IconButton(
+                onClick = { currentSong?.path?.let { viewModel.toggleFavorite(it) } },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) FavoriteRedColor else controlInactiveColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // EQ Presets Horizontal Row
+            val activePreset by viewModel.equalizerPreset.collectAsState()
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val presets = listOf("Flat" to 0, "Acoustic" to 1, "Vocal" to 2, "Bass" to 3, "Rock" to 4)
+                presets.forEach { (name, id) ->
+                    val isSelected = activePreset == id
+                    Box(
+                        modifier = Modifier
+                            .clip(EqPresetChipShape)
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            )
+                            .clickable { viewModel.setEqualizerPreset(id) }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = name,
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Queue Button
+            IconButton(
+                onClick = { viewModel.toggleQueue() },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                    contentDescription = "Queue",
+                    tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }

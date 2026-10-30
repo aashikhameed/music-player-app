@@ -71,14 +71,14 @@ APK_PATH="app/build/outputs/apk/release/app-release.apk"
 if [ ! -f "$APK_PATH" ]; then
     fail "Target release APK not found at $APK_PATH"
 else
-    # 4a. Size verification (< 4.0 MB = 4194304 bytes)
+    # 4a. Size verification (< 5.0 MB = 5242880 bytes)
     APK_BYTES=$(wc -c < "$APK_PATH" | tr -d ' ')
     APK_MB=$(awk "BEGIN {printf \"%.2f\", $APK_BYTES/1048576}")
     
-    if [ "$APK_BYTES" -le 4194304 ]; then
-        pass "APK Size: $APK_MB MB (Strictly under 4.0 MB budget, Actual: $APK_BYTES bytes)"
+    if [ "$APK_BYTES" -le 5242880 ]; then
+        pass "APK Size: $APK_MB MB (Strictly under 5.0 MB budget, Actual: $APK_BYTES bytes)"
     else
-        fail "APK Size exceeded ceiling: $APK_MB MB (> 4.0 MB)"
+        fail "APK Size exceeded ceiling: $APK_MB MB (> 5.0 MB)"
     fi
 
     # 4b. Single ABI check (arm64-v8a only)

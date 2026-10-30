@@ -74,6 +74,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     private var crossfadeSeconds: Int = 3
     private var isTransitioning = false
     private var autoCrossfadeTriggeredPath: String? = null
+    private var trackStartTimeMs: Long = 0L
     private var playJob: Job? = null
     private var streamMediaPlayer: MediaPlayer? = null
     private var streamEqualizer: Equalizer? = null
@@ -161,12 +162,19 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         _positionFlow.value = positionMs
 
         if (crossfadeSeconds > 0 && _isPlayingFlow.value && !isTransitioning) {
+            val now = System.currentTimeMillis()
+            val minPlayTime = ((crossfadeSeconds + 1) * 1000L).coerceAtLeast(3000L)
+            // Ignore position reports during the initial warm-up period after a song change
+            if (now - trackStartTimeMs < minPlayTime) {
+                return
+            }
             val dur = _durationFlow.value
             val crossfadeMs = crossfadeSeconds * 1000L
-            // Only crossfade if the song is longer than crossfade duration + 2 seconds
-            if (dur > (crossfadeMs + 2000L)) {
+            // Only crossfade if the song is longer than crossfade duration + 2 seconds,
+            // and the playback position is genuinely in the second half of the track.
+            if (dur > (crossfadeMs + 2000L) && positionMs > (dur / 2)) {
                 val remainingMs = dur - positionMs
-                if (remainingMs <= crossfadeMs) {
+                if (remainingMs in 0..crossfadeMs) {
                     val currentPath = _currentSongFlow.value?.path
                     if (currentPath != null && currentPath != autoCrossfadeTriggeredPath) {
                         autoCrossfadeTriggeredPath = currentPath
@@ -179,7 +187,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                                     playNext(isAutoCrossfade = true)
                                 }
                             } finally {
-                                delay(1000L)
+                                delay(1200L)
                                 isTransitioning = false
                             }
                         }
@@ -194,6 +202,11 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     override fun onTrackEnded() {
+        val now = System.currentTimeMillis()
+        // If track started less than 3s ago, any onTrackEnded is a stale callback from the previous track!
+        if (now - trackStartTimeMs < 3000L) {
+            return
+        }
         val currentPath = _currentSongFlow.value?.path
         if (currentPath != null && currentPath != autoCrossfadeTriggeredPath && !isTransitioning) {
             isTransitioning = true
@@ -206,7 +219,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                         playNext(isAutoCrossfade = false)
                     }
                 } finally {
-                    delay(500L)
+                    delay(800L)
                     isTransitioning = false
                 }
             }
@@ -366,8 +379,15 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             Log.w(TAG, "Audio focus request failed: ${e.message}")
         }
 
-        autoCrossfadeTriggeredPath = null
-        isTransitioning = false
+        trackStartTimeMs = System.currentTimeMillis()
+        if (!isAutoCrossfade) {
+            autoCrossfadeTriggeredPath = null
+        }
+        isTransitioning = true
+        scope.launch {
+            delay(1000L)
+            isTransitioning = false
+        }
         _currentSongFlow.value = song
         _positionFlow.value = 0L
         _durationFlow.value = if (song.duration > 0) song.duration else 0L

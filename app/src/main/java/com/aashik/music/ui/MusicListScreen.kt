@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.Pause
@@ -62,6 +63,7 @@ import androidx.compose.material.icons.rounded.Podcasts
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.ViewColumn
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -124,6 +126,13 @@ private val LiveBadgeShape = RoundedCornerShape(6.dp)
 private val MoodCardShape = RoundedCornerShape(16.dp)
 private val MoodStripeShape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
 private val BackPillShape = RoundedCornerShape(10.dp)
+private val MobileMiniPlayerShape = RoundedCornerShape(20.dp)
+private val MobileNavBarShape = RoundedCornerShape(26.dp)
+private val MobileActiveTabShape = RoundedCornerShape(18.dp)
+private val ShelfArtworkShape = RoundedCornerShape(12.dp)
+private val ShelfCardContainerShape = RoundedCornerShape(14.dp)
+private val CircleBackButtonShape = CircleShape
+private val CircleAvatarShape = CircleShape
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -304,42 +313,41 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                 }
             } else {
                 if (isPortrait) {
-                    // Portrait Mobile Layout
+                    // Mobile Portrait Layout (BitChord Mobile Style)
+                    val selectedRadioCat by viewModel.selectedRadioCategory.collectAsState()
+                    val isDrillDown = selectedTab == LibraryTab.RADIO && selectedRadioCat != null
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .statusBarsPadding()
-                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        // Header Bar with In-Place Search
-                        LibraryModeHeader(
-                            selectedTab = selectedTab,
-                            selectedFolder = selectedFolder,
-                            songCount = songs.size,
-                            folderCount = folders.size,
-                            favoriteCount = favoritePaths.size,
-                            radioCount = radioStations.size,
-                            searchQuery = searchQuery,
-                            onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                            isSearchOpen = isSearchOpen,
-                            onToggleSearch = {
-                                isSearchOpen = !isSearchOpen
-                                if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                            },
-                            onTabSelected = { viewModel.selectTab(it) },
-                            onBackFolder = { viewModel.closeFolder() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 6.dp)
-                        )
+                        if (!isDrillDown) {
+                            MobileHeader(
+                                selectedTab = selectedTab,
+                                selectedFolder = selectedFolder,
+                                isSearchOpen = isSearchOpen,
+                                searchQuery = searchQuery,
+                                onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                                onToggleSearch = {
+                                    isSearchOpen = !isSearchOpen
+                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
+                                },
+                                onBackFolder = { viewModel.closeFolder() },
+                                onOpenDriveMode = { viewModel.openDriveMode() },
+                                onOpenEqualizer = { viewModel.openEqualizer() },
+                                onOpenSettings = { viewModel.openSettings() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 6.dp)
+                            )
+                        }
 
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .background(brush = AppGradients.card(isActive = false), shape = PortraitSongCardShape)
-                                .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = PortraitSongCardShape)
-                                .padding(8.dp)
                         ) {
                             MediaLibraryContent(
                                 viewModel = viewModel,
@@ -357,29 +365,23 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                             )
                         }
 
-                        if (!hideBottomBar || isBottomDockPeeked) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                            // Portrait Seekbar + Controls — isolated composable so that
-                            // 250ms position ticks only recompose this widget, not the song list.
-                            PortraitSeekBarSection(
+                        // Floating Mini-Player (when a track is selected/loaded)
+                        if (currentSong != null) {
+                            MobileMiniPlayer(
                                 viewModel = viewModel,
-                                currentSong = currentSong,
-                                isSearchOpen = isSearchOpen,
-                                onToggleSearch = {
-                                    isSearchOpen = !isSearchOpen
-                                    if (!isSearchOpen) viewModel.onSearchQueryChanged("")
-                                }
+                                song = currentSong!!,
+                                onClick = { viewModel.openDriveMode() }
                             )
-                        } else {
                             Spacer(modifier = Modifier.height(6.dp))
-
-                            BottomDockPeekPill(
-                                viewModel = viewModel,
-                                onExpand = { isBottomDockPeeked = true },
-                                modifier = Modifier.fillMaxWidth()
-                            )
                         }
+
+                        // Mobile Bottom Navigation Bar (Home, Explore, Library, Favorites)
+                        MobileBottomNavBar(
+                            selectedTab = selectedTab,
+                            onTabSelected = { viewModel.selectTab(it) }
+                        )
                     }
                 } else {
                     // ─────────────────────────────────────────────────────────────────────────
@@ -641,7 +643,6 @@ fun RadioExploreContent(
     val currentSong by viewModel.currentSong.collectAsState()
     val currentSongPath = currentSong?.path
 
-    val categorySongs by viewModel.categorySongs.collectAsState()
     val isLoadingCategorySongs by viewModel.isLoadingCategorySongs.collectAsState()
 
     var showFavoritesOnly by rememberSaveable { mutableStateOf(false) }
@@ -846,10 +847,9 @@ fun RadioExploreContent(
                 }
             }
         } else {
-            // ── Category Detail Screen (Live Streams, Stations & Downloads) ──
+            // ── Category Detail Screen (BitChord Drill-Down: Songs, Playlists, Albums) ──
             val category = selectedCategory!!
-            val stripeColor = Color(category.stripeColor)
-            val activeRadioStationName by viewModel.activeRadioStationName.collectAsState()
+            val details by viewModel.exploreCategoryDetails.collectAsState()
             val categoryStations = remember(radioStations, category.id, favoriteStationIds, showFavoritesOnly) {
                 radioStations.filter { station ->
                     val matchesCategory = station.categoryId == category.id
@@ -858,172 +858,308 @@ fun RadioExploreContent(
                 }
             }
 
-            // Category Header Toolbar with Back Button
-            Row(
+            BitChordGenreDetailScreen(
+                viewModel = viewModel,
+                category = category,
+                details = details,
+                categoryStations = categoryStations,
+                isLoading = isLoadingCategorySongs,
+                onBack = { viewModel.closeRadioCategory() },
+                onSongLongPress = onSongLongPress,
+                favoriteStationIds = favoriteStationIds
+            )
+        }
+    }
+}
+
+@Composable
+fun BitChordGenreDetailScreen(
+    viewModel: MusicViewModel,
+    category: RadioCategory,
+    details: com.aashik.music.service.ExploreCategoryDetails?,
+    categoryStations: List<RadioStation>,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onSongLongPress: (Song) -> Unit,
+    favoriteStationIds: Set<String>,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp)
+    ) {
+        // Top Bar: Circular Back Button + Avatar on right
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .size(40.dp)
+                    .clip(CircleBackButtonShape)
+                    .background(if (isDark) Color(0xFF1E2028) else MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    // Back to Categories Pill
-                    Surface(
-                        onClick = { viewModel.closeRadioCategory() },
-                        shape = BackPillShape,
-                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                                else MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back to Categories",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(17.dp)
-                            )
-                            Text(
-                                text = "Explore",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    // Dot / Stripe Indicator & Category Title
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(color = stripeColor, shape = PillShape10)
-                    )
-                    Text(
-                        text = category.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                // Total items badge
-                Surface(
-                    shape = PillShape10,
-                    color = stripeColor.copy(alpha = 0.16f),
-                    modifier = Modifier.height(30.dp)
-                ) {
-                    Text(
-                        text = if (isLoadingCategorySongs) "Loading..." else "${categoryStations.size + categorySongs.size} tracks",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = stripeColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
-            if (isLoadingCategorySongs) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 40.dp),
-                    contentAlignment = Alignment.Center
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleAvatarShape)
+                    .background(Color(0xFF7E57C2)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "A",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+
+        // Bold Genre Title (e.g. "Tamil")
+        Text(
+            text = category.title,
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 28.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        if (isLoading || (details == null && categoryStations.isEmpty())) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            color = stripeColor,
-                            strokeWidth = 2.5.dp,
-                            modifier = Modifier.size(36.dp)
-                        )
-                        Text(
-                            text = "Loading ${category.title} streams...",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else if (categoryStations.isEmpty() && categorySongs.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(32.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 2.5.dp
+                    )
                     Text(
-                        text = "No songs or stations found in ${category.title}",
+                        text = "Loading ${category.title}...",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 12.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Section 1: Live Radio Stations (if any)
-                    if (categoryStations.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Text(
-                                text = "Live Radio Stations (${categoryStations.size})",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                            )
-                        }
-
-                        items(items = categoryStations, key = { it.id }) { station ->
-                            val isPlaying = station.streamUrl == currentSongPath
-                            val isFav = favoriteStationIds.contains(station.id)
-                            RadioStationCard(
-                                station = station,
-                                isPlaying = isPlaying,
-                                isFavorite = isFav,
-                                onPlayClick = { viewModel.playRadioStation(station) },
-                                onFavoriteClick = { viewModel.toggleRadioFavorite(station.id) },
-                                onStartRadioClick = { viewModel.startRadioForSong(station.toSong()) }
-                            )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
+                // Shelf 1: Songs
+                if (details?.songs?.isNotEmpty() == true) {
+                    item {
+                        ShelfHeader(title = "Songs")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(items = details.songs, key = { it.id }) { song ->
+                                ShelfSongCard(
+                                    song = song,
+                                    onClick = { viewModel.play(song, playlist = details.songs) },
+                                    onLongPress = { onSongLongPress(song) }
+                                )
+                            }
                         }
                     }
+                }
 
-                    // Section 2: Online Stream Songs for this Mood/Genre
-                    if (categorySongs.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            val sectionHeader = if (activeRadioStationName != null && activeRadioStationName?.contains("Radio:", ignoreCase = true) == true) {
-                                "$activeRadioStationName (${categorySongs.size})"
-                            } else {
-                                "${category.title} Songs & Community Streams (${categorySongs.size})"
+                // Shelf 2: Featured playlists
+                if (details?.featuredPlaylists?.isNotEmpty() == true) {
+                    item {
+                        ShelfHeader(title = "Featured playlists")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(items = details.featuredPlaylists, key = { it.id }) { item ->
+                                ShelfGenericCard(
+                                    item = item,
+                                    onClick = { viewModel.playShelfItem(item) }
+                                )
                             }
-                            Text(
-                                text = sectionHeader,
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(top = if (categoryStations.isNotEmpty()) 12.dp else 4.dp, bottom = 2.dp)
-                            )
                         }
+                    }
+                }
 
-                        items(items = categorySongs, key = { it.id }) { song ->
-                            val isPlaying = song.id == currentSong?.id
+                // Shelf 3: Community playlists
+                if (details?.communityPlaylists?.isNotEmpty() == true) {
+                    item {
+                        ShelfHeader(title = "Community playlists")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(items = details.communityPlaylists, key = { it.id }) { item ->
+                                ShelfGenericCard(
+                                    item = item,
+                                    onClick = { viewModel.playShelfItem(item) }
+                                )
+                            }
+                        }
+                    }
+                }
 
-                            CategorySongRowCard(
-                                song = song,
-                                isPlaying = isPlaying,
-                                onPlayClick = { viewModel.play(song, playlist = categorySongs) },
-                                onLongPress = { onSongLongPress(song) }
-                            )
+                // Shelf 4: Albums
+                if (details?.albums?.isNotEmpty() == true) {
+                    item {
+                        ShelfHeader(title = "Albums")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(items = details.albums, key = { it.id }) { item ->
+                                ShelfGenericCard(
+                                    item = item,
+                                    onClick = { viewModel.playShelfItem(item) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Shelf 5: Live Radio Stations
+                if (categoryStations.isNotEmpty()) {
+                    item {
+                        ShelfHeader(title = "Live Radio Stations")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(items = categoryStations, key = { it.id }) { station ->
+                                val isFav = favoriteStationIds.contains(station.id)
+                                RadioStationCard(
+                                    station = station,
+                                    isPlaying = false,
+                                    isFavorite = isFav,
+                                    onPlayClick = { viewModel.playRadioStation(station) },
+                                    onFavoriteClick = { viewModel.toggleRadioFavorite(station.id) },
+                                    onStartRadioClick = { viewModel.startRadioForSong(station.toSong()) }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ShelfHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontWeight = FontWeight.Bold,
+            fontSize = 17.sp
+        ),
+        color = MaterialTheme.colorScheme.onSurface
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ShelfSongCard(
+    song: Song,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(136.dp)
+            .clip(ShelfCardContainerShape)
+            .combinedClickable(onClick = onClick, onLongClick = onLongPress)
+    ) {
+        AlbumArtImage(
+            path = song.path,
+            size = 136.dp,
+            borderRadius = 12.dp,
+            isHighRes = true
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = song.title,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = song.artist,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun ShelfGenericCard(
+    item: com.aashik.music.service.ExploreShelfItem,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(136.dp)
+            .clip(ShelfCardContainerShape)
+            .clickable(onClick = onClick)
+    ) {
+        AlbumArtImage(
+            path = item.artworkUrl,
+            size = 136.dp,
+            borderRadius = 12.dp,
+            isHighRes = true
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = item.subtitle,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -1764,6 +1900,386 @@ fun DeleteSongDialog(
 }
 
 @Composable
+private fun MobileHeader(
+    selectedTab: LibraryTab,
+    selectedFolder: String?,
+    isSearchOpen: Boolean,
+    searchQuery: String,
+    onSearchQueryChanged: (String) -> Unit,
+    onToggleSearch: () -> Unit,
+    onBackFolder: () -> Unit,
+    onOpenDriveMode: () -> Unit,
+    onOpenEqualizer: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (isSearchOpen) {
+        Row(
+            modifier = modifier.height(44.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(brush = AppGradients.capsule(isActive = false), shape = HeaderCapsuleShape)
+                    .border(width = 1.dp, brush = AppGradients.border(isActive = true), shape = HeaderCapsuleShape)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = "Search",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChanged,
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search songs, artists...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                            innerTextField()
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(
+                            onClick = { onSearchQueryChanged("") },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Clear,
+                                contentDescription = "Clear search",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = {
+                            onToggleSearch()
+                            onSearchQueryChanged("")
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Close search",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        Row(
+            modifier = modifier.height(44.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Left: Title or Back to Folder
+            if (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
+                val folderName = try {
+                    File(selectedFolder).name.ifBlank { selectedFolder }
+                } catch (_: Exception) {
+                    selectedFolder
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    IconButton(
+                        onClick = onBackFolder,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Text(
+                        text = folderName,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            } else {
+                val title = when (selectedTab) {
+                    LibraryTab.ALL_SONGS -> "BitChord"
+                    LibraryTab.RADIO -> "Explore"
+                    LibraryTab.FOLDERS -> "Library"
+                    LibraryTab.FAVORITES -> "Favorites"
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Right Action Icons
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(
+                    onClick = onToggleSearch,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = "Search",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onOpenEqualizer,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.GraphicEq,
+                        contentDescription = "Equalizer",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onOpenDriveMode,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DirectionsCar,
+                        contentDescription = "Drive HUD",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobileMiniPlayer(
+    viewModel: MusicViewModel,
+    song: Song,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    Surface(
+        onClick = onClick,
+        shape = MobileMiniPlayerShape,
+        color = if (isDark) Color(0xFF1E2026) else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                width = 0.8.dp,
+                color = if (isDark) Color(0xFF2C2F38) else Color(0xFFD0D4DC),
+                shape = MobileMiniPlayerShape
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AlbumArtImage(
+                path = song.path,
+                size = 38.dp,
+                borderRadius = 8.dp
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = song.title,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.5.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = song.artist,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            IconButton(
+                onClick = { viewModel.togglePlayPause() },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            IconButton(
+                onClick = { viewModel.playNextSong() },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.SkipNext,
+                    contentDescription = "Next Track",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobileBottomNavBar(
+    selectedTab: LibraryTab,
+    onTabSelected: (LibraryTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    Surface(
+        shape = MobileNavBarShape,
+        color = if (isDark) Color(0xFF16181D) else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                width = 0.8.dp,
+                color = if (isDark) Color(0xFF2A2D36) else Color(0xFFD0D4DC),
+                shape = MobileNavBarShape
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            MobileNavTabItem(
+                label = "Home",
+                icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                isSelected = selectedTab == LibraryTab.ALL_SONGS,
+                onClick = { onTabSelected(LibraryTab.ALL_SONGS) }
+            )
+            MobileNavTabItem(
+                label = "Explore",
+                icon = Icons.Rounded.GridView,
+                isSelected = selectedTab == LibraryTab.RADIO,
+                onClick = { onTabSelected(LibraryTab.RADIO) }
+            )
+            MobileNavTabItem(
+                label = "Library",
+                icon = Icons.Rounded.Folder,
+                isSelected = selectedTab == LibraryTab.FOLDERS,
+                onClick = { onTabSelected(LibraryTab.FOLDERS) }
+            )
+            MobileNavTabItem(
+                label = "Favorites",
+                icon = Icons.Rounded.Favorite,
+                isSelected = selectedTab == LibraryTab.FAVORITES,
+                onClick = { onTabSelected(LibraryTab.FAVORITES) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MobileNavTabItem(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val activeBg = if (isDark) Color(0xFF2C2E38) else MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+
+    Box(
+        modifier = Modifier
+            .clip(MobileActiveTabShape)
+            .background(if (isSelected) activeBg else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                modifier = Modifier.size(19.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 11.5.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+            )
+        }
+    }
+}
+
+@Composable
 fun LibraryModeHeader(
     viewModel: MusicViewModel? = null,
     selectedTab: LibraryTab,
@@ -1951,7 +2467,7 @@ fun LibraryModeHeader(
                         LibraryTab.ALL_SONGS -> "All Songs" to songCount
                         LibraryTab.FOLDERS -> "Folders" to folderCount
                         LibraryTab.FAVORITES -> "Favorites" to favoriteCount
-                        LibraryTab.RADIO -> "Community Streams" to radioCount
+                        LibraryTab.RADIO -> "Explore" to radioCount
                     }
 
                     Row(
@@ -2082,8 +2598,8 @@ fun LibraryModeHeader(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Radio,
-                                contentDescription = "Radio & Streams",
+                                imageVector = Icons.Rounded.GridView,
+                                contentDescription = "Explore",
                                 tint = if (isRadio) MaterialTheme.colorScheme.primary
                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                                 modifier = Modifier.size(19.dp)
