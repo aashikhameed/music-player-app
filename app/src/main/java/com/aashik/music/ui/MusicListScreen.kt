@@ -22,19 +22,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.CircularProgressIndicator
+import com.aashik.music.model.CategorySection
+import com.aashik.music.service.DownloadStatus
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DirectionsCar
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.DeleteSweep
@@ -47,6 +58,8 @@ import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.Podcasts
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.ViewColumn
@@ -88,6 +101,8 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.withStyle
 import com.aashik.music.model.MusicFolder
+import com.aashik.music.model.RadioCategory
+import com.aashik.music.model.RadioStation
 import com.aashik.music.model.Song
 import com.aashik.music.utils.getCurrentTimeWithAmPm
 import com.aashik.music.utils.formatTime
@@ -95,6 +110,7 @@ import com.aashik.music.viewmodel.LibraryTab
 import com.aashik.music.viewmodel.MusicViewModel
 import java.io.File
 import kotlinx.coroutines.isActive
+import androidx.compose.material.icons.rounded.Shuffle
 
 private val PortraitSongCardShape = RoundedCornerShape(20.dp)
 private val LandscapeFullSongShape = RoundedCornerShape(18.dp)
@@ -102,6 +118,12 @@ private val HeaderCapsuleShape = RoundedCornerShape(14.dp)
 private val PillShape10 = RoundedCornerShape(10.dp)
 private val PeekPillShape = RoundedCornerShape(12.dp)
 private val StatusCapsuleShape = RoundedCornerShape(12.dp)
+private val RadioCardShape = RoundedCornerShape(16.dp)
+private val GenreChipShape = RoundedCornerShape(10.dp)
+private val LiveBadgeShape = RoundedCornerShape(6.dp)
+private val MoodCardShape = RoundedCornerShape(16.dp)
+private val MoodStripeShape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+private val BackPillShape = RoundedCornerShape(10.dp)
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -114,6 +136,7 @@ private val FavoriteHeartRed = Color(0xFFFF5252)
 fun MusicListScreen(viewModel: MusicViewModel) {
     val songs by viewModel.songs.collectAsState()
     val folders by viewModel.folders.collectAsState()
+    val radioStations by viewModel.radioStations.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
@@ -164,7 +187,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     )
 
     // Handle system back button
-    BackHandler(enabled = isQueueOpen || isEqualizerOpen || isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null)) {
+    BackHandler(enabled = isQueueOpen || isEqualizerOpen || isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) || selectedTab == LibraryTab.RADIO) {
         if (isQueueOpen) {
             viewModel.closeQueue()
         } else if (isEqualizerOpen) {
@@ -173,8 +196,15 @@ fun MusicListScreen(viewModel: MusicViewModel) {
             viewModel.closeDriveMode()
         } else if (isSettingsOpen) {
             viewModel.closeSettings()
-        } else {
+        } else if (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
             viewModel.closeFolder()
+        } else if (selectedTab == LibraryTab.RADIO) {
+            val cat = viewModel.selectedRadioCategory.value
+            if (cat != null) {
+                viewModel.closeRadioCategory()
+            } else {
+                viewModel.selectTab(LibraryTab.ALL_SONGS)
+            }
         }
     }
 
@@ -218,13 +248,18 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     var songForActionMenu by remember { mutableStateOf<Song?>(null) }
     var songToDelete by remember { mutableStateOf<Song?>(null) }
 
-    // Song Actions Dialog ("Play Next", "Add to Queue", "Favorite", "Delete")
+    val isActionSongDownloaded = songForActionMenu?.let { viewModel.isSongDownloaded(it.id) } == true
+
+    // Song Actions Dialog ("Play Next", "Add to Queue", "Favorite", "Download", "Delete")
     SongActionDialog(
         song = songForActionMenu,
         isFavorite = songForActionMenu?.let { favoritePaths.contains(it.path) } == true,
+        isDownloaded = isActionSongDownloaded,
         onPlayNext = { song -> viewModel.playNext(song) },
         onAddToQueue = { song -> viewModel.addToQueue(song) },
         onToggleFavorite = { path -> viewModel.toggleFavorite(path) },
+        onStartRadio = { song -> viewModel.startRadioForSong(song) },
+        onDownload = { song -> viewModel.downloadSong(song) },
         onDeleteRequest = { song -> songToDelete = song },
         onDismiss = { songForActionMenu = null }
     )
@@ -283,6 +318,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                             songCount = songs.size,
                             folderCount = folders.size,
                             favoriteCount = favoritePaths.size,
+                            radioCount = radioStations.size,
                             searchQuery = searchQuery,
                             onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
                             isSearchOpen = isSearchOpen,
@@ -396,6 +432,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                         songCount = songs.size,
                                         folderCount = folders.size,
                                         favoriteCount = favoritePaths.size,
+                                        radioCount = radioStations.size,
                                         searchQuery = searchQuery,
                                         onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
                                         isSearchOpen = isSearchOpen,
@@ -490,6 +527,24 @@ fun MediaLibraryContent(
 ) {
     Box(modifier = modifier) {
         when {
+            searchQuery.isNotBlank() -> {
+                UnifiedGlobalSearchResults(
+                    viewModel = viewModel,
+                    columns = columns,
+                    currentSongId = currentSongId,
+                    favoritePaths = favoritePaths,
+                    onSongLongPress = onSongLongPress,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            selectedTab == LibraryTab.RADIO -> {
+                RadioExploreContent(
+                    viewModel = viewModel,
+                    columns = columns,
+                    onSongLongPress = onSongLongPress,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
             selectedTab == LibraryTab.FOLDERS && selectedFolder == null -> {
                 if (folders.isEmpty()) {
                     EmptyFoldersView(modifier = Modifier.fillMaxSize())
@@ -567,6 +622,926 @@ fun MediaLibraryContent(
 }
 
 /**
+ * Community Streams & Radio Exploration View (Built like BitChord Explore Screen).
+ * Features BitChord-style Mood & Genre category sleeves, instant Favorites filter toggle,
+ * and category-level community playlists / radio stations.
+ */
+@Composable
+fun RadioExploreContent(
+    viewModel: MusicViewModel,
+    columns: Int,
+    onSongLongPress: (Song) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val radioStations by viewModel.radioStations.collectAsState()
+    val genreCategories by viewModel.genreCategories.collectAsState()
+    val selectedCategory by viewModel.selectedRadioCategory.collectAsState()
+    val favoriteStationIds by viewModel.favoriteStationIds.collectAsState()
+    val favoriteCategoryIds by viewModel.favoriteCategoryIds.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
+    val currentSongPath = currentSong?.path
+
+    val categorySongs by viewModel.categorySongs.collectAsState()
+    val isLoadingCategorySongs by viewModel.isLoadingCategorySongs.collectAsState()
+    val downloadStates by viewModel.downloadStates.collectAsState()
+    val favoritePaths by viewModel.favoritePaths.collectAsState()
+
+    var showFavoritesOnly by rememberSaveable { mutableStateOf(false) }
+
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp)
+    ) {
+        if (selectedCategory == null) {
+            // ── Main Explore Screen (Genres & Styles) ──
+            // Top Toolbar: Favorites Quick Filter + Random Station Trigger
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // "Favorites Only" Quick Filter Toggle Button
+                val totalFavCount = favoriteCategoryIds.size + favoriteStationIds.size
+                Surface(
+                    onClick = { showFavoritesOnly = !showFavoritesOnly },
+                    shape = PillShape10,
+                    color = if (showFavoritesOnly) FavoriteHeartRed.copy(alpha = 0.22f)
+                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (showFavoritesOnly) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = "Filter Favorites",
+                            tint = if (showFavoritesOnly) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (showFavoritesOnly) "Favorites ($totalFavCount)" else "Favorite Streams",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (showFavoritesOnly) FavoriteHeartRed else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // Random Radio Quick-Play Button
+                Surface(
+                    onClick = { viewModel.playRandomOrNextRadioStation() },
+                    shape = PillShape10,
+                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Shuffle,
+                            contentDescription = "Random Stream",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Surprise Me",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            val displayCategories = remember(genreCategories, favoriteCategoryIds, showFavoritesOnly) {
+                if (showFavoritesOnly) {
+                    genreCategories.filter { favoriteCategoryIds.contains(it.id) }
+                } else {
+                    genreCategories
+                }
+            }
+            val favoriteStations = remember(radioStations, favoriteStationIds, showFavoritesOnly) {
+                if (showFavoritesOnly) {
+                    radioStations.filter { favoriteStationIds.contains(it.id) }
+                } else {
+                    emptyList()
+                }
+            }
+
+            if (showFavoritesOnly && displayCategories.isEmpty() && favoriteStations.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No favorite genres or radio stations saved yet.\nTap the heart icon on any genre or stream to add it here.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                // Genres & Styles Grid (Text-only cards, no images, with favorite icon)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns.coerceAtLeast(2)),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Header: Genres & Styles
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp, bottom = 6.dp, start = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (showFavoritesOnly) "Favorite Genres & Streams" else "Genres & Styles",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${displayCategories.size} styles",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    items(items = displayCategories, key = { it.id }) { genre ->
+                        val count = remember(radioStations, genre.id) {
+                            radioStations.count { it.categoryId == genre.id }
+                        }
+                        val isFav = favoriteCategoryIds.contains(genre.id)
+                        MoodGenreCard(
+                            category = genre,
+                            stationCount = count,
+                            isFavorite = isFav,
+                            onFavoriteClick = { viewModel.toggleCategoryFavorite(genre.id) },
+                            onClick = { viewModel.openRadioCategory(genre) }
+                        )
+                    }
+
+                    // If in favorites mode and there are favorite stations, list them too
+                    if (favoriteStations.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = "Favorite Radio Stations",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp, start = 2.dp)
+                            )
+                        }
+                        items(items = favoriteStations, key = { it.id }) { station ->
+                            val isPlaying = station.streamUrl == currentSongPath
+                            RadioStationCard(
+                                station = station,
+                                isPlaying = isPlaying,
+                                isFavorite = true,
+                                onPlayClick = { viewModel.playRadioStation(station) },
+                                onFavoriteClick = { viewModel.toggleRadioFavorite(station.id) },
+                                onStartRadioClick = { viewModel.startRadioForSong(station.toSong()) }
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            // ── Category Detail Screen (Live Streams, Stations & Downloads) ──
+            val category = selectedCategory!!
+            val stripeColor = Color(category.stripeColor)
+            val categoryStations = remember(radioStations, category.id, favoriteStationIds, showFavoritesOnly) {
+                radioStations.filter { station ->
+                    val matchesCategory = station.categoryId == category.id
+                    val matchesFav = !showFavoritesOnly || favoriteStationIds.contains(station.id)
+                    matchesCategory && matchesFav
+                }
+            }
+
+            // Category Header Toolbar with Back Button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Back to Categories Pill
+                    Surface(
+                        onClick = { viewModel.closeRadioCategory() },
+                        shape = BackPillShape,
+                        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "Back to Categories",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Text(
+                                text = "Explore",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    // Dot / Stripe Indicator & Category Title
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(color = stripeColor, shape = PillShape10)
+                    )
+                    Text(
+                        text = category.title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Total items badge
+                Surface(
+                    shape = PillShape10,
+                    color = stripeColor.copy(alpha = 0.16f),
+                    modifier = Modifier.height(30.dp)
+                ) {
+                    Text(
+                        text = if (isLoadingCategorySongs) "Loading..." else "${categoryStations.size + categorySongs.size} tracks",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = stripeColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            if (isLoadingCategorySongs) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = stripeColor,
+                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Text(
+                            text = "Loading ${category.title} streams...",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else if (categoryStations.isEmpty() && categorySongs.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No songs or stations found in ${category.title}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Section 1: Live Radio Stations (if any)
+                    if (categoryStations.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = "Live Radio Stations (${categoryStations.size})",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                            )
+                        }
+
+                        items(items = categoryStations, key = { it.id }) { station ->
+                            val isPlaying = station.streamUrl == currentSongPath
+                            val isFav = favoriteStationIds.contains(station.id)
+                            RadioStationCard(
+                                station = station,
+                                isPlaying = isPlaying,
+                                isFavorite = isFav,
+                                onPlayClick = { viewModel.playRadioStation(station) },
+                                onFavoriteClick = { viewModel.toggleRadioFavorite(station.id) },
+                                onStartRadioClick = { viewModel.startRadioForSong(station.toSong()) }
+                            )
+                        }
+                    }
+
+                    // Section 2: Online Stream Songs for this Mood/Genre
+                    if (categorySongs.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = "${category.title} Songs & Community Streams (${categorySongs.size})",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = if (categoryStations.isNotEmpty()) 12.dp else 4.dp, bottom = 2.dp)
+                            )
+                        }
+
+                        items(items = categorySongs, key = { it.id }) { song ->
+                            val isPlaying = song.id == currentSong?.id
+                            val isFav = favoritePaths.contains(song.path)
+                            val downloadStatus = downloadStates[song.id] ?: DownloadStatus.Idle
+
+                            CategorySongRowCard(
+                                song = song,
+                                isPlaying = isPlaying,
+                                isFavorite = isFav,
+                                downloadStatus = downloadStatus,
+                                onPlayClick = { viewModel.play(song, playlist = categorySongs) },
+                                onLongPress = { onSongLongPress(song) },
+                                onFavoriteClick = { viewModel.toggleFavorite(song.path) },
+                                onStartRadioClick = { viewModel.startRadioForSong(song) },
+                                onDownloadClick = { viewModel.downloadSong(song) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Genre Category Card Component (BitChord Sleeve Style).
+ * Features solid colored left accent stripe, text-only styling (zero images),
+ * and quick favorite toggle icon button instead of right arrow.
+ */
+@Composable
+fun MoodGenreCard(
+    category: RadioCategory,
+    stationCount: Int,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val stripeColor = Color(category.stripeColor)
+
+    Surface(
+        onClick = onClick,
+        shape = MoodCardShape,
+        color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(58.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left Accent Stripe (BitChord sleeve styling)
+            Box(
+                modifier = Modifier
+                    .width(8.dp)
+                    .fillMaxHeight()
+                    .background(color = stripeColor, shape = MoodStripeShape)
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Category Details (Text-only - zero images per user request)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 6.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = category.title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Genre • Radio & Streams",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (stationCount > 0) {
+                        Surface(
+                            shape = LiveBadgeShape,
+                            color = stripeColor.copy(alpha = 0.18f)
+                        ) {
+                            Text(
+                                text = "$stationCount live",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = stripeColor,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Favorite Icon Button instead of right arrow per user request
+            IconButton(
+                onClick = onFavoriteClick,
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .size(40.dp)
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                    tint = if (isFavorite) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Streaming song row card inside category drill-down view.
+ * Features instant play, "Start Radio" queue generation, and direct download.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CategorySongRowCard(
+    song: Song,
+    isPlaying: Boolean,
+    isFavorite: Boolean,
+    downloadStatus: DownloadStatus,
+    onPlayClick: () -> Unit,
+    onLongPress: () -> Unit,
+    onFavoriteClick: () -> Unit,
+    onStartRadioClick: () -> Unit,
+    onDownloadClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val cardBg = if (isPlaying) {
+        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.18f else 0.12f)
+    } else if (isDark) {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+    }
+
+    Surface(
+        shape = RadioCardShape,
+        color = cardBg,
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onPlayClick,
+                onLongClick = onLongPress
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Album Art Thumbnail
+            AlbumArtImage(
+                path = song.path,
+                artworkUrl = song.artworkUrl,
+                size = 46.dp,
+                borderRadius = 8.dp,
+                isPlaying = isPlaying
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Track Title & Artist
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = song.title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    ),
+                    color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = song.artist,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (song.duration > 0L) {
+                        Text(
+                            text = "• ${formatTime(song.duration)}",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Action 1: Start Radio button (generate algorithmic queue from this song)
+            IconButton(
+                onClick = onStartRadioClick,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Podcasts,
+                    contentDescription = "Start Radio",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Action 2: Download Offline button
+            IconButton(
+                onClick = onDownloadClick,
+                enabled = downloadStatus !is DownloadStatus.Downloading && downloadStatus !is DownloadStatus.Downloaded,
+                modifier = Modifier.size(34.dp)
+            ) {
+                when (downloadStatus) {
+                    is DownloadStatus.Downloading -> {
+                        CircularProgressIndicator(
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    is DownloadStatus.Downloaded -> {
+                        Icon(
+                            imageVector = Icons.Rounded.CheckCircle,
+                            contentDescription = "Downloaded",
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    else -> {
+                        Icon(
+                            imageVector = Icons.Rounded.Download,
+                            contentDescription = "Download Offline",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            // Action 3: Favorite toggle
+            IconButton(
+                onClick = onFavoriteClick,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Community Radio Station Card Component.
+ * Optimized for Mali GPU with solid color styling and zero dynamic shape allocations.
+ */
+@Composable
+fun RadioStationCard(
+    station: RadioStation,
+    isPlaying: Boolean,
+    isFavorite: Boolean,
+    onPlayClick: () -> Unit,
+    onFavoriteClick: () -> Unit,
+    onStartRadioClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val cardBg = if (isPlaying) {
+        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.18f else 0.12f)
+    } else if (isDark) {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+    }
+
+    Surface(
+        onClick = onPlayClick,
+        shape = RadioCardShape,
+        color = cardBg,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .background(
+                        color = if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                                else MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                        shape = PillShape10
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Radio,
+                    contentDescription = null,
+                    tint = if (isPlaying) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = station.name,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = LiveBadgeShape,
+                        color = if (isPlaying) Color(0xFF00E676).copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = if (isPlaying) "● ON AIR" else "LIVE",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isPlaying) Color(0xFF00E676) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = station.genre,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                    )
+                    Text(
+                        text = " • ${station.bitrate} • ${station.country}",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            IconButton(
+                onClick = onStartRadioClick,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Podcasts,
+                    contentDescription = "Start Radio",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
+            IconButton(
+                onClick = onFavoriteClick,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Unified Global Search Results Component.
+ * Integrates Online Streaming Tracks, Local Songs, and Radio Stations in grouped sections.
+ */
+@Composable
+fun UnifiedGlobalSearchResults(
+    viewModel: MusicViewModel,
+    @Suppress("UNUSED_PARAMETER") columns: Int,
+    currentSongId: String?,
+    favoritePaths: Set<String>,
+    onSongLongPress: (Song) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val onlineSongs by viewModel.onlineSearchSongs.collectAsState()
+    val isSearchingOnline by viewModel.isSearchingOnline.collectAsState()
+    val localSongs by viewModel.searchSongs.collectAsState()
+    val stations by viewModel.searchStations.collectAsState()
+    val favoriteStationIds by viewModel.favoriteStationIds.collectAsState()
+
+    val hasResults = onlineSongs.isNotEmpty() || localSongs.isNotEmpty() || stations.isNotEmpty()
+
+    if (!hasResults && !isSearchingOnline) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "No matches found across library and online streams",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(bottom = 8.dp)
+    ) {
+        // Section 1: Online Streaming Songs (from BitChord engine)
+        if (isSearchingOnline || onlineSongs.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Online Stream Songs",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (isSearchingOnline) {
+                        Text(
+                            text = "Searching online...",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = "${onlineSongs.size} tracks",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            items(
+                items = onlineSongs,
+                key = { it.id }
+            ) { song ->
+                val isPlaying = song.id == currentSongId
+                SongCard(
+                    song = song,
+                    isPlaying = isPlaying,
+                    onClick = { viewModel.play(song, playlist = onlineSongs) },
+                    onLongPress = { onSongLongPress(song) },
+                    isFavorite = favoritePaths.contains(song.path),
+                    onFavoriteClick = { viewModel.toggleFavorite(song.path) }
+                )
+            }
+        }
+
+        // Section 2: Local Library Tracks
+        if (localSongs.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Local Library Tracks (${localSongs.size})",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                )
+            }
+
+            items(
+                items = localSongs,
+                key = { it.id }
+            ) { song ->
+                val isPlaying = song.id == currentSongId
+                SongCard(
+                    song = song,
+                    isPlaying = isPlaying,
+                    onClick = { viewModel.play(song, playlist = localSongs) },
+                    onLongPress = { onSongLongPress(song) },
+                    isFavorite = favoritePaths.contains(song.path),
+                    onFavoriteClick = { viewModel.toggleFavorite(song.path) }
+                )
+            }
+        }
+
+        // Section 3: Radio & Community Streams
+        if (stations.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Community Radio & Streams (${stations.size})",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                )
+            }
+
+            items(
+                items = stations,
+                key = { it.id }
+            ) { station ->
+                RadioStationCard(
+                    station = station,
+                    isPlaying = false,
+                    isFavorite = favoriteStationIds.contains(station.id),
+                    onPlayClick = { viewModel.playRadioStation(station) },
+                    onFavoriteClick = { viewModel.toggleRadioFavorite(station.id) },
+                    onStartRadioClick = { viewModel.startRadioForSong(station.toSong()) }
+                )
+            }
+        }
+    }
+}
+
+/**
  * Contextual Song Actions Modal Dialog ("Play Next", "Add to Queue", "Favorite", "Delete").
  */
 @Composable
@@ -576,6 +1551,9 @@ fun SongActionDialog(
     onPlayNext: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
     onToggleFavorite: (String) -> Unit,
+    onStartRadio: (Song) -> Unit = {},
+    isDownloaded: Boolean = false,
+    onDownload: (Song) -> Unit = {},
     onDeleteRequest: (Song) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -697,6 +1675,70 @@ fun SongActionDialog(
                         }
                     }
 
+                    // Start Radio Button
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onStartRadio(song)
+                                onDismiss()
+                            },
+                        shape = PillShape10,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Podcasts,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Start Radio (Related Streams)",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Download Song Button (for Streams)
+                    if (song.isStream() && song.duration > 0) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onDownload(song)
+                                    onDismiss()
+                                },
+                            shape = PillShape10,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
+                                    contentDescription = null,
+                                    tint = if (isDownloaded) Color(0xFF00E676) else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = if (isDownloaded) "Downloaded (Offline Available)" else "Download Song for Offline",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isDownloaded) Color(0xFF00E676) else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
                     // Delete Button
                     Surface(
                         modifier = Modifier
@@ -775,6 +1817,7 @@ fun LibraryModeHeader(
     songCount: Int = 0,
     folderCount: Int = 0,
     favoriteCount: Int = 0,
+    radioCount: Int = 0,
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
     isSearchOpen: Boolean,
@@ -954,6 +1997,7 @@ fun LibraryModeHeader(
                         LibraryTab.ALL_SONGS -> "All Songs" to songCount
                         LibraryTab.FOLDERS -> "Folders" to folderCount
                         LibraryTab.FAVORITES -> "Favorites" to favoriteCount
+                        LibraryTab.RADIO -> "Community Streams" to radioCount
                     }
 
                     Row(
@@ -1064,6 +2108,29 @@ fun LibraryModeHeader(
                                 imageVector = if (isFavorites) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                 contentDescription = "Favorites",
                                 tint = if (isFavorites) FavoriteHeartRed
+                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+
+                        // 4. Stream / Radio Icon Button next to Fav icon
+                        val isRadio = selectedTab == LibraryTab.RADIO
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isRadio)
+                                        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.25f else 0.18f)
+                                    else Color.Transparent
+                                )
+                                .clickable { onTabSelected(LibraryTab.RADIO) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Radio,
+                                contentDescription = "Radio & Streams",
+                                tint = if (isRadio) MaterialTheme.colorScheme.primary
                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                                 modifier = Modifier.size(19.dp)
                             )

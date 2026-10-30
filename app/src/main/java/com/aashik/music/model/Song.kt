@@ -17,7 +17,8 @@ data class Song(
     val artist: String,
     val album: String,
     val duration: Long,
-    val path: String
+    val path: String,
+    val artworkUrl: String? = null
 ) {
     @androidx.room.Ignore
     @Volatile
@@ -27,8 +28,17 @@ data class Song(
     @Volatile
     private var cachedExt: String? = null
 
+    fun isStream(): Boolean {
+        return path.startsWith("http://", ignoreCase = true) || path.startsWith("https://", ignoreCase = true)
+    }
+
     fun getFileExtension(): String {
         cachedExt?.let { return it }
+        if (isStream()) {
+            val ext = if (duration <= 0) "LIVE" else "STREAM"
+            cachedExt = ext
+            return ext
+        }
         val ext = path.substringAfterLast('.', "").uppercase().take(4)
         cachedExt = ext
         return ext
@@ -36,6 +46,11 @@ data class Song(
 
     fun getBadgeLabel(): String {
         cachedBadge?.let { return it }
+        if (isStream() && duration <= 0) {
+            val label = "LIVE • STREAM"
+            cachedBadge = label
+            return label
+        }
         val ext = getFileExtension()
         val totalSec = (duration / 1000).coerceAtLeast(0)
         val m = totalSec / 60

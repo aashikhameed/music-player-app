@@ -353,4 +353,176 @@ class MusicModelsTest {
         // Starting playback from stopped/paused state is instantaneous (0.0s)
         assertEquals(0.0f, resolveCrossfadeDuration(isAutoCrossfade = false, configuredSec = 3.0f, isPlaying = false), 0.001f)
     }
+
+    @Test
+    fun testSongStreamingDetection() {
+        val localSong = Song(
+            id = "1",
+            title = "Local Track",
+            artist = "Local Artist",
+            album = "Local Album",
+            duration = 180000L,
+            path = "/storage/emulated/0/Music/track.flac"
+        )
+        assertFalse(localSong.isStream())
+        assertEquals("FLAC", localSong.getFileExtension())
+        assertEquals("FLAC • 03:00", localSong.getBadgeLabel())
+
+        val streamSong = Song(
+            id = "2",
+            title = "Online Single",
+            artist = "Stream Artist",
+            album = "Single Album",
+            duration = 215000L,
+            path = "https://aac.saavncdn.com/123/stream.mp4"
+        )
+        assertTrue(streamSong.isStream())
+        assertEquals("STREAM", streamSong.getFileExtension())
+        assertEquals("STREAM • 03:35", streamSong.getBadgeLabel())
+
+        val liveRadio = Song(
+            id = "3",
+            title = "Lofi Chill Radio",
+            artist = "ChillHop",
+            album = "Community Radio",
+            duration = 0L,
+            path = "https://streams.ilovemusic.de/iloveradio17.mp3"
+        )
+        assertTrue(liveRadio.isStream())
+        assertEquals("LIVE", liveRadio.getFileExtension())
+        assertEquals("LIVE • STREAM", liveRadio.getBadgeLabel())
+    }
+
+    @Test
+    fun testRadioStationModelAndSongConversion() {
+        val station = com.aashik.music.model.RadioStation(
+            id = "test_synthwave",
+            name = "Nightwave Plaza",
+            genre = "Synthwave",
+            description = "Aesthetic Synthwave Stream",
+            streamUrl = "https://radio.plaza.one/mp3",
+            bitrate = "128 kbps",
+            country = "Global"
+        )
+        val stationSong = station.toSong()
+        assertTrue(stationSong.isStream())
+        assertEquals("Nightwave Plaza", stationSong.title)
+        assertEquals("Synthwave • 128 kbps", stationSong.artist)
+        assertEquals("Online Radio & Streams", stationSong.album)
+        assertEquals(0L, stationSong.duration)
+        assertEquals("https://radio.plaza.one/mp3", stationSong.path)
+    }
+
+    @Test
+    fun testOnlineStreamUrlDecryptionAndQualitySelection() {
+        val sampleEncrypted = "ID2ieOjCrwfgWvL5sXl4B1ImC5QfbsDy3oAkJDMbq8VkXOZU65DcFdrDhsTWIRT7u/8vMld9DHecVMFCBmD5/Rw7tS9a8Gtq"
+        val decrypted = com.aashik.music.service.OnlineStreamRepository.decryptMediaUrl(sampleEncrypted)
+        assertTrue("Decrypted URL must start with http or https", decrypted.startsWith("http"))
+        assertTrue("Decrypted URL must end with .mp4 or .aac or .mp3", decrypted.contains(".mp4"))
+
+        // Quality selection: 320kbps upgrade when supported
+        val stream320 = com.aashik.music.service.OnlineStreamRepository.selectBestStream(decrypted, supports320 = true)
+        assertTrue(stream320.contains("_320.mp4"))
+
+        // Quality selection: 160kbps balanced when 320 is not supported
+        val stream160 = com.aashik.music.service.OnlineStreamRepository.selectBestStream(decrypted, supports320 = false)
+        assertTrue(stream160.contains("_160.mp4"))
+    }
+
+    @Test
+    fun testDownloadStatusStatesAndStreamDownloadEligibility() {
+        val streamSong = Song(
+            id = "online_test123",
+            title = "Blinding Lights",
+            artist = "The Weeknd",
+            album = "After Hours",
+            duration = 200000L,
+            path = "https://aac.saavncdn.com/test_320.mp4"
+        )
+        // Finite duration streams are eligible for download
+        assertTrue(streamSong.isStream())
+        assertTrue(streamSong.duration > 0)
+
+        // Live stations (duration <= 0) are infinite broadcasts, not downloadable as single tracks
+        val liveStation = Song(
+            id = "station_1",
+            title = "Lofi Girl",
+            artist = "Lofi",
+            album = "Radio",
+            duration = 0L,
+            path = "https://play.streamafrica.net/lofigirl"
+        )
+        assertTrue(liveStation.isStream())
+        assertEquals(0L, liveStation.duration)
+
+        // Verify DownloadStatus hierarchy
+        val idle: com.aashik.music.service.DownloadStatus = com.aashik.music.service.DownloadStatus.Idle
+        val downloading: com.aashik.music.service.DownloadStatus = com.aashik.music.service.DownloadStatus.Downloading(0.45f)
+        val downloaded: com.aashik.music.service.DownloadStatus = com.aashik.music.service.DownloadStatus.Downloaded
+        val failed: com.aashik.music.service.DownloadStatus = com.aashik.music.service.DownloadStatus.Failed("Network timeout")
+
+        assertEquals(0.45f, (downloading as com.aashik.music.service.DownloadStatus.Downloading).progress, 0.001f)
+        assertEquals("Network timeout", (failed as com.aashik.music.service.DownloadStatus.Failed).error)
+        assertTrue(idle is com.aashik.music.service.DownloadStatus.Idle)
+        assertTrue(downloaded is com.aashik.music.service.DownloadStatus.Downloaded)
+    }
+
+    @Test
+    fun testBitChordMoodAndGenreCategories() {
+        val moods = com.aashik.music.model.RadioStation.MOOD_CATEGORIES
+        val genres = com.aashik.music.model.RadioStation.GENRE_CATEGORIES
+        val allCategories = com.aashik.music.model.RadioStation.CATEGORIES
+
+        // Verify counts
+        assertEquals(12, moods.size)
+        assertEquals(38, genres.size)
+        assertEquals(50, allCategories.size)
+
+        // Verify sections
+        assertTrue(moods.all { it.section == com.aashik.music.model.CategorySection.MOODS_AND_MOMENTS })
+        assertTrue(genres.all { it.section == com.aashik.music.model.CategorySection.GENRES })
+
+        // Verify key BitChord mood tile colors from HTML
+        val chill = moods.find { it.title == "Chill" }
+        assertTrue(chill != null)
+        assertEquals(0xFFA4C5FF, chill?.stripeColor)
+        assertTrue(chill?.imageUrl?.contains("yt3.googleusercontent.com") == true)
+        assertEquals("ggMPOg1uX1JOQWZFeDByc2Jm", chill?.params)
+
+        val commute = moods.find { it.title == "Commute" }
+        assertTrue(commute != null)
+        assertEquals(0xFFFFC200, commute?.stripeColor)
+
+        val romance = moods.find { it.title == "Romance" }
+        assertTrue(romance != null)
+        assertEquals(0xFFCC0000, romance?.stripeColor)
+
+        // Verify key BitChord genre tile colors from HTML
+        val african = genres.find { it.title == "African" }
+        assertTrue(african != null)
+        assertEquals(0xFF00A513, african?.stripeColor)
+
+        val rock = genres.find { it.title == "Rock" }
+        assertTrue(rock != null)
+        assertEquals(0xFFCC0000, rock?.stripeColor)
+
+        val tamil = genres.find { it.title == "Tamil" }
+        assertTrue(tamil != null)
+        assertEquals(0xFFCC0000, tamil?.stripeColor)
+
+        val punjabi = genres.find { it.title == "Punjabi" }
+        assertTrue(punjabi != null)
+        assertEquals(0xFFE24B00, punjabi?.stripeColor)
+
+        // Verify all 50 categories have non-blank IDs and valid stripe colors
+        val validCategoryIds = allCategories.map { it.id }.toSet()
+        assertEquals(50, validCategoryIds.size)
+
+        // Verify curated stations map to known category IDs
+        val curated = com.aashik.music.model.RadioStation.CURATED_STATIONS
+        for (station in curated) {
+            assertTrue("Station ${station.name} category ${station.categoryId} must exist in categories",
+                validCategoryIds.contains(station.categoryId))
+        }
+    }
 }

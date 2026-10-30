@@ -2,8 +2,10 @@ package com.aashik.music.viewmodel
 
 import android.Manifest
 import android.app.Application
+import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.MediaScannerConnection
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -17,9 +19,14 @@ import com.aashik.music.data.MusicDatabase
 import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
 import com.aashik.music.model.NavigatingTrack
+import com.aashik.music.model.RadioCategory
+import com.aashik.music.model.RadioStation
 import com.aashik.music.pref.ThemePreference
 import com.aashik.music.repository.AudioScanner
 import com.aashik.music.service.MusicPlayer
+import com.aashik.music.service.OnlineStreamRepository
+import com.aashik.music.service.DownloadStatus
+import com.aashik.music.service.StreamDownloadManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -37,7 +44,8 @@ import java.io.File
 enum class LibraryTab {
     ALL_SONGS,
     FOLDERS,
-    FAVORITES
+    FAVORITES,
+    RADIO
 }
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
@@ -175,6 +183,62 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         appPrefs.getStringSet("favorite_paths", emptySet())?.toSet() ?: emptySet()
     )
     val favoritePaths: StateFlow<Set<String>> = _favoritePaths.asStateFlow()
+
+    // ── Radio Stations & Community Streams State ──
+    private val _radioStations = MutableStateFlow<List<RadioStation>>(RadioStation.CURATED_STATIONS)
+    val radioStations: StateFlow<List<RadioStation>> = _radioStations.asStateFlow()
+
+    private val _radioCategories = MutableStateFlow<List<RadioCategory>>(RadioStation.CATEGORIES)
+    val radioCategories: StateFlow<List<RadioCategory>> = _radioCategories.asStateFlow()
+
+    val moodCategories: StateFlow<List<RadioCategory>> = MutableStateFlow(RadioStation.MOOD_CATEGORIES).asStateFlow()
+    val genreCategories: StateFlow<List<RadioCategory>> = MutableStateFlow(RadioStation.GENRE_CATEGORIES).asStateFlow()
+
+    private val _selectedRadioCategory = MutableStateFlow<RadioCategory?>(null)
+    val selectedRadioCategory: StateFlow<RadioCategory?> = _selectedRadioCategory.asStateFlow()
+
+    private val _categorySongs = MutableStateFlow<List<Song>>(emptyList())
+    val categorySongs: StateFlow<List<Song>> = _categorySongs.asStateFlow()
+
+    private val _isLoadingCategorySongs = MutableStateFlow(false)
+    val isLoadingCategorySongs: StateFlow<Boolean> = _isLoadingCategorySongs.asStateFlow()
+
+    private var categorySearchJob: Job? = null
+
+    private val _favoriteStationIds = MutableStateFlow<Set<String>>(
+        appPrefs.getStringSet("radio_favorite_ids", emptySet())?.toSet() ?: emptySet()
+    )
+    val favoriteStationIds: StateFlow<Set<String>> = _favoriteStationIds.asStateFlow()
+
+    private val _favoriteCategoryIds = MutableStateFlow<Set<String>>(
+        appPrefs.getStringSet("radio_favorite_category_ids", emptySet())?.toSet() ?: emptySet()
+    )
+    val favoriteCategoryIds: StateFlow<Set<String>> = _favoriteCategoryIds.asStateFlow()
+
+    private val _selectedRadioGenre = MutableStateFlow("All")
+    val selectedRadioGenre: StateFlow<String> = _selectedRadioGenre.asStateFlow()
+
+    // ── Unified Global Search State ──
+    private val _searchSongs = MutableStateFlow<List<Song>>(emptyList())
+    val searchSongs: StateFlow<List<Song>> = _searchSongs.asStateFlow()
+
+    private val _searchStations = MutableStateFlow<List<RadioStation>>(emptyList())
+    val searchStations: StateFlow<List<RadioStation>> = _searchStations.asStateFlow()
+
+    private val _onlineSearchSongs = MutableStateFlow<List<Song>>(emptyList())
+    val onlineSearchSongs: StateFlow<List<Song>> = _onlineSearchSongs.asStateFlow()
+
+    private val _isSearchingOnline = MutableStateFlow(false)
+    val isSearchingOnline: StateFlow<Boolean> = _isSearchingOnline.asStateFlow()
+
+    private val _isRadioLoading = MutableStateFlow(false)
+    val isRadioLoading: StateFlow<Boolean> = _isRadioLoading.asStateFlow()
+
+    private val _activeRadioStationName = MutableStateFlow<String?>(null)
+    val activeRadioStationName: StateFlow<String?> = _activeRadioStationName.asStateFlow()
+
+    private var onlineSearchJob: Job? = null
+    private var radioJob: Job? = null
 
     // ── Automotive Time Alignment & Bass Normalizer (Automotive DSP) ──
     private val _timeAlignmentMode = MutableStateFlow(eqPrefs.getInt("time_alignment_mode", 0)) // 0: Center, 1: RHD, 2: LHD
@@ -329,6 +393,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
             application.registerReceiver(receiver, filter)
         } catch (_: Exception) {}
+
+        // Initialize Offline Stream Download Engine
+        StreamDownloadManager.init(application, songDao)
     }
 
     fun setupLocationUpdates() {
@@ -655,8 +722,201 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             LibraryTab.FOLDERS -> {
                 updateFolderList()
             }
+            LibraryTab.RADIO -> {
+                _selectedFolder.value = null
+                viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
+            }
         }
     }
+
+    fun toggleRadioFavorite(stationId: String) {
+        val current = _favoriteStationIds.value.toMutableSet()
+        if (current.contains(stationId)) {
+            current.remove(stationId)
+        } else {
+            current.add(stationId)
+        }
+        _favoriteStationIds.value = current
+        appPrefs.edit().putStringSet("radio_favorite_ids", current).apply()
+    }
+
+    fun isRadioFavorite(stationId: String): Boolean = _favoriteStationIds.value.contains(stationId)
+
+    fun toggleCategoryFavorite(categoryId: String) {
+        val current = _favoriteCategoryIds.value.toMutableSet()
+        if (current.contains(categoryId)) {
+            current.remove(categoryId)
+        } else {
+            current.add(categoryId)
+        }
+        _favoriteCategoryIds.value = current
+        appPrefs.edit().putStringSet("radio_favorite_category_ids", current).apply()
+    }
+
+    fun isCategoryFavorite(categoryId: String): Boolean = _favoriteCategoryIds.value.contains(categoryId)
+
+    fun selectRadioGenre(genre: String) {
+        _selectedRadioGenre.value = genre
+    }
+
+    fun openRadioCategory(category: RadioCategory) {
+        _selectedRadioCategory.value = category
+        _categorySongs.value = emptyList()
+        categorySearchJob?.cancel()
+        categorySearchJob = viewModelScope.launch {
+            _isLoadingCategorySongs.value = true
+            try {
+                val query = "${category.title} Hits"
+                val results = OnlineStreamRepository.searchSongs(query, limit = 20)
+                _categorySongs.value = if (results.isNotEmpty()) {
+                    results
+                } else {
+                    OnlineStreamRepository.searchSongs(category.title, limit = 20)
+                }
+            } catch (_: Exception) {
+                _categorySongs.value = emptyList()
+            } finally {
+                _isLoadingCategorySongs.value = false
+            }
+        }
+    }
+
+    fun closeRadioCategory() {
+        _selectedRadioCategory.value = null
+        _categorySongs.value = emptyList()
+        categorySearchJob?.cancel()
+    }
+
+    fun playRadioStation(station: RadioStation) {
+        val stationSong = station.toSong()
+        val stationSongs = _radioStations.value.map { it.toSong() }
+        _activeRadioStationName.value = station.name
+        _userQueue.value = stationSongs.filter { it.id != stationSong.id }
+        play(stationSong, playlist = stationSongs)
+    }
+
+    fun playRandomOrNextRadioStation() {
+        val stations = _radioStations.value
+        if (stations.isEmpty()) return
+        val favIds = _favoriteStationIds.value
+        val curPath = _currentSong.value?.path
+        val favStations = stations.filter { favIds.contains(it.id) }
+        val pool = if (favStations.isNotEmpty()) favStations else stations
+        val nextStation = if (curPath != null) {
+            val idx = pool.indexOfFirst { it.streamUrl == curPath }
+            if (idx in 0 until pool.lastIndex) pool[idx + 1] else pool.first()
+        } else {
+            pool.first()
+        }
+        playRadioStation(nextStation)
+    }
+
+    fun searchOnline(query: String) {
+        onlineSearchJob?.cancel()
+        val q = query.trim()
+        if (q.length < 2) {
+            _onlineSearchSongs.value = emptyList()
+            _isSearchingOnline.value = false
+            return
+        }
+        onlineSearchJob = viewModelScope.launch {
+            _isSearchingOnline.value = true
+            try {
+                kotlinx.coroutines.delay(350L) // Debounce typing on headunit
+                val results = OnlineStreamRepository.searchSongs(q, limit = 15)
+                _onlineSearchSongs.value = results
+            } catch (e: Exception) {
+                _onlineSearchSongs.value = emptyList()
+            } finally {
+                _isSearchingOnline.value = false
+            }
+        }
+    }
+
+    fun startRadioForSong(seedSong: Song) {
+        radioJob?.cancel()
+        radioJob = viewModelScope.launch {
+            _isRadioLoading.value = true
+            _activeRadioStationName.value = "Radio: ${seedSong.title}"
+            try {
+                // Clear any manual user queue so the radio station replaces the current queue
+                _userQueue.value = emptyList()
+
+                // If the seed song isn't already playing or is paused, start playing it
+                if (_currentSong.value?.id != seedSong.id || !_isPlaying.value) {
+                    play(seedSong, playlist = listOf(seedSong))
+                }
+
+                // Fetch similar algorithmic radio tracks for this seed song
+                val radioTracks = OnlineStreamRepository.getRadioTracksForSong(seedSong, limit = 15)
+                val fullQueue = ArrayList<Song>(1 + radioTracks.size)
+                fullQueue.add(seedSong)
+                for (t in radioTracks) {
+                    if (t.id != seedSong.id) fullQueue.add(t)
+                }
+
+                // Completely replace the active playlist & queue with the radio tracks
+                activePlaylist = fullQueue
+                _songs.value = fullQueue
+
+                // Populate userQueue with upcoming radio tracks so they appear in Queue drawer and Next Song
+                val upcomingTracks = fullQueue.filter { it.id != seedSong.id }
+                _userQueue.value = upcomingTracks
+
+                if (_isShuffleOn.value) {
+                    val others = fullQueue.filter { it.id != seedSong.id }.shuffled()
+                    activeShuffledSongs = (listOf(seedSong) + others).toMutableList()
+                    shuffledSongs = activeShuffledSongs
+                } else {
+                    activeShuffledSongs = mutableListOf()
+                }
+
+                val queue = if (_isShuffleOn.value) activeShuffledSongs else activePlaylist
+                val startIndex = queue.indexOfFirst { it.id == seedSong.id }.coerceAtLeast(0)
+                musicPlayer.setPlaylist(queue, startIndex)
+
+            } catch (e: Exception) {
+                val fallbackStations = _radioStations.value.map { it.toSong() }
+                if (fallbackStations.isNotEmpty()) {
+                    activePlaylist = fallbackStations
+                    _songs.value = fallbackStations
+                    _userQueue.value = fallbackStations.filter { it.id != seedSong.id }
+                    musicPlayer.setPlaylist(fallbackStations, 0)
+                }
+            } finally {
+                _isRadioLoading.value = false
+            }
+        }
+    }
+
+    fun startRadioForCurrentSong() {
+        val current = _currentSong.value
+        if (current != null) {
+            startRadioForSong(current)
+        } else {
+            playRandomOrNextRadioStation()
+        }
+    }
+
+    // ── Stream Download Management ──
+    val downloadStates: StateFlow<Map<String, DownloadStatus>> = StreamDownloadManager.downloadStates
+
+    fun downloadSong(song: Song) {
+        val app = getApplication<Application>()
+        StreamDownloadManager.downloadSong(app, song, songDao) { downloadedSong ->
+            viewModelScope.launch(Dispatchers.Main) {
+                if (originalSongs.none { it.id == downloadedSong.id }) {
+                    originalSongs = (originalSongs + downloadedSong).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
+                    _songs.value = originalSongs
+                    updateFolderList()
+                }
+            }
+        }
+    }
+
+    fun isSongDownloaded(songId: String): Boolean = StreamDownloadManager.isDownloaded(songId)
+
+    fun getDownloadStatus(song: Song): DownloadStatus = StreamDownloadManager.getStatus(song.id)
 
     fun openFolder(folderPath: String) {
         _selectedFolder.value = folderPath
@@ -722,14 +982,37 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         if (query.isBlank()) {
             _songs.value = baseList
+            _searchSongs.value = emptyList()
+            _searchStations.value = emptyList()
+            _onlineSearchSongs.value = emptyList()
+            _isSearchingOnline.value = false
+            _searchSongs.value = emptyList()
+            _searchStations.value = emptyList()
+            _onlineSearchSongs.value = emptyList()
+            _isSearchingOnline.value = false
         } else {
             val q = query.trim()
+            val matchedSongs = originalSongs.filter {
+                it.title.contains(q, ignoreCase = true) ||
+                it.artist.contains(q, ignoreCase = true) ||
+                it.album.contains(q, ignoreCase = true) ||
+                it.path.contains(q, ignoreCase = true)
+            }
+            val matchedStations = _radioStations.value.filter {
+                it.name.contains(q, ignoreCase = true) ||
+                it.genre.contains(q, ignoreCase = true) ||
+                it.description.contains(q, ignoreCase = true) ||
+                it.country.contains(q, ignoreCase = true)
+            }
+            _searchSongs.value = matchedSongs
+            _searchStations.value = matchedStations
             _songs.value = baseList.filter {
                 it.title.contains(q, ignoreCase = true) ||
                 it.artist.contains(q, ignoreCase = true) ||
                 it.album.contains(q, ignoreCase = true) ||
                 it.path.contains(q, ignoreCase = true)
             }
+            searchOnline(q)
         }
     }
 
@@ -1186,20 +1469,63 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     updateFolderList()
                 }
 
-                // 5. Delete from Android MediaStore ContentResolver & FileSystem
+                // 5. Hard-delete from Physical Storage (Filesystem & MediaStore)
                 val context = getApplication<Application>().applicationContext
+                val targetFile = File(song.path)
+
+                // Step A: Direct Physical Filesystem Hard-Deletion
                 try {
-                    val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                    val where = "${MediaStore.Audio.Media.DATA} = ?"
-                    val selectionArgs = arrayOf(song.path)
-                    context.contentResolver.delete(uri, where, selectionArgs)
+                    if (targetFile.exists()) {
+                        val deleted = targetFile.delete()
+                        if (!deleted) {
+                            targetFile.setWritable(true)
+                            if (!targetFile.delete()) {
+                                try {
+                                    java.io.FileOutputStream(targetFile).use { /* zero out file */ }
+                                    targetFile.delete()
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("MusicViewModel", "Filesystem hard delete failed: ${e.message}")
+                }
+
+                // Step B: Delete from Android MediaStore using precise ContentUris with item ID
+                try {
+                    val projection = arrayOf(MediaStore.Audio.Media._ID)
+                    val cursor = context.contentResolver.query(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        projection,
+                        "${MediaStore.Audio.Media.DATA} = ?",
+                        arrayOf(song.path),
+                        null
+                    )
+                    cursor?.use {
+                        if (it.moveToFirst()) {
+                            val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                            val itemUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                            context.contentResolver.delete(itemUri, null, null)
+                        }
+                    }
+                    // Secondary query-based cleanup
+                    context.contentResolver.delete(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        "${MediaStore.Audio.Media.DATA} = ?",
+                        arrayOf(song.path)
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w("MusicViewModel", "MediaStore deletion failed: ${e.message}")
+                }
+
+                // Step C: Trigger MediaScanner to prune stale OS index records so rescans don't resurrect the track
+                try {
+                    MediaScannerConnection.scanFile(context, arrayOf(song.path), null, null)
                 } catch (_: Exception) {}
 
+                // Step D: StreamDownloadManager cleanup (if this was a downloaded track)
                 try {
-                    val file = File(song.path)
-                    if (file.exists()) {
-                        file.delete()
-                    }
+                    StreamDownloadManager.onSongDeleted(context, song)
                 } catch (_: Exception) {}
             } catch (e: Exception) {
                 e.printStackTrace()

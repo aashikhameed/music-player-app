@@ -199,6 +199,7 @@ fun QueueDrawer(
                         ) {
                             AlbumArtImage(
                                 path = currentSong!!.path,
+                                artworkUrl = currentSong!!.artworkUrl,
                                 size = 44.dp,
                                 borderRadius = 8.dp,
                                 isPlaying = isPlaying
@@ -309,6 +310,7 @@ fun QueueDrawer(
                             ) {
                                 AlbumArtImage(
                                     path = nextFromPlaylist.path,
+                                    artworkUrl = nextFromPlaylist.artworkUrl,
                                     size = 38.dp,
                                     borderRadius = 6.dp,
                                     isPlaying = false
@@ -423,6 +425,7 @@ private fun QueueItemRow(
 
             AlbumArtImage(
                 path = song.path,
+                artworkUrl = song.artworkUrl,
                 size = 36.dp,
                 borderRadius = 6.dp,
                 isPlaying = false

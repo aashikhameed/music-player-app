@@ -96,6 +96,7 @@ fun BottomControlStrip(
                     ) {
                         AlbumArtImage(
                             path = currentSong?.path.orEmpty(),
+                            artworkUrl = currentSong?.artworkUrl,
                             size = 40.dp,
                             borderRadius = 8.dp,
                             isPlaying = isPlaying

@@ -7,6 +7,8 @@ import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.MediaPlayer
+import android.os.PowerManager
 import android.util.Log
 import com.aashik.music.model.Song
 import com.aashik.music.nativeaudio.NativeAudioBridge
@@ -72,6 +74,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     private var isTransitioning = false
     private var autoCrossfadeTriggeredPath: String? = null
     private var playJob: Job? = null
+    private var streamMediaPlayer: MediaPlayer? = null
+    private var streamTickerJob: Job? = null
 
     init {
         val attrs = AudioAttributes.Builder()
@@ -85,8 +89,14 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                 when (focusChange) {
                     AudioManager.AUDIOFOCUS_LOSS -> pause()
                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> nativeBridge.setVolume(0.2f)
-                    AudioManager.AUDIOFOCUS_GAIN -> nativeBridge.setVolume(1.0f)
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                        nativeBridge.setVolume(0.2f)
+                        streamMediaPlayer?.setVolume(0.2f, 0.2f)
+                    }
+                    AudioManager.AUDIOFOCUS_GAIN -> {
+                        nativeBridge.setVolume(1.0f)
+                        streamMediaPlayer?.setVolume(1.0f, 1.0f)
+                    }
                 }
             }
             .build()
@@ -242,6 +252,40 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         com.aashik.music.controller.MusicController.play(prevSong)
     }
 
+    private fun startStreamTicker() {
+        streamTickerJob?.cancel()
+        streamTickerJob = scope.launch(Dispatchers.Default) {
+            var elapsedMs = 0L
+            while (streamMediaPlayer != null && _isPlayingFlow.value) {
+                delay(500L)
+                val curPos = try { streamMediaPlayer?.currentPosition?.toLong() } catch (_: Exception) { null }
+                if (curPos != null && curPos > 0L) {
+                    _positionFlow.value = curPos
+                } else {
+                    elapsedMs += 500L
+                    _positionFlow.value = elapsedMs
+                }
+            }
+        }
+    }
+
+    private fun stopStreamTicker() {
+        streamTickerJob?.cancel()
+        streamTickerJob = null
+    }
+
+    private fun stopStreamPlayback() {
+        stopStreamTicker()
+        streamMediaPlayer?.let { mp ->
+            try {
+                if (mp.isPlaying) mp.stop()
+                mp.reset()
+                mp.release()
+            } catch (_: Exception) {}
+        }
+        streamMediaPlayer = null
+    }
+
     fun play(song: Song, isAutoCrossfade: Boolean = false) {
         val idx = playlist.indexOfFirst { it.id == song.id }
         if (idx != -1) {
@@ -262,28 +306,83 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         isTransitioning = false
         _currentSongFlow.value = song
         _positionFlow.value = 0L
-        if (song.duration > 0) {
-            _durationFlow.value = song.duration
-        }
+        _durationFlow.value = if (song.duration > 0) song.duration else 0L
 
         playJob?.cancel()
-        playJob = scope.launch(Dispatchers.IO) {
-            val res = nativeBridge.playTrack(song.path, 0L, isAutoCrossfade)
-            if (res == 0) {
-                _isPlayingFlow.value = true
-                val nativeDur = nativeBridge.getDuration()
-                if (nativeDur > 0) {
-                    _durationFlow.value = nativeDur
+
+        if (song.isStream()) {
+            nativeBridge.stop()
+            stopStreamPlayback()
+
+            val mp = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
+                try {
+                    setDataSource(song.path)
+                    setOnPreparedListener { player ->
+                        try {
+                            player.start()
+                            _isPlayingFlow.value = true
+                            val dur = if (player.duration > 0) player.duration.toLong() else if (song.duration > 0) song.duration else 0L
+                            _durationFlow.value = dur
+                            startStreamTicker()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to start streaming playback: ${e.message}")
+                            _isPlayingFlow.value = false
+                        }
+                    }
+                    setOnErrorListener { _, what, extra ->
+                        Log.e(TAG, "Streaming error: what=$what extra=$extra")
+                        _isPlayingFlow.value = false
+                        stopStreamTicker()
+                        true
+                    }
+                    setOnCompletionListener {
+                        _isPlayingFlow.value = false
+                        stopStreamTicker()
+                        onCompletion?.invoke(false)
+                        onTrackEnded()
+                    }
+                    prepareAsync()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to initialize stream player: ${e.message}")
+                    _isPlayingFlow.value = false
                 }
-            } else {
-                Log.e(TAG, "nativeBridge.playTrack returned error code $res for track: ${song.path}")
+            }
+            streamMediaPlayer = mp
+        } else {
+            stopStreamPlayback()
+            playJob = scope.launch(Dispatchers.IO) {
+                val res = nativeBridge.playTrack(song.path, 0L, isAutoCrossfade)
+                if (res == 0) {
+                    _isPlayingFlow.value = true
+                    val nativeDur = nativeBridge.getDuration()
+                    if (nativeDur > 0) {
+                        _durationFlow.value = nativeDur
+                    }
+                } else {
+                    Log.e(TAG, "nativeBridge.playTrack returned error code $res for track: ${song.path}")
+                }
             }
         }
     }
 
     fun pause() {
-        nativeBridge.pause()
-        _isPlayingFlow.value = false
+        if (_currentSongFlow.value?.isStream() == true && streamMediaPlayer != null) {
+            try {
+                streamMediaPlayer?.pause()
+            } catch (_: Exception) {}
+            _isPlayingFlow.value = false
+            stopStreamTicker()
+        } else {
+            nativeBridge.pause()
+            _isPlayingFlow.value = false
+        }
         audioManager.abandonAudioFocusRequest(focusRequest)
     }
 
@@ -291,6 +390,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         playJob?.cancel()
         autoCrossfadeTriggeredPath = null
         isTransitioning = false
+        stopStreamPlayback()
         nativeBridge.setVolume(1.0f)
         nativeBridge.stop()
         _positionFlow.value = 0L
@@ -300,6 +400,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     suspend fun isPrepared(): Boolean = withContext(Dispatchers.Main) {
+        if (_currentSongFlow.value?.isStream() == true) {
+            return@withContext streamMediaPlayer != null
+        }
         val state = nativeBridge.getPlaybackState()
         state == 3 || state == 4 // PLAYING or PAUSED
     }
@@ -310,9 +413,19 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         } catch (e: Exception) {
             Log.w(TAG, "Audio focus request on resume failed: ${e.message}")
         }
-        nativeBridge.setVolume(1.0f)
-        nativeBridge.resume()
-        _isPlayingFlow.value = true
+        if (_currentSongFlow.value?.isStream() == true && streamMediaPlayer != null) {
+            try {
+                streamMediaPlayer?.start()
+                _isPlayingFlow.value = true
+                startStreamTicker()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resume streaming: ${e.message}")
+            }
+        } else {
+            nativeBridge.setVolume(1.0f)
+            nativeBridge.resume()
+            _isPlayingFlow.value = true
+        }
     }
 
     fun togglePlayPause() {
@@ -324,6 +437,15 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun seekRelative(deltaMs: Long) {
+        if (_currentSongFlow.value?.isStream() == true) {
+            val dur = _durationFlow.value
+            if (dur > 0L) {
+                val curPos = _positionFlow.value
+                val target = (curPos + deltaMs).coerceIn(0L, dur)
+                seekTo(target)
+            }
+            return
+        }
         val curPos = _positionFlow.value
         val dur = _durationFlow.value.coerceAtLeast(1L)
         val target = (curPos + deltaMs).coerceIn(0L, dur)
@@ -331,6 +453,15 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun seekTo(position: Long) {
+        if (_currentSongFlow.value?.isStream() == true) {
+            if (_durationFlow.value > 0L) {
+                try {
+                    streamMediaPlayer?.seekTo(position.toInt())
+                    _positionFlow.value = position
+                } catch (_: Exception) {}
+            }
+            return
+        }
         nativeBridge.setVolume(1.0f)
         nativeBridge.seek(position)
         _positionFlow.value = position

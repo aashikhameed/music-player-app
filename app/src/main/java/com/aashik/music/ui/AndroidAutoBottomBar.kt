@@ -162,6 +162,7 @@ fun AndroidAutoBottomBar(
                         if (song != null) {
                             AlbumArtImage(
                                 path         = song.path,
+                                artworkUrl   = song.artworkUrl,
                                 size         = 50.dp,
                                 borderRadius = 10.dp,
                                 isPlaying    = isPlaying

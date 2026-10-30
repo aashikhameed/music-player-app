@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -44,6 +45,7 @@ private val Shape8 = RoundedCornerShape(8.dp)
 fun AlbumArtImage(
     path: String,
     modifier: Modifier = Modifier,
+    artworkUrl: String? = null,
     size: Dp = 54.dp,
     borderRadius: Dp = 10.dp,
     isPlaying: Boolean = false,
@@ -56,6 +58,10 @@ fun AlbumArtImage(
     }
     val context = LocalContext.current
 
+    if (!artworkUrl.isNullOrBlank()) {
+        AlbumArtCache.registerStreamArtwork(path, artworkUrl, context)
+    }
+
     var bitmap by remember(path, isHighRes) {
         mutableStateOf<Bitmap?>(
             if (isHighRes) AlbumArtCache.getHighRes(path) ?: AlbumArtCache.get(path)
@@ -65,7 +71,7 @@ fun AlbumArtImage(
 
     if (path.isNotEmpty() && !AlbumArtCache.hasNoArt(path)) {
         if (isHighRes && AlbumArtCache.getHighRes(path) == null) {
-            LaunchedEffect(path) {
+            LaunchedEffect(path, artworkUrl) {
                 val loaded = AlbumArtCache.getOrLoadHighRes(path) {
                     com.aashik.music.utils.loadAlbumArtHighRes(it)
                 }
@@ -74,7 +80,7 @@ fun AlbumArtImage(
                 }
             }
         } else if (bitmap == null) {
-            LaunchedEffect(path) {
+            LaunchedEffect(path, artworkUrl) {
                 bitmap = AlbumArtCache.getOrLoad(context, path) { loadAlbumArt(it) }
             }
         }
@@ -114,8 +120,9 @@ fun AlbumArtImage(
                     .background(PlaceholderBg),
                 contentAlignment = Alignment.Center
             ) {
+                val isStream = path.startsWith("http://", ignoreCase = true) || path.startsWith("https://", ignoreCase = true)
                 Icon(
-                    imageVector = Icons.Rounded.MusicNote,
+                    imageVector = if (isStream) Icons.Rounded.Radio else Icons.Rounded.MusicNote,
                     contentDescription = null,
                     tint = primaryColor.copy(alpha = 0.6f),
                     modifier = Modifier.size(size * 0.45f)

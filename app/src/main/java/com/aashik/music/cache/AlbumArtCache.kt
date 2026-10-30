@@ -32,6 +32,9 @@ object AlbumArtCache {
     // Tracks known files without album art to skip redundant disk I/O & retriever calls
     private val noArtPaths = ConcurrentHashMap.newKeySet<String>()
 
+    // Direct mapping of streaming audio URLs/paths to remote image artwork URLs
+    private val streamArtworkMap = ConcurrentHashMap<String, String>()
+
     // Deduplicate in-flight decode jobs for the same track
     private val inFlightLoads = ConcurrentHashMap<String, kotlinx.coroutines.Deferred<Bitmap?>>()
 
@@ -124,6 +127,22 @@ object AlbumArtCache {
     fun getHighRes(path: String): Bitmap? = memoryCache.get(path + "_hr")
 
     fun hasNoArt(path: String): Boolean = noArtPaths.contains(path)
+
+    fun registerStreamArtwork(path: String, artworkUrl: String, context: Context? = null) {
+        if (artworkUrl.isNotBlank() && path.isNotBlank()) {
+            streamArtworkMap[path] = artworkUrl
+            noArtPaths.remove(path)
+            noArtPaths.remove(path + "_hr")
+            if (context != null) {
+                try {
+                    val noArtFile = getNoArtFile(context, path)
+                    if (noArtFile.exists()) noArtFile.delete()
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    fun getStreamArtwork(path: String): String? = streamArtworkMap[path]
 
     suspend fun getOrLoadHighRes(
         path: String,

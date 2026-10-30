@@ -130,6 +130,7 @@ fun SongCard(
             Box(contentAlignment = Alignment.Center) {
                 AlbumArtImage(
                     path = song.path,
+                    artworkUrl = song.artworkUrl,
                     size = 56.dp,  // 56dp — fills the 76dp card nicely at 160dpi
                     borderRadius = 10.dp,
                     isPlaying = isPlaying
