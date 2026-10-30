@@ -489,6 +489,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             .apply()
     }
 
+    fun cycleEqualizerPreset() {
+        // Cycle through presets 0 (Flat), 1 (Acoustic), 2 (Vocal), 3 (Bass Punch), 4 (Rock Dynamic)
+        val next = (_equalizerPreset.value + 1) % 5
+        setEqualizerPreset(next)
+    }
+
     fun setEqualizerBandGain(bandIndex: Int, gainDb: Float) {
         val current = _equalizerBands.value.toMutableList()
         if (bandIndex in current.indices) {

@@ -14,7 +14,7 @@
   Engineered with modern <b>Jetpack Compose</b> and a bare-metal <b>C++17 OpenSL ES native audio engine</b> for flawless 60 FPS playback on low-memory ARM Cortex / Mali GPU automotive hardware.
 </p>
 
-[**Download Latest APK (v0.0.30)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
+[**Download Latest APK (v0.0.31)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
 
 ---
 
@@ -77,11 +77,13 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 - **Zero-Allocation Native DSP**: Integrated directly into OpenSL ES sample processing loop with zero GC overhead.
 
 ### 🚗 Full-Screen Distraction-Free Drive Mode HUD
-- **Blind Gesture Navigation**: Swipe left for Next Song, swipe right for Previous Song, and tap anywhere to Play/Pause.
+- **3-Tier Cockpit Architecture**:
+  - **Top Row**: 12-Hour AM/PM clock with live playback dot, sleep timer, live animated audio spectrum visualizer (tap to cycle DSP presets: Flat, Acoustic, Vocal, Bass Punch, Rock), folder switcher, and one-tap **Night Highway Dimmer Mode**.
+  - **Center Stage**: Large 180×180dp album artwork with horizontal Apple CarPlay slide transitions paired with giant driving touch targets (84dp play/pause, 68dp skip, 52dp 10s scrub).
+  - **Bottom Row**: Dedicated infotainment music card with edge-to-edge scrubbing seekbar, high-contrast vertical roll (fade-up/down) typography, and upcoming track peek pill.
+- **Night Highway Dimmer Mode**: One-tap distraction-free blackout mode reducing cabin glare on the windshield to pure OLED `#000000` with muted accents for night driving.
+- **Blind Gesture Navigation**: Swipe left for Next Song, swipe right for Previous Song, and double-tap anywhere to Play/Pause.
 - **Visual Swipe Feedback**: Instant directional badge overlay confirming queue navigation before automatically dismissing.
-- **Tactile 10-Second Skip**: Dedicated 10s forward and rewind controls for rapid audio scrubbing while driving.
-- **Live HUD Track Progress**: Full seekbar scrubber and folder switching directly accessible without leaving the drive interface.
-- **High-Contrast Track Typography**: Massive title and artist display with silky-smooth vertical slide transitions legible from driver distance.
 
 ### 🔀 Refined Apple CarPlay Style Crossfade & Audio Transition Engine
 - **Natural Track Completion (Equal-Power Crossfade)**: The ending song smoothly fades out while the upcoming track fades in over user-configured duration (default 3.0s) with zero gap.
