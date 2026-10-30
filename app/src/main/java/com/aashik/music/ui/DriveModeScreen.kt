@@ -181,11 +181,6 @@ fun DriveModeScreen(
         isDark -> Color.White.copy(alpha = 0.65f)
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val hintTextColor = when {
-        isNightDimmerActive -> Color(0xFF5A6677)
-        isDark -> Color.White.copy(alpha = 0.45f)
-        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-    }
     val controlIconColor = when {
         isNightDimmerActive -> Color(0xFFDCE4EE)
         isDark -> Color.White
@@ -588,23 +583,6 @@ fun DriveModeScreen(
                             }
                         }
                     }
-                    Text(
-                        text = "Swipe ← / → anywhere to change track • Double-tap to pause",
-                        fontSize = 10.sp,
-                        color = hintTextColor
-                    )
-                    // Unified Action Bar (Fav, Download, Radio, EQ Presets, Queue)
-                    DriveHudActionBar(
-                        viewModel = viewModel,
-                        currentSong = currentSong,
-                        isFavorite = isFavorite,
-                        isRadioActive = isRadioActive,
-                        isRadioLoading = isRadioLoading,
-                        currentDownloadStatus = currentDownloadStatus,
-                        isNightDimmerActive = isNightDimmerActive,
-                        isDark = isDark,
-                        controlInactiveColor = controlInactiveColor
-                    )
                 }
             }
 
@@ -620,6 +598,18 @@ fun DriveModeScreen(
                 else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             }
 
+            // Unified Action Bar (Fav, Download, Radio, EQ Presets, Queue)
+            DriveHudActionBar(
+                viewModel = viewModel,
+                currentSong = currentSong,
+                isFavorite = isFavorite,
+                isRadioActive = isRadioActive,
+                isRadioLoading = isRadioLoading,
+                currentDownloadStatus = currentDownloadStatus,
+                isNightDimmerActive = isNightDimmerActive,
+                isDark = isDark,
+                controlInactiveColor = controlInactiveColor
+            )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

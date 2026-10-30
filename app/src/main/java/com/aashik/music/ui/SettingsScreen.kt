@@ -25,9 +25,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
@@ -53,15 +56,23 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import com.aashik.music.service.StreamDownloadManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -78,6 +89,10 @@ private val CardSectionShape = RoundedCornerShape(14.dp)
 private val ChipPillShape = RoundedCornerShape(10.dp)
 private val InfoBadgeShape = RoundedCornerShape(8.dp)
 private val ActionButtonShape = RoundedCornerShape(10.dp)
+private val DownloadOptionShape = RoundedCornerShape(10.dp)
+private val PresetBadgeShape = RoundedCornerShape(6.dp)
+private val CustomPathFieldShape = RoundedCornerShape(8.dp)
+private val DialogContainerShape = RoundedCornerShape(16.dp)
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -236,6 +251,7 @@ fun SettingsScreen(
                     RefetchSection(viewModel = viewModel)
                     ThemeDisplaySection(viewModel = viewModel)
                     PlaybackPreferencesSection(viewModel = viewModel)
+                    DownloadStorageSection(viewModel = viewModel)
                     CacheManagementSection(viewModel = viewModel)
                     SystemInfoSection()
                     Spacer(modifier = Modifier.height(24.dp))
@@ -917,7 +933,7 @@ private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Maximizes screen area for media library. Shows sleek floating pill to reveal dock.",
+                        text = "Maximizes screen area for media library by completely hiding the playback dock.",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1117,6 +1133,377 @@ private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Offline Download Storage & Directory Location Section.
+ * Configures the destination directory for stream downloads (Public Music, Downloads, App Storage, or Custom Path).
+ */
+@Composable
+private fun DownloadStorageSection(viewModel: MusicViewModel) {
+    val activePreset by viewModel.downloadStoragePreset.collectAsState()
+    val activePath by viewModel.downloadLocationPath.collectAsState()
+    var isPickerOpen by remember { mutableStateOf(false) }
+
+    val cardBorder = AppGradients.border(isActive = false)
+
+    val presetLabel = when (activePreset) {
+        StreamDownloadManager.PRESET_PUBLIC_MUSIC -> "Public Music"
+        StreamDownloadManager.PRESET_PUBLIC_DOWNLOADS -> "Public Downloads"
+        StreamDownloadManager.PRESET_APP_INTERNAL -> "App Storage (Safe Mode)"
+        StreamDownloadManager.PRESET_CUSTOM -> "Custom Directory"
+        else -> "Default Music"
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 0.8.dp, brush = cardBorder, shape = CardSectionShape),
+        shape = CardSectionShape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Download,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Offline Download Storage Location",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = presetLabel,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    shape = PresetBadgeShape
+                                )
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Active",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = activePath.ifBlank { "Resolving storage path..." },
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = { isPickerOpen = true },
+                    shape = ActionButtonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Folder,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Change",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+
+    if (isPickerOpen) {
+        DownloadLocationDialog(
+            currentPreset = activePreset,
+            currentPath = activePath,
+            onSelectPreset = { preset, customPath ->
+                viewModel.setDownloadStorage(preset, customPath)
+                isPickerOpen = false
+            },
+            onTestPath = { path -> viewModel.testCustomPathWritable(path) },
+            onDismiss = { isPickerOpen = false }
+        )
+    }
+}
+
+@Composable
+private fun DownloadLocationDialog(
+    currentPreset: String,
+    currentPath: String,
+    onSelectPreset: (String, String?) -> Unit,
+    onTestPath: (String) -> Pair<Boolean, String>,
+    onDismiss: () -> Unit
+) {
+    var isCustomSelected by remember { mutableStateOf(currentPreset == StreamDownloadManager.PRESET_CUSTOM) }
+    var customPathInput by remember { mutableStateOf(if (currentPreset == StreamDownloadManager.PRESET_CUSTOM) currentPath else "") }
+    var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = DialogContainerShape,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Select Download Storage Location",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Choose where offline audio files are stored. MediaStore is used on Android 10+ for public folders.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Option 1: Public Music
+                StorageOptionItem(
+                    title = "Public Music (Recommended)",
+                    subtitle = "Music/MusicPlayer (Visible in all media players and PC transfers)",
+                    badge = "System Library",
+                    isSelected = !isCustomSelected && currentPreset == StreamDownloadManager.PRESET_PUBLIC_MUSIC,
+                    onClick = {
+                        isCustomSelected = false
+                        onSelectPreset(StreamDownloadManager.PRESET_PUBLIC_MUSIC, null)
+                    }
+                )
+
+                // Option 2: Public Downloads
+                StorageOptionItem(
+                    title = "Public Downloads",
+                    subtitle = "Download/MusicPlayer (Standard system downloads folder)",
+                    badge = "Downloads",
+                    isSelected = !isCustomSelected && currentPreset == StreamDownloadManager.PRESET_PUBLIC_DOWNLOADS,
+                    onClick = {
+                        isCustomSelected = false
+                        onSelectPreset(StreamDownloadManager.PRESET_PUBLIC_DOWNLOADS, null)
+                    }
+                )
+
+                // Option 3: App Storage (Safe Mode)
+                StorageOptionItem(
+                    title = "App Storage (Safe Mode)",
+                    subtitle = "Android/data/.../files/Music (100% reliable on all Android versions)",
+                    badge = "Isolated",
+                    isSelected = !isCustomSelected && currentPreset == StreamDownloadManager.PRESET_APP_INTERNAL,
+                    onClick = {
+                        isCustomSelected = false
+                        onSelectPreset(StreamDownloadManager.PRESET_APP_INTERNAL, null)
+                    }
+                )
+
+                // Option 4: Custom Directory
+                StorageOptionItem(
+                    title = "Custom Location...",
+                    subtitle = "Specify a custom path on internal or SD card storage",
+                    badge = "Custom",
+                    isSelected = isCustomSelected,
+                    onClick = {
+                        isCustomSelected = true
+                        if (customPathInput.isBlank()) {
+                            customPathInput = currentPath
+                        }
+                    }
+                )
+
+                if (isCustomSelected) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape = DownloadOptionShape)
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Enter Custom Directory Path:",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        OutlinedTextField(
+                            value = customPathInput,
+                            onValueChange = {
+                                customPathInput = it
+                                testResult = null
+                            },
+                            singleLine = true,
+                            shape = CustomPathFieldShape,
+                            placeholder = { Text("/storage/emulated/0/Music", fontSize = 11.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        )
+
+                        testResult?.let { (success, message) ->
+                            Text(
+                                text = message,
+                                fontSize = 10.sp,
+                                color = if (success) Color(0xFF00E676) else MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    val trimmed = customPathInput.trim()
+                                    if (trimmed.isNotBlank()) {
+                                        val res = onTestPath(trimmed)
+                                        testResult = res
+                                        if (res.first) {
+                                            onSelectPreset(StreamDownloadManager.PRESET_CUSTOM, trimmed)
+                                        }
+                                    }
+                                },
+                                shape = ActionButtonShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Text("Test & Save", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Close", color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StorageOptionItem(
+    title: String,
+    subtitle: String,
+    badge: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color = bgColor, shape = DownloadOptionShape)
+            .border(width = if (isSelected) 1.2.dp else 0.8.dp, color = borderColor, shape = DownloadOptionShape)
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 6.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
+                Box(
+                    modifier = Modifier
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            shape = PresetBadgeShape
+                        )
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = badge,
+                        fontSize = 8.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Text(
+                text = subtitle,
+                fontSize = 9.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

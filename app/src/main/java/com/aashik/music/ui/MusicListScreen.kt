@@ -186,7 +186,6 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     val isQueueOpen by viewModel.isQueueOpen.collectAsState()
     val favoritePaths by viewModel.favoritePaths.collectAsState()
     val hideBottomBar by viewModel.hideBottomBar.collectAsState()
-    var isBottomDockPeeked by rememberSaveable { mutableStateOf(false) }
 
     val userInteractionChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
 
@@ -367,8 +366,8 @@ fun MusicListScreen(viewModel: MusicViewModel) {
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Floating Mini-Player (when a track is selected/loaded)
-                        if (currentSong != null) {
+                        // Floating Mini-Player (when a track is selected/loaded and dock is not hidden)
+                        if (currentSong != null && !hideBottomBar) {
                             MobileMiniPlayer(
                                 viewModel = viewModel,
                                 song = currentSong!!,
@@ -469,7 +468,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 }
                             }
 
-                            if (!hideBottomBar || isBottomDockPeeked) {
+                            if (!hideBottomBar) {
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 // ── Automotive Bottom Dock — 80dp tall ──
@@ -480,15 +479,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                         isSearchOpen = !isSearchOpen
                                         if (!isSearchOpen) viewModel.onSearchQueryChanged("")
                                     },
-                                    onCollapse = if (hideBottomBar) { { isBottomDockPeeked = false } } else null
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                BottomDockPeekPill(
-                                    viewModel = viewModel,
-                                    onExpand = { isBottomDockPeeked = true },
-                                    modifier = Modifier.fillMaxWidth()
+                                    onCollapse = null
                                 )
                             }
                         }

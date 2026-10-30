@@ -1040,6 +1040,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Stream Download Management ──
     val downloadStates: StateFlow<Map<String, DownloadStatus>> = StreamDownloadManager.downloadStates
+    val downloadStoragePreset: StateFlow<String> = StreamDownloadManager.downloadStoragePreset
+    val downloadLocationPath: StateFlow<String> = StreamDownloadManager.downloadLocationPath
+
+    fun setDownloadStorage(preset: String, customPath: String? = null): Boolean {
+        val app = getApplication<Application>()
+        return StreamDownloadManager.setStoragePreset(app, preset, customPath)
+    }
+
+    fun testCustomPathWritable(path: String): Pair<Boolean, String> {
+        return StreamDownloadManager.testDirectoryWritable(path)
+    }
 
     fun downloadSong(song: Song) {
         val app = getApplication<Application>()

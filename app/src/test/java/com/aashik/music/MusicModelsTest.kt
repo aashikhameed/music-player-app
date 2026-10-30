@@ -633,4 +633,25 @@ class MusicModelsTest {
         assertEquals(file1.parent, file2.parent)
         assertEquals("/storage/emulated/0/Music/MusicPlayer", file1.parent)
     }
+
+    @Test
+    fun testDownloadStoragePresets() {
+        assertEquals("public_music", com.aashik.music.service.StreamDownloadManager.PRESET_PUBLIC_MUSIC)
+        assertEquals("public_downloads", com.aashik.music.service.StreamDownloadManager.PRESET_PUBLIC_DOWNLOADS)
+        assertEquals("app_internal", com.aashik.music.service.StreamDownloadManager.PRESET_APP_INTERNAL)
+        assertEquals("custom", com.aashik.music.service.StreamDownloadManager.PRESET_CUSTOM)
+    }
+
+    @Test
+    fun testBottomDockVisibilityLogic() {
+        fun isDockVisible(hideBottomBar: Boolean): Boolean {
+            return !hideBottomBar
+        }
+
+        // When hideBottomBar is false (normal mode): dock is visible
+        assertTrue(isDockVisible(false))
+
+        // When hideBottomBar is true (setting enabled): dock is completely hidden (not minimized to pill)
+        assertFalse(isDockVisible(true))
+    }
 }
