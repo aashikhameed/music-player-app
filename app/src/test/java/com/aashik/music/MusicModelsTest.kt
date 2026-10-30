@@ -468,7 +468,7 @@ class MusicModelsTest {
     }
 
     @Test
-    fun testBitChordMoodAndGenreCategories() {
+    fun testMoodAndGenreCategories() {
         val moods = com.aashik.music.model.RadioStation.MOOD_CATEGORIES
         val genres = com.aashik.music.model.RadioStation.GENRE_CATEGORIES
         val allCategories = com.aashik.music.model.RadioStation.CATEGORIES
@@ -482,7 +482,7 @@ class MusicModelsTest {
         assertTrue(moods.all { it.section == com.aashik.music.model.CategorySection.MOODS_AND_MOMENTS })
         assertTrue(genres.all { it.section == com.aashik.music.model.CategorySection.GENRES })
 
-        // Verify key BitChord mood tile colors from HTML
+        // Verify key mood tile colors
         val chill = moods.find { it.title == "Chill" }
         assertTrue(chill != null)
         assertEquals(0xFFA4C5FF, chill?.stripeColor)
@@ -497,7 +497,7 @@ class MusicModelsTest {
         assertTrue(romance != null)
         assertEquals(0xFFCC0000, romance?.stripeColor)
 
-        // Verify key BitChord genre tile colors from HTML
+        // Verify key genre tile colors
         val african = genres.find { it.title == "African" }
         assertTrue(african != null)
         assertEquals(0xFF00A513, african?.stripeColor)

@@ -313,7 +313,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                 }
             } else {
                 if (isPortrait) {
-                    // Mobile Portrait Layout (BitChord Mobile Style)
+                    // Mobile Portrait Layout
                     val selectedRadioCat by viewModel.selectedRadioCategory.collectAsState()
                     val isDrillDown = selectedTab == LibraryTab.RADIO && selectedRadioCat != null
 
@@ -624,8 +624,8 @@ fun MediaLibraryContent(
 }
 
 /**
- * Community Streams & Radio Exploration View (Built like BitChord Explore Screen).
- * Features BitChord-style Mood & Genre category sleeves, instant Favorites filter toggle,
+ * Community Streams & Radio Exploration View.
+ * Features curated Mood & Genre category sleeves, instant Favorites filter toggle,
  * and category-level community playlists / radio stations.
  */
 @Composable
@@ -847,7 +847,7 @@ fun RadioExploreContent(
                 }
             }
         } else {
-            // ── Category Detail Screen (BitChord Drill-Down: Songs, Playlists, Albums) ──
+            // ── Category Detail Screen (Drill-Down: Songs, Playlists, Albums) ──
             val category = selectedCategory!!
             val details by viewModel.exploreCategoryDetails.collectAsState()
             val categoryStations = remember(radioStations, category.id, favoriteStationIds, showFavoritesOnly) {
@@ -858,7 +858,7 @@ fun RadioExploreContent(
                 }
             }
 
-            BitChordGenreDetailScreen(
+            GenreDetailScreen(
                 viewModel = viewModel,
                 category = category,
                 details = details,
@@ -873,7 +873,7 @@ fun RadioExploreContent(
 }
 
 @Composable
-fun BitChordGenreDetailScreen(
+fun GenreDetailScreen(
     viewModel: MusicViewModel,
     category: RadioCategory,
     details: com.aashik.music.service.ExploreCategoryDetails?,
@@ -1164,7 +1164,7 @@ private fun ShelfGenericCard(
 }
 
 /**
- * Genre Category Card Component (BitChord Sleeve Style).
+ * Genre Category Card Component (Sleeve Style).
  * Features solid colored left accent stripe, text-only styling (zero images),
  * and quick favorite toggle icon button instead of right arrow.
  */
@@ -1193,7 +1193,7 @@ fun MoodGenreCard(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Accent Stripe (BitChord sleeve styling)
+            // Left Accent Stripe
             Box(
                 modifier = Modifier
                     .width(8.dp)
@@ -1529,7 +1529,7 @@ fun UnifiedGlobalSearchResults(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(bottom = 8.dp)
     ) {
-        // Section 1: Online Streaming Songs (from BitChord engine)
+        // Section 1: Online Streaming Songs
         if (isSearchingOnline || onlineSongs.isNotEmpty()) {
             item {
                 Row(
@@ -2027,7 +2027,7 @@ private fun MobileHeader(
                 }
             } else {
                 val title = when (selectedTab) {
-                    LibraryTab.ALL_SONGS -> "BitChord"
+                    LibraryTab.ALL_SONGS -> "Music"
                     LibraryTab.RADIO -> "Explore"
                     LibraryTab.FOLDERS -> "Library"
                     LibraryTab.FAVORITES -> "Favorites"

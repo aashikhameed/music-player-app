@@ -22,6 +22,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -144,7 +146,6 @@ fun DriveModeScreen(
     val isFavorite = currentSong?.path?.let { favoritePaths.contains(it) } ?: false
     val navigatingTrack by viewModel.navigatingTrack.collectAsState()
     val isStreamPlaying = currentSong?.isStream() == true
-    val isStreamDownloadable = isStreamPlaying && (currentSong?.duration ?: 0) > 0
     val isRadioLoading by viewModel.isRadioLoading.collectAsState()
     val activeRadioStationName by viewModel.activeRadioStationName.collectAsState()
     val isRadioActive = isRadioLoading || activeRadioStationName != null
@@ -319,119 +320,6 @@ fun DriveModeScreen(
                         )
                     }
 
-                    // HUD Start Radio Pill
-                    Row(
-                        modifier = Modifier
-                            .height(36.dp)
-                            .background(
-                                color = if (isRadioActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                                        else if (isNightDimmerActive) Color(0xFF161C24)
-                                        else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = NightDimmerPillShape
-                            )
-                            .clickable { viewModel.startRadioForCurrentSong() }
-                            .padding(horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        if (isRadioLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Starting...",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.Podcasts,
-                                contentDescription = "Start Radio",
-                                tint = if (isRadioActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = if (activeRadioStationName != null) "Radio Active" else "Start Radio",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isRadioActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    // HUD Download Pill (for streamable tracks)
-                    if (isStreamDownloadable) {
-                        Row(
-                            modifier = Modifier
-                                .height(36.dp)
-                                .background(
-                                    color = when (currentDownloadStatus) {
-                                        is DownloadStatus.Downloaded -> Color(0xFF00E676).copy(alpha = 0.18f)
-                                        is DownloadStatus.Downloading -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                                        else -> if (isNightDimmerActive) Color(0xFF161C24)
-                                                else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                                else MaterialTheme.colorScheme.surfaceVariant
-                                    },
-                                    shape = NightDimmerPillShape
-                                )
-                                .clickable {
-                                    currentSong?.let { viewModel.downloadSong(it) }
-                                }
-                                .padding(horizontal = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            when (currentDownloadStatus) {
-                                is DownloadStatus.Downloading -> {
-                                    CircularProgressIndicator(
-                                        progress = { currentDownloadStatus.progress },
-                                        modifier = Modifier.size(14.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "${(currentDownloadStatus.progress * 100).toInt()}%",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                is DownloadStatus.Downloaded -> {
-                                    Icon(
-                                        imageVector = Icons.Rounded.CheckCircle,
-                                        contentDescription = "Saved Offline",
-                                        tint = Color(0xFF00E676),
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Text(
-                                        text = "Saved",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF00E676)
-                                    )
-                                }
-                                else -> {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Download,
-                                        contentDescription = "Download Track",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Text(
-                                        text = "Download",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                        }
-                    }
-
                     // Sleep Timer Badge (if active)
                     val sleepSec by viewModel.sleepTimerRemainingSec.collectAsState()
                     if (sleepSec > 0) {
@@ -464,10 +352,11 @@ fun DriveModeScreen(
                     isFavorite = isFavorite,
                     navigatingTrack = navigatingTrack,
                     isRadioActive = isRadioActive,
+                    isRadioLoading = isRadioLoading,
+                    currentDownloadStatus = currentDownloadStatus,
                     upcomingSongs = upcomingSongs,
                     isDark = isDark,
                     isNightDimmerActive = isNightDimmerActive,
-                    isQueueOpen = isQueueOpen,
                     primaryTextColor = primaryTextColor,
                     controlInactiveColor = controlInactiveColor,
                     modifier = Modifier
@@ -476,81 +365,20 @@ fun DriveModeScreen(
                         .padding(vertical = 4.dp)
                 )
             } else {
-                // ── Landscape Infotainment Stage: 3-Column Layout ──
-                Row(
+                // ── Landscape Infotainment Stage: Unified Centered Layout ──
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                // Left Column: Quick Actions (Favorite & Queue Drawer)
-                Column(
-                    modifier = Modifier.width(76.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Favorite Action Button
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                color = if (isFavorite) FavoriteRedColor.copy(alpha = 0.22f)
-                                        else if (isNightDimmerActive) Color(0xFF131922)
-                                        else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = CircleShape
-                            )
-                            .clickable {
-                                currentSong?.path?.let { viewModel.toggleFavorite(it) }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Toggle Favorite",
-                            tint = if (isFavorite) FavoriteRedColor else controlInactiveColor,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-
-                    // Queue Drawer Action Button
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                color = if (isQueueOpen) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                                        else if (isNightDimmerActive) Color(0xFF131922)
-                                        else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = CircleShape
-                            )
-                            .clickable {
-                                viewModel.toggleQueue()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                            contentDescription = "Upcoming Queue Drawer",
-                            tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                // Center Column: Hero Album Artwork with Typography next to it & Single Next Song Card
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.SpaceEvenly
                 ) {
                     // Row: Hero Album Artwork on Left, Song Title & Artist next to it on Right
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
+                            .padding(horizontal = 24.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -651,7 +479,7 @@ fun DriveModeScreen(
                                 }
                             },
                             label = "DriveHudTypographyTransition",
-                            modifier = Modifier.weight(1f, fill = false).widthIn(max = 480.dp)
+                            modifier = Modifier.weight(1f, fill = false).widthIn(max = 500.dp)
                         ) { track ->
                             val song = track.song
                             Column(
@@ -730,8 +558,6 @@ fun DriveModeScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
                     // Single Next Song Card (shows only the next queued song)
                     HudSingleNextSongCard(
                         nextSong = upcomingSongs.firstOrNull(),
@@ -741,7 +567,18 @@ fun DriveModeScreen(
                         onPlayNext = { song -> viewModel.play(song, direction = 1) }
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    // Unified Action Bar (Fav, Download, Radio, EQ Presets, Queue)
+                    DriveHudActionBar(
+                        viewModel = viewModel,
+                        currentSong = currentSong,
+                        isFavorite = isFavorite,
+                        isRadioActive = isRadioActive,
+                        isRadioLoading = isRadioLoading,
+                        currentDownloadStatus = currentDownloadStatus,
+                        isNightDimmerActive = isNightDimmerActive,
+                        isDark = isDark,
+                        controlInactiveColor = controlInactiveColor
+                    )
 
                     Text(
                         text = "Swipe ← / → anywhere to change track • Double-tap to pause",
@@ -749,16 +586,7 @@ fun DriveModeScreen(
                         color = hintTextColor
                     )
                 }
-
-                // Right Column: Side Equalizer Panel
-                SideEqualizerPanel(
-                    viewModel = viewModel,
-                    isDark = isDark,
-                    isNightDimmer = isNightDimmerActive,
-                    modifier = Modifier.width(76.dp)
-                )
             }
-        }
 
             // ── Bottom Row: Seeker Bar and Playback Controls ──
             val bottomCardBg = when {
@@ -921,158 +749,269 @@ fun DriveModeScreen(
 }
 
 /**
- * Isolated leaf composable for the Side Equalizer Panel.
- * Positioned on the right side of the screen in Drive HUD.
- * Renders an animated Canvas spectrum EQ capsule and vertical preset chips
- * (Flat, Acoustic, Vocal, Bass, Rock, Custom) allowing 1-tap preset switching.
+ * Unified Quick Action Bar for Drive HUD (both Car Landscape and Mobile Portrait).
+ * Displays in clean horizontal alignment:
+ * [Favorite] -> [Download (if stream)] -> [Radio (if stream)] -> [EQ Presets: Flat, Acoustic, Vocal, Bass, Rock] -> [Queue].
+ * Uses zero dynamic allocations (all precomputed constants) and Mali GPU friendly flat colors.
  */
 @Composable
-private fun SideEqualizerPanel(
+private fun DriveHudActionBar(
     viewModel: MusicViewModel,
+    currentSong: Song?,
+    isFavorite: Boolean,
+    isRadioActive: Boolean,
+    isRadioLoading: Boolean,
+    currentDownloadStatus: DownloadStatus,
+    isNightDimmerActive: Boolean,
     isDark: Boolean,
-    isNightDimmer: Boolean,
+    controlInactiveColor: Color,
     modifier: Modifier = Modifier
 ) {
-    val isPlaying by viewModel.isPlaying.collectAsState()
     val activePreset by viewModel.equalizerPreset.collectAsState()
+    val isQueueOpen by viewModel.isQueueOpen.collectAsState()
+    val isStream = currentSong?.isStream() == true
+    val isStreamDownloadable = isStream && (currentSong?.duration ?: 0) > 0
 
-    val badgeBg = when {
-        isNightDimmer -> Color(0xFF131922)
+    val actionButtonBg = when {
+        isNightDimmerActive -> Color(0xFF131922)
         isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
-    val textColor = when {
-        isNightDimmer -> Color(0xFFCCD6E0)
-        isDark -> Color.White
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
 
-    // Dynamic phase for the spectrum bars - active only when playing to save Mali GPU fill rate
-    val infiniteTransition = rememberInfiniteTransition(label = "EqVisualizerTransition")
-    val phase by if (isPlaying) {
-        infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 6.28318f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1100, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "EqPhase"
-        )
-    } else {
-        remember { mutableStateOf(0f) }
-    }
-
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
     ) {
-        // Equalizer Icon / Visualizer Capsule — clicking opens the full Equalizer Screen
-        Row(
+        // 1. Favorite Button
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(34.dp)
-                .background(color = badgeBg, shape = TopVisualizerCapsuleShape)
-                .clickable { viewModel.openEqualizer() }
-                .padding(horizontal = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+                .size(40.dp)
+                .background(
+                    color = if (isFavorite) FavoriteRedColor.copy(alpha = 0.22f) else actionButtonBg,
+                    shape = CircleShape
+                )
+                .clickable {
+                    currentSong?.path?.let { viewModel.toggleFavorite(it) }
+                },
+            contentAlignment = Alignment.Center
         ) {
-            Canvas(modifier = Modifier.size(width = 16.dp, height = 13.dp)) {
-                val barCount = 4
-                val barWidth = 2.dp.toPx()
-                val totalWidth = size.width
-                val totalHeight = size.height
-                val spacing = (totalWidth - (barWidth * barCount)) / (barCount - 1)
-                val cornerRadius = CornerRadius(1.dp.toPx(), 1.dp.toPx())
+            Icon(
+                imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                contentDescription = "Toggle Favorite",
+                tint = if (isFavorite) FavoriteRedColor else controlInactiveColor,
+                modifier = Modifier.size(22.dp)
+            )
+        }
 
-                for (i in 0 until barCount) {
-                    val heightFactor = if (isPlaying) {
-                        val rawSin = kotlin.math.sin(phase.toDouble() + i * 1.3).toFloat()
-                        (rawSin * 0.38f + 0.58f).coerceIn(0.2f, 1.0f)
-                    } else {
-                        0.25f
+        // 2. Download Button (moved next to Fav if streamable)
+        if (isStreamDownloadable) {
+            val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded
+            val isDownloading = currentDownloadStatus is DownloadStatus.Downloading
+            Box(
+                modifier = Modifier
+                    .height(36.dp)
+                    .background(
+                        color = when {
+                            isDownloaded -> Color(0xFF00E676).copy(alpha = 0.20f)
+                            isDownloading -> MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+                            else -> actionButtonBg
+                        },
+                        shape = NightDimmerPillShape
+                    )
+                    .clickable {
+                        currentSong?.let { viewModel.downloadSong(it) }
                     }
-                    val barH = totalHeight * heightFactor
-                    val left = i * (barWidth + spacing)
-                    val top = totalHeight - barH
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    when (val status = currentDownloadStatus) {
+                        is DownloadStatus.Downloading -> {
+                            CircularProgressIndicator(
+                                progress = { status.progress },
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "${(status.progress * 100).toInt()}%",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        is DownloadStatus.Downloaded -> {
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = "Saved Offline",
+                                tint = Color(0xFF00E676),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Saved",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00E676)
+                            )
+                        }
+                        else -> {
+                            Icon(
+                                imageVector = Icons.Rounded.Download,
+                                contentDescription = "Download Track",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Download",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
-                    drawRoundRect(
-                        color = primaryColor,
-                        topLeft = Offset(left, top),
-                        size = Size(barWidth, barH),
-                        cornerRadius = cornerRadius
+        // 3. Start Radio Button (moved next to Fav & Download if streamable)
+        if (isStream) {
+            Box(
+                modifier = Modifier
+                    .height(36.dp)
+                    .background(
+                        color = if (isRadioActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
+                        shape = NightDimmerPillShape
+                    )
+                    .clickable { viewModel.startRadioForCurrentSong() }
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    if (isRadioLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Starting...",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.Podcasts,
+                            contentDescription = "Start Radio",
+                            tint = if (isRadioActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (isRadioActive) "Radio Active" else "Radio",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isRadioActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        }
+
+        // 4. Equalizer Presets Row (Flat, Acoustic, Vocal, Bass, Rock)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // EQ Dialog Button
+            Box(
+                modifier = Modifier
+                    .height(32.dp)
+                    .background(color = actionButtonBg, shape = EqPresetChipShape)
+                    .clickable { viewModel.openEqualizer() }
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "EQ",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            val presets = remember {
+                listOf(0 to "Flat", 1 to "Acoustic", 2 to "Vocal", 3 to "Bass", 4 to "Rock")
+            }
+            for ((id, name) in presets) {
+                val isSelected = activePreset == id
+                Box(
+                    modifier = Modifier
+                        .height(32.dp)
+                        .background(
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else actionButtonBg,
+                            shape = EqPresetChipShape
+                        )
+                        .clickable { viewModel.setEqualizerPreset(id) }
+                        .padding(horizontal = 9.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = name,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
-
-            Text(
-                text = "EQ",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = primaryColor
-            )
-        }
-
-        // Preset Chips: Flat (0), Acoustic (1), Vocal (2), Bass (3), Rock (4)
-        val presets = remember {
-            listOf(
-                0 to "Flat",
-                1 to "Acoustic",
-                2 to "Vocal",
-                3 to "Bass",
-                4 to "Rock"
-            )
-        }
-
-        for ((presetIdx, name) in presets) {
-            val isSelected = activePreset == presetIdx
-            val chipBg = if (isSelected) primaryColor else badgeBg
-            val chipTextColor = if (isSelected) onPrimaryColor else textColor
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(30.dp)
-                    .background(color = chipBg, shape = EqPresetChipShape)
-                    .clickable { viewModel.setEqualizerPreset(presetIdx) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = name,
-                    fontSize = 11.sp,
-                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
-                    color = chipTextColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            if (activePreset == 5) {
+                Box(
+                    modifier = Modifier
+                        .height(32.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                            shape = EqPresetChipShape
+                        )
+                        .clickable { viewModel.openEqualizer() }
+                        .padding(horizontal = 9.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Custom",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
 
-        // If Custom is active (preset == 5), show Custom chip
-        if (activePreset == 5) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(30.dp)
-                    .background(color = primaryColor, shape = EqPresetChipShape)
-                    .clickable { viewModel.openEqualizer() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Custom",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = onPrimaryColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+        // 5. Queue Drawer Button
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    color = if (isQueueOpen) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
+                    shape = CircleShape
                 )
-            }
+                .clickable { viewModel.toggleQueue() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                contentDescription = "Upcoming Queue Drawer",
+                tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
@@ -1322,10 +1261,11 @@ private fun MobileDriveHudStage(
     isFavorite: Boolean,
     navigatingTrack: NavigatingTrack,
     isRadioActive: Boolean,
+    isRadioLoading: Boolean,
+    currentDownloadStatus: DownloadStatus,
     upcomingSongs: List<Song>,
     isDark: Boolean,
     isNightDimmerActive: Boolean,
-    isQueueOpen: Boolean,
     primaryTextColor: Color,
     controlInactiveColor: Color,
     modifier: Modifier = Modifier
@@ -1444,68 +1384,20 @@ private fun MobileDriveHudStage(
             onPlayNext = { song -> viewModel.play(song, direction = 1) }
         )
 
-        // Quick Actions Row: Favorite, EQ Presets, Queue
-        Row(
+        // Quick Actions Row: Favorite, Download, Radio, EQ Presets, Queue
+        DriveHudActionBar(
+            viewModel = viewModel,
+            currentSong = currentSong,
+            isFavorite = isFavorite,
+            isRadioActive = isRadioActive,
+            isRadioLoading = isRadioLoading,
+            currentDownloadStatus = currentDownloadStatus,
+            isNightDimmerActive = isNightDimmerActive,
+            isDark = isDark,
+            controlInactiveColor = controlInactiveColor,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Favorite Button
-            IconButton(
-                onClick = { currentSong?.path?.let { viewModel.toggleFavorite(it) } },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFavorite) FavoriteRedColor else controlInactiveColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            // EQ Presets Horizontal Row
-            val activePreset by viewModel.equalizerPreset.collectAsState()
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val presets = listOf("Flat" to 0, "Acoustic" to 1, "Vocal" to 2, "Bass" to 3, "Rock" to 4)
-                presets.forEach { (name, id) ->
-                    val isSelected = activePreset == id
-                    Box(
-                        modifier = Modifier
-                            .clip(EqPresetChipShape)
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                            )
-                            .clickable { viewModel.setEqualizerPreset(id) }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = name,
-                            fontSize = 10.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            // Queue Button
-            IconButton(
-                onClick = { viewModel.toggleQueue() },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                    contentDescription = "Queue",
-                    tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
+                .padding(horizontal = 12.dp)
+        )
     }
 }

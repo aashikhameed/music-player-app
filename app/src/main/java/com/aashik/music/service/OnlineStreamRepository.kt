@@ -310,7 +310,7 @@ object OnlineStreamRepository {
     }
 
     /**
-     * Algorithmic Radio Queue Generator (matches BitChord RDAMVM & JioSaavn WebRadio recommendations).
+     * Algorithmic Radio Queue Generator (RDAMVM & JioSaavn WebRadio recommendations).
      * Given an active seed track (streaming or local), queries JioSaavn's live WebRadio entity station
      * to synthesize an uninterrupted, authentic radio queue of 15+ related tracks in the EXACT SAME GENRE.
      */
@@ -359,7 +359,7 @@ object OnlineStreamRepository {
             }
         }
 
-        // Step 2: Use JioSaavn WebRadio Engine (Primary recommended radio system like BitChord)
+        // Step 2: Use JioSaavn WebRadio Engine (Primary recommended radio system)
         if (pid.isNotBlank()) {
             val stationId = createRadioStation(pid)
             if (stationId != null) {

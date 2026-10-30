@@ -96,12 +96,12 @@ object StreamDownloadManager {
     }
 
     fun getDownloadsDir(context: Context): File {
-        // Priority 1: Standard Public Music storage (/storage/emulated/0/Music/BitChord)
-        // Accessible by all file managers, PC transfers, and media players (matching BitChord)
+        // Priority 1: Standard Public Music storage (/storage/emulated/0/Music/MusicPlayer)
+        // Accessible by all file managers, PC transfers, and media players
         try {
             val publicMusic = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                "BitChord"
+                "MusicPlayer"
             )
             if (publicMusic.exists() || publicMusic.mkdirs()) {
                 if (publicMusic.canWrite()) {
@@ -110,11 +110,11 @@ object StreamDownloadManager {
             }
         } catch (_: Exception) {}
 
-        // Priority 2: Standard Public Download storage (/storage/emulated/0/Download/BitChord)
+        // Priority 2: Standard Public Download storage (/storage/emulated/0/Download/MusicPlayer)
         try {
             val publicDownload = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "BitChord"
+                "MusicPlayer"
             )
             if (publicDownload.exists() || publicDownload.mkdirs()) {
                 if (publicDownload.canWrite()) {
