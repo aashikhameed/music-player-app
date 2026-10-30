@@ -112,58 +112,7 @@ object OnlineStreamRepository {
             val songs = ArrayList<Song>(resultsArray.length())
             for (i in 0 until resultsArray.length()) {
                 val item = resultsArray.optJSONObject(i) ?: continue
-                val rawId = item.optString("id", "")
-                val rawTitle = unescapeHtml(item.optString("title", ""))
-                if (rawId.isBlank() || rawTitle.isBlank()) continue
-
-                val moreInfo = item.optJSONObject("more_info")
-                val encUrl = moreInfo?.optString("encrypted_media_url", "") ?: ""
-                if (encUrl.isBlank()) continue
-
-                val decryptedUrl = decryptMediaUrl(encUrl)
-                if (decryptedUrl.isBlank()) continue
-
-                val supports320 = moreInfo?.optString("320kbps", "false").equals("true", ignoreCase = true)
-                val finalStreamUrl = selectBestStream(decryptedUrl, supports320)
-
-                // Extract primary artist
-                var artist = ""
-                val artistMap = moreInfo?.optJSONObject("artistMap")
-                val primaryArtists = artistMap?.optJSONArray("primary_artists")
-                if (primaryArtists != null && primaryArtists.length() > 0) {
-                    val firstArtist = primaryArtists.optJSONObject(0)
-                    artist = firstArtist?.optString("name", "") ?: ""
-                }
-                if (artist.isBlank()) {
-                    val rawArtist = moreInfo?.optString("music") ?: item.optString("subtitle", "Online Artist")
-                    artist = unescapeHtml(rawArtist.ifBlank { "Online Artist" })
-                }
-                if (artist.isBlank()) artist = "Online Artist"
-
-                val album = unescapeHtml(moreInfo?.optString("album", "Streaming Single") ?: "Streaming Single")
-                val durationSec = moreInfo?.optString("duration", "0")?.toLongOrNull() ?: 0L
-                val durationMs = durationSec * 1000L
-
-                val rawImage = item.optString("image", "").ifBlank {
-                    moreInfo?.optString("image", "") ?: ""
-                }
-                val artworkUrl = if (rawImage.isNotBlank()) {
-                    rawImage.replace("150x150", "500x500").replace("50x50", "500x500")
-                } else ""
-
-                if (artworkUrl.isNotBlank()) {
-                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(finalStreamUrl, artworkUrl)
-                }
-
-                val song = Song(
-                    id = "online_$rawId",
-                    title = rawTitle,
-                    artist = artist,
-                    album = album,
-                    duration = durationMs,
-                    path = finalStreamUrl,
-                    artworkUrl = artworkUrl
-                )
+                val song = parseSongItem(item) ?: continue
                 songs.add(song)
             }
 
@@ -180,48 +129,163 @@ object OnlineStreamRepository {
         }
     }
 
-    /**
-     * Algorithmic Radio Queue Generator (inspired by BitChord RDAMVM queue builder).
-     * Given an active seed track (streaming or local), queries related songs by artist,
-     * sub-genres, or complementary tracks to synthesize an uninterrupted radio station.
-     */
-    suspend fun getRadioTracksForSong(seedSong: Song, limit: Int = 12): List<Song> = withContext(Dispatchers.IO) {
-        val cleanArtist = seedSong.artist
-            .replace(Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,).*"), "")
-            .trim()
+    fun parseSongItem(item: JSONObject): Song? {
+        val rawId = item.optString("id", "")
+        val rawTitle = unescapeHtml(item.optString("title", ""))
+        if (rawId.isBlank() || rawTitle.isBlank()) return null
 
-        val candidateQuery = if (cleanArtist.isNotBlank() && !cleanArtist.equals("Unknown Artist", ignoreCase = true)) {
-            cleanArtist
-        } else {
-            seedSong.title.replace(Regex("(?i)(\\(.*\\)|\\[.*\\])"), "").trim()
+        val moreInfo = item.optJSONObject("more_info")
+        val encUrl = moreInfo?.optString("encrypted_media_url", "") ?: ""
+        if (encUrl.isBlank()) return null
+
+        val decryptedUrl = decryptMediaUrl(encUrl)
+        if (decryptedUrl.isBlank()) return null
+
+        val supports320 = moreInfo?.optString("320kbps", "false").equals("true", ignoreCase = true)
+        val finalStreamUrl = selectBestStream(decryptedUrl, supports320)
+
+        // Extract primary artist
+        var artist = ""
+        val artistMap = moreInfo?.optJSONObject("artistMap")
+        val primaryArtists = artistMap?.optJSONArray("primary_artists")
+        if (primaryArtists != null && primaryArtists.length() > 0) {
+            val firstArtist = primaryArtists.optJSONObject(0)
+            artist = firstArtist?.optString("name", "") ?: ""
+        }
+        if (artist.isBlank()) {
+            val rawArtist = moreInfo?.optString("music") ?: item.optString("subtitle", "Online Artist")
+            artist = unescapeHtml(rawArtist.ifBlank { "Online Artist" })
+        }
+        if (artist.isBlank()) artist = "Online Artist"
+
+        val album = unescapeHtml(moreInfo?.optString("album", "Streaming Single") ?: "Streaming Single")
+        val durationSec = moreInfo?.optString("duration", "0")?.toLongOrNull() ?: 0L
+        val durationMs = durationSec * 1000L
+
+        val rawImage = item.optString("image", "").ifBlank {
+            moreInfo?.optString("image", "") ?: ""
+        }
+        val artworkUrl = if (rawImage.isNotBlank()) {
+            rawImage.replace("150x150", "500x500").replace("50x50", "500x500")
+        } else ""
+
+        if (artworkUrl.isNotBlank()) {
+            com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(finalStreamUrl, artworkUrl)
         }
 
-        if (candidateQuery.isBlank()) return@withContext emptyList<Song>()
+        return Song(
+            id = "online_$rawId",
+            title = rawTitle,
+            artist = artist,
+            album = album,
+            duration = durationMs,
+            path = finalStreamUrl,
+            artworkUrl = artworkUrl
+        )
+    }
 
-        val rawResults = searchSongs(candidateQuery, limit = limit + 4)
-        // Filter out the seed song itself and duplicate titles
+    /**
+     * Algorithmic Radio Queue Generator (matches BitChord RDAMVM & JioSaavn WebRadio recommendations).
+     * Given an active seed track (streaming or local), queries JioSaavn's `reco.getreco` backend
+     * to synthesize an uninterrupted, authentic radio queue of 15+ related tracks.
+     */
+    suspend fun getRadioTracksForSong(seedSong: Song, limit: Int = 15): List<Song> = withContext(Dispatchers.IO) {
         val filtered = ArrayList<Song>(limit)
         val seenTitles = HashSet<String>()
+        val seenIds = HashSet<String>()
         seenTitles.add(seedSong.title.lowercase().trim())
+        seenIds.add(seedSong.id)
 
-        for (track in rawResults) {
-            val normTitle = track.title.lowercase().trim()
-            if (track.id != seedSong.id && !seenTitles.contains(normTitle)) {
-                seenTitles.add(normTitle)
-                filtered.add(track)
-                if (filtered.size >= limit) break
+        // Step 1: Resolve online track ID (pid)
+        var pid = when {
+            seedSong.id.startsWith("online_") -> seedSong.id.removePrefix("online_")
+            seedSong.id.startsWith("download_") -> seedSong.id.removePrefix("download_")
+            else -> ""
+        }
+
+        // If local track or ID not found, query search to find matching online track ID
+        if (pid.isBlank()) {
+            val searchQuery = "${seedSong.title} ${seedSong.artist}".trim()
+            val matches = searchSongs(searchQuery, limit = 3)
+            val bestMatch = matches.firstOrNull()
+            if (bestMatch != null) {
+                pid = bestMatch.id.removePrefix("online_")
             }
         }
 
-        // If artist search had too few items, attempt fallback query on seed title
-        if (filtered.size < 4 && seedSong.title.isNotBlank()) {
-            val titleResults = searchSongs(seedSong.title, limit = 8)
-            for (track in titleResults) {
-                val normTitle = track.title.lowercase().trim()
-                if (track.id != seedSong.id && !seenTitles.contains(normTitle)) {
-                    seenTitles.add(normTitle)
-                    filtered.add(track)
-                    if (filtered.size >= limit) break
+        // Step 2: Query JioSaavn Algorithmic Recommendation Engine (reco.getreco)
+        if (pid.isNotBlank()) {
+            var connection: HttpURLConnection? = null
+            try {
+                val urlString = "$API_BASE?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=android&pid=$pid"
+                val url = URL(urlString)
+                connection = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 4000
+                    readTimeout = 5000
+                    setRequestProperty("User-Agent", "Mozilla/5.0")
+                    setRequestProperty("Accept", "application/json")
+                }
+
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val responseText = connection.inputStream.bufferedReader().use(BufferedReader::readText)
+                    val root = JSONObject(responseText)
+                    val recoArray = root.optJSONArray(pid) ?: run {
+                        // Sometimes keyed under a different ID or first array
+                        val keys = root.keys()
+                        var arr: org.json.JSONArray? = null
+                        while (keys.hasNext()) {
+                            val k = keys.next()
+                            arr = root.optJSONArray(k)
+                            if (arr != null && arr.length() > 0) break
+                        }
+                        arr
+                    }
+
+                    if (recoArray != null) {
+                        for (i in 0 until recoArray.length()) {
+                            val item = recoArray.optJSONObject(i) ?: continue
+                            val parsed = parseSongItem(item) ?: continue
+                            val normTitle = parsed.title.lowercase().trim()
+                            if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle)) {
+                                seenIds.add(parsed.id)
+                                seenTitles.add(normTitle)
+                                filtered.add(parsed)
+                                if (filtered.size >= limit) break
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "reco.getreco query failed: ${e.message}")
+            } finally {
+                connection?.disconnect()
+            }
+        }
+
+        // Step 3: Complementary fallback if recommendation returned fewer than limit tracks
+        if (filtered.size < limit) {
+            val cleanArtist = seedSong.artist
+                .replace(Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,).*"), "")
+                .trim()
+
+            val candidateQuery = if (cleanArtist.isNotBlank() && !cleanArtist.equals("Unknown Artist", ignoreCase = true) && !cleanArtist.equals("<unknown>", ignoreCase = true)) {
+                cleanArtist
+            } else {
+                seedSong.title.replace(Regex("(?i)(\\(.*\\)|\\[.*\\])"), "").trim()
+            }
+
+            if (candidateQuery.isNotBlank()) {
+                val needed = limit - filtered.size
+                val rawResults = searchSongs(candidateQuery, limit = needed + 6)
+                for (track in rawResults) {
+                    val normTitle = track.title.lowercase().trim()
+                    if (!seenIds.contains(track.id) && !seenTitles.contains(normTitle)) {
+                        seenIds.add(track.id)
+                        seenTitles.add(normTitle)
+                        filtered.add(track)
+                        if (filtered.size >= limit) break
+                    }
                 }
             }
         }

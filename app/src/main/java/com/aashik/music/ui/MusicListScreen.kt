@@ -724,22 +724,14 @@ fun RadioExploreContent(
                 }
             }
 
-            val displayCategories = remember(genreCategories, favoriteCategoryIds, showFavoritesOnly) {
-                if (showFavoritesOnly) {
-                    genreCategories.filter { favoriteCategoryIds.contains(it.id) }
-                } else {
-                    genreCategories
-                }
+            val favCategories = remember(genreCategories, favoriteCategoryIds) {
+                genreCategories.filter { favoriteCategoryIds.contains(it.id) }
             }
-            val favoriteStations = remember(radioStations, favoriteStationIds, showFavoritesOnly) {
-                if (showFavoritesOnly) {
-                    radioStations.filter { favoriteStationIds.contains(it.id) }
-                } else {
-                    emptyList()
-                }
+            val favStations = remember(radioStations, favoriteStationIds) {
+                radioStations.filter { favoriteStationIds.contains(it.id) }
             }
 
-            if (showFavoritesOnly && displayCategories.isEmpty() && favoriteStations.isEmpty()) {
+            if (showFavoritesOnly && favCategories.isEmpty() && favStations.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = "No favorite genres or radio stations saved yet.\nTap the heart icon on any genre or stream to add it here.",
@@ -757,60 +749,49 @@ fun RadioExploreContent(
                     contentPadding = PaddingValues(bottom = 12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Header: Genres & Styles
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp, bottom = 6.dp, start = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = if (showFavoritesOnly) "Favorite Genres & Streams" else "Genres & Styles",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "${displayCategories.size} styles",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    items(items = displayCategories, key = { it.id }) { genre ->
-                        val count = remember(radioStations, genre.id) {
-                            radioStations.count { it.categoryId == genre.id }
-                        }
-                        val isFav = favoriteCategoryIds.contains(genre.id)
-                        MoodGenreCard(
-                            category = genre,
-                            stationCount = count,
-                            isFavorite = isFav,
-                            onFavoriteClick = { viewModel.toggleCategoryFavorite(genre.id) },
-                            onClick = { viewModel.openRadioCategory(genre) }
-                        )
-                    }
-
-                    // If in favorites mode and there are favorite stations, list them too
-                    if (favoriteStations.isNotEmpty()) {
+                    // ── 1. Favorites Pinned at the Top (when favorites exist) ──
+                    if (favCategories.isNotEmpty() || favStations.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            Text(
-                                text = "Favorite Radio Stations",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp, start = 2.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp, bottom = 6.dp, start = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Favorite Genres & Streams",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    ),
+                                    color = FavoriteHeartRed
+                                )
+                                Text(
+                                    text = "${favCategories.size + favStations.size} saved",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = FavoriteHeartRed
+                                )
+                            }
+                        }
+
+                        // Favorite Genre Cards
+                        items(items = favCategories, key = { "fav_${it.id}" }) { genre ->
+                            val count = remember(radioStations, genre.id) {
+                                radioStations.count { it.categoryId == genre.id }
+                            }
+                            MoodGenreCard(
+                                category = genre,
+                                stationCount = count,
+                                isFavorite = true,
+                                onFavoriteClick = { viewModel.toggleCategoryFavorite(genre.id) },
+                                onClick = { viewModel.openRadioCategory(genre) }
                             )
                         }
-                        items(items = favoriteStations, key = { it.id }) { station ->
+
+                        // Favorite Station Cards
+                        items(items = favStations, key = { "fav_st_${it.id}" }) { station ->
                             val isPlaying = station.streamUrl == currentSongPath
                             RadioStationCard(
                                 station = station,
@@ -819,6 +800,48 @@ fun RadioExploreContent(
                                 onPlayClick = { viewModel.playRadioStation(station) },
                                 onFavoriteClick = { viewModel.toggleRadioFavorite(station.id) },
                                 onStartRadioClick = { viewModel.startRadioForSong(station.toSong()) }
+                            )
+                        }
+                    }
+
+                    // ── 2. All Genres & Styles Section (only when not in favorites-only filter) ──
+                    if (!showFavoritesOnly) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = if (favCategories.isNotEmpty() || favStations.isNotEmpty()) 12.dp else 4.dp, bottom = 6.dp, start = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "All Genres & Styles",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${genreCategories.size} styles",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        items(items = genreCategories, key = { it.id }) { genre ->
+                            val count = remember(radioStations, genre.id) {
+                                radioStations.count { it.categoryId == genre.id }
+                            }
+                            val isFav = favoriteCategoryIds.contains(genre.id)
+                            MoodGenreCard(
+                                category = genre,
+                                stationCount = count,
+                                isFavorite = isFav,
+                                onFavoriteClick = { viewModel.toggleCategoryFavorite(genre.id) },
+                                onClick = { viewModel.openRadioCategory(genre) }
                             )
                         }
                     }

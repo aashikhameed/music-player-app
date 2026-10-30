@@ -36,8 +36,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.DirectionsCar
@@ -86,7 +89,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aashik.music.model.Song
 import com.aashik.music.service.DownloadStatus
+import com.aashik.music.utils.formatTime
 import com.aashik.music.utils.getCurrentTimeWithAmPm
 import com.aashik.music.viewmodel.MusicViewModel
 import kotlinx.coroutines.delay
@@ -100,6 +105,8 @@ private val DriverBadgeShape = RoundedCornerShape(8.dp)
 private val SwipeFeedbackBadgeShape = RoundedCornerShape(14.dp)
 private val ClockBadgeShape = RoundedCornerShape(8.dp)
 private val UpNextBadgeShape = RoundedCornerShape(10.dp)
+private val UpNextQueueCardShape = RoundedCornerShape(12.dp)
+private val UpNextItemRowShape = RoundedCornerShape(8.dp)
 private val TopVisualizerCapsuleShape = RoundedCornerShape(10.dp)
 private val EqPresetChipShape = RoundedCornerShape(10.dp)
 private val BottomMusicCardShape = RoundedCornerShape(18.dp)
@@ -139,6 +146,12 @@ fun DriveModeScreen(
     val isRadioActive = isRadioLoading || activeRadioStationName != null
     val downloadStates by viewModel.downloadStates.collectAsState()
     val currentDownloadStatus = currentSong?.id?.let { downloadStates[it] } ?: DownloadStatus.Idle
+    val isQueueOpen by viewModel.isQueueOpen.collectAsState()
+    val userQueue by viewModel.userQueue.collectAsState()
+    val isShuffleOn by viewModel.isShuffleOn.collectAsState()
+    val upcomingSongs = remember(currentSong, userQueue, isShuffleOn) {
+        viewModel.getUpcomingSongs(limit = 15)
+    }
 
     var isNightDimmerActive by rememberSaveable { mutableStateOf(false) }
 
@@ -531,9 +544,33 @@ fun DriveModeScreen(
                             }
                         }
                     }
+
+                    // Queue Drawer Action Button
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                color = if (isQueueOpen) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                        else if (isNightDimmerActive) Color(0xFF131922)
+                                        else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                viewModel.toggleQueue()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                            contentDescription = "Upcoming Queue Drawer",
+                            tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
 
-                // Center Column: Hero Album Artwork, Song Title, Artist & Next Song in Queue
+                // Center Column: Hero Album Artwork, Song Title, Artist & Upcoming Songs Queue List
                 Column(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -542,7 +579,7 @@ fun DriveModeScreen(
                     // Hero Album Artwork with Apple CarPlay horizontal slide transition
                     Box(
                         modifier = Modifier
-                            .size(205.dp)
+                            .size(170.dp)
                             .background(
                                 color = if (isNightDimmerActive) Color(0xFF0D1117)
                                         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -584,7 +621,7 @@ fun DriveModeScreen(
                                 AlbumArtImage(
                                     path = song.path,
                                     artworkUrl = song.artworkUrl,
-                                    size = 205.dp,
+                                    size = 170.dp,
                                     borderRadius = 20.dp,
                                     isHighRes = true,
                                     modifier = Modifier.fillMaxSize()
@@ -605,12 +642,12 @@ fun DriveModeScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // Current Song Title (Prominent glanceability)
                     Text(
                         text = currentSong?.title ?: "No Song Playing",
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Black,
                         color = primaryTextColor,
                         maxLines = 1,
@@ -619,7 +656,7 @@ fun DriveModeScreen(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
 
                     // Current Song Artist & Album
                     val albumStr = currentSong?.album.orEmpty()
@@ -645,7 +682,7 @@ fun DriveModeScreen(
                                 }
                             }
                         },
-                        fontSize = 13.5.sp,
+                        fontSize = 12.5.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
@@ -654,49 +691,20 @@ fun DriveModeScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Next Song in Queue Preview Pill
-                    val nextSong = viewModel.getNextSong()
-                    val nextPillBg = if (isNightDimmerActive) Color(0xFF141A22)
-                                     else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
-                    Row(
-                        modifier = Modifier
-                            .background(color = nextPillBg, shape = UpNextBadgeShape)
-                            .clickable { viewModel.playNextSong() }
-                            .padding(horizontal = 12.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = "Next Track",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "NEXT: ",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = if (nextSong != null) "${nextSong.title} • ${nextSong.artist}"
-                                   else if (isStreamPlaying) "Live Community Stream"
-                                   else "End of Queue",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = primaryTextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 280.dp)
-                        )
-                    }
+                    // Upcoming Next Songs Queue List Card
+                    HudUpcomingQueueCard(
+                        upcomingSongs = upcomingSongs,
+                        isRadioActive = isRadioActive,
+                        isDark = isDark,
+                        isNightDimmer = isNightDimmerActive,
+                        onSongClick = { song -> viewModel.play(song, direction = 1) }
+                    )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
                         text = "Swipe ← / → anywhere to change track • Double-tap to pause",
-                        fontSize = 10.5.sp,
+                        fontSize = 10.sp,
                         color = hintTextColor
                     )
                 }
@@ -752,7 +760,6 @@ fun DriveModeScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             // Shuffle Mode Toggle
-                            val isShuffleOn by viewModel.isShuffleOn.collectAsState()
                             IconButton(
                                 onClick = { viewModel.toggleShuffle() },
                                 modifier = Modifier.size(44.dp)
@@ -877,6 +884,15 @@ fun DriveModeScreen(
                     color = Color.White
                 )
             }
+        }
+
+        // ── Full-Screen Playback Queue Drawer Overlay (when toggled from Left Column) ──
+        if (isQueueOpen) {
+            QueueDrawer(
+                viewModel = viewModel,
+                onClose = { viewModel.closeQueue() },
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
@@ -1136,5 +1152,155 @@ private fun DriveHudClock(
             },
             color = textColor
         )
+    }
+}
+
+/**
+ * Distraction-Free Upcoming Next Songs Queue Card for Drive HUD.
+ * Renders the top upcoming songs with crisp index badges, album art thumbnails,
+ * track title, artist, and durations. Features 1-tap playback switching and auto-scroll.
+ */
+@Composable
+private fun HudUpcomingQueueCard(
+    upcomingSongs: List<Song>,
+    isRadioActive: Boolean,
+    isDark: Boolean,
+    isNightDimmer: Boolean,
+    onSongClick: (Song) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cardBg = when {
+        isNightDimmer -> Color(0xFF101620)
+        isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f)
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.70f)
+    }
+    val primaryText = if (isNightDimmer) Color(0xFFE2E8F0) else if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val secondaryText = if (isNightDimmer) Color(0xFF8B98A9) else if (isDark) Color.White.copy(alpha = 0.65f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val accentColor = MaterialTheme.colorScheme.primary
+
+    androidx.compose.material3.Surface(
+        modifier = modifier
+            .fillMaxWidth(0.92f)
+            .widthIn(max = 420.dp)
+            .height(115.dp),
+        color = cardBg,
+        shape = UpNextQueueCardShape
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            // Header Row: Queue / Radio mode badge + quick hint
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isRadioActive) Icons.Rounded.Podcasts else Icons.AutoMirrored.Rounded.QueueMusic,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = if (isRadioActive) "RADIO QUEUE (${upcomingSongs.size})" else "UP NEXT (${upcomingSongs.size})",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = accentColor,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+                Text(
+                    text = "Tap to play",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = secondaryText
+                )
+            }
+
+            if (upcomingSongs.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "End of queue • Start Radio to auto-queue similar tracks",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = secondaryText,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    itemsIndexed(items = upcomingSongs, key = { index, song -> "${song.id}_$index" }) { index, song ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(32.dp)
+                                .clip(UpNextItemRowShape)
+                                .clickable { onSongClick(song) }
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "#${index + 1}",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Black,
+                                color = accentColor,
+                                modifier = Modifier.width(24.dp)
+                            )
+
+                            AlbumArtImage(
+                                path = song.path,
+                                artworkUrl = song.artworkUrl,
+                                size = 26.dp,
+                                borderRadius = 5.dp,
+                                isPlaying = false
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = song.title,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = primaryText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = song.artist,
+                                    fontSize = 9.5.sp,
+                                    color = secondaryText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            if (song.duration > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = formatTime(song.duration),
+                                    fontSize = 10.sp,
+                                    color = secondaryText
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

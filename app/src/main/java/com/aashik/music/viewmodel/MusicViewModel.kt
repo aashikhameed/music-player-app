@@ -628,6 +628,36 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getUpcomingSongs(limit: Int = 15): List<Song> {
+        val userQ = _userQueue.value
+        if (userQ.isNotEmpty()) {
+            return userQ.take(limit)
+        }
+        val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
+        val list = if (_isShuffleOn.value) {
+            if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist
+        } else {
+            currentPlaylist
+        }
+        if (list.isEmpty()) return emptyList()
+        val curId = _currentSong.value?.id ?: return list.take(limit)
+        val index = list.indexOfFirst { it.id == curId }
+        if (index == -1) return list.take(limit)
+
+        val upcoming = ArrayList<Song>(limit)
+        for (i in (index + 1) until list.size) {
+            upcoming.add(list[i])
+            if (upcoming.size >= limit) break
+        }
+        if (upcoming.size < limit && list.size > 1) {
+            for (i in 0 until index) {
+                upcoming.add(list[i])
+                if (upcoming.size >= limit) break
+            }
+        }
+        return upcoming
+    }
+
     fun openSettings() {
         _isSettingsOpen.value = true
     }
@@ -849,9 +879,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Fetch similar algorithmic radio tracks for this seed song
                 val radioTracks = OnlineStreamRepository.getRadioTracksForSong(seedSong, limit = 15)
-                val fullQueue = ArrayList<Song>(1 + radioTracks.size)
+                var resolvedTracks = radioTracks
+                if (resolvedTracks.isEmpty()) {
+                    resolvedTracks = _radioStations.value.map { it.toSong() }.filter { it.id != seedSong.id }
+                }
+                val fullQueue = ArrayList<Song>(1 + resolvedTracks.size)
                 fullQueue.add(seedSong)
-                for (t in radioTracks) {
+                for (t in resolvedTracks) {
                     if (t.id != seedSong.id) fullQueue.add(t)
                 }
 
