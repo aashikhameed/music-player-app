@@ -372,8 +372,8 @@ fun DriveModeScreen(
                     verticalArrangement = Arrangement.SpaceEvenly
                 ) {
                     val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
-                    val isYouTubeTrack = currentSong?.isYouTube() == true
-                    val isVideoActive = playVideoForStreams && isYouTubeTrack
+                    val currentVideoId by viewModel.currentVideoId.collectAsState()
+                    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isLocalVideo() == true)
 
                     if (isVideoActive) {
                         Box(
@@ -383,8 +383,10 @@ fun DriveModeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             VideoPlayerView(
-                                videoId = currentSong?.getYouTubeVideoId(),
-                                videoUrl = currentSong?.path,
+                                videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
+                                videoUrl = if (currentSong?.isLocalVideo() == true) currentSong?.path else null,
+                                isPlaying = isPlaying,
+                                positionFlow = viewModel.positionFlow,
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .aspectRatio(16f / 9f)
@@ -1240,8 +1242,8 @@ private fun MobileDriveHudStage(
     modifier: Modifier = Modifier
 ) {
     val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
-    val isYouTubeTrack = currentSong?.isYouTube() == true
-    val isVideoActive = playVideoForStreams && isYouTubeTrack
+    val currentVideoId by viewModel.currentVideoId.collectAsState()
+    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isLocalVideo() == true)
 
     Column(
         modifier = modifier,
@@ -1257,8 +1259,10 @@ private fun MobileDriveHudStage(
                 contentAlignment = Alignment.Center
             ) {
                 VideoPlayerView(
-                    videoId = currentSong?.getYouTubeVideoId(),
-                    videoUrl = currentSong?.path,
+                    videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
+                    videoUrl = if (currentSong?.isLocalVideo() == true) currentSong.path else null,
+                    isPlaying = isPlaying,
+                    positionFlow = viewModel.positionFlow,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)

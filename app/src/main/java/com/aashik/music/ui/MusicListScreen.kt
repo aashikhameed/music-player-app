@@ -118,7 +118,6 @@ private val PortraitSongCardShape = RoundedCornerShape(20.dp)
 private val LandscapeFullSongShape = RoundedCornerShape(18.dp)
 private val HeaderCapsuleShape = RoundedCornerShape(14.dp)
 private val PillShape10 = RoundedCornerShape(10.dp)
-private val PeekPillShape = RoundedCornerShape(12.dp)
 private val StatusCapsuleShape = RoundedCornerShape(12.dp)
 private val RadioCardShape = RoundedCornerShape(16.dp)
 private val GenreChipShape = RoundedCornerShape(10.dp)
@@ -366,8 +365,8 @@ fun MusicListScreen(viewModel: MusicViewModel) {
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Floating Mini-Player (when a track is selected/loaded and dock is not hidden)
-                        if (currentSong != null && !hideBottomBar) {
+                        // Floating Mini-Player (when a track is selected/loaded)
+                        if (currentSong != null) {
                             MobileMiniPlayer(
                                 viewModel = viewModel,
                                 song = currentSong!!,
@@ -1001,24 +1000,6 @@ fun GenreDetailScreen(
                     }
                 }
 
-                // Shelf 3: Community playlists
-                if (details?.communityPlaylists?.isNotEmpty() == true) {
-                    item {
-                        ShelfHeader(title = "Community playlists")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(items = details.communityPlaylists, key = { it.id }) { item ->
-                                ShelfGenericCard(
-                                    item = item,
-                                    onClick = { viewModel.playShelfItem(item) }
-                                )
-                            }
-                        }
-                    }
-                }
-
                 // Shelf 4: Albums
                 if (details?.albums?.isNotEmpty() == true) {
                     item {
@@ -1184,16 +1165,7 @@ fun MoodGenreCard(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Accent Stripe
-            Box(
-                modifier = Modifier
-                    .width(8.dp)
-                    .fillMaxHeight()
-                    .background(color = stripeColor, shape = MoodStripeShape)
-            )
-
-            Spacer(modifier = Modifier.width(14.dp))
-
+        
             // Category Details (Text-only - zero images per user request)
             Column(
                 modifier = Modifier
@@ -2663,87 +2635,7 @@ private fun AutoHudInactivityWatcher(
     }
 }
 
-/**
- * Ultra-compact peek pill displayed when bottom bar is hidden.
- * Highly optimized for Mali GPU with flat solid colors and leaf recomposition.
- */
-@Composable
-private fun BottomDockPeekPill(
-    viewModel: MusicViewModel,
-    onExpand: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val currentSong by viewModel.currentSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
 
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val containerBg = if (isDark) Color(0xFF131924) else MaterialTheme.colorScheme.surfaceVariant
-    val borderColor = if (isDark) Color(0xFF232D3F) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-
-    Row(
-        modifier = modifier
-            .height(36.dp)
-            .background(color = containerBg, shape = PeekPillShape)
-            .border(width = 0.8.dp, color = borderColor, shape = PeekPillShape)
-            .clickable { onExpand() }
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                    .clickable { viewModel.togglePlayPause() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-
-            Text(
-                text = currentSong?.let { "${it.title} • ${it.artist}" } ?: "Tap to expand Player Dock",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = "Dock",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Icon(
-                imageVector = Icons.Rounded.KeyboardArrowUp,
-                contentDescription = "Expand Player Dock",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
 
 /**
  * Top-Right Infotainment Status Cluster (Theme Toggle + 12-Hour Clock with Live State Dot).

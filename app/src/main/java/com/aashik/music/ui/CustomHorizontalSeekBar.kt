@@ -131,9 +131,31 @@ fun CustomHorizontalSeekBar(
 
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
+    var pendingSeekProgress by remember { mutableStateOf<Float?>(null) }
     var barWidthPx by remember { mutableFloatStateOf(1f) }
 
-    val displayProgress = if (isDragging) dragProgress else progress.coerceIn(0f, 1f)
+    // Clear pendingSeekProgress once incoming engine progress catches up to seek target
+    androidx.compose.runtime.LaunchedEffect(progress) {
+        pendingSeekProgress?.let { target ->
+            if (kotlin.math.abs(progress - target) <= 0.025f) {
+                pendingSeekProgress = null
+            }
+        }
+    }
+
+    // Auto-expire pendingSeekProgress after 1200ms so it never gets permanently stuck
+    androidx.compose.runtime.LaunchedEffect(pendingSeekProgress) {
+        if (pendingSeekProgress != null) {
+            kotlinx.coroutines.delay(1200L)
+            pendingSeekProgress = null
+        }
+    }
+
+    val displayProgress = when {
+        isDragging -> dragProgress
+        pendingSeekProgress != null -> pendingSeekProgress!!
+        else -> progress.coerceIn(0f, 1f)
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -204,6 +226,7 @@ fun CustomHorizontalSeekBar(
                         }
 
                         isDragging = false
+                        pendingSeekProgress = dragProgress
                         onProgressChanged(dragProgress)
                     }
                 },
@@ -269,7 +292,7 @@ fun CustomHorizontalSeekBar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val currentSec = if (isDragging) {
+                val currentSec = if (isDragging || pendingSeekProgress != null) {
                     (displayProgress * durationMs).toLong()
                 } else {
                     currentPositionMs

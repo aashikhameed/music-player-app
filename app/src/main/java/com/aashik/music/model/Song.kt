@@ -64,8 +64,12 @@ data class Song(
         return null
     }
 
+    fun isLocalVideo(): Boolean {
+        return !isStream() && !isYouTube() && (path.endsWith(".mp4", ignoreCase = true) || path.endsWith(".webm", ignoreCase = true) || path.endsWith(".mkv", ignoreCase = true))
+    }
+
     fun isVideo(): Boolean {
-        return isYouTube() || path.endsWith(".mp4", ignoreCase = true) || path.endsWith(".webm", ignoreCase = true) || path.endsWith(".mkv", ignoreCase = true)
+        return isYouTube() || isLocalVideo()
     }
 
     fun getBadgeLabel(): String {

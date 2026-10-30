@@ -82,6 +82,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     private var streamMediaPlayer: MediaPlayer? = null
     private var streamEqualizer: Equalizer? = null
     private var streamTickerJob: Job? = null
+    @Volatile
+    private var streamElapsedMs: Long = 0L
 
     // Equalizer preset definitions matching C++ AudioEqualizer DSP
     private val PRESET_GAINS = arrayOf(
@@ -330,15 +332,15 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     private fun startStreamTicker() {
         streamTickerJob?.cancel()
         streamTickerJob = scope.launch(Dispatchers.Default) {
-            var elapsedMs = 0L
             while (streamMediaPlayer != null && _isPlayingFlow.value) {
                 delay(250L)
                 val curPos = try { streamMediaPlayer?.currentPosition?.toLong() } catch (_: Exception) { null }
                 val pos = if (curPos != null && curPos > 0L) {
+                    streamElapsedMs = curPos
                     curPos
                 } else {
-                    elapsedMs += 250L
-                    elapsedMs
+                    streamElapsedMs += 250L
+                    streamElapsedMs
                 }
                 _positionFlow.value = pos
 
@@ -680,18 +682,25 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun seekTo(position: Long) {
+        val clampedPos = position.coerceAtLeast(0L)
+        _positionFlow.value = clampedPos
         if (_currentSongFlow.value?.isStream() == true) {
+            streamElapsedMs = clampedPos
             if (_durationFlow.value > 0L) {
                 try {
-                    streamMediaPlayer?.seekTo(position.toInt())
-                    _positionFlow.value = position
-                } catch (_: Exception) {}
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        streamMediaPlayer?.seekTo(clampedPos, android.media.MediaPlayer.SEEK_CLOSEST)
+                    } else {
+                        streamMediaPlayer?.seekTo(clampedPos.toInt())
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Stream seekTo failed: ${e.message}")
+                }
             }
             return
         }
         nativeBridge.setVolume(1.0f)
-        nativeBridge.seek(position)
-        _positionFlow.value = position
+        nativeBridge.seek(clampedPos)
     }
 
     fun setEqualizerEnabled(enabled: Boolean) {

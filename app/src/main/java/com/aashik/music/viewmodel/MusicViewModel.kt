@@ -51,6 +51,8 @@ enum class LibraryTab {
     RADIO
 }
 
+private const val TAG = "MusicViewModel"
+
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
@@ -181,9 +183,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _hideBottomBar = MutableStateFlow(appPrefs.getBoolean("hide_bottom_bar", true))
     val hideBottomBar: StateFlow<Boolean> = _hideBottomBar.asStateFlow()
 
-    // ── YouTube & Video Playback Toggle ──
+    // ── YouTube & Video Playback Toggle & State ──
     private val _playVideoForStreams = MutableStateFlow(appPrefs.getBoolean("play_video_for_streams", true))
     val playVideoForStreams: StateFlow<Boolean> = _playVideoForStreams.asStateFlow()
+
+    private val _currentVideoId = MutableStateFlow<String?>(null)
+    val currentVideoId: StateFlow<String?> = _currentVideoId.asStateFlow()
+    private var videoResolverJob: Job? = null
 
     // ── Favorites State (persisted in SharedPreferences) ──
     private val _favoritePaths = MutableStateFlow<Set<String>>(
@@ -347,6 +353,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 if (song != null) {
                     _currentSong.value = song
                 }
+            }
+        }
+        viewModelScope.launch {
+            _currentSong.collect { song ->
+                resolveVideoForSong(song)
             }
         }
 
@@ -1202,9 +1213,39 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         setHideBottomBar(!_hideBottomBar.value)
     }
 
+    private fun resolveVideoForSong(song: Song?) {
+        videoResolverJob?.cancel()
+        if (song == null) {
+            _currentVideoId.value = null
+            return
+        }
+        val directId = song.getYouTubeVideoId()
+        if (!directId.isNullOrBlank()) {
+            _currentVideoId.value = directId
+            return
+        }
+        if (song.isLocalVideo()) {
+            _currentVideoId.value = null
+            return
+        }
+        videoResolverJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Resolving video for ${song.title} - ${song.artist}")
+                val resolved = com.aashik.music.service.YouTubeVideoResolver.resolveVideoId(song.title, song.artist)
+                Log.d(TAG, "Resolved video ID for ${song.title}: $resolved")
+                _currentVideoId.value = resolved
+            } catch (e: Exception) {
+                Log.w(TAG, "Video resolution failed: ${e.message}")
+            }
+        }
+    }
+
     fun setPlayVideoForStreams(enabled: Boolean) {
         _playVideoForStreams.value = enabled
         appPrefs.edit().putBoolean("play_video_for_streams", enabled).apply()
+        if (enabled && _currentVideoId.value.isNullOrBlank()) {
+            resolveVideoForSong(_currentSong.value)
+        }
     }
 
     fun setCrossfadeSeconds(seconds: Int) {

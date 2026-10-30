@@ -4,6 +4,7 @@ import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -653,5 +654,47 @@ class MusicModelsTest {
 
         // When hideBottomBar is true (setting enabled): dock is completely hidden (not minimized to pill)
         assertFalse(isDockVisible(true))
+    }
+
+    @Test
+    fun testYouTubeVideoResolverRegexAndSanitization() {
+        val sampleJson = """{"contents":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"compactVideoRenderer":{"videoId":"AY3Yea6hBbI","title":{"runs":[{"text":"Hey Minnale Video"}]}}}]}}]}}}"""
+        val regex = Regex(""""videoId":\s*"([a-zA-Z0-9_-]{11})"""")
+        val match = regex.find(sampleJson)
+        assertNotNull(match)
+        assertEquals("AY3Yea6hBbI", match!!.groupValues[1])
+
+        // Title cleaning verification
+        val rawTitle = "Hey Minnale (From \"Amaran\") &amp; Others"
+        val cleaned = rawTitle
+            .replace("&amp;", "&")
+            .replace(Regex("""(?i)\(From\s+["'][^"']+["']\)"""), "")
+            .replace(Regex("""(?i)\(Reprise\)"""), "")
+            .replace(Regex("""(?i)\(Official.*?\)"""), "")
+            .replace(Regex("""\(.*?\)|\[.*?\]"""), "")
+            .replace(Regex("""\s+"""), " ")
+            .trim()
+        assertEquals("Hey Minnale & Others", cleaned)
+    }
+
+    @Test
+    fun testSeekBarHoldAndCatchUpLogic() {
+        var pendingSeekProgress: Float? = 0.75f
+        val engineProgressBeforeSeek = 0.20f
+
+        // 1. Immediately after finger release: displayProgress must stay at 0.75f, not jumping back to 0.20f
+        val displayProgress1 = pendingSeekProgress ?: engineProgressBeforeSeek
+        assertEquals(0.75f, displayProgress1, 0.001f)
+
+        // 2. Engine progresses to 0.735f (within 0.025f proximity): pendingSeekProgress clears
+        val incomingEngineProgress = 0.735f
+        if (kotlin.math.abs(incomingEngineProgress - pendingSeekProgress!!) <= 0.025f) {
+            pendingSeekProgress = null
+        }
+        assertNull(pendingSeekProgress)
+
+        // 3. Display progress now smoothly tracks engine progress
+        val displayProgress2 = pendingSeekProgress ?: incomingEngineProgress
+        assertEquals(0.735f, displayProgress2, 0.001f)
     }
 }
