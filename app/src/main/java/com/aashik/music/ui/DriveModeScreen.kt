@@ -644,50 +644,86 @@ fun DriveModeScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Current Song Title (Prominent glanceability)
-                    Text(
-                        text = currentSong?.title ?: "No Song Playing",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        color = primaryTextColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(1.dp))
-
-                    // Current Song Artist & Album
-                    val albumStr = currentSong?.album.orEmpty()
-                    val artistStr = currentSong?.artist ?: "Select a track to start"
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(
-                                SpanStyle(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            ) {
-                                append(artistStr)
-                            }
-                            if (albumStr.isNotBlank()) {
-                                withStyle(
-                                    SpanStyle(
-                                        fontWeight = FontWeight.Normal,
-                                        color = secondaryTextColor
+                    // Current Song Title & Artist with Automotive Vertical Slide Transition
+                    AnimatedContent(
+                        targetState = navigatingTrack,
+                        transitionSpec = {
+                            if (targetState.direction >= 0) {
+                                (slideInVertically(
+                                    animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { fullHeight -> fullHeight / 2 }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
+                                    .togetherWith(
+                                        slideOutVertically(
+                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                            targetOffsetY = { fullHeight -> -fullHeight / 2 }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                     )
-                                ) {
-                                    append(" • $albumStr")
-                                }
+                            } else {
+                                (slideInVertically(
+                                    animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { fullHeight -> -fullHeight / 2 }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
+                                    .togetherWith(
+                                        slideOutVertically(
+                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                            targetOffsetY = { fullHeight -> fullHeight / 2 }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                    )
                             }
                         },
-                        fontSize = 12.5.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
+                        label = "DriveHudTypographyTransition",
+                        modifier = Modifier.fillMaxWidth()
+                    ) { track ->
+                        val song = track.song
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = song?.title ?: "No Song Playing",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black,
+                                color = primaryTextColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+
+                            Spacer(modifier = Modifier.height(1.dp))
+
+                            val albumStr = song?.album.orEmpty()
+                            val artistStr = song?.artist ?: "Select a track to start"
+                            Text(
+                                text = buildAnnotatedString {
+                                    withStyle(
+                                        SpanStyle(
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        append(artistStr)
+                                    }
+                                    if (albumStr.isNotBlank()) {
+                                        withStyle(
+                                            SpanStyle(
+                                                fontWeight = FontWeight.Normal,
+                                                color = secondaryTextColor
+                                            )
+                                        ) {
+                                            append(" • $albumStr")
+                                        }
+                                    }
+                                },
+                                fontSize = 12.5.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(6.dp))
 

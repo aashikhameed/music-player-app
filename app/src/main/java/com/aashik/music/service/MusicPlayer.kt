@@ -8,6 +8,7 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.media.audiofx.Equalizer
 import android.os.PowerManager
 import android.util.Log
 import com.aashik.music.model.Song
@@ -75,7 +76,17 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     private var autoCrossfadeTriggeredPath: String? = null
     private var playJob: Job? = null
     private var streamMediaPlayer: MediaPlayer? = null
+    private var streamEqualizer: Equalizer? = null
     private var streamTickerJob: Job? = null
+
+    // Equalizer preset definitions matching C++ AudioEqualizer DSP
+    private val PRESET_GAINS = arrayOf(
+        floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),      // 0: Flat
+        floatArrayOf(0.0f, -4.0f, 1.0f, 2.0f, 3.0f),     // 1: Acoustic Clarity
+        floatArrayOf(-2.0f, -5.0f, 2.0f, 3.0f, 1.0f),    // 2: Vocal Separation
+        floatArrayOf(3.0f, -3.0f, 0.0f, 1.0f, 2.0f),     // 3: Bass Punch
+        floatArrayOf(2.0f, -2.0f, 0.0f, 2.0f, 3.0f)      // 4: Rock Dynamic
+    )
 
     init {
         val attrs = AudioAttributes.Builder()
@@ -252,18 +263,94 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         com.aashik.music.controller.MusicController.play(prevSong)
     }
 
+    private fun initStreamEqualizer(audioSessionId: Int) {
+        try {
+            streamEqualizer?.release()
+        } catch (_: Exception) {}
+        streamEqualizer = null
+
+        try {
+            if (audioSessionId != AudioManager.ERROR) {
+                val eq = Equalizer(0, audioSessionId)
+                streamEqualizer = eq
+                syncStreamEqualizer()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to initialize stream Equalizer: ${e.message}")
+        }
+    }
+
+    fun syncStreamEqualizer() {
+        val eq = streamEqualizer ?: return
+        try {
+            val enabled = nativeBridge.isEqualizerEnabled()
+            eq.enabled = enabled
+            if (!enabled) return
+
+            val range = eq.bandLevelRange
+            val minLevel = range[0]
+            val maxLevel = range[1]
+            val numBands = eq.numberOfBands.toInt()
+            val currentPreset = nativeBridge.getEqualizerPreset()
+            Log.d(TAG, "syncStreamEqualizer: enabled=$enabled, preset=$currentPreset, bands=$numBands")
+
+            val gains = if (currentPreset in 0..4) {
+                PRESET_GAINS[currentPreset]
+            } else {
+                FloatArray(5) { band -> nativeBridge.getEqualizerBandGain(band) }
+            }
+
+            for (band in 0 until minOf(numBands, 5)) {
+                val gainDb = gains[band]
+                val mB = (gainDb * 100f).toInt().toShort().coerceIn(minLevel, maxLevel)
+                eq.setBandLevel(band.toShort(), mB)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error applying stream equalizer: ${e.message}")
+        }
+    }
+
     private fun startStreamTicker() {
         streamTickerJob?.cancel()
         streamTickerJob = scope.launch(Dispatchers.Default) {
             var elapsedMs = 0L
             while (streamMediaPlayer != null && _isPlayingFlow.value) {
-                delay(500L)
+                delay(250L)
                 val curPos = try { streamMediaPlayer?.currentPosition?.toLong() } catch (_: Exception) { null }
-                if (curPos != null && curPos > 0L) {
-                    _positionFlow.value = curPos
+                val pos = if (curPos != null && curPos > 0L) {
+                    curPos
                 } else {
-                    elapsedMs += 500L
-                    _positionFlow.value = elapsedMs
+                    elapsedMs += 250L
+                    elapsedMs
+                }
+                _positionFlow.value = pos
+
+                // Auto-crossfade transition before stream finishes
+                if (crossfadeSeconds > 0 && _isPlayingFlow.value && !isTransitioning) {
+                    val dur = _durationFlow.value
+                    val crossfadeMs = crossfadeSeconds * 1000L
+                    if (dur > (crossfadeMs + 2000L)) {
+                        val remainingMs = dur - pos
+                        if (remainingMs <= crossfadeMs) {
+                            val currentPath = _currentSongFlow.value?.path
+                            if (currentPath != null && currentPath != autoCrossfadeTriggeredPath) {
+                                autoCrossfadeTriggeredPath = currentPath
+                                isTransitioning = true
+                                scope.launch(Dispatchers.Main) {
+                                    try {
+                                        if (onCompletion != null) {
+                                            onCompletion?.invoke(true)
+                                        } else {
+                                            playNext(isAutoCrossfade = true)
+                                        }
+                                    } finally {
+                                        delay(1000L)
+                                        isTransitioning = false
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -276,6 +363,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     private fun stopStreamPlayback() {
         stopStreamTicker()
+        try {
+            streamEqualizer?.release()
+        } catch (_: Exception) {}
+        streamEqualizer = null
         streamMediaPlayer?.let { mp ->
             try {
                 if (mp.isPlaying) mp.stop()
@@ -312,7 +403,50 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
         if (song.isStream()) {
             nativeBridge.stop()
-            stopStreamPlayback()
+
+            val outgoingPlayer = streamMediaPlayer
+            val outgoingEq = streamEqualizer
+            streamMediaPlayer = null
+            streamEqualizer = null
+            stopStreamTicker()
+
+            if (outgoingPlayer != null) {
+                if (isAutoCrossfade && crossfadeSeconds > 0) {
+                    scope.launch(Dispatchers.Default) {
+                        val fadeDurationMs = (crossfadeSeconds * 1000L).coerceAtLeast(500L)
+                        val steps = 20
+                        val stepDelay = fadeDurationMs / steps
+                        for (i in (steps - 1) downTo 0) {
+                            val vol = i.toFloat() / steps.toFloat()
+                            try {
+                                outgoingPlayer.setVolume(vol, vol)
+                            } catch (_: Exception) {
+                                break
+                            }
+                            delay(stepDelay)
+                        }
+                        try {
+                            outgoingEq?.release()
+                            if (outgoingPlayer.isPlaying) outgoingPlayer.stop()
+                            outgoingPlayer.reset()
+                            outgoingPlayer.release()
+                        } catch (_: Exception) {}
+                    }
+                } else {
+                    scope.launch(Dispatchers.Default) {
+                        try {
+                            outgoingPlayer.setVolume(0.3f, 0.3f)
+                            delay(30L)
+                            outgoingPlayer.setVolume(0.0f, 0.0f)
+                            delay(20L)
+                            outgoingEq?.release()
+                            if (outgoingPlayer.isPlaying) outgoingPlayer.stop()
+                            outgoingPlayer.reset()
+                            outgoingPlayer.release()
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
 
             val mp = MediaPlayer().apply {
                 setAudioAttributes(
@@ -322,6 +456,11 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                         .build()
                 )
                 setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
+                if (isAutoCrossfade && crossfadeSeconds > 0) {
+                    setVolume(0.0f, 0.0f)
+                } else {
+                    setVolume(1.0f, 1.0f)
+                }
                 try {
                     setDataSource(song.path)
                     setOnPreparedListener { player ->
@@ -331,6 +470,27 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                             val dur = if (player.duration > 0) player.duration.toLong() else if (song.duration > 0) song.duration else 0L
                             _durationFlow.value = dur
                             startStreamTicker()
+                            initStreamEqualizer(player.audioSessionId)
+
+                            if (isAutoCrossfade && crossfadeSeconds > 0) {
+                                scope.launch(Dispatchers.Default) {
+                                    val fadeDurationMs = (crossfadeSeconds * 1000L).coerceAtLeast(500L)
+                                    val steps = 20
+                                    val stepDelay = fadeDurationMs / steps
+                                    for (i in 1..steps) {
+                                        val vol = i.toFloat() / steps.toFloat()
+                                        try {
+                                            player.setVolume(vol, vol)
+                                        } catch (_: Exception) {
+                                            break
+                                        }
+                                        delay(stepDelay)
+                                    }
+                                    try {
+                                        player.setVolume(1.0f, 1.0f)
+                                    } catch (_: Exception) {}
+                                }
+                            }
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to start streaming playback: ${e.message}")
                             _isPlayingFlow.value = false
@@ -356,7 +516,22 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             }
             streamMediaPlayer = mp
         } else {
-            stopStreamPlayback()
+            val outgoingPlayer = streamMediaPlayer
+            val outgoingEq = streamEqualizer
+            streamMediaPlayer = null
+            streamEqualizer = null
+            stopStreamTicker()
+            if (outgoingPlayer != null) {
+                scope.launch(Dispatchers.Default) {
+                    try {
+                        outgoingEq?.release()
+                        if (outgoingPlayer.isPlaying) outgoingPlayer.stop()
+                        outgoingPlayer.reset()
+                        outgoingPlayer.release()
+                    } catch (_: Exception) {}
+                }
+            }
+
             playJob = scope.launch(Dispatchers.IO) {
                 val res = nativeBridge.playTrack(song.path, 0L, isAutoCrossfade)
                 if (res == 0) {
@@ -469,18 +644,28 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     fun setEqualizerEnabled(enabled: Boolean) {
         nativeBridge.setEqualizerEnabled(enabled)
+        try {
+            streamEqualizer?.enabled = enabled
+            if (enabled) {
+                syncStreamEqualizer()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error toggling stream equalizer: ${e.message}")
+        }
     }
 
     fun isEqualizerEnabled(): Boolean = nativeBridge.isEqualizerEnabled()
 
     fun setEqualizerPreset(preset: Int) {
         nativeBridge.setEqualizerPreset(preset)
+        syncStreamEqualizer()
     }
 
     fun getEqualizerPreset(): Int = nativeBridge.getEqualizerPreset()
 
     fun setEqualizerBandGain(band: Int, gainDb: Float) {
         nativeBridge.setEqualizerBandGain(band, gainDb)
+        syncStreamEqualizer()
     }
 
     fun getEqualizerBandGain(band: Int): Float = nativeBridge.getEqualizerBandGain(band)
@@ -530,6 +715,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     fun release() {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         nativeBridge.setListener(null)
+        try {
+            streamEqualizer?.release()
+        } catch (_: Exception) {}
+        streamEqualizer = null
         try {
             volumeReceiver?.let { context.unregisterReceiver(it) }
             volumeReceiver = null

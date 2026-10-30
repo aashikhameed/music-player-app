@@ -204,23 +204,23 @@ fun AndroidAutoBottomBar(
                                 if (targetState.direction >= 0) {
                                     (slideInVertically(
                                         animationSpec = tween(280, delayMillis = 30, easing = FastOutSlowInEasing),
-                                        initialOffsetY = { fullHeight -> fullHeight / 2 }
+                                        initialOffsetY = { fullHeight -> fullHeight }
                                     ) + fadeIn(animationSpec = tween(240, delayMillis = 30)))
                                         .togetherWith(
                                             slideOutVertically(
                                                 animationSpec = tween(240, easing = FastOutSlowInEasing),
-                                                targetOffsetY = { fullHeight -> -fullHeight / 2 }
+                                                targetOffsetY = { fullHeight -> -fullHeight }
                                             ) + fadeOut(animationSpec = tween(160))
                                         )
                                 } else {
                                     (slideInVertically(
                                         animationSpec = tween(280, delayMillis = 30, easing = FastOutSlowInEasing),
-                                        initialOffsetY = { fullHeight -> -fullHeight / 2 }
+                                        initialOffsetY = { fullHeight -> -fullHeight }
                                     ) + fadeIn(animationSpec = tween(240, delayMillis = 30)))
                                         .togetherWith(
                                             slideOutVertically(
                                                 animationSpec = tween(240, easing = FastOutSlowInEasing),
-                                                targetOffsetY = { fullHeight -> fullHeight / 2 }
+                                                targetOffsetY = { fullHeight -> fullHeight }
                                             ) + fadeOut(animationSpec = tween(160))
                                         )
                                 }
