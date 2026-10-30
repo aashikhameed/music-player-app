@@ -317,26 +317,28 @@ fun AndroidAutoBottomBar(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
             ) {
-                // Shuffle
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isShuffleOn)
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                            else Color.Transparent
+                // Shuffle (only for local playback - hidden when streaming)
+                if (currentSong?.isStream() != true) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isShuffleOn)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                                else Color.Transparent
+                            )
+                            .clickable { viewModel.toggleShuffle() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector        = if (isShuffleOn) Icons.Rounded.ShuffleOn else Icons.Rounded.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint               = if (isShuffleOn) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            modifier           = Modifier.size(20.dp)
                         )
-                        .clickable { viewModel.toggleShuffle() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector        = if (isShuffleOn) Icons.Rounded.ShuffleOn else Icons.Rounded.Shuffle,
-                        contentDescription = "Shuffle",
-                        tint               = if (isShuffleOn) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                        modifier           = Modifier.size(20.dp)
-                    )
+                    }
                 }
 
                 // Previous

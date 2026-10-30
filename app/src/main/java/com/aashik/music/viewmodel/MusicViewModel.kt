@@ -1255,10 +1255,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val isNewPlaylist = targetList != activePlaylist
         activePlaylist = targetList
 
-        if (song.isStream() && _userQueue.value.isEmpty()) {
-            val curIdx = targetList.indexOfFirst { it.id == song.id }
-            if (curIdx != -1 && curIdx < targetList.lastIndex) {
-                _userQueue.value = targetList.subList(curIdx + 1, targetList.size)
+        if (song.isStream()) {
+            _isShuffleOn.value = false
+            if (_userQueue.value.isEmpty()) {
+                val curIdx = targetList.indexOfFirst { it.id == song.id }
+                if (curIdx != -1 && curIdx < targetList.lastIndex) {
+                    _userQueue.value = targetList.subList(curIdx + 1, targetList.size)
+                }
             }
         }
 
@@ -1377,6 +1380,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleShuffle() {
+        // Online streams & live radios preserve uninterrupted curated progression - shuffle is disabled
+        if (_currentSong.value?.isStream() == true) {
+            _isShuffleOn.value = false
+            return
+        }
         val newState = !_isShuffleOn.value
         _isShuffleOn.value = newState
         val baseList = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }

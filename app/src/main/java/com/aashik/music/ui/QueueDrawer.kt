@@ -49,7 +49,7 @@ import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
 // Precomputed top-level shapes for Mali GPU fill rate & zero GC allocation
-private val DrawerShapeLandscape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+private val DrawerShapeLandscape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
 private val DrawerItemShape = RoundedCornerShape(10.dp)
 private val DrawerBadgeShape = RoundedCornerShape(6.dp)
 private val ReorderBtnShape = RoundedCornerShape(6.dp)
@@ -82,10 +82,10 @@ fun QueueDrawer(
             .background(BackdropColor)
             .clickable(onClick = onClose)
     ) {
-        // Drawer Content Panel (Right-aligned in landscape, 400dp width)
+        // Drawer Content Panel (Left-aligned in landscape, 400dp width)
         Surface(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
+                .align(Alignment.CenterStart)
                 .fillMaxHeight()
                 .width(400.dp)
                 .clickable(enabled = false) {}, // Consume clicks so backdrop doesn't trigger

@@ -249,17 +249,19 @@ fun BottomControlStrip(
                     )
                 }
 
-                // Shuffle
-                IconButton(
-                    onClick = { viewModel.toggleShuffle() },
-                    modifier = Modifier.size(38.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isShuffleOn) Icons.Rounded.ShuffleOn else Icons.Rounded.Shuffle,
-                        contentDescription = "Shuffle",
-                        tint = if (isShuffleOn) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        modifier = Modifier.size(22.dp)
-                    )
+                // Shuffle (only for local playback - hidden when streaming)
+                if (currentSong?.isStream() != true) {
+                    IconButton(
+                        onClick = { viewModel.toggleShuffle() },
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isShuffleOn) Icons.Rounded.ShuffleOn else Icons.Rounded.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint = if (isShuffleOn) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
         }

@@ -495,7 +495,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
             }
         }
 
-        // Overlay Slide-over Playback Queue Drawer
+        // Overlay Slide-over Playback Queue Drawer (Left-aligned)
         if (isQueueOpen) {
             QueueDrawer(
                 viewModel = viewModel,
