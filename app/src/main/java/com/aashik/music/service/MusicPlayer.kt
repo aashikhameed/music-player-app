@@ -195,8 +195,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     override fun onTrackEnded() {
         val currentPath = _currentSongFlow.value?.path
-        if (currentPath != autoCrossfadeTriggeredPath && !isTransitioning) {
+        if (currentPath != null && currentPath != autoCrossfadeTriggeredPath && !isTransitioning) {
             isTransitioning = true
+            autoCrossfadeTriggeredPath = currentPath
             scope.launch(Dispatchers.Main) {
                 try {
                     if (onCompletion != null) {
@@ -205,7 +206,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                         playNext(isAutoCrossfade = false)
                     }
                 } finally {
-                    delay(400L)
+                    delay(500L)
                     isTransitioning = false
                 }
             }
@@ -324,34 +325,6 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     elapsedMs
                 }
                 _positionFlow.value = pos
-
-                // Auto-crossfade transition before stream finishes
-                if (crossfadeSeconds > 0 && _isPlayingFlow.value && !isTransitioning) {
-                    val dur = _durationFlow.value
-                    val crossfadeMs = crossfadeSeconds * 1000L
-                    if (dur > (crossfadeMs + 2000L)) {
-                        val remainingMs = dur - pos
-                        if (remainingMs <= crossfadeMs) {
-                            val currentPath = _currentSongFlow.value?.path
-                            if (currentPath != null && currentPath != autoCrossfadeTriggeredPath) {
-                                autoCrossfadeTriggeredPath = currentPath
-                                isTransitioning = true
-                                scope.launch(Dispatchers.Main) {
-                                    try {
-                                        if (onCompletion != null) {
-                                            onCompletion?.invoke(true)
-                                        } else {
-                                            playNext(isAutoCrossfade = true)
-                                        }
-                                    } finally {
-                                        delay(1000L)
-                                        isTransitioning = false
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -411,40 +384,24 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             stopStreamTicker()
 
             if (outgoingPlayer != null) {
-                if (isAutoCrossfade && crossfadeSeconds > 0) {
-                    scope.launch(Dispatchers.Default) {
-                        val fadeDurationMs = (crossfadeSeconds * 1000L).coerceAtLeast(500L)
-                        val steps = 20
-                        val stepDelay = fadeDurationMs / steps
-                        for (i in (steps - 1) downTo 0) {
-                            val vol = i.toFloat() / steps.toFloat()
-                            try {
-                                outgoingPlayer.setVolume(vol, vol)
-                            } catch (_: Exception) {
-                                break
-                            }
-                            delay(stepDelay)
-                        }
-                        try {
-                            outgoingEq?.release()
-                            if (outgoingPlayer.isPlaying) outgoingPlayer.stop()
-                            outgoingPlayer.reset()
-                            outgoingPlayer.release()
-                        } catch (_: Exception) {}
-                    }
-                } else {
-                    scope.launch(Dispatchers.Default) {
-                        try {
-                            outgoingPlayer.setVolume(0.3f, 0.3f)
-                            delay(30L)
-                            outgoingPlayer.setVolume(0.0f, 0.0f)
-                            delay(20L)
-                            outgoingEq?.release()
-                            if (outgoingPlayer.isPlaying) outgoingPlayer.stop()
-                            outgoingPlayer.reset()
-                            outgoingPlayer.release()
-                        } catch (_: Exception) {}
-                    }
+                // Instantly unregister all listeners to prevent stale callbacks from triggering unwanted song jumps
+                try {
+                    outgoingPlayer.setOnCompletionListener(null)
+                    outgoingPlayer.setOnErrorListener(null)
+                    outgoingPlayer.setOnPreparedListener(null)
+                } catch (_: Exception) {}
+
+                scope.launch(Dispatchers.Default) {
+                    try {
+                        outgoingPlayer.setVolume(0.2f, 0.2f)
+                        delay(40L)
+                        outgoingPlayer.setVolume(0.0f, 0.0f)
+                        delay(20L)
+                        outgoingEq?.release()
+                        if (outgoingPlayer.isPlaying) outgoingPlayer.stop()
+                        outgoingPlayer.reset()
+                        outgoingPlayer.release()
+                    } catch (_: Exception) {}
                 }
             }
 
@@ -505,7 +462,6 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     setOnCompletionListener {
                         _isPlayingFlow.value = false
                         stopStreamTicker()
-                        onCompletion?.invoke(false)
                         onTrackEnded()
                     }
                     prepareAsync()

@@ -33,6 +33,18 @@ object OnlineStreamRepository {
     // Lightweight genre mapping for streams and categories
     private val songGenreMap = ConcurrentHashMap<String, String>()
 
+    @Volatile
+    var activeStationId: String? = null
+        private set
+
+    @Volatile
+    private var genreSearchPage = 1
+
+    fun resetActiveStation() {
+        activeStationId = null
+        genreSearchPage = 1
+    }
+
     fun registerSongGenre(idOrPath: String, genre: String) {
         if (idOrPath.isNotBlank() && genre.isNotBlank()) {
             songGenreMap[idOrPath] = genre
@@ -143,37 +155,46 @@ object OnlineStreamRepository {
         }
     }
 
-    fun parseSongItem(item: JSONObject): Song? {
+    fun parseSongItem(rawItem: JSONObject): Song? {
+        val item = rawItem.optJSONObject("song") ?: rawItem
         val rawId = item.optString("id", "")
-        val rawTitle = unescapeHtml(item.optString("title", ""))
+        val rawTitle = unescapeHtml(item.optString("title", "").ifBlank { item.optString("song", "") })
         if (rawId.isBlank() || rawTitle.isBlank()) return null
 
         val moreInfo = item.optJSONObject("more_info")
-        val encUrl = moreInfo?.optString("encrypted_media_url", "") ?: ""
+        val encUrl = moreInfo?.optString("encrypted_media_url", "")?.ifBlank { null }
+            ?: item.optString("encrypted_media_url", "")
         if (encUrl.isBlank()) return null
 
         val decryptedUrl = decryptMediaUrl(encUrl)
         if (decryptedUrl.isBlank()) return null
 
-        val supports320 = moreInfo?.optString("320kbps", "false").equals("true", ignoreCase = true)
+        val supports320 = (moreInfo?.optString("320kbps") ?: item.optString("320kbps", "false")).equals("true", ignoreCase = true)
         val finalStreamUrl = selectBestStream(decryptedUrl, supports320)
 
         // Extract primary artist
         var artist = ""
-        val artistMap = moreInfo?.optJSONObject("artistMap")
+        val artistMap = moreInfo?.optJSONObject("artistMap") ?: item.optJSONObject("artistMap")
         val primaryArtists = artistMap?.optJSONArray("primary_artists")
         if (primaryArtists != null && primaryArtists.length() > 0) {
             val firstArtist = primaryArtists.optJSONObject(0)
             artist = firstArtist?.optString("name", "") ?: ""
         }
         if (artist.isBlank()) {
-            val rawArtist = moreInfo?.optString("music") ?: item.optString("subtitle", "Online Artist")
+            val rawArtist = moreInfo?.optString("music")
+                ?: item.optString("primary_artists")
+                ?: item.optString("singers")
+                ?: item.optString("subtitle", "Online Artist")
             artist = unescapeHtml(rawArtist.ifBlank { "Online Artist" })
         }
         if (artist.isBlank()) artist = "Online Artist"
 
-        val album = unescapeHtml(moreInfo?.optString("album", "Streaming Single") ?: "Streaming Single")
-        val durationSec = moreInfo?.optString("duration", "0")?.toLongOrNull() ?: 0L
+        val album = unescapeHtml(
+            moreInfo?.optString("album")
+                ?: item.optString("album", "Streaming Single")
+                ?: "Streaming Single"
+        )
+        val durationSec = (moreInfo?.optString("duration") ?: item.optString("duration", "0")).toLongOrNull() ?: 0L
         val durationMs = durationSec * 1000L
 
         val rawImage = item.optString("image", "").ifBlank {
@@ -207,10 +228,91 @@ object OnlineStreamRepository {
         )
     }
 
+    suspend fun createRadioStation(pid: String): String? = withContext(Dispatchers.IO) {
+        if (pid.isBlank()) return@withContext null
+        var connection: HttpURLConnection? = null
+        try {
+            val encodedEntity = URLEncoder.encode("[\"$pid\"]", "UTF-8")
+            val urlString = "$API_BASE?__call=webradio.createEntityStation&_format=json&_marker=0&api_version=4&ctx=android&entity_id=$encodedEntity&entity_type=queue"
+            val url = URL(urlString)
+            connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 4000
+                readTimeout = 5000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                setRequestProperty("Accept", "application/json")
+            }
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val responseText = connection.inputStream.bufferedReader().use(BufferedReader::readText)
+                val root = JSONObject(responseText)
+                val stationId = root.optString("stationid", "")
+                if (stationId.isNotBlank()) {
+                    activeStationId = stationId
+                    return@withContext stationId
+                }
+            }
+            null
+        } catch (e: Exception) {
+            Log.w(TAG, "createRadioStation failed for pid $pid: ${e.message}")
+            null
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    suspend fun fetchStationSongs(
+        stationId: String,
+        limit: Int = 15,
+        targetGenre: String? = null
+    ): List<Song> = withContext(Dispatchers.IO) {
+        if (stationId.isBlank()) return@withContext emptyList()
+        var connection: HttpURLConnection? = null
+        try {
+            val urlString = "$API_BASE?__call=webradio.getSong&_format=json&_marker=0&api_version=4&ctx=android&stationid=$stationId&k=$limit&next=1"
+            val url = URL(urlString)
+            connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 4000
+                readTimeout = 5000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                setRequestProperty("Accept", "application/json")
+            }
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val responseText = connection.inputStream.bufferedReader().use(BufferedReader::readText)
+                val root = JSONObject(responseText)
+                val songs = ArrayList<Song>(limit)
+                val keys = root.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    if (k == "stationid" || k == "error") continue
+                    val obj = root.optJSONObject(k) ?: continue
+                    val song = parseSongItem(obj) ?: continue
+                    if (targetGenre != null && targetGenre.isNotBlank()) {
+                        registerSongGenre(song.id, targetGenre)
+                        registerSongGenre(song.path, targetGenre)
+                    }
+                    songs.add(song)
+                }
+                return@withContext songs
+            }
+            emptyList()
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchStationSongs failed for station $stationId: ${e.message}")
+            emptyList()
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    suspend fun fetchNextRadioBatch(targetGenre: String? = null, limit: Int = 15): List<Song> {
+        val stId = activeStationId ?: return emptyList()
+        return fetchStationSongs(stId, limit = limit, targetGenre = targetGenre)
+    }
+
     /**
      * Algorithmic Radio Queue Generator (matches BitChord RDAMVM & JioSaavn WebRadio recommendations).
-     * Given an active seed track (streaming or local), queries JioSaavn's `reco.getreco` backend
-     * and genre-targeted complementary queries to synthesize an uninterrupted, authentic radio queue of 15+ related tracks in the EXACT SAME GENRE.
+     * Given an active seed track (streaming or local), queries JioSaavn's live WebRadio entity station
+     * to synthesize an uninterrupted, authentic radio queue of 15+ related tracks in the EXACT SAME GENRE.
      */
     suspend fun getRadioTracksForSong(
         seedSong: Song,
@@ -257,8 +359,25 @@ object OnlineStreamRepository {
             }
         }
 
-        // Step 2: Query JioSaavn Algorithmic Recommendation Engine (reco.getreco)
+        // Step 2: Use JioSaavn WebRadio Engine (Primary recommended radio system like BitChord)
         if (pid.isNotBlank()) {
+            val stationId = createRadioStation(pid)
+            if (stationId != null) {
+                val stationSongs = fetchStationSongs(stationId, limit = limit + 4, targetGenre = genre)
+                for (parsed in stationSongs) {
+                    val normTitle = parsed.title.lowercase().trim()
+                    if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle)) {
+                        seenIds.add(parsed.id)
+                        seenTitles.add(normTitle)
+                        filtered.add(parsed)
+                        if (filtered.size >= limit) break
+                    }
+                }
+            }
+        }
+
+        // Step 3: Fallback to reco.getreco if station yielded insufficient tracks
+        if (filtered.size < limit && pid.isNotBlank()) {
             var connection: HttpURLConnection? = null
             try {
                 val urlString = "$API_BASE?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=android&pid=$pid"
@@ -310,8 +429,7 @@ object OnlineStreamRepository {
             }
         }
 
-        // Step 3: Genre-Targeted Complementary Search
-        // Guarantees that if recommendation returned fewer than limit tracks, fallback queries STAY IN THE SAME GENRE!
+        // Step 4: Genre-Targeted Complementary Search with dynamic pagination (never repeats)
         if (filtered.size < limit) {
             val cleanArtist = seedSong.artist
                 .replace(Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,|•).*"), "")
@@ -335,22 +453,48 @@ object OnlineStreamRepository {
                 }
             }
 
+            val page = genreSearchPage++
             for (q in queries) {
                 if (filtered.size >= limit) break
                 val needed = limit - filtered.size
-                val rawResults = searchSongs(q, limit = needed + 4)
-                for (track in rawResults) {
-                    val normTitle = track.title.lowercase().trim()
-                    if (!seenIds.contains(track.id) && !seenTitles.contains(normTitle)) {
-                        seenIds.add(track.id)
-                        seenTitles.add(normTitle)
-                        if (genre != null) {
-                            registerSongGenre(track.id, genre)
-                            registerSongGenre(track.path, genre)
-                        }
-                        filtered.add(track)
-                        if (filtered.size >= limit) break
+                var conn: HttpURLConnection? = null
+                try {
+                    val encodedQuery = URLEncoder.encode(q, "UTF-8")
+                    val urlString = "$API_BASE?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=android&q=$encodedQuery&p=$page&n=${needed + 4}"
+                    val url = URL(urlString)
+                    conn = (url.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 4000
+                        readTimeout = 5000
+                        setRequestProperty("User-Agent", "Mozilla/5.0")
+                        setRequestProperty("Accept", "application/json")
                     }
+                    if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                        val responseText = conn.inputStream.bufferedReader().use(BufferedReader::readText)
+                        val root = JSONObject(responseText)
+                        val resultsArray = root.optJSONArray("results")
+                        if (resultsArray != null) {
+                            for (i in 0 until resultsArray.length()) {
+                                val item = resultsArray.optJSONObject(i) ?: continue
+                                val parsed = parseSongItem(item) ?: continue
+                                val normTitle = parsed.title.lowercase().trim()
+                                if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle)) {
+                                    seenIds.add(parsed.id)
+                                    seenTitles.add(normTitle)
+                                    if (genre != null) {
+                                        registerSongGenre(parsed.id, genre)
+                                        registerSongGenre(parsed.path, genre)
+                                    }
+                                    filtered.add(parsed)
+                                    if (filtered.size >= limit) break
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Search pagination fallback error: ${e.message}")
+                } finally {
+                    conn?.disconnect()
                 }
             }
         }

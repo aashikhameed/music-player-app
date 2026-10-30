@@ -96,8 +96,8 @@ fun SongCard(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
     cardWidth: Dp? = null,
-    isFavorite: Boolean = false,
-    onFavoriteClick: (() -> Unit)? = null
+    @Suppress("UNUSED_PARAMETER") isFavorite: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") onFavoriteClick: (() -> Unit)? = null
 ) {
     val widthModifier = if (cardWidth != null) Modifier.width(cardWidth) else Modifier.fillMaxWidth()
     val cardGradient = AppGradients.card(isActive = isPlaying)
@@ -210,18 +210,6 @@ fun SongCard(
                             fontWeight = FontWeight.Bold,
                             color = badgeTextColor,
                             letterSpacing = 0.4.sp
-                        )
-                    }
-
-                    if (onFavoriteClick != null) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = if (isFavorite) "Favorite" else "Not favorite",
-                            tint = if (isFavorite) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                            modifier = Modifier
-                                .size(17.dp)
-                                .clickable { onFavoriteClick() }
                         )
                     }
                 }

@@ -643,8 +643,6 @@ fun RadioExploreContent(
 
     val categorySongs by viewModel.categorySongs.collectAsState()
     val isLoadingCategorySongs by viewModel.isLoadingCategorySongs.collectAsState()
-    val downloadStates by viewModel.downloadStates.collectAsState()
-    val favoritePaths by viewModel.favoritePaths.collectAsState()
 
     var showFavoritesOnly by rememberSaveable { mutableStateOf(false) }
 
@@ -1014,19 +1012,12 @@ fun RadioExploreContent(
 
                         items(items = categorySongs, key = { it.id }) { song ->
                             val isPlaying = song.id == currentSong?.id
-                            val isFav = favoritePaths.contains(song.path)
-                            val downloadStatus = downloadStates[song.id] ?: DownloadStatus.Idle
 
                             CategorySongRowCard(
                                 song = song,
                                 isPlaying = isPlaying,
-                                isFavorite = isFav,
-                                downloadStatus = downloadStatus,
                                 onPlayClick = { viewModel.play(song, playlist = categorySongs) },
-                                onLongPress = { onSongLongPress(song) },
-                                onFavoriteClick = { viewModel.toggleFavorite(song.path) },
-                                onStartRadioClick = { viewModel.startRadioForSong(song) },
-                                onDownloadClick = { viewModel.downloadSong(song) }
+                                onLongPress = { onSongLongPress(song) }
                             )
                         }
                     }
@@ -1151,13 +1142,8 @@ fun MoodGenreCard(
 fun CategorySongRowCard(
     song: Song,
     isPlaying: Boolean,
-    isFavorite: Boolean,
-    downloadStatus: DownloadStatus,
     onPlayClick: () -> Unit,
     onLongPress: () -> Unit,
-    onFavoriteClick: () -> Unit,
-    onStartRadioClick: () -> Unit,
-    onDownloadClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -1234,67 +1220,6 @@ fun CategorySongRowCard(
                         )
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // Action 1: Start Radio button (generate algorithmic queue from this song)
-            IconButton(
-                onClick = onStartRadioClick,
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Podcasts,
-                    contentDescription = "Start Radio",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Action 2: Download Offline button
-            IconButton(
-                onClick = onDownloadClick,
-                enabled = downloadStatus !is DownloadStatus.Downloading && downloadStatus !is DownloadStatus.Downloaded,
-                modifier = Modifier.size(34.dp)
-            ) {
-                when (downloadStatus) {
-                    is DownloadStatus.Downloading -> {
-                        CircularProgressIndicator(
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(16.dp),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    is DownloadStatus.Downloaded -> {
-                        Icon(
-                            imageVector = Icons.Rounded.CheckCircle,
-                            contentDescription = "Downloaded",
-                            tint = Color(0xFF4CAF50),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    else -> {
-                        Icon(
-                            imageVector = Icons.Rounded.Download,
-                            contentDescription = "Download Offline",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            // Action 3: Favorite toggle
-            IconButton(
-                onClick = onFavoriteClick,
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFavorite) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(17.dp)
-                )
             }
         }
     }

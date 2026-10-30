@@ -875,6 +875,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         radioJob?.cancel()
         radioJob = viewModelScope.launch {
             _isRadioLoading.value = true
+            OnlineStreamRepository.resetActiveStation()
             val genre = _selectedRadioCategory.value?.title
                 ?: OnlineStreamRepository.getSongGenre(seedSong)
             _activeRadioStationName.value = if (genre != null) "Radio: $genre • ${seedSong.title}" else "Radio: ${seedSong.title}"
@@ -943,7 +944,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val genre = _selectedRadioCategory.value?.title
                     ?: OnlineStreamRepository.getSongGenre(seedSong)
-                val moreTracks = OnlineStreamRepository.getRadioTracksForSong(seedSong, targetGenre = genre, limit = 15)
+                var moreTracks = OnlineStreamRepository.fetchNextRadioBatch(targetGenre = genre, limit = 15)
+                if (moreTracks.isEmpty()) {
+                    moreTracks = OnlineStreamRepository.getRadioTracksForSong(seedSong, targetGenre = genre, limit = 15)
+                }
                 val existingIds = activePlaylist.map { it.id }.toSet()
                 val newTracks = moreTracks.filter { !existingIds.contains(it.id) }
                 if (newTracks.isNotEmpty()) {
@@ -1342,9 +1346,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             MusicController.play(nextSong)
             triggerScrollToCurrentSong()
 
-            // When approaching end of streaming list or just wrapped, refill with new songs related to the last track!
-            val lastSeed = if (index in 0 until list.lastIndex) list[index + 1] else list.last()
-            refillStreamingQueue(lastSeed)
+            // Proactively refill when approaching end of playlist (remaining tracks <= 4) or wrapped
+            val remainingTracks = list.lastIndex - index
+            if (remainingTracks <= 4) {
+                val lastSeed = list.lastOrNull() ?: nextSong
+                refillStreamingQueue(lastSeed)
+            }
         } else {
             val nextSong = if (index in 0 until list.lastIndex) {
                 list[index + 1]
