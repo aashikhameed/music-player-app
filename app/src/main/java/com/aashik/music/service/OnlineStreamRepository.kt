@@ -4,6 +4,9 @@ import android.os.Build
 import android.util.Log
 import com.aashik.music.model.Song
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -12,6 +15,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 
@@ -33,6 +37,10 @@ object OnlineStreamRepository {
     // Lightweight genre mapping for streams and categories
     private val songGenreMap = ConcurrentHashMap<String, String>()
 
+    // Global continuous RDAMVM radio candidates pool & session played titles
+    private val radioCandidatePool = ConcurrentLinkedQueue<YouTubeVideoResolver.YouTubeRadioTrack>()
+    private val sessionPlayedTitles = ConcurrentHashMap.newKeySet<String>()
+
     @Volatile
     var activeStationId: String? = null
         private set
@@ -43,6 +51,7 @@ object OnlineStreamRepository {
     fun resetActiveStation() {
         activeStationId = null
         genreSearchPage = 1
+        radioCandidatePool.clear()
     }
 
     fun registerSongGenre(idOrPath: String, genre: String) {
@@ -324,14 +333,44 @@ object OnlineStreamRepository {
     }
 
     suspend fun fetchNextRadioBatch(targetGenre: String? = null, limit: Int = 15): List<Song> {
+        // If we have RDAMVM candidates in the pool, drain them first
+        if (radioCandidatePool.isNotEmpty()) {
+            val batch = ArrayList<Song>(limit)
+            val genre = targetGenre?.trim()?.takeIf { it.isNotBlank() }
+            repeat(limit * 3) { // over-sample to skip duplicates
+                if (batch.size >= limit) return@repeat
+                val track = radioCandidatePool.poll() ?: return@repeat
+                val normTitle = track.title.lowercase().trim()
+                if (sessionPlayedTitles.contains(normTitle)) return@repeat
+                sessionPlayedTitles.add(normTitle)
+                val artUrl = track.thumbnailUrl ?: ""
+                val song = Song(
+                    id = "online_yt_${track.videoId}",
+                    title = track.title,
+                    artist = track.artist,
+                    album = track.album,
+                    path = "https://www.youtube.com/watch?v=${track.videoId}",
+                    duration = track.durationMs,
+                    artworkUrl = artUrl
+                )
+                if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.path, artUrl)
+                if (genre != null) {
+                    registerSongGenre(song.id, genre)
+                    registerSongGenre(song.path, genre)
+                }
+                batch.add(song)
+            }
+            if (batch.isNotEmpty()) return batch
+        }
+        // Fallback: JioSaavn station refill
         val stId = activeStationId ?: return emptyList()
         return fetchStationSongs(stId, limit = limit, targetGenre = targetGenre)
     }
 
     /**
-     * Algorithmic Radio Queue Generator (RDAMVM & JioSaavn WebRadio recommendations).
-     * Given an active seed track (streaming or local), queries JioSaavn's live WebRadio entity station
-     * to synthesize an uninterrupted, authentic radio queue of 15+ related tracks in the EXACT SAME GENRE.
+     * Algorithmic Radio Queue Generator (RDAMVM YouTube Music + JioSaavn WebRadio fallback).
+     * Given an active seed track, queries the YouTube Music RDAMVM radio endpoint to generate
+     * an authentic queue of related tracks, then falls back to JioSaavn WebRadio if needed.
      */
     suspend fun getRadioTracksForSong(
         seedSong: Song,
@@ -352,14 +391,63 @@ object OnlineStreamRepository {
                 if (seedSong.artist.contains("•") && artistPrefix.isNotBlank()) artistPrefix else null
             }
 
-        // Step 1: Resolve online track ID (pid)
+        // Step 1: RDAMVM YouTube Music Radio (primary — fetches fresh non-repeating tracks)
+        val ytVideoId: String? = when {
+            seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_yt_")
+            seedSong.path.contains("youtube.com/watch?v=") ->
+                seedSong.path.substringAfter("v=").substringBefore("&").takeIf { it.length == 11 }
+            else -> null
+        } ?: try {
+            YouTubeVideoResolver.resolveVideoId(seedSong.title, seedSong.artist)
+        } catch (_: Exception) { null }
+
+        if (!ytVideoId.isNullOrBlank()) {
+            try {
+                val radioTracks = YouTubeVideoResolver.fetchRadioQueue(ytVideoId)
+                // Stash overflow in pool for subsequent fetchNextRadioBatch calls
+                radioCandidatePool.clear()
+                sessionPlayedTitles.clear()
+                sessionPlayedTitles.add(seedSong.title.lowercase().trim())
+                for (track in radioTracks) {
+                    val normTitle = track.title.lowercase().trim()
+                    if (sessionPlayedTitles.contains(normTitle)) continue
+                    if (seenTitles.contains(normTitle)) continue
+                    val artUrl = track.thumbnailUrl ?: ""
+                    val song = Song(
+                        id = "online_yt_${track.videoId}",
+                        title = track.title,
+                        artist = track.artist,
+                        album = track.album,
+                        path = "https://www.youtube.com/watch?v=${track.videoId}",
+                        duration = track.durationMs,
+                        artworkUrl = artUrl
+                    )
+                    if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.path, artUrl)
+                    if (genre != null) {
+                        registerSongGenre(song.id, genre)
+                        registerSongGenre(song.path, genre)
+                    }
+                    if (filtered.size < limit) {
+                        filtered.add(song)
+                        seenTitles.add(normTitle)
+                        sessionPlayedTitles.add(normTitle)
+                    } else {
+                        radioCandidatePool.offer(track)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "RDAMVM radio fetch failed for $ytVideoId: ${e.message}")
+            }
+        }
+
+        // Step 2: Resolve JioSaavn PID for WebRadio fallback
         var pid = when {
-            seedSong.id.startsWith("online_") -> seedSong.id.removePrefix("online_")
+            seedSong.id.startsWith("online_") && !seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_")
             else -> ""
         }
 
         // If local track, downloaded track, or PID not found, query search to find matching online track ID
-        if (pid.isBlank()) {
+        if (pid.isBlank() && filtered.size < limit) {
             val cleanTitle = seedSong.title
                 .replace(Regex("(?i)(\\.(mp3|m4a|flac|wav|aac|ogg)|_\\d+$)"), "")
                 .replace('_', ' ')
@@ -378,8 +466,8 @@ object OnlineStreamRepository {
             }
         }
 
-        // Step 2: Use JioSaavn WebRadio Engine (Primary recommended radio system)
-        if (pid.isNotBlank()) {
+        // Step 3: JioSaavn WebRadio Engine as fallback when RDAMVM returned insufficient tracks
+        if (filtered.size < limit && pid.isNotBlank()) {
             val stationId = createRadioStation(pid)
             if (stationId != null) {
                 val stationSongs = fetchStationSongs(stationId, limit = limit + 4, targetGenre = genre)
@@ -669,7 +757,47 @@ object OnlineStreamRepository {
         }
     }
 
-    suspend fun fetchCategoryDetails(genre: String): ExploreCategoryDetails = withContext(Dispatchers.IO) {
+    suspend fun fetchCategoryDetails(genre: String, ytParams: String = ""): ExploreCategoryDetails = withContext(Dispatchers.IO) {
+        // Attempt YouTube Music category shelves first (returns real Songs, Featured, Community playlists, Albums)
+        if (ytParams.isNotBlank()) {
+            try {
+                val shelves = YouTubeVideoResolver.fetchCategoryShelves(ytParams)
+                if (shelves != null) {
+                    // Convert YouTubeRadioTrack → Song
+                    val ytSongs = ArrayList<Song>(shelves.songs.size)
+                    for (track in shelves.songs) {
+                        val artUrl = track.thumbnailUrl ?: ""
+                        val song = Song(
+                            id = "online_yt_${track.videoId}",
+                            title = track.title,
+                            artist = track.artist,
+                            album = track.album,
+                            path = "https://www.youtube.com/watch?v=${track.videoId}",
+                            duration = track.durationMs,
+                            artworkUrl = artUrl
+                        )
+                        ytSongs.add(song)
+                        if (artUrl.isNotBlank()) {
+                            com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.path, artUrl)
+                        }
+                    }
+                    // Convert YouTubeCategoryItem → ExploreShelfItem
+                    fun convertItems(items: List<YouTubeVideoResolver.YouTubeCategoryItem>): List<ExploreShelfItem> =
+                        items.map { ExploreShelfItem(id = it.id, title = it.title, subtitle = it.subtitle, artworkUrl = it.artworkUrl, type = if (it.id.startsWith("MPREb") || it.id.startsWith("OLAK")) "album" else "playlist") }
+
+                    return@withContext ExploreCategoryDetails(
+                        genre = genre,
+                        songs = ytSongs,
+                        featuredPlaylists = convertItems(shelves.featuredPlaylists),
+                        communityPlaylists = convertItems(shelves.communityPlaylists),
+                        albums = convertItems(shelves.albums)
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "fetchCategoryDetails YT fallback for genre=$genre: ${e.message}")
+            }
+        }
+        // Fallback: JioSaavn search-based category details
         val songs = searchSongs("$genre Top Songs", limit = 10)
         val featuredPlaylists = searchPlaylists(genre, limit = 8)
         val communityPlaylists = searchPlaylists("$genre Hits", limit = 8).ifEmpty { searchPlaylists("$genre Viral", limit = 8) }

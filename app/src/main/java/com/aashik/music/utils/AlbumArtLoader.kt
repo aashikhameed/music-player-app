@@ -9,97 +9,109 @@ private fun isDirectImageUrl(url: String): Boolean {
     return clean.endsWith(".jpg") || clean.endsWith(".jpeg") || clean.endsWith(".png") || clean.endsWith(".webp")
 }
 
-fun loadAlbumArt(path: String): Bitmap? {
+fun loadAlbumArt(path: String, artworkUrl: String? = null): Bitmap? {
     if (path.startsWith("http://") || path.startsWith("https://")) {
         val artUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path) ?: if (isDirectImageUrl(path)) path else null
         return if (artUrl != null) loadRemoteBitmap(artUrl, targetSize = 64) else null
     }
     var retriever: MediaMetadataRetriever? = null
-    return try {
+    val embedded: Bitmap? = try {
         retriever = MediaMetadataRetriever()
         retriever.setDataSource(path)
-        val rawArt = retriever.embeddedPicture ?: return null
+        val rawArt = retriever.embeddedPicture
 
-        // Decode bounds first to prevent decoding full multi-megabyte pictures into heap
-        val boundsOptions = BitmapFactory.Options().apply {
-            inJustDecodeBounds = true
-        }
-        BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, boundsOptions)
-
-        val targetSize = 64 // 64px is crisp for 56dp @ 160dpi headunit and takes only 8KB in RGB_565
-        var sampleSize = 1
-        while (boundsOptions.outWidth / sampleSize > targetSize * 2 || boundsOptions.outHeight / sampleSize > targetSize * 2) {
-            sampleSize *= 2
-        }
-
-        // Low memory allocation (RGB_565 config)
-        val decodeOptions = BitmapFactory.Options().apply {
-            inSampleSize = sampleSize
-            inPreferredConfig = Bitmap.Config.RGB_565
-        }
-        val decoded = BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, decodeOptions) ?: return null
-
-        if (decoded.width <= targetSize && decoded.height <= targetSize) {
-            decoded
-        } else {
-            val scaled = Bitmap.createScaledBitmap(decoded, targetSize, targetSize, false)
-            if (scaled != decoded) {
-                decoded.recycle()
+        if (rawArt != null) {
+            // Decode bounds first to prevent decoding full multi-megabyte pictures into heap
+            val boundsOptions = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
             }
-            scaled
-        }
+            BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, boundsOptions)
+
+            val targetSize = 64 // 64px is crisp for 56dp @ 160dpi headunit and takes only 8KB in RGB_565
+            var sampleSize = 1
+            while (boundsOptions.outWidth / sampleSize > targetSize * 2 || boundsOptions.outHeight / sampleSize > targetSize * 2) {
+                sampleSize *= 2
+            }
+
+            // Low memory allocation (RGB_565 config)
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+            val decoded = BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, decodeOptions)
+            if (decoded != null) {
+                if (decoded.width <= targetSize && decoded.height <= targetSize) {
+                    decoded
+                } else {
+                    val scaled = Bitmap.createScaledBitmap(decoded, targetSize, targetSize, false)
+                    if (scaled != decoded) decoded.recycle()
+                    scaled
+                }
+            } else null
+        } else null
     } catch (_: Exception) {
         null
     } finally {
-        try {
-            retriever?.release()
-        } catch (_: Exception) {}
+        try { retriever?.release() } catch (_: Exception) {}
     }
+
+    if (embedded != null) return embedded
+
+    // Fallback: try registered stream artwork URL or explicit artworkUrl for local/downloaded songs
+    val fallbackUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path)
+        ?: artworkUrl?.takeIf { it.isNotBlank() && (it.startsWith("http://") || it.startsWith("https://")) }
+    return if (fallbackUrl != null) loadRemoteBitmap(fallbackUrl, targetSize = 64) else null
 }
 
-fun loadAlbumArtHighRes(path: String, targetSize: Int = 256): Bitmap? {
+fun loadAlbumArtHighRes(path: String, artworkUrl: String? = null, targetSize: Int = 256): Bitmap? {
     if (path.startsWith("http://") || path.startsWith("https://")) {
         val artUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path) ?: if (isDirectImageUrl(path)) path else null
         return if (artUrl != null) loadRemoteBitmap(artUrl, targetSize = targetSize) else null
     }
     var retriever: MediaMetadataRetriever? = null
-    return try {
+    val embedded: Bitmap? = try {
         retriever = MediaMetadataRetriever()
         retriever.setDataSource(path)
-        val rawArt = retriever.embeddedPicture ?: return null
+        val rawArt = retriever.embeddedPicture
 
-        val boundsOptions = BitmapFactory.Options().apply {
-            inJustDecodeBounds = true
-        }
-        BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, boundsOptions)
-
-        var sampleSize = 1
-        while (boundsOptions.outWidth / sampleSize > targetSize * 2 || boundsOptions.outHeight / sampleSize > targetSize * 2) {
-            sampleSize *= 2
-        }
-
-        val decodeOptions = BitmapFactory.Options().apply {
-            inSampleSize = sampleSize
-            inPreferredConfig = Bitmap.Config.RGB_565
-        }
-        val decoded = BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, decodeOptions) ?: return null
-
-        if (decoded.width <= targetSize && decoded.height <= targetSize) {
-            decoded
-        } else {
-            val scaled = Bitmap.createScaledBitmap(decoded, targetSize, targetSize, false)
-            if (scaled != decoded) {
-                decoded.recycle()
+        if (rawArt != null) {
+            val boundsOptions = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
             }
-            scaled
-        }
+            BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, boundsOptions)
+
+            var sampleSize = 1
+            while (boundsOptions.outWidth / sampleSize > targetSize * 2 || boundsOptions.outHeight / sampleSize > targetSize * 2) {
+                sampleSize *= 2
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+            val decoded = BitmapFactory.decodeByteArray(rawArt, 0, rawArt.size, decodeOptions)
+            if (decoded != null) {
+                if (decoded.width <= targetSize && decoded.height <= targetSize) {
+                    decoded
+                } else {
+                    val scaled = Bitmap.createScaledBitmap(decoded, targetSize, targetSize, false)
+                    if (scaled != decoded) decoded.recycle()
+                    scaled
+                }
+            } else null
+        } else null
     } catch (_: Exception) {
         null
     } finally {
-        try {
-            retriever?.release()
-        } catch (_: Exception) {}
+        try { retriever?.release() } catch (_: Exception) {}
     }
+
+    if (embedded != null) return embedded
+
+    // Fallback: try registered stream artwork URL or explicit artworkUrl for local/downloaded songs
+    val fallbackUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path)
+        ?: artworkUrl?.takeIf { it.isNotBlank() && (it.startsWith("http://") || it.startsWith("https://")) }
+    return if (fallbackUrl != null) loadRemoteBitmap(fallbackUrl, targetSize = targetSize) else null
 }
 
 private fun loadRemoteBitmap(urlStr: String, targetSize: Int): Bitmap? {

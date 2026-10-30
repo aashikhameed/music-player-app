@@ -184,7 +184,7 @@ fun EqualizerScreen(
 
                         Column {
                             Text(
-                                text = "Acoustic Equalizer & DSP Core",
+                                text = "Equalizer",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
@@ -194,7 +194,7 @@ fun EqualizerScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "Vehicle Cabin Acoustic Tuning • OpenSL ES Hardware Engine",
+                                text = "Tuning • OpenSL ES Engine",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

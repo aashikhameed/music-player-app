@@ -161,14 +161,14 @@ fun CustomHorizontalSeekBar(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Floating Time Tooltip during Drag Scrubbing
-        if (isDragging && durationMs > 0) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(18.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
+        // Floating Time Tooltip during Drag Scrubbing — fixed-height row so layout never shifts
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(18.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            if (isDragging && durationMs > 0) {
                 val scrubMs = (displayProgress * durationMs).toLong()
                 val tipGradient = AppGradients.primaryButton()
 

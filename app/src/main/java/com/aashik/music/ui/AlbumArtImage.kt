@@ -73,7 +73,7 @@ fun AlbumArtImage(
         if (isHighRes && AlbumArtCache.getHighRes(path) == null) {
             LaunchedEffect(path, artworkUrl) {
                 val loaded = AlbumArtCache.getOrLoadHighRes(path) {
-                    com.aashik.music.utils.loadAlbumArtHighRes(it)
+                    com.aashik.music.utils.loadAlbumArtHighRes(it, artworkUrl = artworkUrl)
                 }
                 if (loaded != null) {
                     bitmap = loaded
@@ -81,7 +81,7 @@ fun AlbumArtImage(
             }
         } else if (bitmap == null) {
             LaunchedEffect(path, artworkUrl) {
-                bitmap = AlbumArtCache.getOrLoad(context, path) { loadAlbumArt(it) }
+                bitmap = AlbumArtCache.getOrLoad(context, path) { loadAlbumArt(it, artworkUrl = artworkUrl) }
             }
         }
     }

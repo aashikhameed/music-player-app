@@ -133,7 +133,7 @@ fun EqualizerDialog(
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Automotive Acoustic Equalizer",
+                                    text = "Equalizer",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp
@@ -158,7 +158,7 @@ fun EqualizerDialog(
                                 }
                             }
                             Text(
-                                text = "Acoustic separation for vehicle cabin & door speakers",
+                                text = "Vehicle cabin & door speakers",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

@@ -904,21 +904,6 @@ fun GenreDetailScreen(
                     modifier = Modifier.size(20.dp)
                 )
             }
-
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleAvatarShape)
-                    .background(Color(0xFF7E57C2)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "A",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
         }
 
         // Bold Genre Title (e.g. "Tamil")

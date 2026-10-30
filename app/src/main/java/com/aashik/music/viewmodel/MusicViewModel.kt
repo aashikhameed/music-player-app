@@ -840,7 +840,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         categorySearchJob = viewModelScope.launch {
             _isLoadingCategorySongs.value = true
             try {
-                val details = OnlineStreamRepository.fetchCategoryDetails(category.title)
+                val details = OnlineStreamRepository.fetchCategoryDetails(category.title, ytParams = category.params)
                 _exploreCategoryDetails.value = details
                 val finalSongs = if (details.songs.isNotEmpty()) details.songs else OnlineStreamRepository.searchSongs("${category.title} Hits", limit = 15)
                 for (s in finalSongs) {
@@ -868,16 +868,45 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         categorySearchJob = viewModelScope.launch {
             _isLoadingCategorySongs.value = true
             try {
-                val songs = if (item.type == "playlist") {
+                // YouTube Music playlist IDs start with VL, RDCLAK, or are MPREb (albums)
+                val isYouTubeId = item.id.startsWith("VL") || item.id.startsWith("RDCLAK") || item.id.startsWith("MPREb") || item.id.startsWith("OLAK")
+                val songs: List<com.aashik.music.model.Song> = if (isYouTubeId) {
+                    // Resolve via YouTube Music browse + JioSaavn stream resolution
+                    val ytTracks = com.aashik.music.service.YouTubeVideoResolver.fetchPlaylistOrAlbumTracks(item.id)
+                    val genre = _selectedRadioCategory.value?.title
+                    val resolvedSongs = ArrayList<com.aashik.music.model.Song>(ytTracks.size)
+                    for (track in ytTracks) {
+                        val artUrl = track.thumbnailUrl ?: ""
+                        val song = com.aashik.music.model.Song(
+                            id = "online_yt_${track.videoId}",
+                            title = track.title,
+                            artist = track.artist,
+                            album = track.album,
+                            path = "https://www.youtube.com/watch?v=${track.videoId}",
+                            duration = track.durationMs,
+                            artworkUrl = artUrl
+                        )
+                        if (artUrl.isNotBlank()) {
+                            com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.path, artUrl)
+                        }
+                        if (genre != null) {
+                            OnlineStreamRepository.registerSongGenre(song.id, genre)
+                            OnlineStreamRepository.registerSongGenre(song.path, genre)
+                        }
+                        resolvedSongs.add(song)
+                    }
+                    resolvedSongs
+                } else if (item.type == "playlist") {
                     OnlineStreamRepository.fetchPlaylistSongs(item.id)
                 } else {
                     OnlineStreamRepository.fetchAlbumSongs(item.id)
                 }
                 if (songs.isNotEmpty()) {
+                    val genre = _selectedRadioCategory.value?.title
                     for (s in songs) {
-                        _selectedRadioCategory.value?.title?.let { genre ->
-                            OnlineStreamRepository.registerSongGenre(s.id, genre)
-                            OnlineStreamRepository.registerSongGenre(s.path, genre)
+                        genre?.let {
+                            OnlineStreamRepository.registerSongGenre(s.id, it)
+                            OnlineStreamRepository.registerSongGenre(s.path, it)
                         }
                     }
                     _categorySongs.value = songs
@@ -1471,19 +1500,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         val isCurrentStream = _currentSong.value?.isStream() == true
         if (isCurrentStream) {
-            val nextSong = if (index in 0 until list.lastIndex) {
-                list[index + 1]
+            if (index in 0 until list.lastIndex) {
+                // There are more tracks — advance normally
+                val nextSong = list[index + 1]
+                play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
+                MusicController.play(nextSong)
+                triggerScrollToCurrentSong()
+                // Proactively refill when approaching end of playlist (remaining tracks <= 4)
+                val remainingTracks = list.lastIndex - (index + 1)
+                if (remainingTracks <= 4) {
+                    val lastSeed = list.lastOrNull() ?: nextSong
+                    refillStreamingQueue(lastSeed)
+                }
             } else {
-                list[0]
-            }
-            play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
-            MusicController.play(nextSong)
-            triggerScrollToCurrentSong()
-
-            // Proactively refill when approaching end of playlist (remaining tracks <= 4) or wrapped
-            val remainingTracks = list.lastIndex - index
-            if (remainingTracks <= 4) {
-                val lastSeed = list.lastOrNull() ?: nextSong
+                // End of stream playlist — fetch new radio tracks instead of looping to list[0]
+                val lastSeed = _currentSong.value ?: list.lastOrNull() ?: return
                 refillStreamingQueue(lastSeed)
             }
         } else {

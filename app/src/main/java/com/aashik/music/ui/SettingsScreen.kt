@@ -1651,7 +1651,7 @@ private fun EqualizerNavigationCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Acoustic Equalizer & DSP",
+                            text = "Equalizer & DSP",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp

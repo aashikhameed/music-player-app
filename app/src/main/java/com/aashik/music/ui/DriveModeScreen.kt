@@ -379,7 +379,7 @@ fun DriveModeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(190.dp),
+                                .aspectRatio(16f / 9f),
                             contentAlignment = Alignment.Center
                         ) {
                             VideoPlayerView(
@@ -387,9 +387,7 @@ fun DriveModeScreen(
                                 videoUrl = if (currentSong?.isLocalVideo() == true) currentSong?.path else null,
                                 isPlaying = isPlaying,
                                 positionFlow = viewModel.positionFlow,
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .aspectRatio(16f / 9f)
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     } else {
