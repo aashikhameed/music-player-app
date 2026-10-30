@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ import com.aashik.music.theme.AppGradients
 import kotlin.math.roundToInt
 
 private val TooltipShape = RoundedCornerShape(6.dp)
+private val LoadingTrackShape = RoundedCornerShape(3.dp)
 private val InactiveDarkTrack = Color(0xFF263245)
 private val InactiveLightTrack = Color(0xFFCAD5E2)
 
@@ -62,13 +64,69 @@ fun CustomHorizontalSeekBar(
     @Suppress("UNUSED_PARAMETER") waveSeed: Int = 42,
     activeColor: Color = MaterialTheme.colorScheme.primary,
     inactiveColor: Color = Color.Unspecified,
-    showTimeLabels: Boolean = true
+    showTimeLabels: Boolean = true,
+    isLoading: Boolean = false
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val resolvedInactiveColor = if (inactiveColor != Color.Unspecified) {
         inactiveColor
     } else {
         if (isDark) InactiveDarkTrack else InactiveLightTrack
+    }
+
+    if (isLoading) {
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(LoadingTrackShape),
+                    color = activeColor,
+                    trackColor = resolvedInactiveColor
+                )
+            }
+            if (showTimeLabels) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 2.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Loading audio stream…",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = activeColor
+                    )
+                    if (durationMs > 0L) {
+                        Text(
+                            text = formatSeekTime(durationMs),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = "LIVE",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+        return
     }
 
     var isDragging by remember { mutableStateOf(false) }

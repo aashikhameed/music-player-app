@@ -370,8 +370,7 @@ fun QueueDrawer(
                                 totalCount = userQueue.size,
                                 song = song,
                                 onPlayNow = {
-                                    viewModel.removeFromQueue(index)
-                                    viewModel.play(song, direction = 1)
+                                    viewModel.playFromQueue(index)
                                 },
                                 onMoveUp = {
                                     if (index > 0) viewModel.moveQueueItem(index, index - 1)

@@ -554,11 +554,7 @@ fun DriveModeScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                            }
-                        }
-                    }
-
-                    // Single Next Song Card (shows only the next queued song)
+                                                // Single Next Song Card (shows only the next queued song)
                     HudSingleNextSongCard(
                         nextSong = upcomingSongs.firstOrNull(),
                         isRadioActive = isRadioActive,
@@ -566,7 +562,14 @@ fun DriveModeScreen(
                         isNightDimmer = isNightDimmerActive,
                         onPlayNext = { song -> viewModel.play(song, direction = 1) }
                     )
-
+                            }
+                        }
+                    }
+                    Text(
+                        text = "Swipe ← / → anywhere to change track • Double-tap to pause",
+                        fontSize = 10.sp,
+                        color = hintTextColor
+                    )
                     // Unified Action Bar (Fav, Download, Radio, EQ Presets, Queue)
                     DriveHudActionBar(
                         viewModel = viewModel,
@@ -578,12 +581,6 @@ fun DriveModeScreen(
                         isNightDimmerActive = isNightDimmerActive,
                         isDark = isDark,
                         controlInactiveColor = controlInactiveColor
-                    )
-
-                    Text(
-                        text = "Swipe ← / → anywhere to change track • Double-tap to pause",
-                        fontSize = 10.sp,
-                        color = hintTextColor
                     )
                 }
             }
@@ -785,7 +782,27 @@ private fun DriveHudActionBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
     ) {
-        // 1. Favorite Button
+
+         // 1. Queue Drawer Button
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    color = if (isQueueOpen) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
+                    shape = CircleShape
+                )
+                .clickable { viewModel.toggleQueue() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                contentDescription = "Upcoming Queue Drawer",
+                tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        // 2. Favorite Button
         Box(
             modifier = Modifier
                 .size(40.dp)
@@ -805,8 +822,9 @@ private fun DriveHudActionBar(
                 modifier = Modifier.size(22.dp)
             )
         }
+        
 
-        // 2. Download Button (moved next to Fav if streamable)
+        // 3. Download Button (moved next to Fav if streamable)
         if (isStreamDownloadable) {
             val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded
             val isDownloading = currentDownloadStatus is DownloadStatus.Downloading
@@ -879,7 +897,7 @@ private fun DriveHudActionBar(
             }
         }
 
-        // 3. Start Radio Button (moved next to Fav & Download if streamable)
+        // 4. Start Radio Button (moved next to Fav & Download if streamable)
         if (isStream) {
             Box(
                 modifier = Modifier
@@ -925,28 +943,14 @@ private fun DriveHudActionBar(
                 }
             }
         }
+        
 
-        // 4. Equalizer Presets Row (Flat, Acoustic, Vocal, Bass, Rock)
+        //5. Equalizer Presets Row (Flat, Acoustic, Vocal, Bass, Rock)
         Row(
             horizontalArrangement = Arrangement.spacedBy(5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // EQ Dialog Button
-            Box(
-                modifier = Modifier
-                    .height(32.dp)
-                    .background(color = actionButtonBg, shape = EqPresetChipShape)
-                    .clickable { viewModel.openEqualizer() }
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "EQ",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+        
 
             val presets = remember {
                 listOf(0 to "Flat", 1 to "Acoustic", 2 to "Vocal", 3 to "Bass", 4 to "Rock")
@@ -993,26 +997,26 @@ private fun DriveHudActionBar(
                     )
                 }
             }
+
+                // EQ Dialog Button
+            Box(
+                modifier = Modifier
+                    .height(32.dp)
+                    .background(color = actionButtonBg, shape = EqPresetChipShape)
+                    .clickable { viewModel.openEqualizer() }
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "EQ",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
-        // 5. Queue Drawer Button
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = if (isQueueOpen) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
-                    shape = CircleShape
-                )
-                .clickable { viewModel.toggleQueue() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                contentDescription = "Upcoming Queue Drawer",
-                tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
-                modifier = Modifier.size(22.dp)
-            )
-        }
+       
     }
 }
 
@@ -1029,6 +1033,7 @@ private fun DriveHudSeekBar(
     val durationMs by viewModel.durationFlow.collectAsState()
     val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
 
     CustomHorizontalSeekBar(
         progress = progress,
@@ -1038,6 +1043,7 @@ private fun DriveHudSeekBar(
         durationMs = durationMs,
         waveSeed = 42,
         showTimeLabels = true,
+        isLoading = isPlayerLoading,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp)
@@ -1240,14 +1246,6 @@ private fun HudSingleNextSongCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-
-                // Play icon indicator
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Play Next",
-                    tint = accentColor,
-                    modifier = Modifier.size(20.dp)
-                )
             }
         }
     }

@@ -3022,6 +3022,7 @@ private fun IsolatedPortraitSeekBar(
     val durationMs by viewModel.durationFlow.collectAsState()
     val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
 
     CustomHorizontalSeekBar(
         progress = progress,
@@ -3031,6 +3032,7 @@ private fun IsolatedPortraitSeekBar(
         durationMs = durationMs,
         waveSeed = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
         showTimeLabels = true,
+        isLoading = isPlayerLoading,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp)

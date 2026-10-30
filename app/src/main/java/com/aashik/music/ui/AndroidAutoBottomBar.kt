@@ -484,6 +484,7 @@ private fun BottomBarSeekBar(viewModel: MusicViewModel, isPlaying: Boolean) {
     val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
     val positionMs by viewModel.positionFlow.collectAsState()
     val durationMs by viewModel.durationFlow.collectAsState()
+    val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
 
     CustomHorizontalSeekBar(
         progress          = progress,
@@ -492,6 +493,7 @@ private fun BottomBarSeekBar(viewModel: MusicViewModel, isPlaying: Boolean) {
         currentPositionMs = positionMs,
         durationMs        = durationMs,
         showTimeLabels    = false,
+        isLoading         = isPlayerLoading,
         modifier          = Modifier.fillMaxWidth()
     )
 }

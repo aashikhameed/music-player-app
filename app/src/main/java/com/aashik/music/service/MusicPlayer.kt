@@ -63,6 +63,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     private val _currentIndexFlow = MutableStateFlow(-1)
     val currentIndexFlow: StateFlow<Int> = _currentIndexFlow
 
+    private val _isTrackBufferingFlow = MutableStateFlow(false)
+    val isTrackBufferingFlow: StateFlow<Boolean> = _isTrackBufferingFlow
+
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     var onCompletion: ((isAutoCrossfade: Boolean) -> Unit)? = null
 
@@ -395,6 +398,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         playJob?.cancel()
 
         if (song.isStream()) {
+            _isTrackBufferingFlow.value = true
             nativeBridge.stop()
 
             val outgoingPlayer = streamMediaPlayer
@@ -442,6 +446,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     setDataSource(song.path)
                     setOnPreparedListener { player ->
                         try {
+                            _isTrackBufferingFlow.value = false
                             player.start()
                             _isPlayingFlow.value = true
                             val dur = if (player.duration > 0) player.duration.toLong() else if (song.duration > 0) song.duration else 0L
@@ -475,11 +480,13 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     }
                     setOnErrorListener { _, what, extra ->
                         Log.e(TAG, "Streaming error: what=$what extra=$extra")
+                        _isTrackBufferingFlow.value = false
                         _isPlayingFlow.value = false
                         stopStreamTicker()
                         true
                     }
                     setOnCompletionListener {
+                        _isTrackBufferingFlow.value = false
                         _isPlayingFlow.value = false
                         stopStreamTicker()
                         onTrackEnded()
@@ -487,11 +494,13 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     prepareAsync()
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to initialize stream player: ${e.message}")
+                    _isTrackBufferingFlow.value = false
                     _isPlayingFlow.value = false
                 }
             }
             streamMediaPlayer = mp
         } else {
+            _isTrackBufferingFlow.value = false
             val outgoingPlayer = streamMediaPlayer
             val outgoingEq = streamEqualizer
             streamMediaPlayer = null
@@ -524,6 +533,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun pause() {
+        _isTrackBufferingFlow.value = false
         if (_currentSongFlow.value?.isStream() == true && streamMediaPlayer != null) {
             try {
                 streamMediaPlayer?.pause()
@@ -538,6 +548,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun stop() {
+        _isTrackBufferingFlow.value = false
         playJob?.cancel()
         autoCrossfadeTriggeredPath = null
         isTransitioning = false

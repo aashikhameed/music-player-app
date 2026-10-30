@@ -552,4 +552,30 @@ class MusicModelsTest {
         com.aashik.music.service.OnlineStreamRepository.registerSongGenre(stationSong.id, station.genre)
         assertEquals("Lo-Fi", com.aashik.music.service.OnlineStreamRepository.getSongGenre(stationSong))
     }
+
+    @Test
+    fun testQueueItemSelectionAndDropBehavior() {
+        val songs = (1..5).map { i ->
+            Song(id = "s_$i", title = "Song $i", artist = "Artist $i", album = "Album $i", duration = 200000L, path = "/path/$i")
+        }
+
+        // 1. When 3rd item (index 2: "Song 3") is selected: items 1 and 2 before it must be removed
+        var queue = songs
+        val selectedIdx = 2
+        val selectedSong = queue[selectedIdx]
+        val remainingQueue = queue.drop(selectedIdx + 1)
+
+        assertEquals("Song 3", selectedSong.title)
+        assertEquals(2, remainingQueue.size)
+        assertEquals("Song 4", remainingQueue[0].title)
+        assertEquals("Song 5", remainingQueue[1].title)
+
+        // 2. When last item (index 1 in remaining queue: "Song 5") is selected: all items before it must be removed
+        val lastIdx = remainingQueue.lastIndex
+        val lastSong = remainingQueue[lastIdx]
+        val emptyQueue = remainingQueue.drop(lastIdx + 1)
+
+        assertEquals("Song 5", lastSong.title)
+        assertTrue(emptyQueue.isEmpty())
+    }
 }

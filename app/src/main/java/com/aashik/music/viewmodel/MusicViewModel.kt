@@ -38,6 +38,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -237,6 +239,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isRadioLoading = MutableStateFlow(false)
     val isRadioLoading: StateFlow<Boolean> = _isRadioLoading.asStateFlow()
+
+    val isTrackBuffering: StateFlow<Boolean> = musicPlayer.isTrackBufferingFlow
+
+    val isPlayerLoading: StateFlow<Boolean> = combine(
+        musicPlayer.isTrackBufferingFlow,
+        _isRadioLoading
+    ) { isBuffering, isRadio ->
+        isBuffering || isRadio
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _activeRadioStationName = MutableStateFlow<String?>(null)
     val activeRadioStationName: StateFlow<String?> = _activeRadioStationName.asStateFlow()
@@ -495,6 +506,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         current.removeAll { it.id == song.id }
         current.add(song)
         _userQueue.value = current
+    }
+
+    fun playFromQueue(index: Int) {
+        val q = _userQueue.value
+        if (index !in q.indices) return
+        val selectedSong = q[index]
+        val isLast = (index == q.lastIndex)
+        // Remove selected item and all items before it
+        _userQueue.value = q.drop(index + 1)
+        play(selectedSong, direction = 1)
+        if (isLast) {
+            startRadioForSong(selectedSong)
+        }
     }
 
     fun removeFromQueue(index: Int) {
@@ -1288,14 +1312,28 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val isNewPlaylist = targetList != activePlaylist
         activePlaylist = targetList
 
-        if (song.isStream()) {
-            _isShuffleOn.value = false
-            if (_userQueue.value.isEmpty()) {
-                val curIdx = targetList.indexOfFirst { it.id == song.id }
-                if (curIdx != -1 && curIdx < targetList.lastIndex) {
-                    _userQueue.value = targetList.subList(curIdx + 1, targetList.size)
+        // Synchronize and advance user queue based on played song
+        val qIndex = _userQueue.value.indexOfFirst { it.id == song.id }
+        if (qIndex != -1) {
+            val isLast = (qIndex == _userQueue.value.lastIndex)
+            _userQueue.value = _userQueue.value.drop(qIndex + 1)
+            if (isLast) {
+                startRadioForSong(song)
+            }
+        } else {
+            val curIdx = targetList.indexOfFirst { it.id == song.id }
+            if (curIdx != -1 && curIdx < targetList.lastIndex) {
+                _userQueue.value = targetList.subList(curIdx + 1, targetList.size)
+            } else {
+                _userQueue.value = emptyList()
+                if (song.isStream()) {
+                    startRadioForSong(song)
                 }
             }
+        }
+
+        if (song.isStream()) {
+            _isShuffleOn.value = false
         }
 
         val targetDir = if (direction != null) {
@@ -1341,13 +1379,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun playNextSong(isAutoCrossfade: Boolean = false) {
         if (_userQueue.value.isNotEmpty()) {
             val queued = _userQueue.value.first()
+            val isLast = (_userQueue.value.size == 1)
             _userQueue.value = _userQueue.value.drop(1)
             play(queued, playlist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value, isAutoCrossfade = isAutoCrossfade, direction = 1)
             MusicController.play(queued)
             triggerScrollToCurrentSong()
 
-            // Proactively refill when user queue is running low (<= 2 tracks)
-            if (queued.isStream() && _userQueue.value.size <= 2) {
+            if (isLast) {
+                startRadioForSong(queued)
+            } else if (queued.isStream() && _userQueue.value.size <= 2) {
                 refillStreamingQueue(queued)
             }
             return
@@ -1394,6 +1434,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playPreviousSong() {
+        val curPos = positionFlow.value
+        // If track has been playing for more than 3 seconds, standard automotive behavior is to restart track
+        if (curPos > 3000L) {
+            musicPlayer.seekTo(0L)
+            return
+        }
+
         _navigationDirection.value = -1
         val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
         val list = if (_isShuffleOn.value) {
