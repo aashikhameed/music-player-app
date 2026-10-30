@@ -851,6 +851,7 @@ fun RadioExploreContent(
             // ── Category Detail Screen (Live Streams, Stations & Downloads) ──
             val category = selectedCategory!!
             val stripeColor = Color(category.stripeColor)
+            val activeRadioStationName by viewModel.activeRadioStationName.collectAsState()
             val categoryStations = remember(radioStations, category.id, favoriteStationIds, showFavoritesOnly) {
                 radioStations.filter { station ->
                     val matchesCategory = station.categoryId == category.id
@@ -998,8 +999,13 @@ fun RadioExploreContent(
                     // Section 2: Online Stream Songs for this Mood/Genre
                     if (categorySongs.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
+                            val sectionHeader = if (activeRadioStationName != null && activeRadioStationName?.contains("Radio:", ignoreCase = true) == true) {
+                                "$activeRadioStationName (${categorySongs.size})"
+                            } else {
+                                "${category.title} Songs & Community Streams (${categorySongs.size})"
+                            }
                             Text(
-                                text = "${category.title} Songs & Community Streams (${categorySongs.size})",
+                                text = sectionHeader,
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = if (categoryStations.isNotEmpty()) 12.dp else 4.dp, bottom = 2.dp)

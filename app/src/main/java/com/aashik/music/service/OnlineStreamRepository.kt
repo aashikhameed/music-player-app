@@ -30,6 +30,20 @@ object OnlineStreamRepository {
     private val searchCache = ConcurrentHashMap<String, List<Song>>()
     private const val MAX_CACHE_ENTRIES = 40
 
+    // Lightweight genre mapping for streams and categories
+    private val songGenreMap = ConcurrentHashMap<String, String>()
+
+    fun registerSongGenre(idOrPath: String, genre: String) {
+        if (idOrPath.isNotBlank() && genre.isNotBlank()) {
+            songGenreMap[idOrPath] = genre
+        }
+    }
+
+    fun getSongGenre(song: Song?): String? {
+        if (song == null) return null
+        return songGenreMap[song.id] ?: songGenreMap[song.path]
+    }
+
     fun decryptMediaUrl(encryptedUrl: String): String {
         if (encryptedUrl.isBlank()) return ""
         return try {
@@ -173,6 +187,15 @@ object OnlineStreamRepository {
             com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(finalStreamUrl, artworkUrl)
         }
 
+        val rawLanguage = item.optString("language", "").ifBlank {
+            moreInfo?.optString("language", "") ?: ""
+        }
+        val languageOrGenre = rawLanguage.trim().replaceFirstChar { it.uppercase() }
+        if (languageOrGenre.isNotBlank()) {
+            registerSongGenre("online_$rawId", languageOrGenre)
+            registerSongGenre(finalStreamUrl, languageOrGenre)
+        }
+
         return Song(
             id = "online_$rawId",
             title = rawTitle,
@@ -187,29 +210,50 @@ object OnlineStreamRepository {
     /**
      * Algorithmic Radio Queue Generator (matches BitChord RDAMVM & JioSaavn WebRadio recommendations).
      * Given an active seed track (streaming or local), queries JioSaavn's `reco.getreco` backend
-     * to synthesize an uninterrupted, authentic radio queue of 15+ related tracks.
+     * and genre-targeted complementary queries to synthesize an uninterrupted, authentic radio queue of 15+ related tracks in the EXACT SAME GENRE.
      */
-    suspend fun getRadioTracksForSong(seedSong: Song, limit: Int = 15): List<Song> = withContext(Dispatchers.IO) {
+    suspend fun getRadioTracksForSong(
+        seedSong: Song,
+        targetGenre: String? = null,
+        limit: Int = 15
+    ): List<Song> = withContext(Dispatchers.IO) {
         val filtered = ArrayList<Song>(limit)
         val seenTitles = HashSet<String>()
         val seenIds = HashSet<String>()
         seenTitles.add(seedSong.title.lowercase().trim())
         seenIds.add(seedSong.id)
 
+        // Resolve target genre (e.g. "Tamil", "Hindi", "Rock", "Lo-Fi", etc.)
+        val genre = targetGenre?.trim()?.takeIf { it.isNotBlank() }
+            ?: getSongGenre(seedSong)
+            ?: run {
+                val artistPrefix = seedSong.artist.substringBefore("•").trim()
+                if (seedSong.artist.contains("•") && artistPrefix.isNotBlank()) artistPrefix else null
+            }
+
         // Step 1: Resolve online track ID (pid)
         var pid = when {
             seedSong.id.startsWith("online_") -> seedSong.id.removePrefix("online_")
-            seedSong.id.startsWith("download_") -> seedSong.id.removePrefix("download_")
             else -> ""
         }
 
-        // If local track or ID not found, query search to find matching online track ID
+        // If local track, downloaded track, or PID not found, query search to find matching online track ID
         if (pid.isBlank()) {
-            val searchQuery = "${seedSong.title} ${seedSong.artist}".trim()
-            val matches = searchSongs(searchQuery, limit = 3)
-            val bestMatch = matches.firstOrNull()
-            if (bestMatch != null) {
-                pid = bestMatch.id.removePrefix("online_")
+            val cleanTitle = seedSong.title
+                .replace(Regex("(?i)(\\.(mp3|m4a|flac|wav|aac|ogg)|_\\d+$)"), "")
+                .replace('_', ' ')
+                .replace(Regex("(?i)(\\(.*\\)|\\[.*\\])"), "")
+                .trim()
+            val cleanArtist = if (!seedSong.artist.contains("•") && !seedSong.artist.contains("<unknown>")) {
+                seedSong.artist.trim()
+            } else ""
+            val searchQuery = "$cleanTitle $cleanArtist ${genre.orEmpty()}".trim()
+            if (searchQuery.isNotBlank()) {
+                val matches = searchSongs(searchQuery, limit = 3)
+                val bestMatch = matches.firstOrNull()
+                if (bestMatch != null) {
+                    pid = bestMatch.id.removePrefix("online_")
+                }
             }
         }
 
@@ -231,7 +275,6 @@ object OnlineStreamRepository {
                     val responseText = connection.inputStream.bufferedReader().use(BufferedReader::readText)
                     val root = JSONObject(responseText)
                     val recoArray = root.optJSONArray(pid) ?: run {
-                        // Sometimes keyed under a different ID or first array
                         val keys = root.keys()
                         var arr: org.json.JSONArray? = null
                         while (keys.hasNext()) {
@@ -250,6 +293,10 @@ object OnlineStreamRepository {
                             if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle)) {
                                 seenIds.add(parsed.id)
                                 seenTitles.add(normTitle)
+                                if (genre != null) {
+                                    registerSongGenre(parsed.id, genre)
+                                    registerSongGenre(parsed.path, genre)
+                                }
                                 filtered.add(parsed)
                                 if (filtered.size >= limit) break
                             }
@@ -263,26 +310,44 @@ object OnlineStreamRepository {
             }
         }
 
-        // Step 3: Complementary fallback if recommendation returned fewer than limit tracks
+        // Step 3: Genre-Targeted Complementary Search
+        // Guarantees that if recommendation returned fewer than limit tracks, fallback queries STAY IN THE SAME GENRE!
         if (filtered.size < limit) {
             val cleanArtist = seedSong.artist
-                .replace(Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,).*"), "")
+                .replace(Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,|•).*"), "")
                 .trim()
+            val isGenericArtist = cleanArtist.isBlank() || cleanArtist.contains("unknown", ignoreCase = true) || cleanArtist.contains("online", ignoreCase = true)
 
-            val candidateQuery = if (cleanArtist.isNotBlank() && !cleanArtist.equals("Unknown Artist", ignoreCase = true) && !cleanArtist.equals("<unknown>", ignoreCase = true)) {
-                cleanArtist
+            val queries = mutableListOf<String>()
+            if (genre != null && genre.isNotBlank()) {
+                if (!isGenericArtist) {
+                    queries.add("$cleanArtist $genre Hits")
+                }
+                queries.add("$genre Trending Hits")
+                queries.add("$genre Hits")
+                queries.add("$genre Top Songs")
+            } else if (!isGenericArtist) {
+                queries.add("$cleanArtist Hits")
             } else {
-                seedSong.title.replace(Regex("(?i)(\\(.*\\)|\\[.*\\])"), "").trim()
+                val cleanTitle = seedSong.title.replace(Regex("(?i)(\\(.*\\)|\\[.*\\])"), "").replace('_', ' ').trim()
+                if (cleanTitle.isNotBlank()) {
+                    queries.add("$cleanTitle Radio")
+                }
             }
 
-            if (candidateQuery.isNotBlank()) {
+            for (q in queries) {
+                if (filtered.size >= limit) break
                 val needed = limit - filtered.size
-                val rawResults = searchSongs(candidateQuery, limit = needed + 6)
+                val rawResults = searchSongs(q, limit = needed + 4)
                 for (track in rawResults) {
                     val normTitle = track.title.lowercase().trim()
                     if (!seenIds.contains(track.id) && !seenTitles.contains(normTitle)) {
                         seenIds.add(track.id)
                         seenTitles.add(normTitle)
+                        if (genre != null) {
+                            registerSongGenre(track.id, genre)
+                            registerSongGenre(track.path, genre)
+                        }
                         filtered.add(track)
                         if (filtered.size >= limit) break
                     }

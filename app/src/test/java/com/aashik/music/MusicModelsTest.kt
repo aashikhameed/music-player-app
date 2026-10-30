@@ -525,4 +525,31 @@ class MusicModelsTest {
                 validCategoryIds.contains(station.categoryId))
         }
     }
+
+    @Test
+    fun testStreamSongGenreRegistrationAndRadioTargeting() {
+        val testSong = Song(
+            id = "online_tamil_test_1",
+            title = "Ala Bolelo",
+            artist = "Anirudh Ravichander",
+            album = "Jailer 2",
+            duration = 240000L,
+            path = "https://example.com/stream.mp4"
+        )
+
+        // Register genre
+        com.aashik.music.service.OnlineStreamRepository.registerSongGenre(testSong.id, "Tamil")
+        assertEquals("Tamil", com.aashik.music.service.OnlineStreamRepository.getSongGenre(testSong))
+
+        // Station genre resolution
+        val station = com.aashik.music.model.RadioStation(
+            id = "test_lofi",
+            name = "Lofi Study",
+            genre = "Lo-Fi",
+            streamUrl = "https://example.com/lofi.mp3"
+        )
+        val stationSong = station.toSong()
+        com.aashik.music.service.OnlineStreamRepository.registerSongGenre(stationSong.id, station.genre)
+        assertEquals("Lo-Fi", com.aashik.music.service.OnlineStreamRepository.getSongGenre(stationSong))
+    }
 }

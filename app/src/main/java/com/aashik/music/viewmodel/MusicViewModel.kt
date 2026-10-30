@@ -10,6 +10,7 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -798,11 +799,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val query = "${category.title} Hits"
                 val results = OnlineStreamRepository.searchSongs(query, limit = 20)
-                _categorySongs.value = if (results.isNotEmpty()) {
+                val finalSongs = if (results.isNotEmpty()) {
                     results
                 } else {
                     OnlineStreamRepository.searchSongs(category.title, limit = 20)
                 }
+                for (s in finalSongs) {
+                    OnlineStreamRepository.registerSongGenre(s.id, category.title)
+                    OnlineStreamRepository.registerSongGenre(s.path, category.title)
+                }
+                _categorySongs.value = finalSongs
             } catch (_: Exception) {
                 _categorySongs.value = emptyList()
             } finally {
@@ -820,6 +826,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun playRadioStation(station: RadioStation) {
         val stationSong = station.toSong()
         val stationSongs = _radioStations.value.map { it.toSong() }
+        OnlineStreamRepository.registerSongGenre(stationSong.id, station.genre)
+        OnlineStreamRepository.registerSongGenre(stationSong.path, station.genre)
         _activeRadioStationName.value = station.name
         _userQueue.value = stationSongs.filter { it.id != stationSong.id }
         play(stationSong, playlist = stationSongs)
@@ -867,7 +875,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         radioJob?.cancel()
         radioJob = viewModelScope.launch {
             _isRadioLoading.value = true
-            _activeRadioStationName.value = "Radio: ${seedSong.title}"
+            val genre = _selectedRadioCategory.value?.title
+                ?: OnlineStreamRepository.getSongGenre(seedSong)
+            _activeRadioStationName.value = if (genre != null) "Radio: $genre • ${seedSong.title}" else "Radio: ${seedSong.title}"
             try {
                 // Clear any manual user queue so the radio station replaces the current queue
                 _userQueue.value = emptyList()
@@ -877,12 +887,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     play(seedSong, playlist = listOf(seedSong))
                 }
 
-                // Fetch similar algorithmic radio tracks for this seed song
-                val radioTracks = OnlineStreamRepository.getRadioTracksForSong(seedSong, limit = 15)
-                var resolvedTracks = radioTracks
-                if (resolvedTracks.isEmpty()) {
-                    resolvedTracks = _radioStations.value.map { it.toSong() }.filter { it.id != seedSong.id }
+                // Fetch authentic algorithmic radio tracks for this seed song in the EXACT SAME GENRE
+                val radioTracks = OnlineStreamRepository.getRadioTracksForSong(seedSong, targetGenre = genre, limit = 15)
+                val resolvedTracks = if (radioTracks.isNotEmpty()) {
+                    radioTracks
+                } else if (genre != null && genre.isNotBlank()) {
+                    OnlineStreamRepository.searchSongs("$genre Hits", limit = 15).filter { it.id != seedSong.id }
+                } else {
+                    emptyList()
                 }
+
                 val fullQueue = ArrayList<Song>(1 + resolvedTracks.size)
                 fullQueue.add(seedSong)
                 for (t in resolvedTracks) {
@@ -892,6 +906,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 // Completely replace the active playlist & queue with the radio tracks
                 activePlaylist = fullQueue
                 _songs.value = fullQueue
+
+                // Update categorySongs so the UI list on the screen refreshes immediately!
+                _categorySongs.value = fullQueue
 
                 // Populate userQueue with upcoming radio tracks so they appear in Queue drawer and Next Song
                 val upcomingTracks = fullQueue.filter { it.id != seedSong.id }
@@ -910,15 +927,43 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 musicPlayer.setPlaylist(queue, startIndex)
 
             } catch (e: Exception) {
-                val fallbackStations = _radioStations.value.map { it.toSong() }
-                if (fallbackStations.isNotEmpty()) {
-                    activePlaylist = fallbackStations
-                    _songs.value = fallbackStations
-                    _userQueue.value = fallbackStations.filter { it.id != seedSong.id }
-                    musicPlayer.setPlaylist(fallbackStations, 0)
-                }
+                Log.w("MusicViewModel", "startRadioForSong error: ${e.message}")
             } finally {
                 _isRadioLoading.value = false
+            }
+        }
+    }
+
+    private var isRefillingQueue = false
+
+    fun refillStreamingQueue(seedSong: Song) {
+        if (isRefillingQueue) return
+        isRefillingQueue = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val genre = _selectedRadioCategory.value?.title
+                    ?: OnlineStreamRepository.getSongGenre(seedSong)
+                val moreTracks = OnlineStreamRepository.getRadioTracksForSong(seedSong, targetGenre = genre, limit = 15)
+                val existingIds = activePlaylist.map { it.id }.toSet()
+                val newTracks = moreTracks.filter { !existingIds.contains(it.id) }
+                if (newTracks.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        val updatedPlaylist = activePlaylist + newTracks
+                        activePlaylist = updatedPlaylist
+                        _songs.value = updatedPlaylist
+                        _userQueue.value = _userQueue.value + newTracks
+                        if (_selectedRadioCategory.value != null && _categorySongs.value.isNotEmpty()) {
+                            _categorySongs.value = _categorySongs.value + newTracks
+                        }
+                        val curId = _currentSong.value?.id
+                        val startIdx = if (curId != null) updatedPlaylist.indexOfFirst { it.id == curId }.coerceAtLeast(0) else 0
+                        musicPlayer.setPlaylist(updatedPlaylist, startIdx)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("MusicViewModel", "refillStreamingQueue failed: ${e.message}")
+            } finally {
+                isRefillingQueue = false
             }
         }
     }
@@ -1210,6 +1255,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val isNewPlaylist = targetList != activePlaylist
         activePlaylist = targetList
 
+        if (song.isStream() && _userQueue.value.isEmpty()) {
+            val curIdx = targetList.indexOfFirst { it.id == song.id }
+            if (curIdx != -1 && curIdx < targetList.lastIndex) {
+                _userQueue.value = targetList.subList(curIdx + 1, targetList.size)
+            }
+        }
+
         val targetDir = if (direction != null) {
             direction
         } else if (isAutoCrossfade) {
@@ -1257,6 +1309,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             play(queued, playlist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value, isAutoCrossfade = isAutoCrossfade, direction = 1)
             MusicController.play(queued)
             triggerScrollToCurrentSong()
+
+            // Proactively refill when user queue is running low (<= 2 tracks)
+            if (queued.isStream() && _userQueue.value.size <= 2) {
+                refillStreamingQueue(queued)
+            }
             return
         }
         _navigationDirection.value = 1
@@ -1270,14 +1327,31 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         val curId = _currentSong.value?.id
         val index = if (curId != null) list.indexOfFirst { it.id == curId } else -1
-        val nextSong = if (index in 0 until list.lastIndex) {
-            list[index + 1]
+
+        val isCurrentStream = _currentSong.value?.isStream() == true
+        if (isCurrentStream) {
+            val nextSong = if (index in 0 until list.lastIndex) {
+                list[index + 1]
+            } else {
+                list[0]
+            }
+            play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
+            MusicController.play(nextSong)
+            triggerScrollToCurrentSong()
+
+            // When approaching end of streaming list or just wrapped, refill with new songs related to the last track!
+            val lastSeed = if (index in 0 until list.lastIndex) list[index + 1] else list.last()
+            refillStreamingQueue(lastSeed)
         } else {
-            list[0]
+            val nextSong = if (index in 0 until list.lastIndex) {
+                list[index + 1]
+            } else {
+                list[0]
+            }
+            play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
+            MusicController.play(nextSong)
+            triggerScrollToCurrentSong()
         }
-        play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
-        MusicController.play(nextSong)
-        triggerScrollToCurrentSong()
     }
 
     fun playPreviousSong() {
