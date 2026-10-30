@@ -25,10 +25,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -374,194 +376,215 @@ fun DriveModeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // Row: Hero Album Artwork on Left, Song Title & Artist next to it on Right
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        // Hero Album Artwork with Apple CarPlay horizontal slide transition
+                    val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
+                    val isYouTubeTrack = currentSong?.isYouTube() == true
+                    val isVideoActive = playVideoForStreams && isYouTubeTrack
+
+                    if (isVideoActive) {
                         Box(
                             modifier = Modifier
-                                .size(160.dp)
-                                .background(
-                                    color = if (isNightDimmerActive) Color(0xFF0D1117)
-                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                    shape = BigArtworkShape
-                                )
-                                .clip(BigArtworkShape)
+                                .fillMaxWidth()
+                                .height(190.dp),
+                            contentAlignment = Alignment.Center
                         ) {
+                            VideoPlayerView(
+                                videoId = currentSong?.getYouTubeVideoId(),
+                                videoUrl = currentSong?.path,
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .aspectRatio(16f / 9f)
+                            )
+                        }
+                    } else {
+                        // Row: Hero Album Artwork on Left, Song Title & Artist next to it on Right
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            // Hero Album Artwork with Apple CarPlay horizontal slide transition
+                            Box(
+                                modifier = Modifier
+                                    .size(160.dp)
+                                    .background(
+                                        color = if (isNightDimmerActive) Color(0xFF0D1117)
+                                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                        shape = BigArtworkShape
+                                    )
+                                    .clip(BigArtworkShape)
+                            ) {
+                                AnimatedContent(
+                                    targetState = navigatingTrack,
+                                    transitionSpec = {
+                                        if (targetState.direction >= 0) {
+                                            (slideInHorizontally(
+                                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                                initialOffsetX = { fullWidth -> fullWidth }
+                                            ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                                .togetherWith(
+                                                    slideOutHorizontally(
+                                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                                        targetOffsetX = { fullWidth -> -fullWidth }
+                                                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                                )
+                                        } else {
+                                            (slideInHorizontally(
+                                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                                initialOffsetX = { fullWidth -> -fullWidth }
+                                            ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                                .togetherWith(
+                                                    slideOutHorizontally(
+                                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                                        targetOffsetX = { fullWidth -> fullWidth }
+                                                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                                )
+                                        }
+                                    },
+                                    label = "DriveHudArtworkTransition"
+                                ) { track ->
+                                    val song = track.song
+                                    if (song != null) {
+                                        AlbumArtImage(
+                                            path = song.path,
+                                            artworkUrl = song.artworkUrl,
+                                            size = 160.dp,
+                                            borderRadius = 20.dp,
+                                            isHighRes = true,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.DirectionsCar,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                                modifier = Modifier.size(68.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(22.dp))
+
+                            // Current Song Title & Artist with Automotive Vertical Slide Transition
                             AnimatedContent(
                                 targetState = navigatingTrack,
                                 transitionSpec = {
                                     if (targetState.direction >= 0) {
-                                        (slideInHorizontally(
-                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                            initialOffsetX = { fullWidth -> fullWidth }
-                                        ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                        (slideInVertically(
+                                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                            initialOffsetY = { fullHeight -> fullHeight / 2 }
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
                                             .togetherWith(
-                                                slideOutHorizontally(
-                                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                                    targetOffsetX = { fullWidth -> -fullWidth }
-                                                ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                                slideOutVertically(
+                                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                                    targetOffsetY = { fullHeight -> -fullHeight / 2 }
+                                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                             )
                                     } else {
-                                        (slideInHorizontally(
-                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                            initialOffsetX = { fullWidth -> -fullWidth }
-                                        ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                        (slideInVertically(
+                                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                            initialOffsetY = { fullHeight -> -fullHeight / 2 }
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
                                             .togetherWith(
-                                                slideOutHorizontally(
-                                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                                    targetOffsetX = { fullWidth -> fullWidth }
-                                                ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                                slideOutVertically(
+                                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                                    targetOffsetY = { fullHeight -> fullHeight / 2 }
+                                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                             )
                                     }
                                 },
-                                label = "DriveHudArtworkTransition"
+                                label = "DriveHudTypographyTransition",
+                                modifier = Modifier.weight(1f, fill = false).widthIn(max = 500.dp)
                             ) { track ->
                                 val song = track.song
-                                if (song != null) {
-                                    AlbumArtImage(
-                                        path = song.path,
-                                        artworkUrl = song.artworkUrl,
-                                        size = 160.dp,
-                                        borderRadius = 20.dp,
-                                        isHighRes = true,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.DirectionsCar,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                            modifier = Modifier.size(68.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(22.dp))
-
-                        // Current Song Title & Artist with Automotive Vertical Slide Transition
-                        AnimatedContent(
-                            targetState = navigatingTrack,
-                            transitionSpec = {
-                                if (targetState.direction >= 0) {
-                                    (slideInVertically(
-                                        animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                                        initialOffsetY = { fullHeight -> fullHeight / 2 }
-                                    ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
-                                        .togetherWith(
-                                            slideOutVertically(
-                                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                                targetOffsetY = { fullHeight -> -fullHeight / 2 }
-                                            ) + fadeOut(animationSpec = tween(durationMillis = 180))
-                                        )
-                                } else {
-                                    (slideInVertically(
-                                        animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                                        initialOffsetY = { fullHeight -> -fullHeight / 2 }
-                                    ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
-                                        .togetherWith(
-                                            slideOutVertically(
-                                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                                targetOffsetY = { fullHeight -> fullHeight / 2 }
-                                            ) + fadeOut(animationSpec = tween(durationMillis = 180))
-                                        )
-                                }
-                            },
-                            label = "DriveHudTypographyTransition",
-                            modifier = Modifier.weight(1f, fill = false).widthIn(max = 500.dp)
-                        ) { track ->
-                            val song = track.song
-                            Column(
-                                horizontalAlignment = Alignment.Start,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                if (isStreamPlaying || isRadioActive) {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(
-                                                color = Color(0xFF00E676).copy(alpha = 0.16f),
-                                                shape = DriverBadgeShape
-                                            )
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .background(Color(0xFF00E676), shape = CircleShape)
-                                            )
-                                            Text(
-                                                text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = Color(0xFF00E676),
-                                                letterSpacing = 0.5.sp
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                }
-
-                                Text(
-                                    text = song?.title ?: "No Song Playing",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = primaryTextColor,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                val albumStr = song?.album.orEmpty()
-                                val artistStr = song?.artist ?: "Select a track to start"
-                                Text(
-                                    text = buildAnnotatedString {
-                                        withStyle(
-                                            SpanStyle(
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        ) {
-                                            append(artistStr)
-                                        }
-                                        if (albumStr.isNotBlank() && albumStr != song?.title) {
-                                            withStyle(
-                                                SpanStyle(
-                                                    fontWeight = FontWeight.Normal,
-                                                    color = secondaryTextColor
+                                Column(
+                                    horizontalAlignment = Alignment.Start,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    if (isStreamPlaying || isRadioActive) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    color = Color(0xFF00E676).copy(alpha = 0.16f),
+                                                    shape = DriverBadgeShape
                                                 )
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
-                                                append(" • $albumStr")
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .background(Color(0xFF00E676), shape = CircleShape)
+                                                )
+                                                Text(
+                                                    text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
+                                                    fontSize = 9.5.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = Color(0xFF00E676),
+                                                    letterSpacing = 0.5.sp
+                                                )
                                             }
                                         }
-                                    },
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                                // Single Next Song Card (shows only the next queued song)
-                    HudSingleNextSongCard(
-                        nextSong = upcomingSongs.firstOrNull(),
-                        isRadioActive = isRadioActive,
-                        isDark = isDark,
-                        isNightDimmer = isNightDimmerActive,
-                        onPlayNext = { song -> viewModel.play(song, direction = 1) }
-                    )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                    }
+
+                                    Text(
+                                        text = song?.title ?: "No Song Playing",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = primaryTextColor,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    val albumStr = song?.album.orEmpty()
+                                    val artistStr = song?.artist ?: "Select a track to start"
+                                    Text(
+                                        text = buildAnnotatedString {
+                                            withStyle(
+                                                SpanStyle(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            ) {
+                                                append(artistStr)
+                                            }
+                                            if (albumStr.isNotBlank() && albumStr != song?.title) {
+                                                withStyle(
+                                                    SpanStyle(
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = secondaryTextColor
+                                                    )
+                                                ) {
+                                                    append(" • $albumStr")
+                                                }
+                                            }
+                                        },
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    // Single Next Song Card (shows only the next queued song)
+                                    HudSingleNextSongCard(
+                                        nextSong = upcomingSongs.firstOrNull(),
+                                        isRadioActive = isRadioActive,
+                                        isDark = isDark,
+                                        isNightDimmer = isNightDimmerActive,
+                                        onPlayNext = { s -> viewModel.play(s, direction = 1) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -604,113 +627,71 @@ fun DriveModeScreen(
                     .border(width = 0.8.dp, color = bottomCardBorder, shape = BottomMusicCardShape)
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    // Full-width Seeker Bar
-                    DriveHudSeekBar(
-                        viewModel = viewModel,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                if (isPortrait) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Full-width Seeker Bar in portrait
+                        DriveHudSeekBar(
+                            viewModel = viewModel,
+                            modifier = Modifier.fillMaxWidth()
+                        )
 
-                    // Centered Driving Playback Controls Row
+                        // Centered Driving Playback Controls Row in portrait
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            HudPlaybackControlButtons(
+                                viewModel = viewModel,
+                                isPlaying = isPlaying,
+                                isShuffleOn = isShuffleOn,
+                                isStream = currentSong?.isStream() == true,
+                                controlIconColor = controlIconColor,
+                                controlInactiveColor = controlInactiveColor
+                            )
+                        }
+                    }
+                } else {
+                    // ── Landscape Headunit: 50% Seekbar & 50% Playback Button Container Side-by-Side ──
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        // 50% Left: Seeker Bar Container
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 12.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Shuffle Mode Toggle (only for local playback - hidden when streaming)
-                            if (currentSong?.isStream() != true) {
-                                IconButton(
-                                    onClick = { viewModel.toggleShuffle() },
-                                    modifier = Modifier.size(44.dp)
-                                ) {
-                                    Text(
-                                        text = if (isShuffleOn) "SHUF" else "SEQ",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = if (isShuffleOn) MaterialTheme.colorScheme.primary else controlInactiveColor
-                                    )
-                                }
-                            }
+                            DriveHudSeekBar(
+                                viewModel = viewModel,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
 
-                            // Previous Track
-                            IconButton(
-                                onClick = { viewModel.playPreviousSong() },
-                                modifier = Modifier.size(52.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.SkipPrevious,
-                                    contentDescription = "Previous Song",
-                                    tint = controlIconColor,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                            }
-
-                            // Quick Skip -10s
-                            IconButton(
-                                onClick = { viewModel.skipBackward10s() },
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Text(
-                                    text = "-10s",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = controlIconColor
-                                )
-                            }
-
-                            // Hero Play/Pause Button
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .background(
-                                        color = MaterialTheme.colorScheme.primary,
-                                        shape = CircleShape
-                                    )
-                                    .clickable { viewModel.togglePlayPause() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                    contentDescription = if (isPlaying) "Pause" else "Play",
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(38.dp)
-                                )
-                            }
-
-                            // Quick Skip +10s
-                            IconButton(
-                                onClick = { viewModel.skipForward10s() },
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Text(
-                                    text = "+10s",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = controlIconColor
-                                )
-                            }
-
-                            // Next Track
-                            IconButton(
-                                onClick = { viewModel.playNextSong() },
-                                modifier = Modifier.size(52.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.SkipNext,
-                                    contentDescription = "Next Song",
-                                    tint = controlIconColor,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                            }
+                        // 50% Right: Playback Buttons Container
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            HudPlaybackControlButtons(
+                                viewModel = viewModel,
+                                isPlaying = isPlaying,
+                                isShuffleOn = isShuffleOn,
+                                isStream = currentSong?.isStream() == true,
+                                controlIconColor = controlIconColor,
+                                controlInactiveColor = controlInactiveColor
+                            )
                         }
                     }
                 }
@@ -1268,109 +1249,131 @@ private fun MobileDriveHudStage(
     controlInactiveColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
+    val isYouTubeTrack = currentSong?.isYouTube() == true
+    val isVideoActive = playVideoForStreams && isYouTubeTrack
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
-        // Hero Album Artwork with Apple CarPlay horizontal slide transition
-        Box(
-            modifier = Modifier
-                .size(190.dp)
-                .background(
-                    color = if (isNightDimmerActive) Color(0xFF0D1117)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    shape = BigArtworkShape
+        if (isVideoActive) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(210.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                VideoPlayerView(
+                    videoId = currentSong?.getYouTubeVideoId(),
+                    videoUrl = currentSong?.path,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
                 )
-                .clip(BigArtworkShape)
-        ) {
-            AnimatedContent(
-                targetState = navigatingTrack,
-                transitionSpec = {
-                    if (targetState.direction >= 0) {
-                        (slideInHorizontally(
-                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                            initialOffsetX = { fullWidth -> fullWidth }
-                        ) + fadeIn(animationSpec = tween(durationMillis = 280)))
-                            .togetherWith(
-                                slideOutHorizontally(
-                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                    targetOffsetX = { fullWidth -> -fullWidth }
-                                ) + fadeOut(animationSpec = tween(durationMillis = 200))
-                            )
-                    } else {
-                        (slideInHorizontally(
-                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                            initialOffsetX = { fullWidth -> -fullWidth }
-                        ) + fadeIn(animationSpec = tween(durationMillis = 280)))
-                            .togetherWith(
-                                slideOutHorizontally(
-                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                    targetOffsetX = { fullWidth -> fullWidth }
-                                ) + fadeOut(animationSpec = tween(durationMillis = 200))
-                            )
+            }
+        } else {
+            // Hero Album Artwork with Apple CarPlay horizontal slide transition
+            Box(
+                modifier = Modifier
+                    .size(190.dp)
+                    .background(
+                        color = if (isNightDimmerActive) Color(0xFF0D1117)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        shape = BigArtworkShape
+                    )
+                    .clip(BigArtworkShape)
+            ) {
+                AnimatedContent(
+                    targetState = navigatingTrack,
+                    transitionSpec = {
+                        if (targetState.direction >= 0) {
+                            (slideInHorizontally(
+                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                initialOffsetX = { fullWidth -> fullWidth }
+                            ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                .togetherWith(
+                                    slideOutHorizontally(
+                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                        targetOffsetX = { fullWidth -> -fullWidth }
+                                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                )
+                        } else {
+                            (slideInHorizontally(
+                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                initialOffsetX = { fullWidth -> -fullWidth }
+                            ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                .togetherWith(
+                                    slideOutHorizontally(
+                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                        targetOffsetX = { fullWidth -> fullWidth }
+                                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                )
+                        }
+                    },
+                    label = "MobileCarPlaySlideTransition"
+                ) { navState ->
+                    val song = navState.song
+                    if (song != null) {
+                        AlbumArtImage(
+                            path = song.path,
+                            size = 190.dp,
+                            borderRadius = 20.dp,
+                            isPlaying = isPlaying,
+                            isHighRes = true,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-                },
-                label = "MobileCarPlaySlideTransition"
-            ) { navState ->
-                val song = navState.song
-                if (song != null) {
-                    AlbumArtImage(
-                        path = song.path,
-                        size = 190.dp,
-                        borderRadius = 20.dp,
-                        isPlaying = isPlaying,
-                        isHighRes = true,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
-        }
-
-        // Song Info Typography (Title, Artist, Album)
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        ) {
-            if (currentSong?.isStream() == true) {
-                Surface(
-                    shape = DriverBadgeShape,
-                    color = Color(0xFF00E676).copy(alpha = 0.15f),
-                    modifier = Modifier.padding(bottom = 4.dp)
-                ) {
-                    Text(
-                        text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFF00E676),
-                        letterSpacing = 0.5.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
                 }
             }
 
-            Text(
-                text = currentSong?.title ?: "No Song Playing",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Black,
-                color = primaryTextColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+            // Song Info Typography (Title, Artist, Album)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                if (currentSong?.isStream() == true) {
+                    Surface(
+                        shape = DriverBadgeShape,
+                        color = Color(0xFF00E676).copy(alpha = 0.15f),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    ) {
+                        Text(
+                            text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF00E676),
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
 
-            val albumStr = currentSong?.album.orEmpty()
-            val artistStr = currentSong?.artist ?: "Select a track to start"
-            Text(
-                text = if (albumStr.isNotBlank() && albumStr != currentSong?.title) "$artistStr • $albumStr" else artistStr,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 2.dp)
-            )
+                Text(
+                    text = currentSong?.title ?: "No Song Playing",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = primaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+
+                val albumStr = currentSong?.album.orEmpty()
+                val artistStr = currentSong?.artist ?: "Select a track to start"
+                Text(
+                    text = if (albumStr.isNotBlank() && albumStr != currentSong?.title) "$artistStr • $albumStr" else artistStr,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
 
         // Single Next Song Card
@@ -1397,5 +1400,106 @@ private fun MobileDriveHudStage(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
         )
+    }
+}
+
+@Composable
+private fun HudPlaybackControlButtons(
+    viewModel: MusicViewModel,
+    isPlaying: Boolean,
+    isShuffleOn: Boolean,
+    isStream: Boolean,
+    controlIconColor: Color,
+    controlInactiveColor: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Shuffle Mode Toggle (only for local playback - hidden when streaming)
+        if (!isStream) {
+            IconButton(
+                onClick = { viewModel.toggleShuffle() },
+                modifier = Modifier.size(44.dp)
+            ) {
+                Text(
+                    text = if (isShuffleOn) "SHUF" else "SEQ",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (isShuffleOn) MaterialTheme.colorScheme.primary else controlInactiveColor
+                )
+            }
+        }
+
+        // Previous Track
+        IconButton(
+            onClick = { viewModel.playPreviousSong() },
+            modifier = Modifier.size(52.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.SkipPrevious,
+                contentDescription = "Previous Song",
+                tint = controlIconColor,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+
+        // Quick Skip -10s
+        IconButton(
+            onClick = { viewModel.skipBackward10s() },
+            modifier = Modifier.size(44.dp)
+        ) {
+            Text(
+                text = "-10s",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                color = controlIconColor
+            )
+        }
+
+        // Hero Play/Pause Button
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = CircleShape
+                )
+                .clickable { viewModel.togglePlayPause() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                contentDescription = if (isPlaying) "Pause" else "Play",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(38.dp)
+            )
+        }
+
+        // Quick Skip +10s
+        IconButton(
+            onClick = { viewModel.skipForward10s() },
+            modifier = Modifier.size(44.dp)
+        ) {
+            Text(
+                text = "+10s",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                color = controlIconColor
+            )
+        }
+
+        // Next Track
+        IconButton(
+            onClick = { viewModel.playNextSong() },
+            modifier = Modifier.size(52.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.SkipNext,
+                contentDescription = "Next Song",
+                tint = controlIconColor,
+                modifier = Modifier.size(36.dp)
+            )
+        }
     }
 }

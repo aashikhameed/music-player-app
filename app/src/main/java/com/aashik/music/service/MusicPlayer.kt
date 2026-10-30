@@ -341,6 +341,38 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     elapsedMs
                 }
                 _positionFlow.value = pos
+
+                // Automatic Crossfade Detection (Apple CarPlay parity for streaming tracks)
+                if (crossfadeSeconds > 0 && _isPlayingFlow.value && !isTransitioning) {
+                    val now = System.currentTimeMillis()
+                    val minPlayTime = ((crossfadeSeconds + 1) * 1000L).coerceAtLeast(3000L)
+                    if (now - trackStartTimeMs >= minPlayTime) {
+                        val dur = _durationFlow.value
+                        val crossfadeMs = crossfadeSeconds * 1000L
+                        if (dur > (crossfadeMs + 2000L) && pos > (dur / 2)) {
+                            val remainingMs = dur - pos
+                            if (remainingMs in 0..crossfadeMs) {
+                                val currentPath = _currentSongFlow.value?.path
+                                if (currentPath != null && currentPath != autoCrossfadeTriggeredPath) {
+                                    autoCrossfadeTriggeredPath = currentPath
+                                    isTransitioning = true
+                                    withContext(Dispatchers.Main) {
+                                        try {
+                                            if (onCompletion != null) {
+                                                onCompletion?.invoke(true)
+                                            } else {
+                                                playNext(isAutoCrossfade = true)
+                                            }
+                                        } finally {
+                                            delay(crossfadeMs + 800L)
+                                            isTransitioning = false
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -397,6 +429,14 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
         playJob?.cancel()
 
+        if (song.isYouTube()) {
+            _isTrackBufferingFlow.value = false
+            stopStreamPlayback()
+            nativeBridge.stop()
+            _isPlayingFlow.value = true
+            return
+        }
+
         if (song.isStream()) {
             _isTrackBufferingFlow.value = true
             nativeBridge.stop()
@@ -415,19 +455,42 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     outgoingPlayer.setOnPreparedListener(null)
                 } catch (_: Exception) {}
 
+                val fadeDurationMs = if (isAutoCrossfade && crossfadeSeconds > 0) {
+                    crossfadeSeconds * 1000L
+                } else if (crossfadeSeconds > 0) {
+                    500L // Quick smooth Apple CarPlay micro-crossfade on manual skip
+                } else {
+                    60L
+                }
+
                 scope.launch(Dispatchers.Default) {
                     try {
-                        outgoingPlayer.setVolume(0.2f, 0.2f)
-                        delay(40L)
-                        outgoingPlayer.setVolume(0.0f, 0.0f)
-                        delay(20L)
-                        outgoingEq?.release()
-                        if (outgoingPlayer.isPlaying) outgoingPlayer.stop()
-                        outgoingPlayer.reset()
-                        outgoingPlayer.release()
-                    } catch (_: Exception) {}
+                        val steps = (fadeDurationMs / 40L).toInt().coerceAtLeast(1)
+                        val stepDelay = fadeDurationMs / steps
+                        for (i in 1..steps) {
+                            val progress = i.toFloat() / steps.toFloat()
+                            // Equal-power cosine decay matching Apple CarPlay
+                            val vol = Math.cos(progress * Math.PI / 2.0).toFloat().coerceIn(0f, 1f)
+                            try {
+                                outgoingPlayer.setVolume(vol, vol)
+                            } catch (_: Exception) {
+                                break
+                            }
+                            delay(stepDelay)
+                        }
+                    } catch (_: Exception) {
+                    } finally {
+                        try {
+                            outgoingEq?.release()
+                            if (outgoingPlayer.isPlaying) outgoingPlayer.stop()
+                            outgoingPlayer.reset()
+                            outgoingPlayer.release()
+                        } catch (_: Exception) {}
+                    }
                 }
             }
+
+            val shouldFadeIn = (crossfadeSeconds > 0) && (isAutoCrossfade || outgoingPlayer != null)
 
             val mp = MediaPlayer().apply {
                 setAudioAttributes(
@@ -437,7 +500,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                         .build()
                 )
                 setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
-                if (isAutoCrossfade && crossfadeSeconds > 0) {
+                if (shouldFadeIn) {
                     setVolume(0.0f, 0.0f)
                 } else {
                     setVolume(1.0f, 1.0f)
@@ -454,13 +517,15 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                             startStreamTicker()
                             initStreamEqualizer(player.audioSessionId)
 
-                            if (isAutoCrossfade && crossfadeSeconds > 0) {
+                            if (shouldFadeIn) {
                                 scope.launch(Dispatchers.Default) {
-                                    val fadeDurationMs = (crossfadeSeconds * 1000L).coerceAtLeast(500L)
-                                    val steps = 20
+                                    val fadeDurationMs = if (isAutoCrossfade) (crossfadeSeconds * 1000L).coerceAtLeast(500L) else 500L
+                                    val steps = (fadeDurationMs / 40L).toInt().coerceAtLeast(1)
                                     val stepDelay = fadeDurationMs / steps
                                     for (i in 1..steps) {
-                                        val vol = i.toFloat() / steps.toFloat()
+                                        val progress = i.toFloat() / steps.toFloat()
+                                        // Equal-power sine curve matching Apple CarPlay
+                                        val vol = Math.sin(progress * Math.PI / 2.0).toFloat().coerceIn(0f, 1f)
                                         try {
                                             player.setVolume(vol, vol)
                                         } catch (_: Exception) {

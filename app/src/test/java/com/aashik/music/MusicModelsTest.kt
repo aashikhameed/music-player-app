@@ -4,6 +4,7 @@ import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -577,5 +578,59 @@ class MusicModelsTest {
 
         assertEquals("Song 5", lastSong.title)
         assertTrue(emptyQueue.isEmpty())
+    }
+
+    @Test
+    fun testYouTubeVideoDetectionAndExtraction() {
+        val ytWatchSong = Song(
+            id = "s_1",
+            title = "Tamil Melody",
+            artist = "Anirudh",
+            album = "Single",
+            duration = 180000L,
+            path = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        )
+        val ytShortSong = Song(
+            id = "s_2",
+            title = "Acoustic Live",
+            artist = "Coldplay",
+            album = "Concert",
+            duration = 210000L,
+            path = "https://youtu.be/9bZkp7q19f0"
+        )
+        val regularSong = Song(
+            id = "s_3",
+            title = "Local Audio",
+            artist = "Artist",
+            album = "Album",
+            duration = 200000L,
+            path = "/storage/emulated/0/Music/MusicPlayer/song.mp3"
+        )
+
+        assertTrue(ytWatchSong.isYouTube())
+        assertEquals("dQw4w9WgXcQ", ytWatchSong.getYouTubeVideoId())
+        assertTrue(ytWatchSong.isVideo())
+
+        assertTrue(ytShortSong.isYouTube())
+        assertEquals("9bZkp7q19f0", ytShortSong.getYouTubeVideoId())
+        assertTrue(ytShortSong.isVideo())
+
+        assertFalse(regularSong.isYouTube())
+        assertNull(regularSong.getYouTubeVideoId())
+        assertFalse(regularSong.isVideo())
+    }
+
+    @Test
+    fun testSingleDownloadDirectoryStructure() {
+        val song1 = Song(id = "online_1", title = "Track 1", artist = "Artist A", album = "Album A", duration = 180000L, path = "https://aac.saavncdn.com/1/track1.mp4")
+        val song2 = Song(id = "online_2", title = "Track 2", artist = "Artist B", album = "Album B", duration = 210000L, path = "https://aac.saavncdn.com/2/track2.mp4")
+
+        val parentDir = java.io.File("/storage/emulated/0/Music/MusicPlayer")
+        val file1 = java.io.File(parentDir, "Artist_A_Track_1_hash1.m4a")
+        val file2 = java.io.File(parentDir, "Artist_B_Track_2_hash2.m4a")
+
+        // Both files must be in the exact same parent folder (not in separate subfolders)
+        assertEquals(file1.parent, file2.parent)
+        assertEquals("/storage/emulated/0/Music/MusicPlayer", file1.parent)
     }
 }

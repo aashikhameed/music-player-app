@@ -44,6 +44,30 @@ data class Song(
         return ext
     }
 
+    fun isYouTube(): Boolean {
+        return path.contains("youtube.com", ignoreCase = true) ||
+               path.contains("youtu.be", ignoreCase = true) ||
+               path.contains("googlevideo.com", ignoreCase = true) ||
+               id.startsWith("yt_", ignoreCase = true) ||
+               id.startsWith("youtube_", ignoreCase = true)
+    }
+
+    fun getYouTubeVideoId(): String? {
+        val vParam = Regex("""[?&]v=([a-zA-Z0-9_-]{11})""").find(path)?.groupValues?.get(1)
+        if (vParam != null) return vParam
+        val shortLink = Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""").find(path)?.groupValues?.get(1)
+        if (shortLink != null) return shortLink
+        val embedLink = Regex("""embed/([a-zA-Z0-9_-]{11})""").find(path)?.groupValues?.get(1)
+        if (embedLink != null) return embedLink
+        if (id.startsWith("yt_")) return id.removePrefix("yt_")
+        if (id.startsWith("youtube_")) return id.removePrefix("youtube_")
+        return null
+    }
+
+    fun isVideo(): Boolean {
+        return isYouTube() || path.endsWith(".mp4", ignoreCase = true) || path.endsWith(".webm", ignoreCase = true) || path.endsWith(".mkv", ignoreCase = true)
+    }
+
     fun getBadgeLabel(): String {
         cachedBadge?.let { return it }
         if (isStream() && duration <= 0) {

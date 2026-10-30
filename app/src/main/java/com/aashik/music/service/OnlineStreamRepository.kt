@@ -108,6 +108,25 @@ object OnlineStreamRepository {
         val q = query.trim()
         if (q.isBlank()) return@withContext emptyList<Song>()
 
+        // Direct YouTube Link Detection
+        if (q.contains("youtube.com", ignoreCase = true) || q.contains("youtu.be", ignoreCase = true)) {
+            val vParam = Regex("""[?&]v=([a-zA-Z0-9_-]{11})""").find(q)?.groupValues?.get(1)
+                ?: Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""").find(q)?.groupValues?.get(1)
+                ?: Regex("""embed/([a-zA-Z0-9_-]{11})""").find(q)?.groupValues?.get(1)
+            if (vParam != null) {
+                val ytSong = Song(
+                    id = "youtube_$vParam",
+                    title = "YouTube Video ($vParam)",
+                    artist = "YouTube Music Video",
+                    album = "YouTube",
+                    duration = 0L,
+                    path = q,
+                    artworkUrl = "https://img.youtube.com/vi/$vParam/hqdefault.jpg"
+                )
+                return@withContext listOf(ytSong)
+            }
+        }
+
         val cacheKey = "${q.lowercase()}:$limit"
         searchCache[cacheKey]?.let { return@withContext it }
 

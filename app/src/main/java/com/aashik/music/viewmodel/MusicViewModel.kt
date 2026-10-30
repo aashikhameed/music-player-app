@@ -181,6 +181,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _hideBottomBar = MutableStateFlow(appPrefs.getBoolean("hide_bottom_bar", true))
     val hideBottomBar: StateFlow<Boolean> = _hideBottomBar.asStateFlow()
 
+    // ── YouTube & Video Playback Toggle ──
+    private val _playVideoForStreams = MutableStateFlow(appPrefs.getBoolean("play_video_for_streams", true))
+    val playVideoForStreams: StateFlow<Boolean> = _playVideoForStreams.asStateFlow()
+
     // ── Favorites State (persisted in SharedPreferences) ──
     private val _favoritePaths = MutableStateFlow<Set<String>>(
         appPrefs.getStringSet("favorite_paths", emptySet())?.toSet() ?: emptySet()
@@ -1070,6 +1074,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.Default) {
             val countMap = LinkedHashMap<String, Int>()
             for (song in originalSongs) {
+                // Online streams must never be parsed by URL slashes into individual fake folders
+                if (song.isStream() || song.path.startsWith("http://", ignoreCase = true) || song.path.startsWith("https://", ignoreCase = true)) {
+                    continue
+                }
                 val p = song.path
                 val lastSlash = p.lastIndexOf('/')
                 val folderPath = if (lastSlash > 0) p.substring(0, lastSlash) else "Root"
@@ -1181,6 +1189,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleHideBottomBar() {
         setHideBottomBar(!_hideBottomBar.value)
+    }
+
+    fun setPlayVideoForStreams(enabled: Boolean) {
+        _playVideoForStreams.value = enabled
+        appPrefs.edit().putBoolean("play_video_for_streams", enabled).apply()
     }
 
     fun setCrossfadeSeconds(seconds: Int) {

@@ -95,7 +95,12 @@ object StreamDownloadManager {
         }
     }
 
+    @Volatile
+    private var cachedDownloadDir: File? = null
+
     fun getDownloadsDir(context: Context): File {
+        cachedDownloadDir?.let { if (it.exists()) return it }
+
         // Priority 1: Standard Public Music storage (/storage/emulated/0/Music/MusicPlayer)
         // Accessible by all file managers, PC transfers, and media players
         try {
@@ -105,6 +110,7 @@ object StreamDownloadManager {
             )
             if (publicMusic.exists() || publicMusic.mkdirs()) {
                 if (publicMusic.canWrite()) {
+                    cachedDownloadDir = publicMusic
                     return publicMusic
                 }
             }
@@ -118,6 +124,7 @@ object StreamDownloadManager {
             )
             if (publicDownload.exists() || publicDownload.mkdirs()) {
                 if (publicDownload.canWrite()) {
+                    cachedDownloadDir = publicDownload
                     return publicDownload
                 }
             }
@@ -128,6 +135,7 @@ object StreamDownloadManager {
         if (!appPrivate.exists()) {
             appPrivate.mkdirs()
         }
+        cachedDownloadDir = appPrivate
         return appPrivate
     }
 
