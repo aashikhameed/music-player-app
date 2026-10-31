@@ -45,11 +45,22 @@ private val LoadingTrackShape = RoundedCornerShape(3.dp)
 private val InactiveDarkTrack = Color(0xFF263245)
 private val InactiveLightTrack = Color(0xFFCAD5E2)
 
+private val WAVEFORM_BASE_AMPLITUDES = floatArrayOf(
+    0.35f, 0.50f, 0.70f, 0.40f, 0.65f, 0.85f, 0.45f, 0.30f,
+    0.55f, 0.75f, 0.90f, 0.60f, 0.40f, 0.70f, 0.80f, 0.50f,
+    0.30f, 0.60f, 0.85f, 1.00f, 0.75f, 0.50f, 0.35f, 0.65f,
+    0.80f, 0.95f, 0.70f, 0.45f, 0.60f, 0.80f, 0.55f, 0.35f,
+    0.50f, 0.75f, 0.90f, 0.65f, 0.40f, 0.60f, 0.85f, 0.70f,
+    0.50f, 0.35f, 0.55f, 0.70f, 0.45f, 0.30f, 0.40f, 0.25f
+)
+private const val NUM_WAVE_BARS = 48
+
 /**
- * High-Performance Automotive SeekBar.
+ * High-Performance Telemetry Waveform Scrubber.
  *
  * Optimized for low-power head units with zero animation overhead:
- * - Direct, hardware-accelerated straight-line active & inactive tracks
+ * - 48-bar dynamic waveform canvas unrolled with zero runtime allocations
+ * - Deterministic visual acoustic fingerprint per track (via waveSeed)
  * - Interactive thumb with scrub time bubble tooltip
  * - Zero 60fps sinusoid loops or infinite transitions
  */
@@ -61,7 +72,7 @@ fun CustomHorizontalSeekBar(
     @Suppress("UNUSED_PARAMETER") isPlaying: Boolean = false,
     currentPositionMs: Long = 0L,
     durationMs: Long = 0L,
-    @Suppress("UNUSED_PARAMETER") waveSeed: Int = 42,
+    waveSeed: Int = 42,
     activeColor: Color = MaterialTheme.colorScheme.primary,
     inactiveColor: Color = Color.Unspecified,
     showTimeLabels: Boolean = true,
@@ -194,11 +205,11 @@ fun CustomHorizontalSeekBar(
             }
         }
 
-        // High-Performance Track Canvas
+        // High-Performance Telemetry Waveform Track Canvas
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(24.dp)
+                .height(26.dp)
                 .onSizeChanged { barWidthPx = it.width.toFloat() }
                 .pointerInput(Unit) {
                     awaitEachGesture {
@@ -232,10 +243,8 @@ fun CustomHorizontalSeekBar(
                 },
             contentAlignment = Alignment.CenterStart
         ) {
-            val strokeWidthDp = 4.dp
             val density = LocalDensity.current
-            val strokeWidthPx = with(density) { strokeWidthDp.toPx() }
-            val thumbRadiusPx = with(density) { if (isDragging) 7.dp.toPx() else 5.5.dp.toPx() }
+            val thumbRadiusPx = with(density) { if (isDragging) 7.5.dp.toPx() else 6.dp.toPx() }
 
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val canvasWidth = size.width
@@ -245,39 +254,38 @@ fun CustomHorizontalSeekBar(
                 if (canvasWidth <= 0f) return@Canvas
 
                 val progressX = (canvasWidth * displayProgress).coerceIn(0f, canvasWidth)
+                val step = canvasWidth / NUM_WAVE_BARS
+                val barWidth = (step * 0.58f).coerceIn(2.5f, 7.5f)
+                val seedOffset = kotlin.math.abs(waveSeed) % NUM_WAVE_BARS
 
-                // 1. Draw Inactive Track (Clean straight line from progressX to end)
-                if (progressX < canvasWidth) {
+                // 1. Draw 48 dynamic waveform bars with rounded caps
+                for (i in 0 until NUM_WAVE_BARS) {
+                    val barX = i * step + step / 2f
+                    val amp = WAVEFORM_BASE_AMPLITUDES[(i + seedOffset) % NUM_WAVE_BARS]
+                    val barHalfHeight = ((canvasHeight * 0.42f) * amp).coerceAtLeast(3.5f)
+
+                    val isPlayed = barX <= progressX
+                    val barColor = if (isPlayed) activeColor else resolvedInactiveColor
+
                     drawLine(
-                        color = resolvedInactiveColor,
-                        start = Offset(progressX, centerY),
-                        end = Offset(canvasWidth, centerY),
-                        strokeWidth = strokeWidthPx,
+                        color = barColor,
+                        start = Offset(barX, centerY - barHalfHeight),
+                        end = Offset(barX, centerY + barHalfHeight),
+                        strokeWidth = barWidth,
                         cap = StrokeCap.Round
                     )
                 }
 
-                // 2. Draw Active Track (Solid direct line from 0 to progressX)
-                if (progressX > 0f) {
-                    drawLine(
-                        color = activeColor,
-                        start = Offset(0f, centerY),
-                        end = Offset(progressX, centerY),
-                        strokeWidth = strokeWidthPx,
-                        cap = StrokeCap.Round
-                    )
-                }
-
-                // 3. Draw Thumb (Dot at the head of progress)
+                // 2. Telemetry playhead indicator & glowing thumb
                 drawCircle(
                     color = activeColor,
                     radius = thumbRadiusPx,
                     center = Offset(progressX, centerY)
                 )
-                // Inner white dot for contrast
+                // Inner white contrast core
                 drawCircle(
                     color = Color.White,
-                    radius = (thumbRadiusPx * 0.45f).coerceAtLeast(1.5f),
+                    radius = (thumbRadiusPx * 0.42f).coerceAtLeast(1.5f),
                     center = Offset(progressX, centerY)
                 )
             }
