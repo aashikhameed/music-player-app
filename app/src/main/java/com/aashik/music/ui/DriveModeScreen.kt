@@ -119,15 +119,12 @@ private val TopVisualizerCapsuleShape = RoundedCornerShape(10.dp)
 private val EqPresetChipShape = RoundedCornerShape(10.dp)
 private val BottomMusicCardShape = RoundedCornerShape(18.dp)
 private val NightDimmerPillShape = RoundedCornerShape(10.dp)
-private val CockpitStageCardShape = RoundedCornerShape(16.dp)
 private val TelemetryChipShape = RoundedCornerShape(8.dp)
 
 private val DriveHudBackground = Color(0xFF090D14)
 private val StealthOledBlack = Color(0xFF000000)
 private val FavoriteRedColor = Color(0xFFFF5252)
 private val NightDimmerAmber = Color(0xFFFFB300)
-private val CockpitSurfaceColor = Color(0xFF10151E)
-private val CockpitBorderColor = Color(0xFF1E2838)
 private val LivePulseGreen = Color(0xFF00E676)
 
 private fun getAudioCodecBadge(song: Song?): String {
@@ -418,50 +415,358 @@ fun DriveModeScreen(
                         .padding(vertical = 4.dp)
                 )
             } else {
-                // ── Landscape Headunit: 50/50 Dual-Stage Cockpit ──
-                Row(
+                // ── Landscape Infotainment Stage: Unified Centered Layout ──
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // STAGE A (Left 50% Visual & Telemetry Cockpit)
-                    LandscapeCockpitStageA(
-                        viewModel = viewModel,
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        navigatingTrack = navigatingTrack,
-                        isNightDimmerActive = isNightDimmerActive,
-                        isDark = isDark,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    )
+                    val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
+                    val currentVideoId by viewModel.currentVideoId.collectAsState()
+                    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isLocalVideo() == true)
 
-                    // STAGE B (Right 50% Chrono-Deck Controls & Up-Next)
-                    LandscapeCockpitStageB(
-                        viewModel = viewModel,
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        isShuffleOn = isShuffleOn,
-                        isFavorite = isFavorite,
-                        isRadioActive = isRadioActive,
-                        isRadioLoading = isRadioLoading,
-                        currentDownloadStatus = currentDownloadStatus,
-                        upcomingSongs = upcomingSongs,
-                        navigatingTrack = navigatingTrack,
-                        isNightDimmerActive = isNightDimmerActive,
-                        isDark = isDark,
-                        primaryTextColor = primaryTextColor,
-                        secondaryTextColor = secondaryTextColor,
-                        controlIconColor = controlIconColor,
-                        controlInactiveColor = controlInactiveColor,
+                    if (isVideoActive) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            VideoPlayerView(
+                                videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
+                                videoUrl = if (currentSong?.isLocalVideo() == true) currentSong?.path else null,
+                                isPlaying = isPlaying,
+                                positionFlow = viewModel.positionFlow,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    } else {
+                        // Row: Hero Album Artwork on Left, Song Title & Artist next to it on Right
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            // Hero Album Artwork with Apple CarPlay horizontal slide transition
+                            Box(
+                                modifier = Modifier
+                                    .size(160.dp)
+                                    .background(
+                                        color = if (isNightDimmerActive) Color(0xFF0D1117)
+                                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                        shape = BigArtworkShape
+                                    )
+                            ) {
+                                AnimatedContent(
+                                    targetState = navigatingTrack,
+                                    transitionSpec = {
+                                        if (targetState.direction >= 0) {
+                                            (slideInHorizontally(
+                                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                                initialOffsetX = { fullWidth -> fullWidth }
+                                            ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                                .togetherWith(
+                                                    slideOutHorizontally(
+                                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                                        targetOffsetX = { fullWidth -> -fullWidth }
+                                                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                                )
+                                        } else {
+                                            (slideInHorizontally(
+                                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                                initialOffsetX = { fullWidth -> -fullWidth }
+                                            ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                                .togetherWith(
+                                                    slideOutHorizontally(
+                                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                                        targetOffsetX = { fullWidth -> fullWidth }
+                                                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                                )
+                                        }
+                                    },
+                                    label = "DriveHudArtworkTransition"
+                                ) { track ->
+                                    val song = track.song
+                                    if (song != null) {
+                                        AlbumArtImage(
+                                            path = song.path,
+                                            artworkUrl = song.artworkUrl,
+                                            size = 160.dp,
+                                            borderRadius = 20.dp,
+                                            isHighRes = true,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.DirectionsCar,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                                modifier = Modifier.size(68.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(22.dp))
+
+                            // Current Song Title & Artist with Automotive Vertical Slide Transition
+                            AnimatedContent(
+                                targetState = navigatingTrack,
+                                transitionSpec = {
+                                    if (targetState.direction >= 0) {
+                                        (slideInVertically(
+                                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                            initialOffsetY = { fullHeight -> fullHeight / 2 }
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
+                                            .togetherWith(
+                                                slideOutVertically(
+                                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                                    targetOffsetY = { fullHeight -> -fullHeight / 2 }
+                                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                            )
+                                    } else {
+                                        (slideInVertically(
+                                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                            initialOffsetY = { fullHeight -> -fullHeight / 2 }
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
+                                            .togetherWith(
+                                                slideOutVertically(
+                                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                                    targetOffsetY = { fullHeight -> fullHeight / 2 }
+                                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                            )
+                                    }
+                                },
+                                label = "DriveHudTypographyTransition",
+                                modifier = Modifier.weight(1f, fill = false).widthIn(max = 500.dp)
+                            ) { track ->
+                                val song = track.song
+                                Column(
+                                    horizontalAlignment = Alignment.Start,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        if (song?.isStream() == true || isRadioActive) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(
+                                                        color = Color(0xFF00E676).copy(alpha = 0.16f),
+                                                        shape = DriverBadgeShape
+                                                    )
+                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(6.dp)
+                                                            .background(Color(0xFF00E676), shape = CircleShape)
+                                                    )
+                                                    Text(
+                                                        text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
+                                                        fontSize = 9.5.sp,
+                                                        fontWeight = FontWeight.Black,
+                                                        color = Color(0xFF00E676),
+                                                        letterSpacing = 0.5.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // Audio Codec Badge (Hi-Res FLAC / Lossless WAV / 320k / MP3)
+                                        val codecText = getAudioCodecBadge(song)
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    color = if (isNightDimmerActive) Color(0xFF161C24)
+                                                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                                    shape = TelemetryChipShape
+                                                )
+                                                .border(
+                                                    width = 0.8.dp,
+                                                    color = if (isNightDimmerActive) Color(0xFF222C3D)
+                                                            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                                    shape = TelemetryChipShape
+                                                )
+                                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = codecText,
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = song?.title ?: "No Song Playing",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = primaryTextColor,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    val albumStr = song?.album.orEmpty()
+                                    val artistStr = song?.artist ?: "Select a track to start"
+                                    Text(
+                                        text = buildAnnotatedString {
+                                            withStyle(
+                                                SpanStyle(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            ) {
+                                                append(artistStr)
+                                            }
+                                            if (albumStr.isNotBlank() && albumStr != song?.title) {
+                                                withStyle(
+                                                    SpanStyle(
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = secondaryTextColor
+                                                    )
+                                                ) {
+                                                    append(" • $albumStr")
+                                                }
+                                            }
+                                        },
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    // Single Next Song Card (shows only the next queued song)
+                                    HudSingleNextSongCard(
+                                        nextSong = upcomingSongs.firstOrNull(),
+                                        isRadioActive = isRadioActive,
+                                        isDark = isDark,
+                                        isNightDimmer = isNightDimmerActive,
+                                        onPlayNext = { s -> viewModel.play(s, direction = 1) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Bottom Deck: Action Bar + Seeker Bar & Playback Controls ──
+            val bottomCardBg = when {
+                isNightDimmerActive -> Color(0xFF090D13)
+                isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+            }
+            val bottomCardBorder = when {
+                isNightDimmerActive -> Color(0xFF141D2A)
+                isDark -> Color(0xFF222C3A)
+                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            }
+
+            // Unified Action Bar (Fav, Download, Radio, EQ Presets, Queue)
+            DriveHudActionBar(
+                viewModel = viewModel,
+                currentSong = currentSong,
+                isFavorite = isFavorite,
+                isRadioActive = isRadioActive,
+                isRadioLoading = isRadioLoading,
+                currentDownloadStatus = currentDownloadStatus,
+                isNightDimmerActive = isNightDimmerActive,
+                isDark = isDark,
+                controlInactiveColor = controlInactiveColor
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(color = bottomCardBg, shape = BottomMusicCardShape)
+                    .border(width = 0.8.dp, color = bottomCardBorder, shape = BottomMusicCardShape)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                if (isPortrait) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        DriveHudSeekBar(
+                            viewModel = viewModel,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            HudPlaybackControlButtons(
+                                viewModel = viewModel,
+                                isPlaying = isPlaying,
+                                isShuffleOn = isShuffleOn,
+                                isStream = currentSong?.isStream() == true,
+                                controlIconColor = controlIconColor,
+                                controlInactiveColor = controlInactiveColor
+                            )
+                        }
+                    }
+                } else {
+                    // Landscape Headunit: 50% Seekbar & 50% Playback Button Container Side-by-Side
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                    )
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            DriveHudSeekBar(
+                                viewModel = viewModel,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            HudPlaybackControlButtons(
+                                viewModel = viewModel,
+                                isPlaying = isPlaying,
+                                isShuffleOn = isShuffleOn,
+                                isStream = currentSong?.isStream() == true,
+                                controlIconColor = controlIconColor,
+                                controlInactiveColor = controlInactiveColor
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -491,372 +796,6 @@ fun DriveModeScreen(
                 modifier = Modifier.fillMaxSize()
             )
         }
-    }
-}
-
-/**
- * STAGE A: Left 50% Visual & Telemetry Cockpit.
- * Houses Hero 190dp Artwork (with Apple CarPlay horizontal slide transitions) OR full-size touch-blocked synced video,
- * plus interactive driver telemetry chips for DSP Surround and Speed-Compensated Volume Control (SCVC).
- */
-@Composable
-private fun LandscapeCockpitStageA(
-    viewModel: MusicViewModel,
-    currentSong: Song?,
-    isPlaying: Boolean,
-    navigatingTrack: NavigatingTrack,
-    isNightDimmerActive: Boolean,
-    isDark: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
-    val currentVideoId by viewModel.currentVideoId.collectAsState()
-    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isLocalVideo() == true)
-
-    val scvcMode by viewModel.scvcMode.collectAsState()
-    val currentSpeedKmh by viewModel.currentSpeedKmh.collectAsState()
-    val virtualSurroundMode by viewModel.virtualSurroundMode.collectAsState()
-
-    val cardBg = if (isNightDimmerActive) StealthOledBlack else if (isDark) CockpitSurfaceColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    val cardBorder = if (isNightDimmerActive) Color(0xFF141D2A) else if (isDark) CockpitBorderColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-
-    Column(
-        modifier = modifier
-            .background(color = cardBg, shape = CockpitStageCardShape)
-            .border(width = 0.8.dp, color = cardBorder, shape = CockpitStageCardShape)
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        // Visual Hero Stage
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isVideoActive) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(BigArtworkShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    VideoPlayerView(
-                        videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
-                        videoUrl = if (currentSong?.isLocalVideo() == true) currentSong.path else null,
-                        isPlaying = isPlaying,
-                        positionFlow = viewModel.positionFlow,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(190.dp)
-                        .background(
-                            color = if (isNightDimmerActive) Color(0xFF0D1117)
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            shape = BigArtworkShape
-                        )
-                        .clip(BigArtworkShape)
-                ) {
-                    AnimatedContent(
-                        targetState = navigatingTrack,
-                        transitionSpec = {
-                            if (targetState.direction >= 0) {
-                                (slideInHorizontally(
-                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { fullWidth -> fullWidth }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 280)))
-                                    .togetherWith(
-                                        slideOutHorizontally(
-                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                            targetOffsetX = { fullWidth -> -fullWidth }
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
-                                    )
-                            } else {
-                                (slideInHorizontally(
-                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { fullWidth -> -fullWidth }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 280)))
-                                    .togetherWith(
-                                        slideOutHorizontally(
-                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                            targetOffsetX = { fullWidth -> fullWidth }
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
-                                    )
-                            }
-                        },
-                        label = "CockpitArtworkTransition"
-                    ) { track ->
-                        val song = track.song
-                        if (song != null) {
-                            AlbumArtImage(
-                                path = song.path,
-                                artworkUrl = song.artworkUrl,
-                                size = 190.dp,
-                                borderRadius = 20.dp,
-                                isHighRes = true,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.DirectionsCar,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(68.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Lower Telemetry Strip: DSP Surround & Speed-Compensated Volume Control
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Virtual Surround / DSP Mode Chip (clickable to cycle)
-            val surroundLabel = when (virtualSurroundMode) {
-                1 -> "SURROUND: CABIN"
-                2 -> "SURROUND: WIDE"
-                else -> "SURROUND: STEREO"
-            }
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = if (virtualSurroundMode > 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        shape = TelemetryChipShape
-                    )
-                    .clickable { viewModel.setVirtualSurroundMode((virtualSurroundMode + 1) % 3) }
-                    .padding(horizontal = 8.dp, vertical = 5.dp)
-            ) {
-                Text(
-                    text = surroundLabel,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (virtualSurroundMode > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Speed-Compensated Volume Control (SCVC) Chip (clickable to cycle)
-            val scvcLabel = when (scvcMode) {
-                1 -> "SCVC: MILD"
-                2 -> "SCVC: MODERATE"
-                3 -> "SCVC: DYNAMIC"
-                else -> "SCVC: OFF"
-            }
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = if (scvcMode > 0) LivePulseGreen.copy(alpha = 0.18f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        shape = TelemetryChipShape
-                    )
-                    .clickable { viewModel.setScvcMode((scvcMode + 1) % 4) }
-                    .padding(horizontal = 8.dp, vertical = 5.dp)
-            ) {
-                Text(
-                    text = if (scvcMode > 0 && currentSpeedKmh > 5f) {
-                        "$scvcLabel (${currentSpeedKmh.toInt()} km/h)"
-                    } else scvcLabel,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (scvcMode > 0) LivePulseGreen else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-/**
- * STAGE B: Right 50% Chrono-Deck Controls & Up-Next Radar.
- * Houses Title/Artist, Up-Next Radar capsule with 1-tap jump, 48-bar dynamic Waveform scrubber,
- * 60dp tactile buttons, and the quick action strip.
- */
-@Composable
-private fun LandscapeCockpitStageB(
-    viewModel: MusicViewModel,
-    currentSong: Song?,
-    isPlaying: Boolean,
-    isShuffleOn: Boolean,
-    isFavorite: Boolean,
-    isRadioActive: Boolean,
-    isRadioLoading: Boolean,
-    currentDownloadStatus: DownloadStatus,
-    upcomingSongs: List<Song>,
-    navigatingTrack: NavigatingTrack,
-    isNightDimmerActive: Boolean,
-    isDark: Boolean,
-    primaryTextColor: Color,
-    secondaryTextColor: Color,
-    controlIconColor: Color,
-    controlInactiveColor: Color,
-    modifier: Modifier = Modifier
-) {
-    val cardBg = if (isNightDimmerActive) StealthOledBlack else if (isDark) CockpitSurfaceColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    val cardBorder = if (isNightDimmerActive) Color(0xFF141D2A) else if (isDark) CockpitBorderColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-    val isStreamPlaying = currentSong?.isStream() == true
-
-    Column(
-        modifier = modifier
-            .background(color = cardBg, shape = CockpitStageCardShape)
-            .border(width = 0.8.dp, color = cardBorder, shape = CockpitStageCardShape)
-            .padding(14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        // 1. Top Status Badge & Title / Artist Typography
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Start
-        ) {
-            if (isStreamPlaying || isRadioActive) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = LivePulseGreen.copy(alpha = 0.16f),
-                            shape = DriverBadgeShape
-                        )
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .background(LivePulseGreen, shape = CircleShape)
-                        )
-                        Text(
-                            text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM • 320K",
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Black,
-                            color = LivePulseGreen,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            AnimatedContent(
-                targetState = navigatingTrack,
-                transitionSpec = {
-                    if (targetState.direction >= 0) {
-                        (slideInVertically(
-                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                            initialOffsetY = { fullHeight -> fullHeight / 2 }
-                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
-                            .togetherWith(
-                                slideOutVertically(
-                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                    targetOffsetY = { fullHeight -> -fullHeight / 2 }
-                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
-                            )
-                    } else {
-                        (slideInVertically(
-                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                            initialOffsetY = { fullHeight -> -fullHeight / 2 }
-                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
-                            .togetherWith(
-                                slideOutVertically(
-                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                    targetOffsetY = { fullHeight -> fullHeight / 2 }
-                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
-                            )
-                    }
-                },
-                label = "CockpitTypographyTransition"
-            ) { track ->
-                val song = track.song
-                Column {
-                    Text(
-                        text = song?.title ?: "No Song Playing",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black,
-                        color = primaryTextColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    val albumStr = song?.album.orEmpty()
-                    val artistStr = song?.artist ?: "Select a track to start"
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)) {
-                                append(artistStr)
-                            }
-                            if (albumStr.isNotBlank() && albumStr != song?.title) {
-                                withStyle(SpanStyle(fontWeight = FontWeight.Normal, color = secondaryTextColor)) {
-                                    append(" • $albumStr")
-                                }
-                            }
-                        },
-                        fontSize = 12.5.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-
-        // 2. Up-Next Radar Capsule (1-tap next jump)
-        HudSingleNextSongCard(
-            nextSong = upcomingSongs.firstOrNull(),
-            isRadioActive = isRadioActive,
-            isDark = isDark,
-            isNightDimmer = isNightDimmerActive,
-            onPlayNext = { s -> viewModel.play(s, direction = 1) },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // 3. 48-Bar Dynamic Waveform Scrubber
-        DriveHudSeekBar(
-            viewModel = viewModel,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // 4. Tactile Playback Controls (Shuffle, Prev, -10s, Hero Play/Pause, +10s, Next)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            HudPlaybackControlButtons(
-                viewModel = viewModel,
-                isPlaying = isPlaying,
-                isShuffleOn = isShuffleOn,
-                isStream = isStreamPlaying,
-                controlIconColor = controlIconColor,
-                controlInactiveColor = controlInactiveColor
-            )
-        }
-
-        // 5. Quick Actions Row (Queue, Fav, Download, Radio, EQ Presets)
-        DriveHudActionBar(
-            viewModel = viewModel,
-            currentSong = currentSong,
-            isFavorite = isFavorite,
-            isRadioActive = isRadioActive,
-            isRadioLoading = isRadioLoading,
-            currentDownloadStatus = currentDownloadStatus,
-            isNightDimmerActive = isNightDimmerActive,
-            isDark = isDark,
-            controlInactiveColor = controlInactiveColor,
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 
