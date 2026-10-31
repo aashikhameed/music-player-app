@@ -114,9 +114,9 @@ fun AndroidAutoBottomBar(
                 modifier = Modifier
                     .weight(0.65f)
                     .fillMaxHeight()
-                    .clip(DockCardShape)
                     .background(brush = capsuleGrad, shape = DockCardShape)
                     .border(width = 0.8.dp, brush = borderBrush, shape = DockCardShape)
+                    .clip(DockCardShape)
                     .clickable { viewModel.triggerScrollToCurrentSong() }
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment     = Alignment.CenterVertically,

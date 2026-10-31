@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 // Precomputed shape constant strictly adhering to Automotive Mali GPU optimization guidelines
 private val VideoContainerShape = RoundedCornerShape(16.dp)
+private val WV_VERSION_REGEX = Regex("""Version/\d+\.\d+ """)
 
 /**
  * Ultra-high-performance, zero-external-dependency Video & YouTube Stream Player.
@@ -61,7 +62,7 @@ fun VideoPlayerView(
 
             // Strip Android WebView markers so YouTube does not block embedding with Error 150
             val defaultUa = settings.userAgentString ?: ""
-            settings.userAgentString = defaultUa.replace("; wv", "").replace(Regex("""Version/\d+\.\d+ """), "")
+            settings.userAgentString = defaultUa.replace("; wv", "").replace(WV_VERSION_REGEX, "")
 
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {

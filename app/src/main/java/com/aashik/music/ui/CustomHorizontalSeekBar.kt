@@ -181,7 +181,6 @@ fun CustomHorizontalSeekBar(
         ) {
             if (isDragging && durationMs > 0) {
                 val scrubMs = (displayProgress * durationMs).toLong()
-                val tipGradient = AppGradients.primaryButton()
 
                 Box(
                     modifier = Modifier
@@ -191,8 +190,7 @@ fun CustomHorizontalSeekBar(
                                 .coerceIn(0, (barWidthPx - 80).roundToInt().coerceAtLeast(0))
                             IntOffset(xPos, 0)
                         }
-                        .clip(TooltipShape)
-                        .background(brush = tipGradient, shape = TooltipShape)
+                        .background(color = activeColor, shape = TooltipShape)
                 ) {
                     Text(
                         text = formatSeekTime(scrubMs),

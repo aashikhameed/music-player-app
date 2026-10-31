@@ -55,23 +55,22 @@ private val BadgeLightText = Color(0xFF475569)
 private val VignetteBlack = Color.Black.copy(alpha = 0.45f)
 private val FavoriteHeartRed = Color(0xFFFF5252)
 
+private val PLAYING_EQ_HEIGHTS = floatArrayOf(0.40f, 0.95f, 0.60f, 0.85f)
+private val IDLE_EQ_HEIGHTS = floatArrayOf(0.35f, 0.45f, 0.30f, 0.40f)
+
 @Composable
 fun LiveAnimatedEqualizer(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
     barColor: Color = MaterialTheme.colorScheme.primary
 ) {
-    val h1 = if (isPlaying) 0.40f else 0.35f
-    val h2 = if (isPlaying) 0.95f else 0.45f
-    val h3 = if (isPlaying) 0.60f else 0.30f
-    val h4 = if (isPlaying) 0.85f else 0.40f
+    val heights = if (isPlaying) PLAYING_EQ_HEIGHTS else IDLE_EQ_HEIGHTS
 
     Canvas(modifier = modifier.size(18.dp)) {
         val totalHeight = size.height
         val barWidth = 3.dp.toPx()
         val spacing = 2.dp.toPx()
         val cornerRadius = CornerRadius(1.dp.toPx(), 1.dp.toPx())
-        val heights = floatArrayOf(h1, h2, h3, h4)
 
         for (i in 0 until 4) {
             val barH = totalHeight * heights[i]
@@ -108,13 +107,13 @@ fun SongCard(
         modifier = modifier
             .then(widthModifier)
             .height(76.dp) // 1280×720 @ 160dpi: 76dp card = clear automotive touch target
-            .clip(SongCardShape)
             .background(brush = cardGradient, shape = SongCardShape)
             .border(
                 width = if (isPlaying) 1.6.dp else 1.dp,
                 brush = borderBrush,
                 shape = SongCardShape
             )
+            .clip(SongCardShape)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
@@ -141,8 +140,7 @@ fun SongCard(
                     Box(
                         modifier = Modifier
                             .size(56.dp)
-                            .clip(ArtVignetteShape)
-                            .background(VignetteBlack),
+                            .background(VignetteBlack, shape = ArtVignetteShape),
                         contentAlignment = Alignment.Center
                     ) {
                         LiveAnimatedEqualizer(

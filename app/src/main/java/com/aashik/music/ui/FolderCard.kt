@@ -62,9 +62,9 @@ fun FolderCard(
         modifier = modifier
             .fillMaxWidth()
             .height(76.dp) // Matched with SongCard height, tuned for 1280×720 @ 160dpi
-            .clip(FolderCardShape)
             .background(brush = cardGradient, shape = FolderCardShape)
             .border(width = 1.dp, brush = borderBrush, shape = FolderCardShape)
+            .clip(FolderCardShape)
             .clickable(onClick = onClick)
     ) {
         Row(

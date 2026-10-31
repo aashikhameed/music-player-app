@@ -5,6 +5,10 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+private val YT_V_PARAM_REGEX = Regex("""[?&]v=([a-zA-Z0-9_-]{11})""")
+private val YT_SHORT_REGEX = Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""")
+private val YT_EMBED_REGEX = Regex("""embed/([a-zA-Z0-9_-]{11})""")
+
 @Immutable
 @Entity(
     tableName = "songs",
@@ -61,11 +65,11 @@ data class Song(
     }
 
     fun getYouTubeVideoId(): String? {
-        val vParam = Regex("""[?&]v=([a-zA-Z0-9_-]{11})""").find(path)?.groupValues?.get(1)
+        val vParam = YT_V_PARAM_REGEX.find(path)?.groupValues?.get(1)
         if (vParam != null) return vParam
-        val shortLink = Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""").find(path)?.groupValues?.get(1)
+        val shortLink = YT_SHORT_REGEX.find(path)?.groupValues?.get(1)
         if (shortLink != null) return shortLink
-        val embedLink = Regex("""embed/([a-zA-Z0-9_-]{11})""").find(path)?.groupValues?.get(1)
+        val embedLink = YT_EMBED_REGEX.find(path)?.groupValues?.get(1)
         if (embedLink != null) return embedLink
         if (id.startsWith("online_yt_")) return id.removePrefix("online_yt_")
         if (id.startsWith("yt_")) return id.removePrefix("yt_")

@@ -105,8 +105,7 @@ fun ModernVerticalScrollbar(
                 .width(4.dp)
                 .fillMaxHeight()
                 .padding(vertical = 12.dp)
-                .clip(TrackShape)
-                .background(trackColor)
+                .background(trackColor, shape = TrackShape)
         )
 
         // Floating Pill Thumb — using layout offset lambda to skip recomposition & layout passes
@@ -125,8 +124,7 @@ fun ModernVerticalScrollbar(
                 }
                 .width(if (isDragging) 8.dp else 5.dp)
                 .height(thumbHeightDp)
-                .clip(ThumbShape)
-                .background(if (isDragging) MaterialTheme.colorScheme.secondary else thumbColor)
+                .background(if (isDragging) MaterialTheme.colorScheme.secondary else thumbColor, shape = ThumbShape)
         )
     }
 }

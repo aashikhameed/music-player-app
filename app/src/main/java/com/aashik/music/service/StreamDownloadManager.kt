@@ -50,6 +50,7 @@ object StreamDownloadManager {
     private const val TAG = "StreamDownloadManager"
     private const val PREFS_NAME = "stream_downloads"
     private const val BUFFER_SIZE = 8192
+    private val SANITIZE_FILENAME_REGEX = Regex("[^a-zA-Z0-9_-]")
 
     const val PREF_KEY_STORAGE_PRESET = "download_storage_preset"
     const val PREF_KEY_CUSTOM_PATH = "custom_download_path"
@@ -459,8 +460,8 @@ object StreamDownloadManager {
         downloadScope.launch {
             _downloadStates.update { it + (song.id to DownloadStatus.Downloading(0.01f)) }
 
-            val cleanArtist = song.artist.replace(Regex("[^a-zA-Z0-9_-]"), "_").trim('_').take(30)
-            val cleanTitle = song.title.replace(Regex("[^a-zA-Z0-9_-]"), "_").trim('_').take(40)
+            val cleanArtist = song.artist.replace(SANITIZE_FILENAME_REGEX, "_").trim('_').take(30)
+            val cleanTitle = song.title.replace(SANITIZE_FILENAME_REGEX, "_").trim('_').take(40)
             val hash = Integer.toHexString(song.id.hashCode()).take(8)
             val ext = if (song.path.contains(".mp3", ignoreCase = true)) "mp3" else "m4a"
             val fileName = "${cleanArtist}_${cleanTitle}_$hash.$ext"

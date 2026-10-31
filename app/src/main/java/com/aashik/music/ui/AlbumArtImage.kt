@@ -38,8 +38,14 @@ import com.aashik.music.utils.loadAlbumArt
 import kotlin.math.absoluteValue
 
 private val PlaceholderBg = Color(0xFF161D2B)
+private val Shape20 = RoundedCornerShape(20.dp)
+private val Shape16 = RoundedCornerShape(16.dp)
+private val Shape14 = RoundedCornerShape(14.dp)
+private val Shape12 = RoundedCornerShape(12.dp)
 private val Shape10 = RoundedCornerShape(10.dp)
 private val Shape8 = RoundedCornerShape(8.dp)
+private val Shape6 = RoundedCornerShape(6.dp)
+private val Shape4 = RoundedCornerShape(4.dp)
 
 @Composable
 fun AlbumArtImage(
@@ -52,8 +58,14 @@ fun AlbumArtImage(
     isHighRes: Boolean = false
 ) {
     val shape = when (borderRadius) {
+        20.dp -> Shape20
+        16.dp -> Shape16
+        14.dp -> Shape14
+        12.dp -> Shape12
         10.dp -> Shape10
         8.dp -> Shape8
+        6.dp -> Shape6
+        4.dp -> Shape4
         else -> remember(borderRadius) { RoundedCornerShape(borderRadius) }
     }
     val context = LocalContext.current

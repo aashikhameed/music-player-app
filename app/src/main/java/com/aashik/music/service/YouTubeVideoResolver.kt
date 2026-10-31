@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Lightweight, zero-external-dependency YouTube Video Resolver.
- * Uses YouTube Music's InnerTube API (WEB_REMIX client, exactly like BitChord)
+ * Uses YouTube Music's InnerTube API (WEB_REMIX client)
  * to resolve official music video IDs for any streaming track in ~200ms.
  * Enforces zero-bloat APK constraints (< 4.0 MB) with zero third-party libraries.
  */
@@ -17,19 +17,26 @@ object YouTubeVideoResolver {
     private const val TAG = "YouTubeVideoResolver"
     private val videoCache = ConcurrentHashMap<String, String>()
 
+    private val FROM_REGEX = Regex("""(?i)\(From\s+["'][^"']+["']\)""")
+    private val REPRISE_REGEX = Regex("""(?i)\(Reprise\)""")
+    private val OFFICIAL_REGEX = Regex("""(?i)\(Official.*?\)""")
+    private val BRACKET_REGEX = Regex("""\(.*?\)|\[.*?\]""")
+    private val WHITESPACE_REGEX = Regex("""\s+""")
+    private val VIDEO_ID_REGEX = Regex(""""videoId":\s*"([a-zA-Z0-9_-]{11})"""")
+
     suspend fun resolveVideoId(title: String, artist: String): String? = withContext(Dispatchers.IO) {
         val cleanTitle = title
             .replace("&amp;", "&")
-            .replace(Regex("""(?i)\(From\s+["'][^"']+["']\)"""), "")
-            .replace(Regex("""(?i)\(Reprise\)"""), "")
-            .replace(Regex("""(?i)\(Official.*?\)"""), "")
-            .replace(Regex("""\(.*?\)|\[.*?\]"""), "")
-            .replace(Regex("""\s+"""), " ")
+            .replace(FROM_REGEX, "")
+            .replace(REPRISE_REGEX, "")
+            .replace(OFFICIAL_REGEX, "")
+            .replace(BRACKET_REGEX, "")
+            .replace(WHITESPACE_REGEX, " ")
             .trim()
         val cleanArtist = artist
             .replace("&amp;", "&")
-            .replace(Regex("""\(.*?\)|\[.*?\]"""), "")
-            .replace(Regex("""\s+"""), " ")
+            .replace(BRACKET_REGEX, "")
+            .replace(WHITESPACE_REGEX, " ")
             .trim()
         val cacheKey = "$cleanTitle::$cleanArtist".lowercase()
         videoCache[cacheKey]?.let { return@withContext it }
@@ -58,7 +65,7 @@ object YouTubeVideoResolver {
 
             if (conn.responseCode in 200..299) {
                 val response = conn.inputStream.bufferedReader().use { it.readText() }
-                val match = Regex(""""videoId":\s*"([a-zA-Z0-9_-]{11})"""").find(response)
+                val match = VIDEO_ID_REGEX.find(response)
                 val videoId = match?.groupValues?.get(1)
                 if (!videoId.isNullOrBlank()) {
                     videoCache[cacheKey] = videoId
@@ -126,7 +133,7 @@ object YouTubeVideoResolver {
 
     /**
      * Fetches authentic YouTube Music category shelves (Songs, Featured playlists, Community playlists, Albums)
-     * directly matching BitChord's Innertube explore browse endpoint.
+     * directly using the explore browse endpoint.
      */
     suspend fun fetchCategoryShelves(params: String): YouTubeCategoryShelves? = withContext(Dispatchers.IO) {
         if (params.isBlank()) return@withContext null
@@ -350,7 +357,7 @@ object YouTubeVideoResolver {
 
     /**
      * Fetches up to 50 algorithmic radio recommendation tracks for a seed video
-     * directly from YouTube Music's RDAMVM watch queue endpoint (exactly as BitChord does).
+     * directly from YouTube Music's RDAMVM watch queue endpoint.
      */
     suspend fun fetchRadioQueue(videoId: String): List<YouTubeRadioTrack> = withContext(Dispatchers.IO) {
         val results = ArrayList<YouTubeRadioTrack>()

@@ -68,6 +68,17 @@ object OnlineStreamRepository {
     private val TOPIC_REGEX = Regex("""\s*-\s*topic\b""", RegexOption.IGNORE_CASE)
     private val PUNCT_REGEX = Regex("""[^\p{L}\p{N}]+""")
     private val SPACES_REGEX = Regex("""\s+""")
+    private val AUDIO_EXT_REGEX = Regex("(?i)(\\.(mp3|m4a|flac|wav|aac|ogg)|_\\d+$)")
+    private val CLEAN_FROM_REGEX = Regex("""(?i)\(From\s+["'][^"']+["']\)""")
+    private val CLEAN_REPRISE_REGEX = Regex("""(?i)\(Reprise\)""")
+    private val CLEAN_OFFICIAL_REGEX = Regex("""(?i)\(Official.*?\)""")
+    private val BRACKET_REGEX = Regex("""\(.*?\)|\[.*?\]""")
+    private val GREEDY_BRACKET_REGEX = Regex("(?i)(\\(.*\\)|\\[.*\\])")
+    private val FEAT_REGEX = Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,|•).*")
+    private val BEST_STREAM_REGEX = Regex("_(48|96|160|320)\\.(mp4|aac|mp3)(?=[?#]|$)", RegexOption.IGNORE_CASE)
+    private val YT_V_PARAM_REGEX = Regex("""[?&]v=([a-zA-Z0-9_-]{11})""")
+    private val YT_SHORT_REGEX = Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""")
+    private val YT_EMBED_REGEX = Regex("""embed/([a-zA-Z0-9_-]{11})""")
 
     fun normalisedTitle(raw: String): String = raw.lowercase(java.util.Locale.ROOT)
         .substringBefore(" | ")
@@ -98,16 +109,16 @@ object OnlineStreamRepository {
         if (song.isDirectPlayable()) return@withContext song
 
         val cleanTitle = song.title
-            .replace(Regex("(?i)(\\.(mp3|m4a|flac|wav|aac|ogg)|_\\d+$)"), "")
+            .replace(AUDIO_EXT_REGEX, "")
             .replace('_', ' ')
-            .replace(Regex("""(?i)\(From\s+["'][^"']+["']\)"""), "")
-            .replace(Regex("""(?i)\(Reprise\)"""), "")
-            .replace(Regex("""(?i)\(Official.*?\)"""), "")
-            .replace(Regex("""\(.*?\)|\[.*?\]"""), "")
+            .replace(CLEAN_FROM_REGEX, "")
+            .replace(CLEAN_REPRISE_REGEX, "")
+            .replace(CLEAN_OFFICIAL_REGEX, "")
+            .replace(BRACKET_REGEX, "")
             .trim()
         val cleanArtist = song.artist
-            .replace(Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,|•).*"), "")
-            .replace(Regex("""\(.*?\)|\[.*?\]"""), "")
+            .replace(FEAT_REGEX, "")
+            .replace(BRACKET_REGEX, "")
             .trim()
 
         val cacheKey = "${cleanTitle.lowercase()}::${cleanArtist.lowercase()}"
@@ -172,8 +183,7 @@ object OnlineStreamRepository {
 
     fun selectBestStream(decryptedUrl: String, supports320: Boolean): String {
         if (decryptedUrl.isBlank()) return ""
-        val regex = Regex("_(48|96|160|320)\\.(mp4|aac|mp3)(?=[?#]|$)", RegexOption.IGNORE_CASE)
-        val match = regex.find(decryptedUrl) ?: return decryptedUrl
+        val match = BEST_STREAM_REGEX.find(decryptedUrl) ?: return decryptedUrl
         val ext = match.groupValues[2]
         // Automotive optimization: Use 320kbps if supported, otherwise fallback to 160kbps for crystal audio
         return if (supports320) {
@@ -201,9 +211,9 @@ object OnlineStreamRepository {
 
         // Direct YouTube Link Detection
         if (q.contains("youtube.com", ignoreCase = true) || q.contains("youtu.be", ignoreCase = true)) {
-            val vParam = Regex("""[?&]v=([a-zA-Z0-9_-]{11})""").find(q)?.groupValues?.get(1)
-                ?: Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""").find(q)?.groupValues?.get(1)
-                ?: Regex("""embed/([a-zA-Z0-9_-]{11})""").find(q)?.groupValues?.get(1)
+            val vParam = YT_V_PARAM_REGEX.find(q)?.groupValues?.get(1)
+                ?: YT_SHORT_REGEX.find(q)?.groupValues?.get(1)
+                ?: YT_EMBED_REGEX.find(q)?.groupValues?.get(1)
             if (vParam != null) {
                 val ytSong = Song(
                     id = "youtube_$vParam",
@@ -562,9 +572,9 @@ object OnlineStreamRepository {
         // If local track, downloaded track, or PID not found, query search to find matching online track ID
         if (pid.isBlank() && filtered.size < limit) {
             val cleanTitle = seedSong.title
-                .replace(Regex("(?i)(\\.(mp3|m4a|flac|wav|aac|ogg)|_\\d+$)"), "")
+                .replace(AUDIO_EXT_REGEX, "")
                 .replace('_', ' ')
-                .replace(Regex("(?i)(\\(.*\\)|\\[.*\\])"), "")
+                .replace(GREEDY_BRACKET_REGEX, "")
                 .trim()
             val cleanArtist = if (!seedSong.artist.contains("•") && !seedSong.artist.contains("<unknown>")) {
                 seedSong.artist.trim()
@@ -652,7 +662,7 @@ object OnlineStreamRepository {
         // Step 4: Genre-Targeted Complementary Search with dynamic pagination (never repeats)
         if (filtered.size < limit) {
             val cleanArtist = seedSong.artist
-                .replace(Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,|•).*"), "")
+                .replace(FEAT_REGEX, "")
                 .trim()
             val isGenericArtist = cleanArtist.isBlank() || cleanArtist.contains("unknown", ignoreCase = true) || cleanArtist.contains("online", ignoreCase = true)
 
@@ -667,7 +677,7 @@ object OnlineStreamRepository {
             } else if (!isGenericArtist) {
                 queries.add("$cleanArtist Hits")
             } else {
-                val cleanTitle = seedSong.title.replace(Regex("(?i)(\\(.*\\)|\\[.*\\])"), "").replace('_', ' ').trim()
+                val cleanTitle = seedSong.title.replace(GREEDY_BRACKET_REGEX, "").replace('_', ' ').trim()
                 if (cleanTitle.isNotBlank()) {
                     queries.add("$cleanTitle Radio")
                 }
