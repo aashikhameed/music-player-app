@@ -1,0 +1,57 @@
+name: Cleanup Old Release APKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep_releases:
+        description: 'Number of recent releases to keep APKs for'
+        required: true
+        default: '2'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Delete Old Release APKs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete Old APK Assets
+        run: |
+          python3 -c "
+          import os, urllib.request, json
+          token = os.environ.get('GITHUB_TOKEN')
+          repo = os.environ.get('GITHUB_REPOSITORY', 'aashikhameed/music-player-app')
+          headers = {
+              'Authorization': f'Bearer {token}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28'
+          }
+          keep_count = int(os.environ.get('KEEP_COUNT', '2'))
+          req = urllib.request.Request(f'https://api.github.com/repos/{repo}/releases?per_page=100', headers=headers)
+          with urllib.request.urlopen(req) as resp:
+              releases = json.loads(resp.read().decode('utf-8'))
+          
+          to_clean = releases[keep_count:]
+          deleted = 0
+          for r in to_clean:
+              tag = r.get('tag_name')
+              for asset in r.get('assets', []):
+                  if asset.get('name', '').endswith('.apk'):
+                      asset_id = asset['id']
+                      del_req = urllib.request.Request(
+                          f'https://api.github.com/repos/{repo}/releases/assets/{asset_id}',
+                          headers=headers,
+                          method='DELETE'
+                      )
+                      try:
+                          urllib.request.urlopen(del_req)
+                          print(f'Deleted APK from {tag}: {asset.get(\"name\")}')
+                          deleted += 1
+                      except Exception as e:
+                          print(f'Failed deleting asset {asset_id} from {tag}: {e}')
+          print(f'Done! Total old APK assets deleted: {deleted}')
+          "
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_COUNT: ${{ github.event.inputs.keep_releases }}
