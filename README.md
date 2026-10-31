@@ -268,6 +268,47 @@ Contributions are welcome! Whether you are optimizing C++ audio routines, tuning
 
 ---
 
+## 📚 Libraries, Dependencies & App References
+
+This project is built with **zero heavy external dependencies** to comply strictly with automotive memory and APK size limits (< 4 MB). All network I/O, cryptography, and JSON parsing leverage pure Android SDK primitives:
+
+### 🧩 Core Frameworks & System Libraries
+- **[Jetpack Compose & Material 3](https://developer.android.com/jetpack/compose)**: Modern declarative UI toolkit optimized for automotive headunits with pre-computed shapes and flat color layouts.
+- **[AndroidX Room & SQLite](https://developer.android.com/training/data-storage/room)**: Embedded local database configured with `WRITE_AHEAD_LOGGING` (WAL) for non-blocking concurrent reads on slow eMMC car flash.
+- **[Android MediaNDK & OpenSL ES](https://developer.android.com/ndk/guides/audio/opensl/)**: Low-level C++17 native audio pipeline, SPSC lock-free ring buffer, and custom biquad IIR DSP filters.
+- **Standard Java/Android Cryptography (`javax.crypto.Cipher`, `DES/ECB/PKCS5Padding`)**: Lightweight media decryption without bundling OpenSSL or BouncyCastle.
+- **Standard Android Networking (`java.net.HttpURLConnection`)**: Zero-overhead HTTP client eliminating multi-megabyte third-party networking runtimes (e.g., OkHttp, Retrofit, Ktor).
+- **Hardware-Accelerated Android WebView**: Powers lightweight visual YouTube music video playback synchronized with the native audio engine.
+
+### 🙏 App References & Credits
+- **[BitChord](https://github.com/kushagrasinghx/BitChord)**: Core architectural inspiration for:
+  - YouTube Music InnerTube WEB_REMIX API integration (`youtubei/v1/next` and `youtubei/v1/browse`).
+  - Algorithmic `RDAMVM` watch-queue radio pipeline.
+  - Multi-tiered `QueueBuilder` de-duplication, title normalization, and per-artist capping algorithms.
+  - Explore category shelves (Songs, Featured playlists, Community playlists, Albums).
+- **[NewPipe](https://github.com/TeamNewPipe/NewPipe)** / **Metrolist InnerTubeX**: Early pioneering research into YouTube InnerTube client requests and media architectures.
+- **JioSaavn**: High-bitrate audio stream delivery (320 kbps / 160 kbps AAC) and search metadata catalog.
+
+---
+
+## ⚖️ Legal Disclaimer & Terms of Service Notice
+
+> [!WARNING]
+> **Educational & Personal Use Only**: This software is an independent, non-commercial open-source project developed solely for educational, research, and personal vehicle infotainment optimization purposes.
+
+### API & Intellectual Property Considerations:
+1. **Third-Party APIs**: This application interfaces with publicly accessible web endpoints provided by YouTube Music (Google LLC) and JioSaavn (Saavn Media Pvt. Ltd.). This project is **not** affiliated with, endorsed by, sponsored by, or connected to Google, YouTube, JioSaavn, or any of their parent companies.
+2. **Terms of Service (ToS)**:
+   - Accessing unofficial or internal APIs without standard API keys or authentication may violate the Terms of Service of respective content providers (e.g., YouTube Terms of Service § 4: *Permissions and Restrictions*).
+   - Commercial distribution, packaging with paid services, or publishing this app on commercial app stores (such as the Google Play Store) is strictly discouraged and may lead to account suspension or removal.
+3. **Copyright & Media Hosting**:
+   - This application **does not host, cache on servers, re-broadcast, or store** any copyrighted media files.
+   - All audio streams and album art are streamed directly from third-party Content Delivery Networks (CDNs) to the client device.
+   - Download functionality saves media solely to local user-designated storage for private, personal offline listening.
+4. **Trademarks**: All product names, logos, brands, and registered trademarks referenced in this repository are property of their respective owners. Their mention in this repository is strictly for identification and interoperability reference only.
+
+---
+
 ## 📄 License
 
 Distributed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for more information.
