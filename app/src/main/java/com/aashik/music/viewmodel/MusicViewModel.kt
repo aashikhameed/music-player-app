@@ -1463,7 +1463,23 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         musicPlayer.setPlaylist(queue, startIndex)
 
-        musicPlayer.play(song, isAutoCrossfade)
+        if (song.isStream() && !song.isDirectPlayable()) {
+            _isRadioLoading.value = true
+            viewModelScope.launch(Dispatchers.IO) {
+                val resolved = OnlineStreamRepository.resolvePlayableSong(song)
+                withContext(Dispatchers.Main) {
+                    _isRadioLoading.value = false
+                    if (_currentSong.value?.id == song.id) {
+                        _currentSong.value = resolved
+                        activePlaylist = activePlaylist.map { if (it.id == song.id) resolved else it }
+                        _songs.value = _songs.value.map { if (it.id == song.id) resolved else it }
+                        musicPlayer.play(resolved, isAutoCrossfade)
+                    }
+                }
+            }
+        } else {
+            musicPlayer.play(song, isAutoCrossfade)
+        }
         viewModelScope.launch {
             songDao.saveLastPlayed(song)
         }
@@ -1513,9 +1529,28 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     refillStreamingQueue(lastSeed)
                 }
             } else {
-                // End of stream playlist — fetch new radio tracks instead of looping to list[0]
+                // End of stream playlist — fetch new radio tracks and immediately play the next one!
                 val lastSeed = _currentSong.value ?: list.lastOrNull() ?: return
-                refillStreamingQueue(lastSeed)
+                viewModelScope.launch(Dispatchers.IO) {
+                    val genre = _selectedRadioCategory.value?.title ?: OnlineStreamRepository.getSongGenre(lastSeed)
+                    var moreTracks = OnlineStreamRepository.fetchNextRadioBatch(targetGenre = genre, limit = 15)
+                    if (moreTracks.isEmpty()) {
+                        moreTracks = OnlineStreamRepository.getRadioTracksForSong(lastSeed, targetGenre = genre, limit = 15)
+                    }
+                    val existingIds = activePlaylist.map { it.id }.toSet()
+                    val newTracks = moreTracks.filter { !existingIds.contains(it.id) }
+                    if (newTracks.isNotEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            val updatedPlaylist = activePlaylist + newTracks
+                            activePlaylist = updatedPlaylist
+                            _songs.value = updatedPlaylist
+                            _userQueue.value = newTracks.drop(1)
+                            play(newTracks.first(), playlist = updatedPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
+                            MusicController.play(newTracks.first())
+                            triggerScrollToCurrentSong()
+                        }
+                    }
+                }
             }
         } else {
             val nextSong = if (index in 0 until list.lastIndex) {

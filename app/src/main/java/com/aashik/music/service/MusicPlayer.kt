@@ -431,14 +431,6 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
         playJob?.cancel()
 
-        if (song.isYouTube()) {
-            _isTrackBufferingFlow.value = false
-            stopStreamPlayback()
-            nativeBridge.stop()
-            _isPlayingFlow.value = true
-            return
-        }
-
         if (song.isStream()) {
             _isTrackBufferingFlow.value = true
             nativeBridge.stop()

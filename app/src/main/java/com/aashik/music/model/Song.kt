@@ -49,7 +49,15 @@ data class Song(
                path.contains("youtu.be", ignoreCase = true) ||
                path.contains("googlevideo.com", ignoreCase = true) ||
                id.startsWith("yt_", ignoreCase = true) ||
-               id.startsWith("youtube_", ignoreCase = true)
+               id.startsWith("youtube_", ignoreCase = true) ||
+               id.startsWith("online_yt_", ignoreCase = true)
+    }
+
+    fun isDirectPlayable(): Boolean {
+        if (!isStream()) return true // Local file is always direct playable
+        val p = path.lowercase()
+        return (p.contains("saavncdn.com") || p.endsWith(".mp4") || p.endsWith(".m4a") || p.endsWith(".mp3") || p.endsWith(".aac") || p.endsWith(".ogg") || p.endsWith(".flac")) &&
+               !p.contains("youtube.com") && !p.contains("youtu.be")
     }
 
     fun getYouTubeVideoId(): String? {
@@ -59,6 +67,7 @@ data class Song(
         if (shortLink != null) return shortLink
         val embedLink = Regex("""embed/([a-zA-Z0-9_-]{11})""").find(path)?.groupValues?.get(1)
         if (embedLink != null) return embedLink
+        if (id.startsWith("online_yt_")) return id.removePrefix("online_yt_")
         if (id.startsWith("yt_")) return id.removePrefix("yt_")
         if (id.startsWith("youtube_")) return id.removePrefix("youtube_")
         return null

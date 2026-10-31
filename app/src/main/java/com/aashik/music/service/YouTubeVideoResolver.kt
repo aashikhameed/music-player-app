@@ -37,7 +37,7 @@ object YouTubeVideoResolver {
         val query = "$cleanTitle $cleanArtist official music video"
         var conn: HttpURLConnection? = null
         try {
-            val url = URL("https://music.youtube.com/youtubei/v1/search")
+            val url = URL("https://music.youtube.com/youtubei/v1/search?prettyPrint=false")
             conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 8000
@@ -45,10 +45,15 @@ object YouTubeVideoResolver {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                setRequestProperty("X-Origin", "https://music.youtube.com")
+                setRequestProperty("Origin", "https://music.youtube.com")
+                setRequestProperty("Referer", "https://music.youtube.com/")
+                setRequestProperty("X-YouTube-Client-Name", "67")
+                setRequestProperty("X-YouTube-Client-Version", "1.20240101.01.00")
             }
 
             val escapedQuery = query.replace("\\", "\\\\").replace("\"", "\\\"")
-            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20260707.12.00","hl":"en","gl":"US"}},"query":"$escapedQuery"}"""
+            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20240101.01.00","hl":"en","gl":"US"}},"query":"$escapedQuery"}"""
             conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
 
             if (conn.responseCode in 200..299) {
@@ -135,11 +140,14 @@ object YouTubeVideoResolver {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                setRequestProperty("X-Origin", "https://music.youtube.com")
+                setRequestProperty("Origin", "https://music.youtube.com")
+                setRequestProperty("Referer", "https://music.youtube.com/")
                 setRequestProperty("X-YouTube-Client-Name", "67")
-                setRequestProperty("X-YouTube-Client-Version", "1.20260707.12.00")
+                setRequestProperty("X-YouTube-Client-Version", "1.20240101.01.00")
             }
 
-            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20260707.12.00","hl":"en","gl":"IN"}},"browseId":"FEmusic_moods_and_genres_category","params":"$params"}"""
+            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20240101.01.00","hl":"en","gl":"IN"}},"browseId":"FEmusic_moods_and_genres_category","params":"$params"}"""
             conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
 
             if (conn.responseCode in 200..299) {
@@ -273,11 +281,14 @@ object YouTubeVideoResolver {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                setRequestProperty("X-Origin", "https://music.youtube.com")
+                setRequestProperty("Origin", "https://music.youtube.com")
+                setRequestProperty("Referer", "https://music.youtube.com/")
                 setRequestProperty("X-YouTube-Client-Name", "67")
-                setRequestProperty("X-YouTube-Client-Version", "1.20260707.12.00")
+                setRequestProperty("X-YouTube-Client-Version", "1.20240101.01.00")
             }
 
-            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20260707.12.00","hl":"en","gl":"IN"}},"browseId":"$browseId"}"""
+            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20240101.01.00","hl":"en","gl":"IN"}},"browseId":"$browseId"}"""
             conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
 
             if (conn.responseCode in 200..299) {
@@ -345,7 +356,7 @@ object YouTubeVideoResolver {
         val results = ArrayList<YouTubeRadioTrack>()
         var conn: HttpURLConnection? = null
         try {
-            val url = URL("https://music.youtube.com/youtubei/v1/next")
+            val url = URL("https://music.youtube.com/youtubei/v1/next?prettyPrint=false")
             conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 8000
@@ -353,77 +364,90 @@ object YouTubeVideoResolver {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                setRequestProperty("X-Origin", "https://music.youtube.com")
+                setRequestProperty("Origin", "https://music.youtube.com")
+                setRequestProperty("Referer", "https://music.youtube.com/")
+                setRequestProperty("X-YouTube-Client-Name", "67")
+                setRequestProperty("X-YouTube-Client-Version", "1.20240101.01.00")
             }
 
-            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20260707.12.00","hl":"en","gl":"US"}},"videoId":"$videoId","playlistId":"RDAMVM$videoId","isAudioOnly":true}"""
+            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20240101.01.00","hl":"en","gl":"US"}},"videoId":"$videoId","playlistId":"RDAMVM$videoId","isAudioOnly":true}"""
             conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
 
             if (conn.responseCode in 200..299) {
                 val responseText = conn.inputStream.bufferedReader().use { it.readText() }
                 val root = org.json.JSONObject(responseText)
-                val contents = root
-                    .optJSONObject("contents")
-                    ?.optJSONObject("singleColumnMusicWatchNextResultsRenderer")
-                    ?.optJSONObject("tabbedRenderer")
-                    ?.optJSONObject("watchNextTabbedResultsRenderer")
-                    ?.optJSONArray("tabs")
-                    ?.optJSONObject(0)
-                    ?.optJSONObject("tabRenderer")
-                    ?.optJSONObject("content")
-                    ?.optJSONObject("musicQueueRenderer")
-                    ?.optJSONObject("content")
-                    ?.optJSONObject("playlistPanelRenderer")
-                    ?.optJSONArray("contents")
 
-                if (contents != null) {
-                    for (i in 0 until contents.length()) {
-                        val wrapper = contents.optJSONObject(i) ?: continue
-                        val renderer = wrapper.optJSONObject("playlistPanelVideoRenderer")
-                            ?: wrapper.optJSONObject("playlistPanelVideoWrapperRenderer")
-                                ?.optJSONObject("primaryRenderer")
-                                ?.optJSONObject("playlistPanelVideoRenderer")
-                            ?: continue
-
-                        val vid = renderer.optString("videoId")
-                        if (vid.isBlank()) continue
-
-                        val title = renderer.optJSONObject("title")
-                            ?.optJSONArray("runs")
-                            ?.optJSONObject(0)
-                            ?.optString("text", "") ?: ""
-                        if (title.isBlank()) continue
-
-                        val bylineRuns = renderer.optJSONObject("shortBylineText")?.optJSONArray("runs")
-                        val artistBuilder = StringBuilder()
-                        if (bylineRuns != null) {
-                            for (j in 0 until bylineRuns.length()) {
-                                artistBuilder.append(bylineRuns.optJSONObject(j)?.optString("text", "") ?: "")
+                val renderers = ArrayList<org.json.JSONObject>()
+                fun collectRenderers(node: Any?) {
+                    when (node) {
+                        is org.json.JSONObject -> {
+                            val r = node.optJSONObject("playlistPanelVideoRenderer")
+                            if (r != null) {
+                                renderers.add(r)
+                            }
+                            val it = node.keys()
+                            while (it.hasNext()) {
+                                collectRenderers(node.opt(it.next()))
                             }
                         }
-                        val artist = artistBuilder.toString().trim()
-
-                        val lengthText = renderer.optJSONObject("lengthText")
-                            ?.optJSONArray("runs")
-                            ?.optJSONObject(0)
-                            ?.optString("text", "") ?: ""
-                        val durationMs = parseDurationMs(lengthText)
-
-                        val thumbnails = renderer.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
-                        val thumbnail = if (thumbnails != null && thumbnails.length() > 0) {
-                            thumbnails.optJSONObject(thumbnails.length() - 1)?.optString("url")
-                        } else null
-
-                        results.add(
-                            YouTubeRadioTrack(
-                                videoId = vid,
-                                title = title,
-                                artist = artist.ifBlank { "Unknown Artist" },
-                                album = "YouTube Music Radio",
-                                durationMs = durationMs,
-                                thumbnailUrl = thumbnail
-                            )
-                        )
+                        is org.json.JSONArray -> {
+                            for (i in 0 until node.length()) {
+                                collectRenderers(node.opt(i))
+                            }
+                        }
                     }
+                }
+                collectRenderers(root)
+
+                for (renderer in renderers) {
+                    val vid = renderer.optString("videoId")
+                    if (vid.isBlank()) continue
+
+                    val titleRuns = renderer.optJSONObject("title")?.optJSONArray("runs")
+                    val title = if (titleRuns != null && titleRuns.length() > 0) {
+                        val sb = StringBuilder()
+                        for (k in 0 until titleRuns.length()) {
+                            sb.append(titleRuns.optJSONObject(k)?.optString("text", "") ?: "")
+                        }
+                        sb.toString().trim()
+                    } else renderer.optJSONObject("title")?.optString("simpleText", "") ?: ""
+                    if (title.isBlank()) continue
+
+                    val bylineRuns = renderer.optJSONObject("longBylineText")?.optJSONArray("runs")
+                        ?: renderer.optJSONObject("shortBylineText")?.optJSONArray("runs")
+                    val artistBuilder = StringBuilder()
+                    if (bylineRuns != null) {
+                        for (j in 0 until bylineRuns.length()) {
+                            val txt = bylineRuns.optJSONObject(j)?.optString("text", "") ?: ""
+                            if (txt.contains("•")) break
+                            artistBuilder.append(txt)
+                        }
+                    }
+                    val artist = artistBuilder.toString().trim().ifBlank { "Unknown Artist" }
+
+                    val lengthText = renderer.optJSONObject("lengthText")
+                        ?.optJSONArray("runs")
+                        ?.optJSONObject(0)
+                        ?.optString("text", "")
+                        ?: renderer.optJSONObject("lengthText")?.optString("simpleText", "") ?: ""
+                    val durationMs = parseDurationMs(lengthText)
+
+                    val thumbnails = renderer.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+                    val thumbnail = if (thumbnails != null && thumbnails.length() > 0) {
+                        thumbnails.optJSONObject(thumbnails.length() - 1)?.optString("url")
+                    } else null
+
+                    results.add(
+                        YouTubeRadioTrack(
+                            videoId = vid,
+                            title = title,
+                            artist = artist,
+                            album = "YouTube Music Radio",
+                            durationMs = durationMs,
+                            thumbnailUrl = thumbnail
+                        )
+                    )
                 }
             }
         } catch (e: Exception) {

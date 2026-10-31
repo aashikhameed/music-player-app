@@ -41,6 +41,9 @@ object OnlineStreamRepository {
     private val radioCandidatePool = ConcurrentLinkedQueue<YouTubeVideoResolver.YouTubeRadioTrack>()
     private val sessionPlayedTitles = ConcurrentHashMap.newKeySet<String>()
 
+    // Direct audio streaming URL cache (maps clean title::artist to direct audio URL)
+    private val streamUrlCache = ConcurrentHashMap<String, String>()
+
     @Volatile
     var activeStationId: String? = null
         private set
@@ -52,6 +55,85 @@ object OnlineStreamRepository {
         activeStationId = null
         genreSearchPage = 1
         radioCandidatePool.clear()
+        sessionPlayedTitles.clear()
+    }
+
+    private val NOISE_REGEX = Regex(
+        """\((?:official|lyric|lyrics|lyrical|audio|video|visuali[sz]er|full song|hd|4k)[^)]*\)""" +
+            """|\(from[^)]*\)""" +
+            """|\[[^]]*]""" +
+            """|\b(?:official (?:video|audio|music video)|lyrical video|full video|4k video)\b""",
+        RegexOption.IGNORE_CASE
+    )
+    private val TOPIC_REGEX = Regex("""\s*-\s*topic\b""", RegexOption.IGNORE_CASE)
+    private val PUNCT_REGEX = Regex("""[^\p{L}\p{N}]+""")
+    private val SPACES_REGEX = Regex("""\s+""")
+
+    fun normalisedTitle(raw: String): String = raw.lowercase(java.util.Locale.ROOT)
+        .substringBefore(" | ")
+        .replace(NOISE_REGEX, " ")
+        .replace(PUNCT_REGEX, " ")
+        .replace(SPACES_REGEX, " ")
+        .trim()
+
+    fun artistSet(raw: String): Set<String> = raw.lowercase(java.util.Locale.ROOT)
+        .replace(TOPIC_REGEX, " ")
+        .split(",", "&", "·", "•", ";", " feat", " ft.", " ft ", " x ", " with ")
+        .map { it.replace(PUNCT_REGEX, " ").replace(SPACES_REGEX, " ").trim() }
+        .filter { it.isNotEmpty() }
+        .toSet()
+
+    fun isSameRecording(aTitle: String, aArtist: String, bTitle: String, bArtist: String): Boolean {
+        val normA = normalisedTitle(aTitle)
+        val normB = normalisedTitle(bTitle)
+        if (normA.isNotEmpty() && normA == normB) {
+            val left = artistSet(aArtist)
+            val right = artistSet(bArtist)
+            return left.isEmpty() || right.isEmpty() || left.any { it in right }
+        }
+        return false
+    }
+
+    suspend fun resolvePlayableSong(song: Song): Song = withContext(Dispatchers.IO) {
+        if (song.isDirectPlayable()) return@withContext song
+
+        val cleanTitle = song.title
+            .replace(Regex("(?i)(\\.(mp3|m4a|flac|wav|aac|ogg)|_\\d+$)"), "")
+            .replace('_', ' ')
+            .replace(Regex("""(?i)\(From\s+["'][^"']+["']\)"""), "")
+            .replace(Regex("""(?i)\(Reprise\)"""), "")
+            .replace(Regex("""(?i)\(Official.*?\)"""), "")
+            .replace(Regex("""\(.*?\)|\[.*?\]"""), "")
+            .trim()
+        val cleanArtist = song.artist
+            .replace(Regex("(?i)(feat\\.|featuring|ft\\.|vs\\.|&|,|•).*"), "")
+            .replace(Regex("""\(.*?\)|\[.*?\]"""), "")
+            .trim()
+
+        val cacheKey = "${cleanTitle.lowercase()}::${cleanArtist.lowercase()}"
+        streamUrlCache[cacheKey]?.let { cachedUrl ->
+            return@withContext song.copy(path = cachedUrl)
+        }
+
+        var matches = searchSongs("$cleanTitle $cleanArtist".trim(), limit = 3)
+        if (matches.isEmpty() && cleanTitle.isNotBlank()) {
+            matches = searchSongs(cleanTitle, limit = 3)
+        }
+
+        val best = matches.firstOrNull()
+        if (best != null && best.isDirectPlayable()) {
+            streamUrlCache[cacheKey] = best.path
+            val art = best.artworkUrl
+            if (!art.isNullOrBlank()) {
+                com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(best.path, art)
+            }
+            return@withContext song.copy(
+                path = best.path,
+                duration = if (song.duration > 0) song.duration else best.duration,
+                artworkUrl = if (!song.artworkUrl.isNullOrBlank()) song.artworkUrl else best.artworkUrl
+            )
+        }
+        song
     }
 
     fun registerSongGenre(idOrPath: String, genre: String) {
@@ -332,19 +414,28 @@ object OnlineStreamRepository {
         }
     }
 
-    suspend fun fetchNextRadioBatch(targetGenre: String? = null, limit: Int = 15): List<Song> {
+    suspend fun fetchNextRadioBatch(targetGenre: String? = null, limit: Int = 15): List<Song> = withContext(Dispatchers.IO) {
         // If we have RDAMVM candidates in the pool, drain them first
         if (radioCandidatePool.isNotEmpty()) {
             val batch = ArrayList<Song>(limit)
             val genre = targetGenre?.trim()?.takeIf { it.isNotBlank() }
-            repeat(limit * 3) { // over-sample to skip duplicates
+            val perArtist = mutableMapOf<String, Int>()
+
+            repeat(limit * 4) { // over-sample to skip duplicates
                 if (batch.size >= limit) return@repeat
                 val track = radioCandidatePool.poll() ?: return@repeat
-                val normTitle = track.title.lowercase().trim()
-                if (sessionPlayedTitles.contains(normTitle)) return@repeat
-                sessionPlayedTitles.add(normTitle)
+                val normTitle = normalisedTitle(track.title)
+                if (normTitle.isBlank() || sessionPlayedTitles.contains(normTitle)) return@repeat
+
+                val artists = artistSet(track.artist)
+                val key = artists.minOrNull()
+                if (key != null) {
+                    val played = perArtist[key] ?: 0
+                    if (played >= 2) return@repeat
+                }
+
                 val artUrl = track.thumbnailUrl ?: ""
-                val song = Song(
+                val unplayableSong = Song(
                     id = "online_yt_${track.videoId}",
                     title = track.title,
                     artist = track.artist,
@@ -353,18 +444,23 @@ object OnlineStreamRepository {
                     duration = track.durationMs,
                     artworkUrl = artUrl
                 )
-                if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.path, artUrl)
-                if (genre != null) {
-                    registerSongGenre(song.id, genre)
-                    registerSongGenre(song.path, genre)
+                val playableSong = resolvePlayableSong(unplayableSong)
+                if (playableSong.isDirectPlayable()) {
+                    sessionPlayedTitles.add(normTitle)
+                    if (key != null) perArtist[key] = (perArtist[key] ?: 0) + 1
+                    if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, artUrl)
+                    if (genre != null) {
+                        registerSongGenre(playableSong.id, genre)
+                        registerSongGenre(playableSong.path, genre)
+                    }
+                    batch.add(playableSong)
                 }
-                batch.add(song)
             }
-            if (batch.isNotEmpty()) return batch
+            if (batch.isNotEmpty()) return@withContext batch
         }
         // Fallback: JioSaavn station refill
-        val stId = activeStationId ?: return emptyList()
-        return fetchStationSongs(stId, limit = limit, targetGenre = targetGenre)
+        val stId = activeStationId ?: return@withContext emptyList()
+        fetchStationSongs(stId, limit = limit, targetGenre = targetGenre)
     }
 
     /**
@@ -378,10 +474,13 @@ object OnlineStreamRepository {
         limit: Int = 15
     ): List<Song> = withContext(Dispatchers.IO) {
         val filtered = ArrayList<Song>(limit)
-        val seenTitles = HashSet<String>()
-        val seenIds = HashSet<String>()
-        seenTitles.add(seedSong.title.lowercase().trim())
-        seenIds.add(seedSong.id)
+        val seedNormTitle = normalisedTitle(seedSong.title)
+        val seedArtists = artistSet(seedSong.artist)
+        val perArtist = mutableMapOf<String, Int>()
+        val seenIds = HashSet<String>().apply { add(seedSong.id) }
+        val seenTitles = HashSet<String>().apply { add(seedNormTitle) }
+
+        sessionPlayedTitles.add(seedNormTitle)
 
         // Resolve target genre (e.g. "Tamil", "Hindi", "Rock", "Lo-Fi", etc.)
         val genre = targetGenre?.trim()?.takeIf { it.isNotBlank() }
@@ -391,7 +490,7 @@ object OnlineStreamRepository {
                 if (seedSong.artist.contains("•") && artistPrefix.isNotBlank()) artistPrefix else null
             }
 
-        // Step 1: RDAMVM YouTube Music Radio (primary — fetches fresh non-repeating tracks)
+        // Step 1: RDAMVM YouTube Music Radio (primary — fetches 50 fresh non-repeating tracks)
         val ytVideoId: String? = when {
             seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_yt_")
             seedSong.path.contains("youtube.com/watch?v=") ->
@@ -406,31 +505,45 @@ object OnlineStreamRepository {
                 val radioTracks = YouTubeVideoResolver.fetchRadioQueue(ytVideoId)
                 // Stash overflow in pool for subsequent fetchNextRadioBatch calls
                 radioCandidatePool.clear()
-                sessionPlayedTitles.clear()
-                sessionPlayedTitles.add(seedSong.title.lowercase().trim())
+
                 for (track in radioTracks) {
-                    val normTitle = track.title.lowercase().trim()
+                    val normTitle = normalisedTitle(track.title)
+                    if (normTitle.isBlank()) continue
+                    if (isSameRecording(seedSong.title, seedSong.artist, track.title, track.artist)) continue
                     if (sessionPlayedTitles.contains(normTitle)) continue
-                    if (seenTitles.contains(normTitle)) continue
-                    val artUrl = track.thumbnailUrl ?: ""
-                    val song = Song(
-                        id = "online_yt_${track.videoId}",
-                        title = track.title,
-                        artist = track.artist,
-                        album = track.album,
-                        path = "https://www.youtube.com/watch?v=${track.videoId}",
-                        duration = track.durationMs,
-                        artworkUrl = artUrl
-                    )
-                    if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.path, artUrl)
-                    if (genre != null) {
-                        registerSongGenre(song.id, genre)
-                        registerSongGenre(song.path, genre)
+
+                    val artists = artistSet(track.artist)
+                    val key = artists.minOrNull()
+                    if (key != null) {
+                        val cap = if (artists.any { it in seedArtists }) 4 else 2
+                        val played = perArtist[key] ?: 0
+                        if (played >= cap) continue
                     }
+
                     if (filtered.size < limit) {
-                        filtered.add(song)
-                        seenTitles.add(normTitle)
-                        sessionPlayedTitles.add(normTitle)
+                        val artUrl = track.thumbnailUrl ?: ""
+                        val unplayableSong = Song(
+                            id = "online_yt_${track.videoId}",
+                            title = track.title,
+                            artist = track.artist,
+                            album = track.album,
+                            path = "https://www.youtube.com/watch?v=${track.videoId}",
+                            duration = track.durationMs,
+                            artworkUrl = artUrl
+                        )
+                        val playableSong = resolvePlayableSong(unplayableSong)
+                        if (playableSong.isDirectPlayable()) {
+                            filtered.add(playableSong)
+                            sessionPlayedTitles.add(normTitle)
+                            if (key != null) perArtist[key] = (perArtist[key] ?: 0) + 1
+                            if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, artUrl)
+                            if (genre != null) {
+                                registerSongGenre(playableSong.id, genre)
+                                registerSongGenre(playableSong.path, genre)
+                            }
+                        } else {
+                            radioCandidatePool.offer(track)
+                        }
                     } else {
                         radioCandidatePool.offer(track)
                     }
