@@ -271,27 +271,27 @@ fun AndroidAutoBottomBar(
                                 )
                             }
                         }
-                        // Format badge
-                            val ext = currentSong?.getFileExtension().orEmpty()
-                            if (ext.isNotEmpty()) {
-                                Box(
-                                    modifier = Modifier
-                                        .background(
-                                            MaterialTheme.colorScheme.primary
-                                                .copy(alpha = if (isDark) 0.22f else 0.12f),
-                                            shape = BadgeShape
-                                        )
-                                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                                ) {
-
-                                    Text(
-                                        text       = ext,
-                                        fontSize   = 9.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color      = MaterialTheme.colorScheme.primary
+                        // Telemetry Format Badge
+                        val formatBadge = getAudioCodecBadge(currentSong)
+                        if (formatBadge.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.primary
+                                            .copy(alpha = if (isDark) 0.22f else 0.12f),
+                                        shape = BadgeShape
                                     )
-                                }
+                                    .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                            ) {
+                                Text(
+                                    text       = formatBadge,
+                                    fontSize   = 9.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color      = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 0.4.sp
+                                )
                             }
+                        }
 
                         // Scoped Time Display (only this element recomposes on time changes)
                         BottomBarTimeCounter(viewModel = viewModel)
@@ -476,6 +476,20 @@ private fun BottomBarTimeCounter(viewModel: MusicViewModel) {
     )
 }
 
+private fun getAudioCodecBadge(song: com.aashik.music.model.Song?): String {
+    if (song == null) return ""
+    if (song.isStream()) return "320K"
+    val path = song.path.lowercase()
+    return when {
+        path.endsWith(".flac") -> "FLAC"
+        path.endsWith(".wav") -> "WAV"
+        path.endsWith(".m4a") || path.endsWith(".aac") -> "AAC"
+        path.endsWith(".ogg") -> "OGG"
+        path.endsWith(".mp3") -> "MP3"
+        else -> song.getFileExtension().uppercase()
+    }
+}
+
 /**
  * Isolated Seekbar — limits progress recompositions strictly to the canvas.
  */
@@ -485,6 +499,7 @@ private fun BottomBarSeekBar(viewModel: MusicViewModel, isPlaying: Boolean) {
     val positionMs by viewModel.positionFlow.collectAsState()
     val durationMs by viewModel.durationFlow.collectAsState()
     val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
 
     CustomHorizontalSeekBar(
         progress          = progress,
@@ -492,6 +507,7 @@ private fun BottomBarSeekBar(viewModel: MusicViewModel, isPlaying: Boolean) {
         isPlaying         = isPlaying,
         currentPositionMs = positionMs,
         durationMs        = durationMs,
+        waveSeed          = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
         showTimeLabels    = false,
         isLoading         = isPlayerLoading,
         modifier          = Modifier.fillMaxWidth()

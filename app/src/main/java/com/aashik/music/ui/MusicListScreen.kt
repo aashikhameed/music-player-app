@@ -126,6 +126,7 @@ private val MoodCardShape = RoundedCornerShape(16.dp)
 private val MoodStripeShape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
 private val BackPillShape = RoundedCornerShape(10.dp)
 private val MobileMiniPlayerShape = RoundedCornerShape(20.dp)
+private val MiniCodecBadgeShape = RoundedCornerShape(4.dp)
 private val MobileNavBarShape = RoundedCornerShape(26.dp)
 private val MobileActiveTabShape = RoundedCornerShape(18.dp)
 private val ShelfArtworkShape = RoundedCornerShape(12.dp)
@@ -2045,6 +2046,20 @@ private fun MobileHeader(
     }
 }
 
+private fun getMobileAudioCodecBadge(song: Song?): String {
+    if (song == null) return ""
+    if (song.isStream()) return "320K"
+    val path = song.path.lowercase()
+    return when {
+        path.endsWith(".flac") -> "FLAC"
+        path.endsWith(".wav") -> "WAV"
+        path.endsWith(".m4a") || path.endsWith(".aac") -> "AAC"
+        path.endsWith(".ogg") -> "OGG"
+        path.endsWith(".mp3") -> "MP3"
+        else -> song.getFileExtension().uppercase()
+    }
+}
+
 @Composable
 private fun MobileMiniPlayer(
     viewModel: MusicViewModel,
@@ -2054,81 +2069,150 @@ private fun MobileMiniPlayer(
 ) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
+    val positionMs by viewModel.positionFlow.collectAsState()
+    val durationMs by viewModel.durationFlow.collectAsState()
+    val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
+
+    val surfaceBg = if (isDark) Color(0xFF131822) else MaterialTheme.colorScheme.surfaceVariant
+    val surfaceBorder = if (isDark) Color(0xFF202A3C) else Color(0xFFCBD5E1)
+    val codecBadge = remember(song) { getMobileAudioCodecBadge(song) }
 
     Surface(
         onClick = onClick,
         shape = MobileMiniPlayerShape,
-        color = if (isDark) Color(0xFF1E2026) else MaterialTheme.colorScheme.surfaceVariant,
+        color = surfaceBg,
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
             .border(
                 width = 0.8.dp,
-                color = if (isDark) Color(0xFF2C2F38) else Color(0xFFD0D4DC),
+                color = surfaceBorder,
                 shape = MobileMiniPlayerShape
             )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            AlbumArtImage(
-                path = song.path,
-                size = 38.dp,
-                borderRadius = 8.dp
+            // Dynamic 48-Bar Waveform Scrubber across Mini-Dock
+            CustomHorizontalSeekBar(
+                progress = progress,
+                onProgressChanged = { viewModel.seekToFraction(it) },
+                isPlaying = isPlaying,
+                currentPositionMs = positionMs,
+                durationMs = durationMs,
+                waveSeed = song.id.hashCode(),
+                showTimeLabels = false,
+                isLoading = isPlayerLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 2.dp)
             )
 
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 10.dp, top = 2.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.5.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                AlbumArtImage(
+                    path = song.path,
+                    artworkUrl = song.artworkUrl,
+                    size = 40.dp,
+                    borderRadius = 10.dp,
+                    isPlaying = isPlaying
                 )
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
 
-            Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-            IconButton(
-                onClick = { viewModel.togglePlayPause() },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = song.title,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp,
+                                letterSpacing = 0.15.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
 
-            IconButton(
-                onClick = { viewModel.playNextSong() },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.SkipNext,
-                    contentDescription = "Next Track",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
-                )
+                        if (codecBadge.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.22f else 0.12f),
+                                        shape = MiniCodecBadgeShape
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = codecBadge,
+                                    fontSize = 8.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = song.artist,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Hero Play/Pause Button
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
+                        .clickable { viewModel.togglePlayPause() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Next Track Button
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.09f else 0.06f),
+                            shape = CircleShape
+                        )
+                        .clickable { viewModel.playNextSong() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipNext,
+                        contentDescription = "Next Track",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }
@@ -2144,13 +2228,13 @@ private fun MobileBottomNavBar(
 
     Surface(
         shape = MobileNavBarShape,
-        color = if (isDark) Color(0xFF16181D) else MaterialTheme.colorScheme.surfaceVariant,
+        color = if (isDark) Color(0xFF111622) else MaterialTheme.colorScheme.surfaceVariant,
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
             .border(
                 width = 0.8.dp,
-                color = if (isDark) Color(0xFF2A2D36) else Color(0xFFD0D4DC),
+                color = if (isDark) Color(0xFF202A3C) else Color(0xFFD0D4DC),
                 shape = MobileNavBarShape
             )
     ) {
@@ -2197,7 +2281,7 @@ private fun MobileNavTabItem(
     onClick: () -> Unit
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val activeBg = if (isDark) Color(0xFF2C2E38) else MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+    val activeBg = if (isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.20f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
 
     Box(
         modifier = Modifier
@@ -2220,7 +2304,7 @@ private fun MobileNavTabItem(
             Text(
                 text = label,
                 fontSize = 11.5.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
             )
         }

@@ -48,8 +48,12 @@ import com.aashik.music.model.Song
 import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+
 // Precomputed top-level shapes for Mali GPU fill rate & zero GC allocation
 private val DrawerShapeLandscape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+private val DrawerShapePortrait = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
 private val DrawerItemShape = RoundedCornerShape(10.dp)
 private val DrawerBadgeShape = RoundedCornerShape(6.dp)
 private val ReorderBtnShape = RoundedCornerShape(6.dp)
@@ -76,20 +80,33 @@ fun QueueDrawer(
 
     val cardBorder = AppGradients.border(isActive = false)
 
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(BackdropColor)
             .clickable(onClick = onClose)
     ) {
-        // Drawer Content Panel (Left-aligned in landscape, 400dp width)
-        Surface(
-            modifier = Modifier
+        val panelModifier = if (isPortrait) {
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+        } else {
+            Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
-                .width(400.dp)
+                .width(420.dp)
+        }
+        val panelShape = if (isPortrait) DrawerShapePortrait else DrawerShapeLandscape
+
+        // Drawer Content Panel (Adaptive: Bottom Sheet on Phone, Side Drawer on Car)
+        Surface(
+            modifier = panelModifier
                 .clickable(enabled = false) {}, // Consume clicks so backdrop doesn't trigger
-            shape = DrawerShapeLandscape,
+            shape = panelShape,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 8.dp
         ) {
