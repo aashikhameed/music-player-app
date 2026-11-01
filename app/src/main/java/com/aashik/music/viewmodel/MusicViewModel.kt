@@ -1547,13 +1547,40 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _isLoading.value = true
             val context = getApplication<Application>().applicationContext
             val loadedSongs = withContext(Dispatchers.IO) {
-                songDao.getAllSongs().ifEmpty {
+                val dbSongs = songDao.getAllSongs()
+                if (dbSongs.isEmpty()) {
                     val scannedSongs = AudioScanner.scan(context) { loaded, total ->
                         _loadedCount.value = loaded
                         _totalCount.value = total
                     }
                     songDao.insertAll(scannedSongs)
                     scannedSongs
+                } else {
+                    // Check and repair any downloaded songs that have missing metadata or legacy filenames
+                    var hasUpdates = false
+                    val sanitized = dbSongs.map { song ->
+                        val meta = StreamDownloadManager.getMetadataForPath(context, song.path)
+                        if (meta != null && (song.artist == "<unknown>" || song.artist == "Unknown Artist" || song.title != meta.title || (song.artworkUrl.isNullOrBlank() && !meta.artworkUrl.isNullOrBlank()))) {
+                            hasUpdates = true
+                            val updated = song.copy(
+                                title = meta.title.ifBlank { song.title },
+                                artist = meta.artist.ifBlank { song.artist },
+                                album = meta.album.ifBlank { song.album },
+                                duration = if (meta.duration > 0) meta.duration else song.duration,
+                                artworkUrl = meta.artworkUrl ?: song.artworkUrl
+                            )
+                            if (!updated.artworkUrl.isNullOrBlank()) {
+                                com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(updated.path, updated.artworkUrl)
+                            }
+                            updated
+                        } else {
+                            song
+                        }
+                    }
+                    if (hasUpdates) {
+                        songDao.insertAll(sanitized)
+                    }
+                    sanitized
                 }
             }
 

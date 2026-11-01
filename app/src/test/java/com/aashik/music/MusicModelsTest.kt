@@ -768,12 +768,42 @@ class MusicModelsTest {
         )
 
         // Toggling video mode on/off must keep the exact user queue unchanged
-        val isVideoActive = true
         val queueInVideo = currentQueue
         val queueInAudio = currentQueue
 
         assertEquals(queueInVideo.size, queueInAudio.size)
         assertEquals(queueInVideo[0].id, queueInAudio[0].id)
         assertEquals(queueInVideo[1].id, queueInAudio[1].id)
+    }
+
+    @Test
+    fun testDownloadedMetadataIntegrity() {
+        val meta = com.aashik.music.service.DownloadedMetadata(
+            title = "Yaakkai Thiri",
+            artist = "A.R. Rahman",
+            album = "Aayutha Ezhuthu",
+            artworkUrl = "https://example.com/art.jpg",
+            duration = 240000L
+        )
+        assertEquals("Yaakkai Thiri", meta.title)
+        assertEquals("A.R. Rahman", meta.artist)
+        assertEquals("Aayutha Ezhuthu", meta.album)
+        assertEquals("https://example.com/art.jpg", meta.artworkUrl)
+        assertEquals(240000L, meta.duration)
+
+        // Filename cleaning check
+        val rawTitle = "Yaakkai: Thiri / Special Edition?"
+        val rawArtist = "A.R. Rahman <Official>"
+        val illegalChars = Regex("""[\\\\/:*?"<>|\r\n\t]""")
+        val cleanTitle = rawTitle.replace(illegalChars, " ").replace(Regex("""\s+"""), " ").trim()
+        val cleanArtist = rawArtist.replace(illegalChars, " ").replace(Regex("""\s+"""), " ").trim()
+        val fileName = "$cleanTitle - $cleanArtist.m4a"
+
+        assertEquals("Yaakkai Thiri Special Edition - A.R. Rahman Official.m4a", fileName)
+        assertFalse(fileName.contains(":"))
+        assertFalse(fileName.contains("/"))
+        assertFalse(fileName.contains("?"))
+        assertFalse(fileName.contains("<"))
+        assertFalse(fileName.contains(">"))
     }
 }

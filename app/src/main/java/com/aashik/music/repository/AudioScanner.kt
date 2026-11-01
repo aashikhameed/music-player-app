@@ -38,10 +38,20 @@ object AudioScanner {
 
             while (it.moveToNext()) {
                 val path = it.getString(pathCol) ?: continue
-                val title = it.getString(titleCol) ?: "Unknown Title"
-                val artist = it.getString(artistCol) ?: "Unknown Artist"
-                val album = it.getString(albumCol) ?: "Unknown Album"
-                val duration = it.getLong(durationCol)
+                val rawTitle = it.getString(titleCol) ?: "Unknown Title"
+                val rawArtist = it.getString(artistCol)
+                val rawAlbum = it.getString(albumCol)
+                val rawDuration = it.getLong(durationCol)
+
+                val savedMeta = com.aashik.music.service.StreamDownloadManager.getMetadataForPath(context, path)
+
+                val title = savedMeta?.title?.takeIf { it.isNotBlank() } ?: rawTitle
+                val artist = savedMeta?.artist?.takeIf { it.isNotBlank() }
+                    ?: if (rawArtist.isNullOrBlank() || rawArtist == "<unknown>") "Unknown Artist" else rawArtist
+                val album = savedMeta?.album?.takeIf { it.isNotBlank() }
+                    ?: if (rawAlbum.isNullOrBlank() || rawAlbum == "<unknown>") "Unknown Album" else rawAlbum
+                val duration = if (savedMeta != null && savedMeta.duration > 0) savedMeta.duration else rawDuration
+                val artworkUrl = savedMeta?.artworkUrl
 
                 songs.add(
                     Song(
@@ -50,7 +60,8 @@ object AudioScanner {
                         artist = artist,
                         album = album,
                         duration = duration,
-                        path = path
+                        path = path,
+                        artworkUrl = artworkUrl
                     )
                 )
 

@@ -69,13 +69,15 @@ object LyricsRepository {
             }
         }
 
-        // 2. Query LRCLIB (exact match first, then fuzzy search)
+        // 2. Query LRCLIB (exact match first, then fuzzy search with artist, then search by title)
         val cleanTitle = cleanSongTitle(song.title)
         val cleanArtist = cleanArtistName(song.artist)
         val durationSec = (song.duration / 1000).toInt()
 
         val exactLrc = fetchExact(cleanTitle, cleanArtist, durationSec)
-        val lrcText = exactLrc ?: fetchSearch(cleanTitle, cleanArtist, durationSec)
+        val lrcText = exactLrc
+            ?: fetchSearch(cleanTitle, cleanArtist, durationSec)
+            ?: fetchSearch(cleanTitle, "", durationSec)
 
         if (!lrcText.isNullOrBlank()) {
             val parsed = parseLrc(lrcText)
@@ -112,8 +114,12 @@ object LyricsRepository {
     private fun fetchSearch(title: String, artist: String, seconds: Int): String? {
         return try {
             val encTitle = URLEncoder.encode(title, "UTF-8")
-            val encArtist = URLEncoder.encode(artist, "UTF-8")
-            val urlStr = "$BASE_URL/search?track_name=$encTitle&artist_name=$encArtist"
+            val urlStr = if (artist.isNotBlank()) {
+                val encArtist = URLEncoder.encode(artist, "UTF-8")
+                "$BASE_URL/search?track_name=$encTitle&artist_name=$encArtist"
+            } else {
+                "$BASE_URL/search?track_name=$encTitle"
+            }
             val jsonStr = httpGet(urlStr) ?: return null
             val array = JSONArray(jsonStr)
             var bestHit: String? = null
@@ -196,3 +202,4 @@ object LyricsRepository {
             ?: artist
     }
 }
+

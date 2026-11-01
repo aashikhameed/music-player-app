@@ -27,6 +27,15 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import org.json.JSONObject
+
+data class DownloadedMetadata(
+    val title: String,
+    val artist: String,
+    val album: String,
+    val artworkUrl: String?,
+    val duration: Long
+)
 
 sealed class DownloadStatus {
     object Idle : DownloadStatus()
@@ -73,6 +82,9 @@ object StreamDownloadManager {
     // Mapping of songId -> local absolute file path
     private val idToLocalPath = ConcurrentHashMap<String, String>()
 
+    // Mapping of local absolute file path -> clean metadata
+    private val pathToMetadata = ConcurrentHashMap<String, DownloadedMetadata>()
+
     @Volatile
     private var isInitialized = false
 
@@ -102,6 +114,22 @@ object StreamDownloadManager {
                             idToLocalPath[songId] = value
                             initialMap[songId] = DownloadStatus.Downloaded
                         }
+                    } else if (key.startsWith("meta_") && value is String) {
+                        val localPath = key.removePrefix("meta_")
+                        try {
+                            val json = JSONObject(value)
+                            val meta = DownloadedMetadata(
+                                title = json.optString("title"),
+                                artist = json.optString("artist"),
+                                album = json.optString("album"),
+                                artworkUrl = json.optString("art").takeIf { it.isNotBlank() },
+                                duration = json.optLong("dur", 0L)
+                            )
+                            pathToMetadata[localPath] = meta
+                            if (!meta.artworkUrl.isNullOrBlank()) {
+                                AlbumArtCache.registerStreamArtwork(localPath, meta.artworkUrl)
+                            }
+                        } catch (_: Exception) {}
                     }
                 }
 
@@ -116,6 +144,19 @@ object StreamDownloadManager {
                         initialMap["online_$cleanId"] = DownloadStatus.Downloaded
                         idToLocalPath[s.id] = s.path
                         idToLocalPath["online_$cleanId"] = s.path
+                        if (!pathToMetadata.containsKey(s.path) && s.artist != "<unknown>") {
+                            val meta = DownloadedMetadata(
+                                title = s.title,
+                                artist = s.artist,
+                                album = s.album,
+                                artworkUrl = s.artworkUrl,
+                                duration = s.duration
+                            )
+                            pathToMetadata[s.path] = meta
+                            if (!s.artworkUrl.isNullOrBlank()) {
+                                AlbumArtCache.registerStreamArtwork(s.path, s.artworkUrl)
+                            }
+                        }
                     }
                 }
 
@@ -408,6 +449,9 @@ object StreamDownloadManager {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val updateValues = ContentValues().apply {
                     put(MediaStore.Audio.Media.IS_PENDING, 0)
+                    put(MediaStore.Audio.Media.TITLE, song.title)
+                    put(MediaStore.Audio.Media.ARTIST, song.artist)
+                    put(MediaStore.Audio.Media.ALBUM, song.album)
                 }
                 resolver.update(uri, updateValues, null, null)
             }
@@ -460,11 +504,15 @@ object StreamDownloadManager {
         downloadScope.launch {
             _downloadStates.update { it + (song.id to DownloadStatus.Downloading(0.01f)) }
 
-            val cleanArtist = song.artist.replace(SANITIZE_FILENAME_REGEX, "_").trim('_').take(30)
-            val cleanTitle = song.title.replace(SANITIZE_FILENAME_REGEX, "_").trim('_').take(40)
-            val hash = Integer.toHexString(song.id.hashCode()).take(8)
+            val illegalChars = Regex("""[\\\\/:*?"<>|\r\n\t]""")
+            val cleanTitle = song.title.replace(illegalChars, " ").replace(Regex("""\s+"""), " ").trim().take(60)
+            val cleanArtist = song.artist.replace(illegalChars, " ").replace(Regex("""\s+"""), " ").trim().take(40)
             val ext = if (song.path.contains(".mp3", ignoreCase = true)) "mp3" else "m4a"
-            val fileName = "${cleanArtist}_${cleanTitle}_$hash.$ext"
+            val fileName = if (cleanArtist.isNotBlank() && cleanArtist != "Unknown Artist" && cleanArtist != "<unknown>") {
+                "$cleanTitle - $cleanArtist.$ext"
+            } else {
+                "$cleanTitle.$ext"
+            }
 
             var targetFile: File? = null
             var lastError: String? = null
@@ -475,7 +523,7 @@ object StreamDownloadManager {
             if (existingCheck.exists() && existingCheck.length() > 20_000L) {
                 val localSong = createLocalSong(song, existingCheck)
                 songDao.insert(localSong)
-                persistDownloadedRecord(context, song.id, existingCheck.absolutePath)
+                persistDownloadedRecord(context, song, existingCheck.absolutePath)
                 _downloadStates.update {
                     it + (song.id to DownloadStatus.Downloaded) + (localSong.id to DownloadStatus.Downloaded)
                 }
@@ -600,7 +648,7 @@ object StreamDownloadManager {
             if (savedFile != null && savedFile.exists() && savedFile.length() > 20_000L) {
                 val localSong = createLocalSong(song, savedFile)
                 songDao.insert(localSong)
-                persistDownloadedRecord(context, song.id, savedFile.absolutePath)
+                persistDownloadedRecord(context, song, savedFile.absolutePath)
 
                 // Notify Android MediaStore of new audio file in public storage
                 try {
@@ -658,12 +706,174 @@ object StreamDownloadManager {
         )
     }
 
-    private fun persistDownloadedRecord(context: Context, songId: String, localPath: String) {
-        idToLocalPath[songId] = localPath
+    private fun persistDownloadedRecord(context: Context, song: Song, localPath: String) {
+        val cleanId = song.id.removePrefix("online_").removePrefix("download_")
+        idToLocalPath[song.id] = localPath
+        idToLocalPath["online_$cleanId"] = localPath
+        idToLocalPath["download_$cleanId"] = localPath
+
+        val metadata = DownloadedMetadata(
+            title = song.title,
+            artist = song.artist,
+            album = song.album,
+            artworkUrl = song.artworkUrl,
+            duration = song.duration
+        )
+        pathToMetadata[localPath] = metadata
+        if (!song.artworkUrl.isNullOrBlank()) {
+            AlbumArtCache.registerStreamArtwork(localPath, song.artworkUrl)
+        }
+
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putString("dl_$songId", localPath).apply()
+            val json = JSONObject().apply {
+                put("title", song.title)
+                put("artist", song.artist)
+                put("album", song.album)
+                put("art", song.artworkUrl ?: "")
+                put("dur", song.duration)
+            }
+            prefs.edit()
+                .putString("dl_${song.id}", localPath)
+                .putString("dl_online_$cleanId", localPath)
+                .putString("dl_download_$cleanId", localPath)
+                .putString("meta_$localPath", json.toString())
+                .apply()
         } catch (_: Exception) {}
+    }
+
+    fun getMetadataForPath(context: Context, path: String): DownloadedMetadata? {
+        // 1. Check in-memory map
+        pathToMetadata[path]?.let { return it }
+
+        // 2. Check persistent SharedPreferences
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val savedJson = prefs.getString("meta_$path", null)
+            if (!savedJson.isNullOrBlank()) {
+                val json = JSONObject(savedJson)
+                val meta = DownloadedMetadata(
+                    title = json.optString("title"),
+                    artist = json.optString("artist"),
+                    album = json.optString("album"),
+                    artworkUrl = json.optString("art").takeIf { it.isNotBlank() },
+                    duration = json.optLong("dur", 0L)
+                )
+                pathToMetadata[path] = meta
+                if (!meta.artworkUrl.isNullOrBlank()) {
+                    AlbumArtCache.registerStreamArtwork(path, meta.artworkUrl)
+                }
+                return meta
+            }
+        } catch (_: Exception) {}
+
+        // 3. Fallback for older downloaded files without JSON metadata
+        val file = File(path)
+        val nameWithoutExt = file.nameWithoutExtension
+        if (path.contains("MusicPlayer", ignoreCase = true) || path.contains("Downloads", ignoreCase = true) || path.contains("BitChord", ignoreCase = true)) {
+            if (nameWithoutExt.contains(" - ")) {
+                val parts = nameWithoutExt.split(" - ", limit = 2)
+                val parsedTitle = parts[0].trim()
+                val parsedArtist = parts.getOrNull(1)?.trim().orEmpty()
+                if (parsedTitle.isNotBlank()) {
+                    val fallbackMeta = DownloadedMetadata(
+                        title = parsedTitle,
+                        artist = if (parsedArtist.isNotBlank() && parsedArtist != "<unknown>") parsedArtist else "Unknown Artist",
+                        album = "Downloads",
+                        artworkUrl = null,
+                        duration = 0L
+                    )
+                    pathToMetadata[path] = fallbackMeta
+                    return fallbackMeta
+                }
+            }
+
+            val parsedLegacy = parseLegacyFilename(nameWithoutExt)
+            if (parsedLegacy != null) {
+                val fallbackMeta = DownloadedMetadata(
+                    title = parsedLegacy.first,
+                    artist = parsedLegacy.second,
+                    album = "Downloads",
+                    artworkUrl = null,
+                    duration = 0L
+                )
+                pathToMetadata[path] = fallbackMeta
+                return fallbackMeta
+            }
+
+            val cleaned = nameWithoutExt.replace(Regex("_[0-9a-fA-F]{6,8}$"), "")
+            val underscoreParts = cleaned.split("__", limit = 2)
+            if (underscoreParts.size == 2) {
+                val artistPart = underscoreParts[0].replace("_", " ").trim()
+                val titlePart = underscoreParts[1].replace("_", " ").trim()
+                val fallbackMeta = DownloadedMetadata(
+                    title = titlePart,
+                    artist = artistPart,
+                    album = "Downloads",
+                    artworkUrl = null,
+                    duration = 0L
+                )
+                pathToMetadata[path] = fallbackMeta
+                return fallbackMeta
+            } else if (cleaned.contains("_")) {
+                val words = cleaned.replace("_", " ").trim()
+                val fallbackMeta = DownloadedMetadata(
+                    title = words,
+                    artist = "Unknown Artist",
+                    album = "Downloads",
+                    artworkUrl = null,
+                    duration = 0L
+                )
+                pathToMetadata[path] = fallbackMeta
+                return fallbackMeta
+            }
+        }
+
+        return null
+    }
+
+    private fun parseLegacyFilename(nameWithoutExt: String): Pair<String, String>? {
+        val withoutHash = nameWithoutExt.replace(Regex("_[0-9a-fA-F]{6,8}$"), "")
+        val knownPrefixes = listOf(
+            "Anirudh_Ravichander_" to "Anirudh Ravichander",
+            "A_R__Rahman_" to "A.R. Rahman",
+            "The_Chainsmokers_" to "The Chainsmokers",
+            "Na__Muthukumar_" to "Na. Muthukumar",
+            "Hariharan___K__S__Chithra_" to "Hariharan, K.S. Chithra",
+            "Bombay_Jayashree__Girishh_Gopa_" to "Bombay Jayashri",
+            "Asal_Kolaar___Anand_Kashinath_" to "Asal Kolaar, Anand Kashinath",
+            "Vivek_" to "Vivek",
+            "Oasis_" to "Oasis",
+            "Coldplay_" to "Coldplay",
+            "Sai_Abhyankkar_" to "Sai Abhyankkar",
+            "Sid_Sriram_" to "Sid Sriram",
+            "Harris_Jayaraj_" to "Harris Jayaraj",
+            "Yuvan_Shankar_Raja_" to "Yuvan Shankar Raja",
+            "Ilayaraja_" to "Ilaiyaraaja",
+            "Santhosh_Narayanan_" to "Santhosh Narayanan",
+            "D__Imman_" to "D. Imman",
+            "G_V__Prakash_Kumar_" to "G.V. Prakash Kumar",
+            "Hiphop_Tamizha_" to "Hiphop Tamizha"
+        )
+
+        for ((prefix, artist) in knownPrefixes) {
+            if (withoutHash.startsWith(prefix, ignoreCase = true)) {
+                val rawTitle = withoutHash.substring(prefix.length)
+                val title = rawTitle
+                    .replace("__From__", " (From ")
+                    .replace("__Original_Motion_Picture", " - Original")
+                    .replace("__Reprise", " (Reprise)")
+                    .replace("__Remix", " (Remix)")
+                    .replace("__", " ")
+                    .replace("_", " ")
+                    .replace(Regex("""\s+"""), " ")
+                    .trim()
+                val formattedTitle = if (rawTitle.contains("__From__") && !title.endsWith(")")) "$title)" else title
+                return Pair(formattedTitle, artist)
+            }
+        }
+
+        return null
     }
 
     fun onSongDeleted(context: Context, song: Song) {
@@ -675,6 +885,8 @@ object StreamDownloadManager {
             ?: idToLocalPath.remove(streamId)
             ?: idToLocalPath.remove(localId)
             ?: song.path
+
+        pathToMetadata.remove(localPath)
 
         try {
             val file = File(localPath)
@@ -697,6 +909,7 @@ object StreamDownloadManager {
                 .remove("dl_${song.id}")
                 .remove("dl_$streamId")
                 .remove("dl_$localId")
+                .remove("meta_$localPath")
                 .apply()
         } catch (_: Exception) {}
 
