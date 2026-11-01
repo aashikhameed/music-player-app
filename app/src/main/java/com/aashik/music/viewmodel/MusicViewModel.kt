@@ -184,7 +184,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val hideBottomBar: StateFlow<Boolean> = _hideBottomBar.asStateFlow()
 
     // ── YouTube & Video Playback Toggle & State ──
-    private val _playVideoForStreams = MutableStateFlow(appPrefs.getBoolean("play_video_for_streams", true))
+    private val _playVideoForStreams = MutableStateFlow(appPrefs.getBoolean("play_video_for_streams", false))
     val playVideoForStreams: StateFlow<Boolean> = _playVideoForStreams.asStateFlow()
 
     private val _currentVideoId = MutableStateFlow<String?>(null)
