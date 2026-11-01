@@ -22,7 +22,7 @@ object YouTubeVideoResolver {
     private val OFFICIAL_REGEX = Regex("""(?i)\(Official.*?\)""")
     private val BRACKET_REGEX = Regex("""\(.*?\)|\[.*?\]""")
     private val WHITESPACE_REGEX = Regex("""\s+""")
-    private val VIDEO_ID_REGEX = Regex(""""videoId":\s*"([a-zA-Z0-9_-]{11})"""")
+    private val VIDEO_RENDERER_ID_REGEX = Regex(""""videoRenderer":\{"videoId":\s*"([a-zA-Z0-9_-]{11})"""")
 
     suspend fun resolveVideoId(title: String, artist: String): String? = withContext(Dispatchers.IO) {
         val cleanTitle = title
@@ -41,10 +41,11 @@ object YouTubeVideoResolver {
         val cacheKey = "$cleanTitle::$cleanArtist".lowercase()
         videoCache[cacheKey]?.let { return@withContext it }
 
+        // Primary: YouTube Search API for actual music video renderers (avoids static album art ATVs)
         val query = "$cleanTitle $cleanArtist official music video"
         var conn: HttpURLConnection? = null
         try {
-            val url = URL("https://music.youtube.com/youtubei/v1/search?prettyPrint=false")
+            val url = URL("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
             conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 8000
@@ -52,20 +53,15 @@ object YouTubeVideoResolver {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-                setRequestProperty("X-Origin", "https://music.youtube.com")
-                setRequestProperty("Origin", "https://music.youtube.com")
-                setRequestProperty("Referer", "https://music.youtube.com/")
-                setRequestProperty("X-YouTube-Client-Name", "67")
-                setRequestProperty("X-YouTube-Client-Version", "1.20240101.01.00")
             }
 
             val escapedQuery = query.replace("\\", "\\\\").replace("\"", "\\\"")
-            val payload = """{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"1.20240101.01.00","hl":"en","gl":"US"}},"query":"$escapedQuery"}"""
+            val payload = """{"context":{"client":{"clientName":"WEB","clientVersion":"2.20240101.01.00","hl":"en","gl":"US"}},"query":"$escapedQuery"}"""
             conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
 
             if (conn.responseCode in 200..299) {
                 val response = conn.inputStream.bufferedReader().use { it.readText() }
-                val match = VIDEO_ID_REGEX.find(response)
+                val match = VIDEO_RENDERER_ID_REGEX.find(response)
                 val videoId = match?.groupValues?.get(1)
                 if (!videoId.isNullOrBlank()) {
                     videoCache[cacheKey] = videoId
