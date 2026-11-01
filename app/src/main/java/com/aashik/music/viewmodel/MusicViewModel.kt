@@ -187,6 +187,26 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _playVideoForStreams = MutableStateFlow(appPrefs.getBoolean("play_video_for_streams", false))
     val playVideoForStreams: StateFlow<Boolean> = _playVideoForStreams.asStateFlow()
 
+    private val _maxVideoQuality = MutableStateFlow(appPrefs.getString("max_video_quality", "720p") ?: "720p")
+    val maxVideoQuality: StateFlow<String> = _maxVideoQuality.asStateFlow()
+
+    fun setMaxVideoQuality(quality: String) {
+        _maxVideoQuality.value = quality
+        appPrefs.edit().putString("max_video_quality", quality).apply()
+        val wv = attachedVideoWebView?.get()
+        if (wv != null) {
+            val ytQuality = when (quality) {
+                "360p" -> "medium"
+                "480p" -> "large"
+                "1080p" -> "hd1080"
+                else -> "hd720"
+            }
+            wv.post {
+                wv.evaluateJavascript("if (player && typeof player.setPlaybackQuality === 'function') { player.setPlaybackQuality('$ytQuality'); }", null)
+            }
+        }
+    }
+
     private val _currentVideoId = MutableStateFlow<String?>(null)
     val currentVideoId: StateFlow<String?> = _currentVideoId.asStateFlow()
     private var videoResolverJob: Job? = null
@@ -219,6 +239,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onVideoEnded() {
+        viewModelScope.launch(Dispatchers.Main) {
+            playNextSong(isAutoCrossfade = false)
+        }
+    }
+
+    fun onVideoError(errorCode: Int) {
+        Log.w(TAG, "Video player error $errorCode: advancing to next track")
         viewModelScope.launch(Dispatchers.Main) {
             playNextSong(isAutoCrossfade = false)
         }
@@ -793,31 +820,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun skipForward10s() {
-        val wv = attachedVideoWebView?.get()
-        if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
-            val curSec = positionFlow.value / 1000f
-            val targetSec = curSec + 10f
-            wv.post {
-                wv.evaluateJavascript("if (typeof seekToTime === 'function') { seekToTime($targetSec); }", null)
-            }
-            musicPlayer.updateVideoPlaybackState(_isPlaying.value, ((curSec + 10f) * 1000f).toLong(), durationFlow.value)
-        } else {
-            musicPlayer.seekRelative(10_000L)
-        }
+        val curPos = positionFlow.value
+        val dur = durationFlow.value.coerceAtLeast(1L)
+        seekTo((curPos + 10_000L).coerceAtMost(dur))
     }
 
     fun skipBackward10s() {
-        val wv = attachedVideoWebView?.get()
-        if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
-            val curSec = positionFlow.value / 1000f
-            val targetSec = (curSec - 10f).coerceAtLeast(0f)
-            wv.post {
-                wv.evaluateJavascript("if (typeof seekToTime === 'function') { seekToTime($targetSec); }", null)
-            }
-            musicPlayer.updateVideoPlaybackState(_isPlaying.value, (targetSec * 1000f).toLong(), durationFlow.value)
-        } else {
-            musicPlayer.seekRelative(-10_000L)
-        }
+        val curPos = positionFlow.value
+        seekTo((curPos - 10_000L).coerceAtLeast(0L))
     }
 
     fun setSleepTimer(minutes: Int) {
@@ -1313,6 +1323,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _currentVideoId.value = null
             return
         }
+        _currentVideoId.value = null // Clear immediately so previous video doesn't keep playing
         videoResolverJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Resolving video for ${song.title} - ${song.artist}")
@@ -1562,18 +1573,23 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val queue = if (_isShuffleOn.value) activeShuffledSongs else activePlaylist
         val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         musicPlayer.setPlaylist(queue, startIndex)
+        musicPlayer.resetPlaybackForNewTrack(song)
 
         if (song.isStream() && !song.isDirectPlayable()) {
-            _isRadioLoading.value = true
-            viewModelScope.launch(Dispatchers.IO) {
-                val resolved = OnlineStreamRepository.resolvePlayableSong(song)
-                withContext(Dispatchers.Main) {
-                    _isRadioLoading.value = false
-                    if (_currentSong.value?.id == song.id) {
-                        _currentSong.value = resolved
-                        activePlaylist = activePlaylist.map { if (it.id == song.id) resolved else it }
-                        _songs.value = _songs.value.map { if (it.id == song.id) resolved else it }
-                        musicPlayer.play(resolved, isAutoCrossfade)
+            if (musicPlayer.isAudioSilencedForVideo()) {
+                musicPlayer.play(song, isAutoCrossfade)
+            } else {
+                _isRadioLoading.value = true
+                viewModelScope.launch(Dispatchers.IO) {
+                    val resolved = OnlineStreamRepository.resolvePlayableSong(song)
+                    withContext(Dispatchers.Main) {
+                        _isRadioLoading.value = false
+                        if (_currentSong.value?.id == song.id) {
+                            _currentSong.value = resolved
+                            activePlaylist = activePlaylist.map { if (it.id == song.id) resolved else it }
+                            _songs.value = _songs.value.map { if (it.id == song.id) resolved else it }
+                            musicPlayer.play(resolved, isAutoCrossfade)
+                        }
                     }
                 }
             }
@@ -1668,7 +1684,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val curPos = positionFlow.value
         // If track has been playing for more than 3 seconds, standard automotive behavior is to restart track
         if (curPos > 3000L) {
-            musicPlayer.seekTo(0L)
+            seekTo(0L)
             return
         }
 
@@ -1843,21 +1859,42 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun seekToFraction(fraction: Float) {
         viewModelScope.launch {
+            val clampedFraction = fraction.coerceIn(0f, 1f)
             val duration = musicPlayer.durationFlow.value.takeIf { it > 0 }
                 ?: currentSong.value?.duration?.takeIf { it > 0 }
-                ?: return@launch
-            val clampedFraction = fraction.coerceIn(0f, 1f)
+                ?: 0L
             val newPosition = (duration * clampedFraction).toLong()
             val wv = attachedVideoWebView?.get()
             if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
-                val sec = newPosition / 1000f
+                val secStr = String.format(java.util.Locale.US, "%.2f", newPosition / 1000f)
+                val fracStr = String.format(java.util.Locale.US, "%.4f", clampedFraction)
                 wv.post {
-                    wv.evaluateJavascript("if (typeof seekToTime === 'function') { seekToTime($sec); }", null)
+                    wv.evaluateJavascript(
+                        "if (typeof seekToFraction === 'function') { seekToFraction($fracStr); } else if (typeof seekToTime === 'function') { seekToTime($secStr); }",
+                        null
+                    )
                 }
                 musicPlayer.updateVideoPlaybackState(_isPlaying.value, newPosition, duration)
             } else {
                 musicPlayer.seekTo(newPosition)
             }
+        }
+    }
+
+    fun seekTo(positionMs: Long) {
+        val clampedPos = positionMs.coerceAtLeast(0L)
+        val duration = musicPlayer.durationFlow.value.takeIf { it > 0 }
+            ?: currentSong.value?.duration?.takeIf { it > 0 }
+            ?: 0L
+        val wv = attachedVideoWebView?.get()
+        if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
+            val secStr = String.format(java.util.Locale.US, "%.2f", clampedPos / 1000f)
+            wv.post {
+                wv.evaluateJavascript("if (typeof seekToTime === 'function') { seekToTime($secStr); }", null)
+            }
+            musicPlayer.updateVideoPlaybackState(_isPlaying.value, clampedPos, duration)
+        } else {
+            musicPlayer.seekTo(clampedPos)
         }
     }
 

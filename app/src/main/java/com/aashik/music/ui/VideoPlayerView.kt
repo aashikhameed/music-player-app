@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +49,14 @@ fun VideoPlayerView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val maxQualityConfig by viewModel.maxVideoQuality.collectAsState()
+    val ytQuality = when (maxQualityConfig) {
+        "360p" -> "medium"
+        "480p" -> "large"
+        "1080p" -> "hd1080"
+        else -> "hd720"
+    }
+
     val webView = remember {
         WebView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -74,7 +84,7 @@ fun VideoPlayerView(
         }
     }
 
-    // Register lightweight JavaScript interface for video telemetry and onEnded callbacks
+    // Register lightweight JavaScript interface for video telemetry, state, and onEnded callbacks
     DisposableEffect(webView, viewModel) {
         val bridge = object {
             @JavascriptInterface
@@ -98,6 +108,11 @@ fun VideoPlayerView(
             fun onVideoEnded() {
                 viewModel.onVideoEnded()
             }
+
+            @JavascriptInterface
+            fun onVideoError(errorCode: Int) {
+                viewModel.onVideoError(errorCode)
+            }
         }
         webView.addJavascriptInterface(bridge, "AndroidVideoBridge")
         viewModel.attachVideoPlayer(webView)
@@ -118,9 +133,10 @@ fun VideoPlayerView(
         }
     }
 
-    // Reload content whenever video target changes
-    DisposableEffect(videoId, videoUrl) {
-        val initialStartSec = (viewModel.positionFlow.value / 1000L).coerceAtLeast(0L)
+    // Reload content whenever video target changes.
+    // Newly loaded video always starts at 0s so seekbar resets and video plays from beginning.
+    DisposableEffect(videoId, videoUrl, ytQuality) {
+        val initialStartSec = 0L
         val initialPlaying = viewModel.isPlaying.value
 
         val htmlContent = if (!videoId.isNullOrBlank()) {
@@ -143,6 +159,7 @@ fun VideoPlayerView(
                 <script>
                     var player = null;
                     var progressTimer = null;
+                    var targetQuality = '$ytQuality';
 
                     function onYouTubeIframeAPIReady() {
                         player = new YT.Player('player', {
@@ -156,11 +173,13 @@ fun VideoPlayerView(
                                 'modestbranding': 1,
                                 'enablejsapi': 1,
                                 'origin': 'https://www.youtube-nocookie.com',
-                                'start': $initialStartSec
+                                'start': $initialStartSec,
+                                'suggestedQuality': targetQuality
                             },
                             events: {
                                 'onReady': onPlayerReady,
-                                'onStateChange': onPlayerStateChange
+                                'onStateChange': onPlayerStateChange,
+                                'onError': onPlayerError
                             }
                         });
                     }
@@ -169,6 +188,9 @@ fun VideoPlayerView(
                         try {
                             event.target.unMute();
                             event.target.setVolume(100);
+                            if (targetQuality && typeof event.target.setPlaybackQuality === 'function') {
+                                event.target.setPlaybackQuality(targetQuality);
+                            }
                             if ($initialPlaying) {
                                 event.target.playVideo();
                             }
@@ -189,9 +211,20 @@ fun VideoPlayerView(
 
                     function onPlayerStateChange(event) {
                         try {
+                            if (event.data === 1 && targetQuality && player && typeof player.setPlaybackQuality === 'function') {
+                                player.setPlaybackQuality(targetQuality);
+                            }
                             if (window.AndroidVideoBridge) {
                                 // YT.PlayerState: -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (cued)
                                 window.AndroidVideoBridge.onVideoStateChange(event.data);
+                            }
+                        } catch(e) {}
+                    }
+
+                    function onPlayerError(event) {
+                        try {
+                            if (window.AndroidVideoBridge) {
+                                window.AndroidVideoBridge.onVideoError(event.data || 0);
                             }
                         } catch(e) {}
                     }
@@ -213,6 +246,16 @@ fun VideoPlayerView(
                         if (!player) return;
                         try {
                             player.seekTo(sec, true);
+                        } catch(e) {}
+                    }
+
+                    function seekToFraction(fraction) {
+                        if (!player) return;
+                        try {
+                            var d = player.getDuration();
+                            if (d > 0) {
+                                player.seekTo(d * fraction, true);
+                            }
                         } catch(e) {}
                     }
                 </script>
@@ -264,6 +307,10 @@ fun VideoPlayerView(
 
                     function seekToTime(sec) {
                         if (vid) vid.currentTime = sec;
+                    }
+
+                    function seekToFraction(fraction) {
+                        if (vid && vid.duration) vid.currentTime = vid.duration * fraction;
                     }
 
                     function setPlaying(play) {

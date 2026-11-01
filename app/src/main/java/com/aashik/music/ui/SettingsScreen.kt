@@ -979,6 +979,51 @@ private fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
                 )
             }
 
+            val maxVideoQuality by viewModel.maxVideoQuality.collectAsState()
+            val qualityOptions = remember { listOf("360p", "480p", "720p", "1080p") }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Maximum Video Quality",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Resolution cap for smooth video streaming (default: 720p)",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    qualityOptions.forEach { q ->
+                        val isSelected = maxVideoQuality == q
+                        val chipBg = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        val chipText = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        Box(
+                            modifier = Modifier
+                                .clip(PresetBadgeShape)
+                                .background(chipBg)
+                                .clickable { viewModel.setMaxVideoQuality(q) }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = q,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = chipText
+                            )
+                        }
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

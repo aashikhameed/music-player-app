@@ -968,25 +968,7 @@ fun GenreDetailScreen(
                     }
                 }
 
-                // Shelf 2: Featured playlists
-                if (details?.featuredPlaylists?.isNotEmpty() == true) {
-                    item {
-                        ShelfHeader(title = "Featured playlists")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(items = details.featuredPlaylists, key = { it.id }) { item ->
-                                ShelfGenericCard(
-                                    item = item,
-                                    onClick = { viewModel.playShelfItem(item) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Shelf 3: Community playlists
+                // Community playlists
                 if (details?.communityPlaylists?.isNotEmpty() == true) {
                     item {
                         ShelfHeader(title = "Community playlists")
@@ -996,24 +978,6 @@ fun GenreDetailScreen(
                         ) {
                             items(items = details.communityPlaylists, key = { it.id }) { item ->
                                 CommunityPlaylistCard(
-                                    item = item,
-                                    onClick = { viewModel.playShelfItem(item) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Shelf 4: Albums
-                if (details?.albums?.isNotEmpty() == true) {
-                    item {
-                        ShelfHeader(title = "Albums")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(items = details.albums, key = { it.id }) { item ->
-                                ShelfGenericCard(
                                     item = item,
                                     onClick = { viewModel.playShelfItem(item) }
                                 )

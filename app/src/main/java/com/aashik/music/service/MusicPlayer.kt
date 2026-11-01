@@ -171,6 +171,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     override fun onPositionChanged(positionMs: Long) {
+        if (isAudioSilencedForVideo) return
         _positionFlow.value = positionMs
 
         if (crossfadeSeconds > 0 && _isPlayingFlow.value && !isTransitioning) {
@@ -337,9 +338,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     private fun startStreamTicker() {
+        if (isAudioSilencedForVideo) return
         streamTickerJob?.cancel()
         streamTickerJob = scope.launch(Dispatchers.Default) {
-            while (streamMediaPlayer != null && _isPlayingFlow.value) {
+            while (streamMediaPlayer != null && _isPlayingFlow.value && !isAudioSilencedForVideo) {
                 delay(250L)
                 val curPos = try { streamMediaPlayer?.currentPosition?.toLong() } catch (_: Exception) { null }
                 val pos = if (curPos != null && curPos > 0L) {
@@ -410,6 +412,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     fun setAudioSilencedForVideo(silenced: Boolean) {
         isAudioSilencedForVideo = silenced
         if (silenced) {
+            streamTickerJob?.cancel()
+            streamTickerJob = null
             nativeBridge.pause()
             try { streamMediaPlayer?.pause() } catch (_: Exception) {}
             try { audioManager.abandonAudioFocusRequest(focusRequest) } catch (_: Exception) {}
@@ -417,6 +421,17 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun isAudioSilencedForVideo(): Boolean = isAudioSilencedForVideo
+
+    fun resetPlaybackForNewTrack(song: Song) {
+        _currentSongFlow.value = song
+        _positionFlow.value = 0L
+        _durationFlow.value = if (song.duration > 0) song.duration else 0L
+        if (isAudioSilencedForVideo) {
+            streamTickerJob?.cancel()
+            streamTickerJob = null
+            _isPlayingFlow.value = true
+        }
+    }
 
     fun updateVideoPlaybackState(isPlaying: Boolean, positionMs: Long, durationMs: Long) {
         if (isAudioSilencedForVideo) {

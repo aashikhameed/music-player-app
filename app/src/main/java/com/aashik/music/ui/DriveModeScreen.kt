@@ -412,14 +412,14 @@ fun DriveModeScreen(
                         .weight(1f)
                         .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceEvenly
+                    verticalArrangement = if (isVideoActive) Arrangement.Bottom else Arrangement.SpaceEvenly
                 ) {
                     if (isVideoActive) {
-                        // Floating translucent metadata card directly overlaying full-screen video
+                        // Floating translucent metadata card placed at bottom of stage so video center is unobscured
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 24.dp),
+                                .padding(horizontal = 24.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
@@ -1353,12 +1353,12 @@ private fun MobileDriveHudStage(
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceEvenly
+        verticalArrangement = if (isVideoActive) Arrangement.Bottom else Arrangement.SpaceEvenly
     ) {
         if (isVideoActive) {
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
                     .background(color = VideoOverlayCardBg, shape = VideoOverlayCardShape)
                     .border(width = 1.dp, color = VideoOverlayBorderColor, shape = VideoOverlayCardShape)
             ) {
