@@ -133,88 +133,88 @@ fun VideoPlayerView(
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body, html { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+                    #player { width: 100%; height: 100%; border: none; }
                     iframe { width: 100%; height: 100%; border: none; }
                 </style>
             </head>
             <body>
-                <iframe id="player"
-                    src="https://www.youtube-nocookie.com/embed/$videoId?enablejsapi=1&autoplay=1&mute=0&controls=0&playsinline=1&modestbranding=1&rel=0&origin=https://www.youtube-nocookie.com&widget_referrer=https://www.youtube-nocookie.com&start=$initialStartSec"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowfullscreen>
-                </iframe>
+                <div id="player"></div>
+                <script src="https://www.youtube.com/iframe_api"></script>
                 <script>
-                    var frame = document.getElementById('player');
-                    var tickerInterval = null;
+                    var player = null;
+                    var progressTimer = null;
 
-                    function postCmd(func, args) {
+                    function onYouTubeIframeAPIReady() {
+                        player = new YT.Player('player', {
+                            videoId: '$videoId',
+                            host: 'https://www.youtube-nocookie.com',
+                            playerVars: {
+                                'autoplay': $initialPlaying ? 1 : 0,
+                                'controls': 0,
+                                'playsinline': 1,
+                                'rel': 0,
+                                'modestbranding': 1,
+                                'enablejsapi': 1,
+                                'origin': 'https://www.youtube-nocookie.com',
+                                'start': $initialStartSec
+                            },
+                            events: {
+                                'onReady': onPlayerReady,
+                                'onStateChange': onPlayerStateChange
+                            }
+                        });
+                    }
+
+                    function onPlayerReady(event) {
                         try {
-                            if (frame && frame.contentWindow) {
-                                frame.contentWindow.postMessage(JSON.stringify({
-                                    "event": "command",
-                                    "func": func,
-                                    "args": args || []
-                                }), "*");
+                            event.target.unMute();
+                            event.target.setVolume(100);
+                            if ($initialPlaying) {
+                                event.target.playVideo();
+                            }
+                        } catch(e) {}
+                        if (progressTimer) clearInterval(progressTimer);
+                        progressTimer = setInterval(function() {
+                            try {
+                                if (player && typeof player.getCurrentTime === 'function') {
+                                    var cur = player.getCurrentTime() || 0;
+                                    var dur = player.getDuration() || 0;
+                                    if (window.AndroidVideoBridge) {
+                                        window.AndroidVideoBridge.onVideoProgress(cur, dur);
+                                    }
+                                }
+                            } catch(e) {}
+                        }, 250);
+                    }
+
+                    function onPlayerStateChange(event) {
+                        try {
+                            if (window.AndroidVideoBridge) {
+                                // YT.PlayerState: -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (cued)
+                                window.AndroidVideoBridge.onVideoStateChange(event.data);
+                            }
+                        } catch(e) {}
+                    }
+
+                    function setPlaying(play) {
+                        if (!player) return;
+                        try {
+                            if (play) {
+                                player.unMute();
+                                player.setVolume(100);
+                                player.playVideo();
+                            } else {
+                                player.pauseVideo();
                             }
                         } catch(e) {}
                     }
 
                     function seekToTime(sec) {
-                        postCmd("seekTo", [sec, true]);
-                    }
-
-                    function setPlaying(play) {
-                        if (play) {
-                            postCmd("unMute", []);
-                            postCmd("setVolume", [100]);
-                            postCmd("playVideo", []);
-                        } else {
-                            postCmd("pauseVideo", []);
-                        }
-                    }
-
-                    // Listen to YouTube Player API postMessage events
-                    window.addEventListener("message", function(event) {
+                        if (!player) return;
                         try {
-                            var data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-                            if (data && (data.event === "onReady" || data.event === "initialDelivery")) {
-                                postCmd("unMute", []);
-                                postCmd("setVolume", [100]);
-                                if ($initialPlaying) {
-                                    postCmd("playVideo", []);
-                                }
-                            }
-                            if (data && data.event === "onStateChange") {
-                                if (window.AndroidVideoBridge) {
-                                    window.AndroidVideoBridge.onVideoStateChange(data.info);
-                                }
-                            }
-                            if (data && data.info && typeof data.info.currentTime === "number") {
-                                var cur = data.info.currentTime;
-                                var dur = data.info.duration || 0;
-                                if (window.AndroidVideoBridge) {
-                                    window.AndroidVideoBridge.onVideoProgress(cur, dur);
-                                }
-                            }
+                            player.seekTo(sec, true);
                         } catch(e) {}
-                    });
-
-                    function pollTime() {
-                        postCmd("getCurrentTime", []);
-                        postCmd("getDuration", []);
                     }
-
-                    window.onload = function() {
-                        postCmd("unMute", []);
-                        postCmd("setVolume", [100]);
-                        postCmd("addEventListener", ["onStateChange"]);
-                        if ($initialPlaying) {
-                            postCmd("playVideo", []);
-                        } else {
-                            postCmd("pauseVideo", []);
-                        }
-                        if (tickerInterval) clearInterval(tickerInterval);
-                        tickerInterval = setInterval(pollTime, 250);
-                    };
                 </script>
             </body>
             </html>

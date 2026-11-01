@@ -219,7 +219,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onVideoEnded() {
-        playNextSong(isAutoCrossfade = false)
+        viewModelScope.launch(Dispatchers.Main) {
+            playNextSong(isAutoCrossfade = false)
+        }
     }
 
     // ── Favorites State (persisted in SharedPreferences) ──
