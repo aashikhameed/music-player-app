@@ -116,6 +116,7 @@ import kotlinx.coroutines.launch
 private val DriveHudContainerShape = RoundedCornerShape(0.dp)
 private val ExitButtonShape = RoundedCornerShape(12.dp)
 private val BigArtworkShape = RoundedCornerShape(20.dp)
+private val MobileArtworkShape = RoundedCornerShape(16.dp)
 private val DriverBadgeShape = RoundedCornerShape(8.dp)
 private val SwipeFeedbackBadgeShape = RoundedCornerShape(14.dp)
 private val ClockBadgeShape = RoundedCornerShape(8.dp)
@@ -1327,104 +1328,160 @@ private fun MobileDriveHudStage(
                     }
             )
         } else {
-            // Hero Album Artwork with Apple CarPlay horizontal slide transition
-            Box(
+            // Row: Hero Visual (Artwork) on Left, Song Title & Artist next to it on Right
+            Row(
                 modifier = Modifier
-                    .size(190.dp)
-                    .background(
-                        color = if (isNightDimmerActive) Color(0xFF0D1117)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = BigArtworkShape
-                    )
-                    .clip(BigArtworkShape)
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
+                // Hero Album Artwork with Apple CarPlay horizontal slide transition
+                Box(
+                    modifier = Modifier
+                        .size(130.dp)
+                        .background(
+                            color = if (isNightDimmerActive) Color(0xFF0D1117)
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            shape = MobileArtworkShape
+                        )
+                        .clip(MobileArtworkShape)
+                ) {
+                    AnimatedContent(
+                        targetState = navigatingTrack,
+                        transitionSpec = {
+                            if (targetState.direction >= 0) {
+                                (slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> fullWidth }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                    .togetherWith(
+                                        slideOutHorizontally(
+                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { fullWidth -> -fullWidth }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                    )
+                            } else {
+                                (slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> -fullWidth }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                                    .togetherWith(
+                                        slideOutHorizontally(
+                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { fullWidth -> fullWidth }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                    )
+                            }
+                        },
+                        label = "MobileCarPlaySlideTransition"
+                    ) { navState ->
+                        val song = navState.song
+                        if (song != null) {
+                            AlbumArtImage(
+                                path = song.path,
+                                artworkUrl = song.artworkUrl,
+                                size = 130.dp,
+                                borderRadius = 16.dp,
+                                isPlaying = isPlaying,
+                                isHighRes = true,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.DirectionsCar,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(52.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(18.dp))
+
+                // Song Info Typography (Title, Artist, Album) - Next to Album Art
                 AnimatedContent(
                     targetState = navigatingTrack,
                     transitionSpec = {
                         if (targetState.direction >= 0) {
-                            (slideInHorizontally(
-                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                initialOffsetX = { fullWidth -> fullWidth }
-                            ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                            (slideInVertically(
+                                animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                initialOffsetY = { fullHeight -> fullHeight / 2 }
+                            ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
                                 .togetherWith(
-                                    slideOutHorizontally(
-                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                        targetOffsetX = { fullWidth -> -fullWidth }
-                                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                    slideOutVertically(
+                                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                        targetOffsetY = { fullHeight -> -fullHeight / 2 }
+                                    ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                 )
                         } else {
-                            (slideInHorizontally(
-                                animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                initialOffsetX = { fullWidth -> -fullWidth }
-                            ) + fadeIn(animationSpec = tween(durationMillis = 280)))
+                            (slideInVertically(
+                                animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                initialOffsetY = { fullHeight -> -fullHeight / 2 }
+                            ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
                                 .togetherWith(
-                                    slideOutHorizontally(
-                                        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                        targetOffsetX = { fullWidth -> fullWidth }
-                                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                    slideOutVertically(
+                                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                        targetOffsetY = { fullHeight -> fullHeight / 2 }
+                                    ) + fadeOut(animationSpec = tween(durationMillis = 180))
                                 )
                         }
                     },
-                    label = "MobileCarPlaySlideTransition"
-                ) { navState ->
-                    val song = navState.song
-                    if (song != null) {
-                        AlbumArtImage(
-                            path = song.path,
-                            size = 190.dp,
-                            borderRadius = 20.dp,
-                            isPlaying = isPlaying,
-                            isHighRes = true,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-            }
-
-            // Song Info Typography (Title, Artist, Album)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            ) {
-                if (currentSong?.isStream() == true) {
-                    Surface(
-                        shape = DriverBadgeShape,
-                        color = Color(0xFF00E676).copy(alpha = 0.15f),
-                        modifier = Modifier.padding(bottom = 4.dp)
+                    label = "MobileTypographyTransition",
+                    modifier = Modifier.weight(1f)
+                ) { track ->
+                    val song = track.song
+                    Column(
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.Center
                     ) {
+                        if (currentSong?.isStream() == true) {
+                            Surface(
+                                shape = DriverBadgeShape,
+                                color = Color(0xFF00E676).copy(alpha = 0.15f),
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFF00E676),
+                                    letterSpacing = 0.5.sp,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
                         Text(
-                            text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
-                            fontSize = 9.5.sp,
+                            text = song?.title ?: currentSong?.title ?: "No Song Playing",
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color(0xFF00E676),
-                            letterSpacing = 0.5.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            color = primaryTextColor,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.height(3.dp))
+
+                        val albumStr = song?.album ?: currentSong?.album.orEmpty()
+                        val artistStr = song?.artist ?: currentSong?.artist ?: "Select a track to start"
+                        val fullSongTitle = song?.title ?: currentSong?.title
+                        Text(
+                            text = if (albumStr.isNotBlank() && albumStr != fullSongTitle) "$artistStr • $albumStr" else artistStr,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
-
-                Text(
-                    text = currentSong?.title ?: "No Song Playing",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    color = primaryTextColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-
-                val albumStr = currentSong?.album.orEmpty()
-                val artistStr = currentSong?.artist ?: "Select a track to start"
-                Text(
-                    text = if (albumStr.isNotBlank() && albumStr != currentSong?.title) "$artistStr • $albumStr" else artistStr,
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
             }
         }
     }
