@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -23,7 +24,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import kotlinx.coroutines.flow.StateFlow
+import com.aashik.music.viewmodel.MusicViewModel
 
 // Precomputed shape constant strictly adhering to Automotive Mali GPU optimization guidelines
 private val VideoContainerShape = RoundedCornerShape(16.dp)
@@ -31,19 +32,18 @@ private val WV_VERSION_REGEX = Regex("""Version/\d+\.\d+ """)
 
 /**
  * Ultra-high-performance, zero-external-dependency Video & YouTube Stream Player.
- * Uses Android's hardware-accelerated WebView engine to stream YouTube music videos
+ * Uses Android's hardware-accelerated WebView engine to stream unmuted YouTube and local music videos
  * directly within the Automotive Headunit and Mobile HUD without any APK size bloat.
  * 
- * Synchronizes video playback clock and play/pause states directly with the primary
- * audio service, keeping EQ, Crossfade, and DSP intact while running video silently in sync.
+ * Synchronizes video playback clock, play/pause states, and completion events directly with
+ * MusicViewModel and MusicPlayer, driving all UI seeker/controls directly from the video engine.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun VideoPlayerView(
     videoId: String?,
     videoUrl: String?,
-    isPlaying: Boolean,
-    positionFlow: StateFlow<Long>,
+    viewModel: MusicViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -74,27 +74,54 @@ fun VideoPlayerView(
         }
     }
 
-    // Sync play/pause changes with the video surface
-    LaunchedEffect(isPlaying) {
-        webView.evaluateJavascript("if (typeof setPlaying === 'function') { setPlaying($isPlaying); }", null)
+    // Register lightweight JavaScript interface for video telemetry and onEnded callbacks
+    DisposableEffect(webView, viewModel) {
+        val bridge = object {
+            @JavascriptInterface
+            fun onVideoProgress(currentTimeSec: Float, durationSec: Float) {
+                val posMs = (currentTimeSec * 1000f).toLong()
+                val durMs = (durationSec * 1000f).toLong()
+                viewModel.onVideoTelemetry(posMs, durMs)
+            }
+
+            @JavascriptInterface
+            fun onVideoStateChange(state: Int) {
+                // YT.PlayerState: 1 = PLAYING, 2 = PAUSED, 3 = BUFFERING, 0 = ENDED
+                when (state) {
+                    1 -> viewModel.onVideoStateChange(true)
+                    2 -> viewModel.onVideoStateChange(false)
+                    0 -> viewModel.onVideoEnded()
+                }
+            }
+
+            @JavascriptInterface
+            fun onVideoEnded() {
+                viewModel.onVideoEnded()
+            }
+        }
+        webView.addJavascriptInterface(bridge, "AndroidVideoBridge")
+        viewModel.attachVideoPlayer(webView)
+
+        onDispose {
+            viewModel.detachVideoPlayer(webView)
+            try {
+                webView.removeJavascriptInterface("AndroidVideoBridge")
+            } catch (_: Exception) {}
+        }
     }
 
-    // Sync user seek jumps (> 1500ms difference) to the video surface without triggering UI recompositions
-    LaunchedEffect(positionFlow) {
-        var lastMs = positionFlow.value
-        positionFlow.collect { pos ->
-            if (kotlin.math.abs(pos - lastMs) > 1500L) {
-                val seekSec = pos / 1000f
-                webView.evaluateJavascript("if (typeof seekToTime === 'function') { seekToTime($seekSec); }", null)
-            }
-            lastMs = pos
+    // Sync play/pause changes with the video surface
+    val isPlayingFlow = viewModel.isPlaying
+    LaunchedEffect(isPlayingFlow) {
+        isPlayingFlow.collect { playing ->
+            webView.evaluateJavascript("if (typeof setPlaying === 'function') { setPlaying($playing); }", null)
         }
     }
 
     // Reload content whenever video target changes
     DisposableEffect(videoId, videoUrl) {
-        val initialStartSec = (positionFlow.value / 1000L).coerceAtLeast(0L)
-        val initialPlaying = isPlaying
+        val initialStartSec = (viewModel.positionFlow.value / 1000L).coerceAtLeast(0L)
+        val initialPlaying = viewModel.isPlaying.value
 
         val htmlContent = if (!videoId.isNullOrBlank()) {
             """
@@ -111,12 +138,14 @@ fun VideoPlayerView(
             </head>
             <body>
                 <iframe id="player"
-                    src="https://www.youtube-nocookie.com/embed/$videoId?enablejsapi=1&autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1&rel=0&origin=https://www.youtube-nocookie.com&widget_referrer=https://www.youtube-nocookie.com&start=$initialStartSec"
+                    src="https://www.youtube-nocookie.com/embed/$videoId?enablejsapi=1&autoplay=1&mute=0&controls=0&playsinline=1&modestbranding=1&rel=0&origin=https://www.youtube-nocookie.com&widget_referrer=https://www.youtube-nocookie.com&start=$initialStartSec"
                     allow="autoplay; encrypted-media; picture-in-picture"
                     allowfullscreen>
                 </iframe>
                 <script>
                     var frame = document.getElementById('player');
+                    var tickerInterval = null;
+
                     function postCmd(func, args) {
                         try {
                             if (frame && frame.contentWindow) {
@@ -141,13 +170,41 @@ fun VideoPlayerView(
                         }
                     }
 
+                    // Listen to YouTube Player API postMessage events
+                    window.addEventListener("message", function(event) {
+                        try {
+                            var data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+                            if (data && data.event === "onStateChange") {
+                                if (window.AndroidVideoBridge) {
+                                    window.AndroidVideoBridge.onVideoStateChange(data.info);
+                                }
+                            }
+                            if (data && data.info && typeof data.info.currentTime === "number") {
+                                var cur = data.info.currentTime;
+                                var dur = data.info.duration || 0;
+                                if (window.AndroidVideoBridge) {
+                                    window.AndroidVideoBridge.onVideoProgress(cur, dur);
+                                }
+                            }
+                        } catch(e) {}
+                    });
+
+                    function pollTime() {
+                        postCmd("getCurrentTime", []);
+                        postCmd("getDuration", []);
+                    }
+
                     window.onload = function() {
-                        postCmd("mute", []);
+                        postCmd("unMute", []);
+                        postCmd("setVolume", [100]);
+                        postCmd("addEventListener", ["onStateChange"]);
                         if ($initialPlaying) {
                             postCmd("playVideo", []);
                         } else {
                             postCmd("pauseVideo", []);
                         }
+                        if (tickerInterval) clearInterval(tickerInterval);
+                        tickerInterval = setInterval(pollTime, 250);
                     };
                 </script>
             </body>
@@ -166,16 +223,40 @@ fun VideoPlayerView(
                 </style>
             </head>
             <body>
-                <video id="vid" src="$videoUrl" autoplay muted playsinline></video>
+                <video id="vid" src="$videoUrl" autoplay playsinline></video>
                 <script>
                     var vid = document.getElementById('vid');
                     if (vid) {
                         vid.currentTime = $initialStartSec;
+                        vid.muted = false;
                         if (!$initialPlaying) vid.pause();
+                        
+                        vid.addEventListener('timeupdate', function() {
+                            if (window.AndroidVideoBridge) {
+                                window.AndroidVideoBridge.onVideoProgress(vid.currentTime, vid.duration || 0);
+                            }
+                        });
+                        vid.addEventListener('play', function() {
+                            if (window.AndroidVideoBridge) {
+                                window.AndroidVideoBridge.onVideoStateChange(1);
+                            }
+                        });
+                        vid.addEventListener('pause', function() {
+                            if (window.AndroidVideoBridge) {
+                                window.AndroidVideoBridge.onVideoStateChange(2);
+                            }
+                        });
+                        vid.addEventListener('ended', function() {
+                            if (window.AndroidVideoBridge) {
+                                window.AndroidVideoBridge.onVideoEnded();
+                            }
+                        });
                     }
+
                     function seekToTime(sec) {
                         if (vid) vid.currentTime = sec;
                     }
+
                     function setPlaying(play) {
                         if (!vid) return;
                         if (play) vid.play(); else vid.pause();

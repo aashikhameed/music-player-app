@@ -445,8 +445,7 @@ fun DriveModeScreen(
                             VideoPlayerView(
                                 videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
                                 videoUrl = if (currentSong?.isLocalVideo() == true) currentSong?.path else null,
-                                isPlaying = isPlaying,
-                                positionFlow = viewModel.positionFlow,
+                                viewModel = viewModel,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -1331,8 +1330,7 @@ private fun MobileDriveHudStage(
                 VideoPlayerView(
                     videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
                     videoUrl = if (currentSong?.isLocalVideo() == true) currentSong.path else null,
-                    isPlaying = isPlaying,
-                    positionFlow = viewModel.positionFlow,
+                    viewModel = viewModel,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)

@@ -85,6 +85,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     @Volatile
     private var streamElapsedMs: Long = 0L
 
+    @Volatile
+    private var isAudioSilencedForVideo: Boolean = false
+
     // Equalizer preset definitions matching C++ AudioEqualizer DSP
     private val PRESET_GAINS = arrayOf(
         floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),      // 0: Flat
@@ -400,6 +403,31 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         streamMediaPlayer = null
     }
 
+    fun setAudioSilencedForVideo(silenced: Boolean) {
+        isAudioSilencedForVideo = silenced
+        if (silenced) {
+            nativeBridge.setVolume(0.0f)
+            try { streamMediaPlayer?.setVolume(0.0f, 0.0f) } catch (_: Exception) {}
+        } else {
+            nativeBridge.setVolume(1.0f)
+            try { streamMediaPlayer?.setVolume(1.0f, 1.0f) } catch (_: Exception) {}
+        }
+    }
+
+    fun isAudioSilencedForVideo(): Boolean = isAudioSilencedForVideo
+
+    fun updateVideoPlaybackState(isPlaying: Boolean, positionMs: Long, durationMs: Long) {
+        if (isAudioSilencedForVideo) {
+            _isPlayingFlow.value = isPlaying
+            if (positionMs >= 0L) {
+                _positionFlow.value = positionMs
+            }
+            if (durationMs > 0L) {
+                _durationFlow.value = durationMs
+            }
+        }
+    }
+
     fun play(song: Song, isAutoCrossfade: Boolean = false) {
         val idx = playlist.indexOfFirst { it.id == song.id }
         if (idx != -1) {
@@ -528,9 +556,12 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                                         delay(stepDelay)
                                     }
                                     try {
-                                        player.setVolume(1.0f, 1.0f)
+                                        val targetVol = if (isAudioSilencedForVideo) 0.0f else 1.0f
+                                        player.setVolume(targetVol, targetVol)
                                     } catch (_: Exception) {}
                                 }
+                            } else if (isAudioSilencedForVideo) {
+                                try { player.setVolume(0.0f, 0.0f) } catch (_: Exception) {}
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to start streaming playback: ${e.message}")
@@ -580,6 +611,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                 val res = nativeBridge.playTrack(song.path, 0L, isAutoCrossfade)
                 if (res == 0) {
                     _isPlayingFlow.value = true
+                    if (isAudioSilencedForVideo) {
+                        nativeBridge.setVolume(0.0f)
+                    }
                     val nativeDur = nativeBridge.getDuration()
                     if (nativeDur > 0) {
                         _durationFlow.value = nativeDur
@@ -643,7 +677,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                 Log.e(TAG, "Failed to resume streaming: ${e.message}")
             }
         } else {
-            nativeBridge.setVolume(1.0f)
+            val vol = if (isAudioSilencedForVideo) 0.0f else 1.0f
+            nativeBridge.setVolume(vol)
             nativeBridge.resume()
             _isPlayingFlow.value = true
         }
@@ -691,7 +726,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             }
             return
         }
-        nativeBridge.setVolume(1.0f)
+        val vol = if (isAudioSilencedForVideo) 0.0f else 1.0f
+        nativeBridge.setVolume(vol)
         nativeBridge.seek(clampedPos)
     }
 

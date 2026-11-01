@@ -190,6 +190,37 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentVideoId = MutableStateFlow<String?>(null)
     val currentVideoId: StateFlow<String?> = _currentVideoId.asStateFlow()
     private var videoResolverJob: Job? = null
+    private var attachedVideoWebView: java.lang.ref.WeakReference<android.webkit.WebView>? = null
+
+    fun attachVideoPlayer(webView: android.webkit.WebView) {
+        attachedVideoWebView = java.lang.ref.WeakReference(webView)
+        musicPlayer.setAudioSilencedForVideo(true)
+    }
+
+    fun detachVideoPlayer(webView: android.webkit.WebView) {
+        if (attachedVideoWebView?.get() == webView) {
+            attachedVideoWebView = null
+            musicPlayer.setAudioSilencedForVideo(false)
+        }
+    }
+
+    fun onVideoTelemetry(posMs: Long, durMs: Long) {
+        musicPlayer.updateVideoPlaybackState(_isPlaying.value, posMs, durMs)
+    }
+
+    fun onVideoStateChange(isPlaying: Boolean) {
+        _isPlaying.value = isPlaying
+        musicPlayer.updateVideoPlaybackState(isPlaying, -1L, -1L)
+        if (isPlaying) {
+            MusicController.play(currentSong.value)
+        } else {
+            MusicController.pause()
+        }
+    }
+
+    fun onVideoEnded() {
+        playNextSong(isAutoCrossfade = false)
+    }
 
     // ── Favorites State (persisted in SharedPreferences) ──
     private val _favoritePaths = MutableStateFlow<Set<String>>(
@@ -760,11 +791,31 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun skipForward10s() {
-        musicPlayer.seekRelative(10_000L)
+        val wv = attachedVideoWebView?.get()
+        if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
+            val curSec = positionFlow.value / 1000f
+            val targetSec = curSec + 10f
+            wv.post {
+                wv.evaluateJavascript("if (typeof seekToTime === 'function') { seekToTime($targetSec); }", null)
+            }
+            musicPlayer.updateVideoPlaybackState(_isPlaying.value, ((curSec + 10f) * 1000f).toLong(), durationFlow.value)
+        } else {
+            musicPlayer.seekRelative(10_000L)
+        }
     }
 
     fun skipBackward10s() {
-        musicPlayer.seekRelative(-10_000L)
+        val wv = attachedVideoWebView?.get()
+        if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
+            val curSec = positionFlow.value / 1000f
+            val targetSec = (curSec - 10f).coerceAtLeast(0f)
+            wv.post {
+                wv.evaluateJavascript("if (typeof seekToTime === 'function') { seekToTime($targetSec); }", null)
+            }
+            musicPlayer.updateVideoPlaybackState(_isPlaying.value, (targetSec * 1000f).toLong(), durationFlow.value)
+        } else {
+            musicPlayer.seekRelative(-10_000L)
+        }
     }
 
     fun setSleepTimer(minutes: Int) {
@@ -1251,6 +1302,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val directId = song.getYouTubeVideoId()
         if (!directId.isNullOrBlank()) {
             _currentVideoId.value = directId
+            if (_playVideoForStreams.value) {
+                prefetchVideoQueue(directId, song)
+            }
             return
         }
         if (song.isLocalVideo()) {
@@ -1263,8 +1317,52 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 val resolved = com.aashik.music.service.YouTubeVideoResolver.resolveVideoId(song.title, song.artist)
                 Log.d(TAG, "Resolved video ID for ${song.title}: $resolved")
                 _currentVideoId.value = resolved
+                if (!resolved.isNullOrBlank() && _playVideoForStreams.value) {
+                    prefetchVideoQueue(resolved, song)
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Video resolution failed: ${e.message}")
+            }
+        }
+    }
+
+    private fun prefetchVideoQueue(seedVideoId: String, seedSong: Song) {
+        if (_userQueue.value.size > 2) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val radioTracks = com.aashik.music.service.YouTubeVideoResolver.fetchRadioQueue(seedVideoId)
+                if (radioTracks.isNotEmpty()) {
+                    val videoSongs = ArrayList<Song>(radioTracks.size)
+                    for (track in radioTracks) {
+                        if (track.videoId == seedVideoId) continue
+                        val artUrl = track.thumbnailUrl ?: ""
+                        val vs = Song(
+                            id = "online_yt_${track.videoId}",
+                            title = track.title,
+                            artist = track.artist,
+                            album = track.album,
+                            path = "https://www.youtube.com/watch?v=${track.videoId}",
+                            duration = track.durationMs,
+                            artworkUrl = artUrl
+                        )
+                        if (artUrl.isNotBlank()) {
+                            com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(vs.path, artUrl)
+                        }
+                        videoSongs.add(vs)
+                    }
+                    if (videoSongs.isNotEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            val currentQ = _userQueue.value
+                            val existingIds = (currentQ + listOf(seedSong)).map { it.id }.toSet()
+                            val uniqueNew = videoSongs.filter { it.id !in existingIds }
+                            if (uniqueNew.isNotEmpty()) {
+                                _userQueue.value = currentQ + uniqueNew
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "prefetchVideoQueue failed: ${e.message}")
             }
         }
     }
@@ -1687,12 +1785,24 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun pause() {
+        val wv = attachedVideoWebView?.get()
+        if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
+            wv.post {
+                wv.evaluateJavascript("if (typeof setPlaying === 'function') { setPlaying(false); }", null)
+            }
+        }
         musicPlayer.pause()
         _isPlaying.value = false
         MusicController.pause()
     }
 
     fun resumeMusic() {
+        val wv = attachedVideoWebView?.get()
+        if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
+            wv.post {
+                wv.evaluateJavascript("if (typeof setPlaying === 'function') { setPlaying(true); }", null)
+            }
+        }
         musicPlayer.resume()
         MusicController.play(currentSong.value)
     }
@@ -1736,7 +1846,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 ?: return@launch
             val clampedFraction = fraction.coerceIn(0f, 1f)
             val newPosition = (duration * clampedFraction).toLong()
-            musicPlayer.seekTo(newPosition)
+            val wv = attachedVideoWebView?.get()
+            if (wv != null && musicPlayer.isAudioSilencedForVideo()) {
+                val sec = newPosition / 1000f
+                wv.post {
+                    wv.evaluateJavascript("if (typeof seekToTime === 'function') { seekToTime($sec); }", null)
+                }
+                musicPlayer.updateVideoPlaybackState(_isPlaying.value, newPosition, duration)
+            } else {
+                musicPlayer.seekTo(newPosition)
+            }
         }
     }
 
