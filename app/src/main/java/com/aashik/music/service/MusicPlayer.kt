@@ -106,6 +106,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(attrs)
             .setOnAudioFocusChangeListener { focusChange ->
+                if (isAudioSilencedForVideo) {
+                    // Video player in WebView owns the audio session; ignore focus changes
+                    return@setOnAudioFocusChangeListener
+                }
                 when (focusChange) {
                     AudioManager.AUDIOFOCUS_LOSS -> pause()
                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
@@ -406,11 +410,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     fun setAudioSilencedForVideo(silenced: Boolean) {
         isAudioSilencedForVideo = silenced
         if (silenced) {
-            nativeBridge.setVolume(0.0f)
-            try { streamMediaPlayer?.setVolume(0.0f, 0.0f) } catch (_: Exception) {}
-        } else {
-            nativeBridge.setVolume(1.0f)
-            try { streamMediaPlayer?.setVolume(1.0f, 1.0f) } catch (_: Exception) {}
+            nativeBridge.pause()
+            try { streamMediaPlayer?.pause() } catch (_: Exception) {}
+            try { audioManager.abandonAudioFocusRequest(focusRequest) } catch (_: Exception) {}
         }
     }
 
@@ -434,6 +436,16 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             currentIndex = idx
             _currentIndexFlow.value = idx
         }
+        _currentSongFlow.value = song
+        _positionFlow.value = 0L
+        _durationFlow.value = song.duration
+
+        if (isAudioSilencedForVideo) {
+            // Video mode handles playback via WebView; bypass native & streaming engines completely
+            _isPlayingFlow.value = true
+            return
+        }
+
         try {
             val result = audioManager.requestAudioFocus(focusRequest)
             if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED &&
@@ -627,15 +639,17 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     fun pause() {
         _isTrackBufferingFlow.value = false
+        _isPlayingFlow.value = false
+        if (isAudioSilencedForVideo) {
+            return
+        }
         if (_currentSongFlow.value?.isStream() == true && streamMediaPlayer != null) {
             try {
                 streamMediaPlayer?.pause()
             } catch (_: Exception) {}
-            _isPlayingFlow.value = false
             stopStreamTicker()
         } else {
             nativeBridge.pause()
-            _isPlayingFlow.value = false
         }
         audioManager.abandonAudioFocusRequest(focusRequest)
     }
@@ -663,6 +677,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun resume() {
+        if (isAudioSilencedForVideo) {
+            _isPlayingFlow.value = true
+            return
+        }
         try {
             audioManager.requestAudioFocus(focusRequest)
         } catch (e: Exception) {
@@ -677,8 +695,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                 Log.e(TAG, "Failed to resume streaming: ${e.message}")
             }
         } else {
-            val vol = if (isAudioSilencedForVideo) 0.0f else 1.0f
-            nativeBridge.setVolume(vol)
+            nativeBridge.setVolume(1.0f)
             nativeBridge.resume()
             _isPlayingFlow.value = true
         }
@@ -711,6 +728,9 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     fun seekTo(position: Long) {
         val clampedPos = position.coerceAtLeast(0L)
         _positionFlow.value = clampedPos
+        if (isAudioSilencedForVideo) {
+            return
+        }
         if (_currentSongFlow.value?.isStream() == true) {
             streamElapsedMs = clampedPos
             if (_durationFlow.value > 0L) {

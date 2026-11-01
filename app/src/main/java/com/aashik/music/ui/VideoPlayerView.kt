@@ -164,6 +164,8 @@ fun VideoPlayerView(
 
                     function setPlaying(play) {
                         if (play) {
+                            postCmd("unMute", []);
+                            postCmd("setVolume", [100]);
                             postCmd("playVideo", []);
                         } else {
                             postCmd("pauseVideo", []);
@@ -174,6 +176,13 @@ fun VideoPlayerView(
                     window.addEventListener("message", function(event) {
                         try {
                             var data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+                            if (data && (data.event === "onReady" || data.event === "initialDelivery")) {
+                                postCmd("unMute", []);
+                                postCmd("setVolume", [100]);
+                                if ($initialPlaying) {
+                                    postCmd("playVideo", []);
+                                }
+                            }
                             if (data && data.event === "onStateChange") {
                                 if (window.AndroidVideoBridge) {
                                     window.AndroidVideoBridge.onVideoStateChange(data.info);

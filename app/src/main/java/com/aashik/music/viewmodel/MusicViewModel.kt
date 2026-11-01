@@ -1813,7 +1813,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 pause()
             } else {
                 currentSong.value?.let {
-                    if (musicPlayer.isPrepared()) {
+                    if (musicPlayer.isPrepared() || musicPlayer.isAudioSilencedForVideo()) {
                         resumeMusic()
                     } else {
                         play(it)
