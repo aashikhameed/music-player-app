@@ -730,6 +730,7 @@ fun DriveModeScreen(
                 isNightDimmerActive = isNightDimmerActive,
                 isDark = isDark,
                 controlInactiveColor = controlInactiveColor,
+                isVideoActive = isVideoActive,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = if (isPortrait) 6.dp else 0.dp)
@@ -860,6 +861,7 @@ private fun DriveHudActionBar(
     isNightDimmerActive: Boolean,
     isDark: Boolean,
     controlInactiveColor: Color,
+    isVideoActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isQueueOpen by viewModel.isQueueOpen.collectAsState()
@@ -880,7 +882,7 @@ private fun DriveHudActionBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
     ) {
         // 1. Current Song: Only Album Art immediately before Queue button
-        if (currentSong != null) {
+        if (currentSong != null && isVideoActive) {
             Box(
                 modifier = Modifier
                     .size(38.dp)
@@ -1167,23 +1169,6 @@ private fun DriveHudActionBar(
                 )
             }
         }
-
-        // 7. EQ Dialog Button
-        Box(
-            modifier = Modifier
-                .height(38.dp)
-                .background(color = actionButtonBg, shape = NextSongActionBarShape)
-                .clickable { viewModel.openEqualizer() }
-                .padding(horizontal = 10.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "EQ",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
     }
 }
 
@@ -1201,6 +1186,7 @@ private fun DriveHudSeekBar(
     val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
 
     CustomHorizontalSeekBar(
         progress = progress,
@@ -1208,7 +1194,7 @@ private fun DriveHudSeekBar(
         isPlaying = isPlaying,
         currentPositionMs = positionMs,
         durationMs = durationMs,
-        waveSeed = 42,
+        waveSeed = currentSong?.id?.hashCode() ?: 42,
         showTimeLabels = true,
         isLoading = isPlayerLoading,
         modifier = modifier

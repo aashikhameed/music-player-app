@@ -48,7 +48,8 @@ enum class LibraryTab {
     ALL_SONGS,
     FOLDERS,
     FAVORITES,
-    RADIO
+    RADIO,
+    MORE
 }
 
 private const val TAG = "MusicViewModel"
@@ -851,16 +852,26 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun selectTab(tab: LibraryTab) {
         _selectedTab.value = tab
         when (tab) {
-            LibraryTab.ALL_SONGS, LibraryTab.FAVORITES -> {
+            LibraryTab.ALL_SONGS -> {
+                _selectedFolder.value = null
+                viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
+            }
+            LibraryTab.FAVORITES -> {
                 _selectedFolder.value = null
                 viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
             }
             LibraryTab.FOLDERS -> {
                 updateFolderList()
+                if (_selectedFolder.value != null) {
+                    viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
+                }
             }
             LibraryTab.RADIO -> {
                 _selectedFolder.value = null
                 viewModelScope.launch(Dispatchers.Default) { applySearchFilter(_searchQuery.value) }
+            }
+            LibraryTab.MORE -> {
+                _selectedFolder.value = null
             }
         }
     }
@@ -1066,7 +1077,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Completely replace the active playlist & queue with the radio tracks
                 activePlaylist = fullQueue
-                _songs.value = fullQueue
 
                 // Update categorySongs so the UI list on the screen refreshes immediately!
                 _categorySongs.value = fullQueue
@@ -1114,7 +1124,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     withContext(Dispatchers.Main) {
                         val updatedPlaylist = activePlaylist + newTracks
                         activePlaylist = updatedPlaylist
-                        _songs.value = updatedPlaylist
                         _userQueue.value = _userQueue.value + newTracks
                         if (_selectedRadioCategory.value != null && _categorySongs.value.isNotEmpty()) {
                             _categorySongs.value = _categorySongs.value + newTracks
@@ -1223,10 +1232,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val selectedFolder = _selectedFolder.value
         val tab = _selectedTab.value
         val baseList = when {
+            tab == LibraryTab.ALL_SONGS -> {
+                originalSongs
+            }
             tab == LibraryTab.FAVORITES -> {
                 originalSongs.filter { _favoritePaths.value.contains(it.path) }
             }
-            selectedFolder != null -> {
+            tab == LibraryTab.FOLDERS && selectedFolder != null -> {
                 originalSongs.filter {
                     val p = it.path
                     val lastSlash = p.lastIndexOf('/')
@@ -1663,7 +1675,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                         withContext(Dispatchers.Main) {
                             val updatedPlaylist = activePlaylist + newTracks
                             activePlaylist = updatedPlaylist
-                            _songs.value = updatedPlaylist
                             _userQueue.value = newTracks.drop(1)
                             play(newTracks.first(), playlist = updatedPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
                             MusicController.play(newTracks.first())

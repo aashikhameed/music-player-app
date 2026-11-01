@@ -41,6 +41,7 @@ import com.aashik.music.service.DownloadStatus
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -55,6 +56,7 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -133,6 +135,8 @@ private val ShelfArtworkShape = RoundedCornerShape(12.dp)
 private val ShelfCardContainerShape = RoundedCornerShape(14.dp)
 private val CircleBackButtonShape = CircleShape
 private val CircleAvatarShape = CircleShape
+private val MoreCardShape = RoundedCornerShape(16.dp)
+private val MoreIconContainerShape = RoundedCornerShape(12.dp)
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -195,7 +199,11 @@ fun MusicListScreen(viewModel: MusicViewModel) {
     )
 
     // Handle system back button
-    BackHandler(enabled = isQueueOpen || isEqualizerOpen || isDriveModeOpen || isSettingsOpen || (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) || selectedTab == LibraryTab.RADIO) {
+    BackHandler(
+        enabled = isQueueOpen || isEqualizerOpen || isDriveModeOpen || isSettingsOpen ||
+                (isPortrait && selectedTab != LibraryTab.ALL_SONGS) ||
+                (!isPortrait && ((selectedTab == LibraryTab.FOLDERS && selectedFolder != null) || selectedTab == LibraryTab.RADIO))
+    ) {
         if (isQueueOpen) {
             viewModel.closeQueue()
         } else if (isEqualizerOpen) {
@@ -210,9 +218,15 @@ fun MusicListScreen(viewModel: MusicViewModel) {
             val cat = viewModel.selectedRadioCategory.value
             if (cat != null) {
                 viewModel.closeRadioCategory()
+            } else if (isPortrait) {
+                viewModel.selectTab(LibraryTab.MORE)
             } else {
                 viewModel.selectTab(LibraryTab.ALL_SONGS)
             }
+        } else if (isPortrait && (selectedTab == LibraryTab.FOLDERS || selectedTab == LibraryTab.FAVORITES)) {
+            viewModel.selectTab(LibraryTab.MORE)
+        } else if (isPortrait && selectedTab == LibraryTab.MORE) {
+            viewModel.selectTab(LibraryTab.ALL_SONGS)
         }
     }
 
@@ -333,10 +347,13 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                     isSearchOpen = !isSearchOpen
                                     if (!isSearchOpen) viewModel.onSearchQueryChanged("")
                                 },
-                                onBackFolder = { viewModel.closeFolder() },
-                                onOpenDriveMode = { viewModel.openDriveMode() },
-                                onOpenEqualizer = { viewModel.openEqualizer() },
-                                onOpenSettings = { viewModel.openSettings() },
+                                onBack = {
+                                    if (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
+                                        viewModel.closeFolder()
+                                    } else {
+                                        viewModel.selectTab(LibraryTab.MORE)
+                                    }
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 6.dp)
@@ -348,20 +365,33 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                 .fillMaxWidth()
                                 .weight(1f)
                         ) {
-                            MediaLibraryContent(
-                                viewModel = viewModel,
-                                selectedTab = selectedTab,
-                                selectedFolder = selectedFolder,
-                                folders = folders,
-                                songs = songs,
-                                currentSongId = currentSongId,
-                                favoritePaths = favoritePaths,
-                                searchQuery = searchQuery,
-                                gridState = listState,
-                                columns = 1,
-                                onSongLongPress = { songForActionMenu = it },
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            if (selectedTab == LibraryTab.MORE) {
+                                MobileMoreContent(
+                                    foldersCount = folders.size,
+                                    onNavigateToFolders = { viewModel.selectTab(LibraryTab.FOLDERS) },
+                                    onNavigateToFavorites = { viewModel.selectTab(LibraryTab.FAVORITES) },
+                                    onNavigateToExplore = { viewModel.selectTab(LibraryTab.RADIO) },
+                                    onOpenDriveMode = { viewModel.openDriveMode() },
+                                    onOpenEqualizer = { viewModel.openEqualizer() },
+                                    onOpenSettings = { viewModel.openSettings() },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                MediaLibraryContent(
+                                    viewModel = viewModel,
+                                    selectedTab = selectedTab,
+                                    selectedFolder = selectedFolder,
+                                    folders = folders,
+                                    songs = songs,
+                                    currentSongId = currentSongId,
+                                    favoritePaths = favoritePaths,
+                                    searchQuery = searchQuery,
+                                    gridState = listState,
+                                    columns = 1,
+                                    onSongLongPress = { songForActionMenu = it },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -376,10 +406,16 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                             Spacer(modifier = Modifier.height(6.dp))
                         }
 
-                        // Mobile Bottom Navigation Bar (Home, Explore, Library, Favorites)
+                        // Mobile Bottom Navigation Bar (All Songs, More)
                         MobileBottomNavBar(
                             selectedTab = selectedTab,
-                            onTabSelected = { viewModel.selectTab(it) }
+                            onTabSelected = { tab ->
+                                if (tab == LibraryTab.ALL_SONGS) {
+                                    viewModel.selectTab(LibraryTab.ALL_SONGS)
+                                } else {
+                                    viewModel.selectTab(LibraryTab.MORE)
+                                }
+                            }
                         )
                     }
                 } else {
@@ -408,7 +444,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                     .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = LandscapeFullSongShape)
                                     .padding(horizontal = 10.dp, vertical = 8.dp)
                             ) {
-                                val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedFolder != null) && songs.size > 5
+                                val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedTab == LibraryTab.MORE || selectedFolder != null) && songs.size > 5
                                 if (canScroll) {
                                     ModernVerticalScrollbar(
                                         gridState = listState,
@@ -1942,10 +1978,7 @@ private fun MobileHeader(
     searchQuery: String,
     onSearchQueryChanged: (String) -> Unit,
     onToggleSearch: () -> Unit,
-    onBackFolder: () -> Unit,
-    onOpenDriveMode: () -> Unit,
-    onOpenEqualizer: () -> Unit,
-    onOpenSettings: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (isSearchOpen) {
@@ -2029,20 +2062,32 @@ private fun MobileHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Left: Title or Back to Folder
-            if (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
-                val folderName = try {
-                    File(selectedFolder).name.ifBlank { selectedFolder }
-                } catch (_: Exception) {
-                    selectedFolder
+            // Left: Title or Back Button (for Folders, Favorites, Explore)
+            val isSubPage = selectedTab == LibraryTab.FOLDERS ||
+                    selectedTab == LibraryTab.FAVORITES ||
+                    selectedTab == LibraryTab.RADIO
+
+            if (isSubPage) {
+                val title = if (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
+                    try {
+                        File(selectedFolder).name.ifBlank { selectedFolder }
+                    } catch (_: Exception) {
+                        selectedFolder
+                    }
+                } else when (selectedTab) {
+                    LibraryTab.FOLDERS -> "Folders"
+                    LibraryTab.FAVORITES -> "Favorites"
+                    LibraryTab.RADIO -> "Explore"
+                    else -> "Back"
                 }
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     IconButton(
-                        onClick = onBackFolder,
+                        onClick = onBack,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
@@ -2053,7 +2098,7 @@ private fun MobileHeader(
                         )
                     }
                     Text(
-                        text = folderName,
+                        text = title,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -2063,9 +2108,8 @@ private fun MobileHeader(
             } else {
                 val title = when (selectedTab) {
                     LibraryTab.ALL_SONGS -> "Music"
-                    LibraryTab.RADIO -> "Explore"
-                    LibraryTab.FOLDERS -> "Library"
-                    LibraryTab.FAVORITES -> "Favorites"
+                    LibraryTab.MORE -> "More"
+                    else -> "Music"
                 }
                 Text(
                     text = title,
@@ -2078,11 +2122,8 @@ private fun MobileHeader(
                 )
             }
 
-            // Right Action Icons
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+            // Right Action: Search icon (shown everywhere except More menu)
+            if (selectedTab != LibraryTab.MORE) {
                 IconButton(
                     onClick = onToggleSearch,
                     modifier = Modifier.size(36.dp)
@@ -2090,39 +2131,6 @@ private fun MobileHeader(
                     Icon(
                         imageVector = Icons.Rounded.Search,
                         contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = onOpenEqualizer,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.GraphicEq,
-                        contentDescription = "Equalizer",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = onOpenDriveMode,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.DirectionsCar,
-                        contentDescription = "Drive HUD",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = "Settings",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
@@ -2327,36 +2335,22 @@ private fun MobileBottomNavBar(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
         ) {
             MobileNavTabItem(
-                label = "Home",
+                label = "All Songs",
                 icon = Icons.AutoMirrored.Rounded.QueueMusic,
                 isSelected = selectedTab == LibraryTab.ALL_SONGS,
                 onClick = { onTabSelected(LibraryTab.ALL_SONGS) },
                 modifier = Modifier.weight(1f)
             )
             MobileNavTabItem(
-                label = "Explore",
-                icon = Icons.Rounded.GridView,
-                isSelected = selectedTab == LibraryTab.RADIO,
-                onClick = { onTabSelected(LibraryTab.RADIO) },
-                modifier = Modifier.weight(1f)
-            )
-            MobileNavTabItem(
-                label = "Library",
-                icon = Icons.Rounded.Folder,
-                isSelected = selectedTab == LibraryTab.FOLDERS,
-                onClick = { onTabSelected(LibraryTab.FOLDERS) },
-                modifier = Modifier.weight(1f)
-            )
-            MobileNavTabItem(
-                label = "Favorites",
-                icon = Icons.Rounded.Favorite,
-                isSelected = selectedTab == LibraryTab.FAVORITES,
-                onClick = { onTabSelected(LibraryTab.FAVORITES) },
+                label = "More",
+                icon = Icons.Rounded.MoreHoriz,
+                isSelected = selectedTab != LibraryTab.ALL_SONGS,
+                onClick = { onTabSelected(LibraryTab.MORE) },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -2379,27 +2373,188 @@ private fun MobileNavTabItem(
             .clip(MobileActiveTabShape)
             .background(if (isSelected) activeBg else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                modifier = Modifier.size(17.dp)
+                modifier = Modifier.size(19.dp)
             )
             Text(
                 text = label,
-                fontSize = 10.5.sp,
-                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                fontSize = 12.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun MobileMoreContent(
+    foldersCount: Int,
+    onNavigateToFolders: () -> Unit,
+    onNavigateToFavorites: () -> Unit,
+    onNavigateToExplore: () -> Unit,
+    onOpenDriveMode: () -> Unit,
+    onOpenEqualizer: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val cardBg = if (isDark) Color(0xFF131823) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    val cardBorderColor = if (isDark) Color(0xFF1E2536) else Color(0xFFD8DCE4)
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp)
+    ) {
+        item {
+            MoreOptionRow(
+                icon = Icons.Rounded.FolderOpen,
+                iconTint = Color(0xFFFFB300),
+                title = "Folders",
+                subtitle = if (foldersCount > 0) "$foldersCount directories on device" else "Browse device music folders",
+                cardBg = cardBg,
+                cardBorderColor = cardBorderColor,
+                onClick = onNavigateToFolders
+            )
+        }
+        item {
+            MoreOptionRow(
+                icon = Icons.Rounded.Favorite,
+                iconTint = FavoriteHeartRed,
+                title = "Favorites",
+                subtitle = "Your liked songs & bookmarked streams",
+                cardBg = cardBg,
+                cardBorderColor = cardBorderColor,
+                onClick = onNavigateToFavorites
+            )
+        }
+        item {
+            MoreOptionRow(
+                icon = Icons.Rounded.Podcasts,
+                iconTint = Color(0xFF29B6F6),
+                title = "Explore",
+                subtitle = "Online streaming, genre radio & hits",
+                cardBg = cardBg,
+                cardBorderColor = cardBorderColor,
+                onClick = onNavigateToExplore
+            )
+        }
+        item {
+            MoreOptionRow(
+                icon = Icons.Rounded.DirectionsCar,
+                iconTint = Color(0xFF00E676),
+                title = "Drive Mode",
+                subtitle = "High-contrast automotive HUD controls",
+                cardBg = cardBg,
+                cardBorderColor = cardBorderColor,
+                onClick = onOpenDriveMode
+            )
+        }
+        item {
+            MoreOptionRow(
+                icon = Icons.Rounded.GraphicEq,
+                iconTint = Color(0xFFAB47BC),
+                title = "Equalizer",
+                subtitle = "10-band audio DSP & sound enhancement",
+                cardBg = cardBg,
+                cardBorderColor = cardBorderColor,
+                onClick = onOpenEqualizer
+            )
+        }
+        item {
+            MoreOptionRow(
+                icon = Icons.Rounded.Settings,
+                iconTint = MaterialTheme.colorScheme.primary,
+                title = "Settings",
+                subtitle = "Audio scanner, storage & app preferences",
+                cardBg = cardBg,
+                cardBorderColor = cardBorderColor,
+                onClick = onOpenSettings
+            )
+        }
+    }
+}
+
+@Composable
+private fun MoreOptionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    cardBg: Color,
+    cardBorderColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = MoreCardShape,
+        color = cardBg,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 0.8.dp, color = cardBorderColor, shape = MoreCardShape)
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(color = iconTint.copy(alpha = 0.15f), shape = MoreIconContainerShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 12.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(
+                imageVector = Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -2590,7 +2745,7 @@ fun LibraryModeHeader(
                 } else {
                     // Left Section Title & Count Badge
                     val (sectionTitle, sectionCount) = when (selectedTab) {
-                        LibraryTab.ALL_SONGS -> "All Songs" to songCount
+                        LibraryTab.ALL_SONGS, LibraryTab.MORE -> "All Songs" to songCount
                         LibraryTab.FOLDERS -> "Folders" to folderCount
                         LibraryTab.FAVORITES -> "Favorites" to favoriteCount
                         LibraryTab.RADIO -> "Explore" to radioCount

@@ -1,5 +1,11 @@
 package com.aashik.music.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -14,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -37,11 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aashik.music.theme.AppGradients
 import kotlin.math.roundToInt
 
 private val TooltipShape = RoundedCornerShape(6.dp)
-private val LoadingTrackShape = RoundedCornerShape(3.dp)
 private val InactiveDarkTrack = Color(0xFF263245)
 private val InactiveLightTrack = Color(0xFFCAD5E2)
 
@@ -56,13 +58,35 @@ private val WAVEFORM_BASE_AMPLITUDES = floatArrayOf(
 private const val NUM_WAVE_BARS = 48
 
 /**
- * High-Performance Telemetry Waveform Scrubber.
+ * Isolated phase animator that runs only during active audio stream loading / buffering.
+ * Returns 0f immediately and completely disposes the animation when not loading,
+ * ensuring 0 CPU / GPU overhead and zero frame ticks on automotive headunits.
+ */
+@Composable
+private fun rememberLoadingPhase(isLoading: Boolean): Float {
+    if (!isLoading) return 0f
+    val transition = rememberInfiniteTransition(label = "SeekerLoadingTransition")
+    val phase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "SeekerLoadingPhase"
+    )
+    return phase
+}
+
+/**
+ * High-Performance Telemetry Waveform Scrubber with Zero-Layout-Jump Loading Animation.
  *
- * Optimized for low-power head units with zero animation overhead:
+ * Optimized for low-power head units:
  * - 48-bar dynamic waveform canvas unrolled with zero runtime allocations
  * - Deterministic visual acoustic fingerprint per track (via waveSeed)
+ * - Custom acoustic radar sweep loading animation that perfectly preserves layout height (0px layout shifts)
  * - Interactive thumb with scrub time bubble tooltip
- * - Zero 60fps sinusoid loops or infinite transitions
+ * - Zero CPU / GPU overhead during normal playback
  */
 @Composable
 fun CustomHorizontalSeekBar(
@@ -85,60 +109,7 @@ fun CustomHorizontalSeekBar(
         if (isDark) InactiveDarkTrack else InactiveLightTrack
     }
 
-    if (isLoading) {
-        Column(
-            modifier = modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(LoadingTrackShape),
-                    color = activeColor,
-                    trackColor = resolvedInactiveColor
-                )
-            }
-            if (showTimeLabels) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 2.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Loading audio stream…",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = activeColor
-                    )
-                    if (durationMs > 0L) {
-                        Text(
-                            text = formatSeekTime(durationMs),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        Text(
-                            text = "LIVE",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00E676)
-                        )
-                    }
-                }
-            }
-        }
-        return
-    }
+    val loadingPhase = rememberLoadingPhase(isLoading)
 
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
@@ -172,16 +143,15 @@ fun CustomHorizontalSeekBar(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Floating Time Tooltip during Drag Scrubbing — fixed-height row so layout never shifts
+        // Floating Time Tooltip during Drag Scrubbing — fixed 18.dp row so layout never shifts
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(18.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            if (isDragging && durationMs > 0) {
+            if (isDragging && durationMs > 0L) {
                 val scrubMs = (displayProgress * durationMs).toLong()
-                val tipGradient = AppGradients.primaryButton()
 
                 Box(
                     modifier = Modifier
@@ -191,7 +161,7 @@ fun CustomHorizontalSeekBar(
                                 .coerceIn(0f, (barWidthPx - tipWidthPx).coerceAtLeast(0f))
                             IntOffset(offsetX.roundToInt(), 0)
                         }
-                        .background(brush = tipGradient, shape = TooltipShape)
+                        .background(color = activeColor, shape = TooltipShape)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
@@ -204,13 +174,14 @@ fun CustomHorizontalSeekBar(
             }
         }
 
-        // Interactive 48-Bar Dynamic Waveform Scrubber
+        // Interactive 48-Bar Dynamic Waveform Scrubber / Loading Sweep — fixed 28.dp height
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(28.dp)
                 .onSizeChanged { barWidthPx = it.width.toFloat() }
-                .pointerInput(Unit) {
+                .pointerInput(isLoading) {
+                    if (isLoading) return@pointerInput
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val downX = down.position.x
@@ -252,72 +223,164 @@ fun CustomHorizontalSeekBar(
 
                 if (canvasWidth <= 0f) return@Canvas
 
-                val progressX = (canvasWidth * displayProgress).coerceIn(0f, canvasWidth)
                 val step = canvasWidth / NUM_WAVE_BARS
                 val barWidth = (step * 0.58f).coerceIn(2.5f, 7.5f)
                 val seedOffset = kotlin.math.abs(waveSeed) % NUM_WAVE_BARS
 
-                // 1. Draw 48 dynamic waveform bars with rounded caps
-                for (i in 0 until NUM_WAVE_BARS) {
-                    val barX = i * step + step / 2f
-                    val amp = WAVEFORM_BASE_AMPLITUDES[(i + seedOffset) % NUM_WAVE_BARS]
-                    val barHalfHeight = ((canvasHeight * 0.42f) * amp).coerceAtLeast(3.5f)
+                if (isLoading) {
+                    // ── Custom Automotive Radar / Acoustic Sweep Loading Animation ──
+                    val scanCenterX = canvasWidth * loadingPhase
+                    val pulseRadiusPx = canvasWidth * 0.18f
+                    val restingColor = resolvedInactiveColor.copy(alpha = if (isDark) 0.35f else 0.5f)
 
-                    val isPlayed = barX <= progressX
-                    val barColor = if (isPlayed) activeColor else resolvedInactiveColor
+                    for (i in 0 until NUM_WAVE_BARS) {
+                        val barX = i * step + step / 2f
+                        val amp = WAVEFORM_BASE_AMPLITUDES[(i + seedOffset) % NUM_WAVE_BARS]
 
-                    drawLine(
-                        color = barColor,
-                        start = Offset(barX, centerY - barHalfHeight),
-                        end = Offset(barX, centerY + barHalfHeight),
-                        strokeWidth = barWidth,
-                        cap = StrokeCap.Round
+                        val distPx = kotlin.math.abs(barX - scanCenterX)
+                        val normalizedDist = (1f - (distPx / pulseRadiusPx)).coerceIn(0f, 1f)
+                        // Smoothstep curve for fluid bell-shaped intensity
+                        val intensity = normalizedDist * normalizedDist * (3f - 2f * normalizedDist)
+
+                        val baseHalf = ((canvasHeight * 0.28f) * amp).coerceAtLeast(2.5f)
+                        val peakHalf = ((canvasHeight * 0.44f) * amp).coerceAtLeast(3.5f)
+                        val barHalfHeight = baseHalf + (peakHalf - baseHalf) * intensity
+
+                        val barColor = if (intensity > 0.02f) {
+                            androidx.compose.ui.graphics.lerp(restingColor, activeColor, intensity)
+                        } else {
+                            restingColor
+                        }
+
+                        drawLine(
+                            color = barColor,
+                            start = Offset(barX, centerY - barHalfHeight),
+                            end = Offset(barX, centerY + barHalfHeight),
+                            strokeWidth = barWidth,
+                            cap = StrokeCap.Round
+                        )
+                    }
+
+                    // Luminous tracer playhead gliding with the scan wave
+                    drawCircle(
+                        color = activeColor.copy(alpha = 0.22f),
+                        radius = thumbRadiusPx * 1.6f,
+                        center = Offset(scanCenterX, centerY)
+                    )
+                    drawCircle(
+                        color = activeColor,
+                        radius = thumbRadiusPx * 0.85f,
+                        center = Offset(scanCenterX, centerY)
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = (thumbRadiusPx * 0.38f).coerceAtLeast(1.5f),
+                        center = Offset(scanCenterX, centerY)
+                    )
+                } else {
+                    // ── Normal Playback Waveform Scrubber ──
+                    val progressX = (canvasWidth * displayProgress).coerceIn(0f, canvasWidth)
+
+                    for (i in 0 until NUM_WAVE_BARS) {
+                        val barX = i * step + step / 2f
+                        val amp = WAVEFORM_BASE_AMPLITUDES[(i + seedOffset) % NUM_WAVE_BARS]
+                        val barHalfHeight = ((canvasHeight * 0.42f) * amp).coerceAtLeast(3.5f)
+
+                        val isPlayed = barX <= progressX
+                        val barColor = if (isPlayed) activeColor else resolvedInactiveColor
+
+                        drawLine(
+                            color = barColor,
+                            start = Offset(barX, centerY - barHalfHeight),
+                            end = Offset(barX, centerY + barHalfHeight),
+                            strokeWidth = barWidth,
+                            cap = StrokeCap.Round
+                        )
+                    }
+
+                    // Telemetry playhead indicator & glowing thumb
+                    drawCircle(
+                        color = activeColor,
+                        radius = thumbRadiusPx,
+                        center = Offset(progressX, centerY)
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = (thumbRadiusPx * 0.42f).coerceAtLeast(1.5f),
+                        center = Offset(progressX, centerY)
                     )
                 }
-
-                // 2. Telemetry playhead indicator & glowing thumb
-                drawCircle(
-                    color = activeColor,
-                    radius = thumbRadiusPx,
-                    center = Offset(progressX, centerY)
-                )
-                // Inner white contrast core
-                drawCircle(
-                    color = Color.White,
-                    radius = (thumbRadiusPx * 0.42f).coerceAtLeast(1.5f),
-                    center = Offset(progressX, centerY)
-                )
             }
         }
 
-        // Built-in Time Labels
-        if (showTimeLabels && durationMs > 0L) {
+        // Built-in Time Labels — fixed 20.dp height so layout never shifts
+        if (showTimeLabels) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                    .height(20.dp)
+                    .padding(horizontal = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val currentSec = if (isDragging || pendingSeekProgress != null) {
-                    (displayProgress * durationMs).toLong()
+                if (isLoading) {
+                    Text(
+                        text = "Buffering stream…",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = activeColor,
+                        maxLines = 1
+                    )
+                    if (durationMs > 0L) {
+                        Text(
+                            text = formatSeekTime(durationMs),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    } else {
+                        Text(
+                            text = "LIVE",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF00E676),
+                            maxLines = 1
+                        )
+                    }
                 } else {
-                    currentPositionMs
+                    val currentSec = if (isDragging || pendingSeekProgress != null) {
+                        (displayProgress * durationMs).toLong()
+                    } else {
+                        currentPositionMs
+                    }
+
+                    Text(
+                        text = formatSeekTime(currentSec),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+
+                    if (durationMs > 0L) {
+                        Text(
+                            text = formatSeekTime(durationMs),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    } else {
+                        Text(
+                            text = "LIVE",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF00E676),
+                            maxLines = 1
+                        )
+                    }
                 }
-
-                Text(
-                    text = formatSeekTime(currentSec),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = formatSeekTime(durationMs),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
