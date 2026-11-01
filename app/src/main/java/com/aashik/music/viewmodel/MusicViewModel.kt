@@ -1383,8 +1383,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setPlayVideoForStreams(enabled: Boolean) {
         _playVideoForStreams.value = enabled
         appPrefs.edit().putBoolean("play_video_for_streams", enabled).apply()
-        if (enabled && _currentVideoId.value.isNullOrBlank()) {
-            resolveVideoForSong(_currentSong.value)
+        if (enabled) {
+            if (_currentVideoId.value.isNullOrBlank()) {
+                resolveVideoForSong(_currentSong.value)
+            }
+        } else {
+            musicPlayer.setAudioSilencedForVideo(false)
         }
     }
 

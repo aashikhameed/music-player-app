@@ -410,13 +410,53 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun setAudioSilencedForVideo(silenced: Boolean) {
+        val wasSilenced = isAudioSilencedForVideo
         isAudioSilencedForVideo = silenced
         if (silenced) {
             streamTickerJob?.cancel()
             streamTickerJob = null
             nativeBridge.pause()
-            try { streamMediaPlayer?.pause() } catch (_: Exception) {}
+            try {
+                if (streamMediaPlayer?.isPlaying == true) {
+                    streamMediaPlayer?.pause()
+                }
+                streamMediaPlayer?.setVolume(0.0f, 0.0f)
+            } catch (_: Exception) {}
             try { audioManager.abandonAudioFocusRequest(focusRequest) } catch (_: Exception) {}
+        } else if (wasSilenced) {
+            val song = _currentSongFlow.value
+            val pos = _positionFlow.value
+            if (song != null) {
+                if (song.isStream()) {
+                    if (streamMediaPlayer != null) {
+                        try {
+                            audioManager.requestAudioFocus(focusRequest)
+                            streamMediaPlayer?.setVolume(1.0f, 1.0f)
+                            if (_isPlayingFlow.value) {
+                                streamMediaPlayer?.start()
+                                startStreamTicker()
+                            }
+                            if (pos > 0L) {
+                                seekTo(pos)
+                            }
+                        } catch (e: Exception) {
+                            play(song)
+                            if (pos > 0L) seekTo(pos)
+                        }
+                    } else {
+                        play(song)
+                        if (pos > 0L) seekTo(pos)
+                    }
+                } else {
+                    nativeBridge.setVolume(1.0f)
+                    if (_isPlayingFlow.value) {
+                        nativeBridge.resume()
+                    }
+                    if (pos > 0L) {
+                        nativeBridge.seek(pos)
+                    }
+                }
+            }
         }
     }
 
@@ -559,6 +599,11 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     setOnPreparedListener { player ->
                         try {
                             _isTrackBufferingFlow.value = false
+                            if (isAudioSilencedForVideo) {
+                                try { player.pause() } catch (_: Exception) {}
+                                try { player.setVolume(0.0f, 0.0f) } catch (_: Exception) {}
+                                return@setOnPreparedListener
+                            }
                             player.start()
                             _isPlayingFlow.value = true
                             val dur = if (player.duration > 0) player.duration.toLong() else if (song.duration > 0) song.duration else 0L
@@ -635,8 +680,13 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             }
 
             playJob = scope.launch(Dispatchers.IO) {
+                if (isAudioSilencedForVideo) return@launch
                 val res = nativeBridge.playTrack(song.path, 0L, isAutoCrossfade)
                 if (res == 0) {
+                    if (isAudioSilencedForVideo) {
+                        nativeBridge.pause()
+                        return@launch
+                    }
                     _isPlayingFlow.value = true
                     if (isAudioSilencedForVideo) {
                         nativeBridge.setVolume(0.0f)

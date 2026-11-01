@@ -10,7 +10,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,6 +46,7 @@ fun VideoPlayerView(
     videoId: String?,
     videoUrl: String?,
     viewModel: MusicViewModel,
+    onTap: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -198,7 +199,7 @@ fun VideoPlayerView(
                         if (progressTimer) clearInterval(progressTimer);
                         progressTimer = setInterval(function() {
                             try {
-                                if (player && typeof player.getCurrentTime === 'function') {
+                                if (player && typeof player.getCurrentTime === 'function' && typeof player.getPlayerState === 'function' && player.getPlayerState() === 1) {
                                     var cur = player.getCurrentTime() || 0;
                                     var dur = player.getDuration() || 0;
                                     if (window.AndroidVideoBridge) {
@@ -352,18 +353,17 @@ fun VideoPlayerView(
             factory = { webView },
             modifier = Modifier.fillMaxSize()
         )
-        // Transparent touch-blocking overlay: ALL gestures on the video surface are consumed here.
-        // Seek / play-pause must be driven ONLY by the bottom control strip.
+        // Transparent touch-blocking overlay: consumes taps so WebView doesn't trigger web UI or open links,
+        // and safely delegates taps to toggle HUD controls.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    awaitEachGesture {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            event.changes.forEach { it.consume() }
+                .pointerInput(onTap) {
+                    detectTapGestures(
+                        onTap = {
+                            onTap?.invoke()
                         }
-                    }
+                    )
                 }
         )
     }
