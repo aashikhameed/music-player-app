@@ -313,7 +313,7 @@ private fun SpeedCompensatedVolumeSection(viewModel: MusicViewModel) {
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Speed-Compensated Volume (SCVC)",
+                        text = "Speed Volume (SCVC)",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -534,7 +534,7 @@ private fun RefetchSection(viewModel: MusicViewModel) {
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Song Refetch & Media Scan",
+                        text = "Library Media Scanner",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -1624,7 +1624,7 @@ private fun EqualizerNavigationCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -1645,7 +1645,7 @@ private fun EqualizerNavigationCard(
                     )
                 }
 
-                Column(modifier = Modifier.weight(1f, fill = false)) {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1656,7 +1656,9 @@ private fun EqualizerNavigationCard(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             ),
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false
                         )
 
                         Box(
@@ -1672,7 +1674,9 @@ private fun EqualizerNavigationCard(
                                 text = if (isEnabled) "ACTIVE • $presetName" else "BYPASS",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }

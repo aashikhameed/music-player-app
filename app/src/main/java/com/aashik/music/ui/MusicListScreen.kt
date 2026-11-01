@@ -2179,8 +2179,8 @@ private fun MobileMiniPlayer(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
+                        .clip(CircleShape)
                         .clickable { viewModel.togglePlayPause() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -2198,11 +2198,11 @@ private fun MobileMiniPlayer(
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .clip(CircleShape)
                         .background(
                             MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.09f else 0.06f),
                             shape = CircleShape
                         )
+                        .clip(CircleShape)
                         .clickable { viewModel.playNextSong() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -2241,7 +2241,7 @@ private fun MobileBottomNavBar(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp),
+                .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
         ) {
@@ -2249,25 +2249,29 @@ private fun MobileBottomNavBar(
                 label = "Home",
                 icon = Icons.AutoMirrored.Rounded.QueueMusic,
                 isSelected = selectedTab == LibraryTab.ALL_SONGS,
-                onClick = { onTabSelected(LibraryTab.ALL_SONGS) }
+                onClick = { onTabSelected(LibraryTab.ALL_SONGS) },
+                modifier = Modifier.weight(1f)
             )
             MobileNavTabItem(
                 label = "Explore",
                 icon = Icons.Rounded.GridView,
                 isSelected = selectedTab == LibraryTab.RADIO,
-                onClick = { onTabSelected(LibraryTab.RADIO) }
+                onClick = { onTabSelected(LibraryTab.RADIO) },
+                modifier = Modifier.weight(1f)
             )
             MobileNavTabItem(
                 label = "Library",
                 icon = Icons.Rounded.Folder,
                 isSelected = selectedTab == LibraryTab.FOLDERS,
-                onClick = { onTabSelected(LibraryTab.FOLDERS) }
+                onClick = { onTabSelected(LibraryTab.FOLDERS) },
+                modifier = Modifier.weight(1f)
             )
             MobileNavTabItem(
                 label = "Favorites",
                 icon = Icons.Rounded.Favorite,
                 isSelected = selectedTab == LibraryTab.FAVORITES,
-                onClick = { onTabSelected(LibraryTab.FAVORITES) }
+                onClick = { onTabSelected(LibraryTab.FAVORITES) },
+                modifier = Modifier.weight(1f)
             )
         }
     }
@@ -2278,34 +2282,37 @@ private fun MobileNavTabItem(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val activeBg = if (isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.20f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(MobileActiveTabShape)
             .background(if (isSelected) activeBg else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                modifier = Modifier.size(19.dp)
+                modifier = Modifier.size(18.dp)
             )
             Text(
                 text = label,
-                fontSize = 11.5.sp,
+                fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                maxLines = 1,
+                softWrap = false
             )
         }
     }
