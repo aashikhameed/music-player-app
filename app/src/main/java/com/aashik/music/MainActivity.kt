@@ -46,33 +46,34 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        val vm = com.aashik.music.service.NotificationPlaybackService.instance?.viewModel
         val player = com.aashik.music.service.MusicPlayer.getInstance(this)
         return when (keyCode) {
             android.view.KeyEvent.KEYCODE_MEDIA_NEXT,
             android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                player.playNext()
+                if (vm != null) vm.playNextSong() else player.playNext()
                 true
             }
             android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS,
             android.view.KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                player.playPrevious()
+                if (vm != null) vm.playPreviousSong() else player.playPrevious()
                 true
             }
             android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> {
-                player.resume()
+                if (vm != null) vm.resumeMusic() else player.resume()
                 true
             }
             android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                player.pause()
+                if (vm != null) vm.pause() else player.pause()
                 true
             }
             android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
             android.view.KeyEvent.KEYCODE_HEADSETHOOK -> {
-                player.togglePlayPause()
+                if (vm != null) vm.togglePlayPause() else player.togglePlayPause()
                 true
             }
             android.view.KeyEvent.KEYCODE_MEDIA_STOP -> {
-                player.stop()
+                if (vm != null) vm.pause() else player.stop()
                 true
             }
             else -> super.onKeyDown(keyCode, event)

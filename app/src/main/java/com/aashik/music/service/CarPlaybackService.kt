@@ -91,7 +91,11 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
                 }
 
                 override fun onSeekTo(pos: Long) {
-                    MusicPlayer.getInstance(this@CarPlaybackService).seekTo(pos)
+                    if (viewModel != null) {
+                        viewModel?.seekTo(pos)
+                    } else {
+                        MusicPlayer.getInstance(this@CarPlaybackService).seekTo(pos)
+                    }
                 }
 
                 override fun onStop() {

@@ -58,7 +58,8 @@ class NotificationPlaybackService : Service() {
     private val binder = LocalBinder()
     private lateinit var mediaSession: MediaSessionCompat
     private val musicPlayer by lazy { MusicPlayer.getInstance(this) }
-    private var viewModel: MusicViewModel? = null
+    var viewModel: MusicViewModel? = null
+        private set
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var cachedLargeIcon: Bitmap? = null
@@ -186,7 +187,11 @@ class NotificationPlaybackService : Service() {
                 }
 
                 override fun onSeekTo(pos: Long) {
-                    musicPlayer.seekTo(pos)
+                    if (viewModel != null) {
+                        viewModel?.seekTo(pos)
+                    } else {
+                        musicPlayer.seekTo(pos)
+                    }
                     val state = if (musicPlayer.isPlayingFlow.value) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
                     updatePlaybackState(state, pos)
                 }
