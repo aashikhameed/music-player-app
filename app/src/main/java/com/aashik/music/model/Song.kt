@@ -102,6 +102,15 @@ data class Song(
         cachedBadge = label
         return label
     }
+
+    fun getFormattedDuration(): String {
+        if (duration <= 0) return ""
+        val totalSec = (duration / 1000).coerceAtLeast(0)
+        val m = totalSec / 60
+        val s = totalSec % 60
+        val secStr = if (s < 10) "0$s" else s.toString()
+        return "$m:$secStr"
+    }
 }
 
 @Immutable

@@ -906,7 +906,16 @@ object OnlineStreamRepository {
                     }
                     // Convert YouTubeCategoryItem → ExploreShelfItem
                     fun convertItems(items: List<YouTubeVideoResolver.YouTubeCategoryItem>): List<ExploreShelfItem> =
-                        items.map { ExploreShelfItem(id = it.id, title = it.title, subtitle = it.subtitle, artworkUrl = it.artworkUrl, type = if (it.id.startsWith("MPREb") || it.id.startsWith("OLAK")) "album" else "playlist") }
+                        items.map {
+                            ExploreShelfItem(
+                                id = it.id,
+                                title = it.title,
+                                subtitle = it.subtitle,
+                                artworkUrl = it.artworkUrl,
+                                type = if (it.id.startsWith("MPREb") || it.id.startsWith("OLAK")) "album" else "playlist",
+                                thumbnailUrls = it.thumbnailUrls
+                            )
+                        }
 
                     return@withContext ExploreCategoryDetails(
                         genre = genre,
@@ -940,7 +949,8 @@ data class ExploreShelfItem(
     val title: String,
     val subtitle: String,
     val artworkUrl: String,
-    val type: String
+    val type: String,
+    val thumbnailUrls: List<String> = emptyList()
 )
 
 data class ExploreCategoryDetails(

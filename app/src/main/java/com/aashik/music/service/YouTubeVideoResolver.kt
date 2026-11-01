@@ -96,7 +96,8 @@ object YouTubeVideoResolver {
         val title: String,
         val subtitle: String,
         val artworkUrl: String,
-        val type: String
+        val type: String,
+        val thumbnailUrls: List<String> = emptyList()
     )
 
     data class YouTubeCategoryShelves(
@@ -125,6 +126,21 @@ object YouTubeVideoResolver {
             return thumbs.optJSONObject(thumbs.length() - 1)?.optString("url")
         }
         return null
+    }
+
+    private fun extractMultiThumbnails(obj: org.json.JSONObject?): List<String> {
+        if (obj == null) return emptyList()
+        val multi = obj.optJSONObject("musicMultiThumbnailRenderer") ?: return emptyList()
+        val thumbsArr = multi.optJSONArray("thumbnails") ?: return emptyList()
+        val list = ArrayList<String>(thumbsArr.length())
+        for (i in 0 until thumbsArr.length()) {
+            val item = thumbsArr.optJSONObject(i) ?: continue
+            val url = extractThumbnail(item)
+            if (!url.isNullOrBlank()) {
+                list.add(url)
+            }
+        }
+        return list
     }
 
     /**
@@ -217,7 +233,9 @@ object YouTubeVideoResolver {
                         } else if (twoRow != null) {
                             val title = extractRuns(twoRow.optJSONObject("title"))
                             val subtitle = extractRuns(twoRow.optJSONObject("subtitle"))
-                            val thumb = extractThumbnail(twoRow.optJSONObject("thumbnailRenderer"))
+                            val thumbRenderer = twoRow.optJSONObject("thumbnailRenderer")
+                            val thumb = extractThumbnail(thumbRenderer)
+                            val multiThumbs = extractMultiThumbnails(thumbRenderer)
                             val browseEp = twoRow.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")
                             val browseId = browseEp?.optString("browseId") ?: ""
                             val watchEp = twoRow.optJSONObject("navigationEndpoint")?.optJSONObject("watchEndpoint")
@@ -228,8 +246,9 @@ object YouTubeVideoResolver {
                                     id = browseId,
                                     title = title,
                                     subtitle = subtitle,
-                                    artworkUrl = thumb ?: "",
-                                    type = if (browseId.startsWith("MPRE")) "album" else "playlist"
+                                    artworkUrl = thumb ?: (multiThumbs.firstOrNull() ?: ""),
+                                    type = if (browseId.startsWith("MPRE")) "album" else "playlist",
+                                    thumbnailUrls = multiThumbs
                                 )
                                 when {
                                     shelfTitleLower.contains("featured") -> featured.add(catItem)

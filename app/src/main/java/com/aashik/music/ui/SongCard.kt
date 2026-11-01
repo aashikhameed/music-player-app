@@ -1,59 +1,44 @@
 package com.aashik.music.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
-import com.aashik.music.theme.AppGradients
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-
-private val SongCardShape = RoundedCornerShape(14.dp)
-private val ArtVignetteShape = RoundedCornerShape(10.dp)
-private val BadgeShape = RoundedCornerShape(6.dp)
-
-private val BadgeDarkBg = Color(0xFF1E2638)
-private val BadgeLightBg = Color(0xFFE2E8F0)
-private val BadgeDarkText = Color(0xFF94A3B8)
-private val BadgeLightText = Color(0xFF475569)
-private val VignetteBlack = Color.Black.copy(alpha = 0.45f)
-private val FavoriteHeartRed = Color(0xFFFF5252)
+private val SongCardShape = RoundedCornerShape(10.dp)
+private val SongArtShape = RoundedCornerShape(8.dp)
 
 private val PLAYING_EQ_HEIGHTS = floatArrayOf(0.40f, 0.95f, 0.60f, 0.85f)
 private val IDLE_EQ_HEIGHTS = floatArrayOf(0.35f, 0.45f, 0.30f, 0.40f)
@@ -86,6 +71,12 @@ fun LiveAnimatedEqualizer(
     }
 }
 
+/**
+ * Modern flat song item row matching automotive glanceable UI:
+ * - 52dp square album artwork with 8dp rounded corners
+ * - Bold title (15sp) and muted artist (13sp)
+ * - Right row: active checkmark indicator (when playing), formatted duration (M:SS), and 3-dots more menu
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongCard(
@@ -99,20 +90,17 @@ fun SongCard(
     @Suppress("UNUSED_PARAMETER") onFavoriteClick: (() -> Unit)? = null
 ) {
     val widthModifier = if (cardWidth != null) Modifier.width(cardWidth) else Modifier.fillMaxWidth()
-    val cardGradient = AppGradients.card(isActive = isPlaying)
-    val borderBrush = AppGradients.border(isActive = isPlaying)
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val rowBackground = if (isPlaying) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    } else {
+        Color.Transparent
+    }
 
     Box(
         modifier = modifier
             .then(widthModifier)
-            .height(76.dp) // 1280×720 @ 160dpi: 76dp card = clear automotive touch target
-            .background(brush = cardGradient, shape = SongCardShape)
-            .border(
-                width = if (isPlaying) 1.6.dp else 1.dp,
-                brush = borderBrush,
-                shape = SongCardShape
-            )
+            .height(64.dp)
+            .background(color = rowBackground, shape = SongCardShape)
             .clip(SongCardShape)
             .combinedClickable(
                 onClick = onClick,
@@ -122,94 +110,93 @@ fun SongCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Album Artwork with active indicator
-            Box(contentAlignment = Alignment.Center) {
+            // Album Artwork (52dp, 8dp radius)
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(SongArtShape),
+                contentAlignment = Alignment.Center
+            ) {
                 AlbumArtImage(
                     path = song.path,
                     artworkUrl = song.artworkUrl,
-                    size = 56.dp,  // 56dp — fills the 76dp card nicely at 160dpi
-                    borderRadius = 10.dp,
+                    size = 52.dp,
+                    borderRadius = 8.dp,
                     isPlaying = isPlaying
                 )
-
-                if (isPlaying) {
-                    // Semi-translucent dark vignette over art with live equalizer overlay
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .background(VignetteBlack, shape = ArtVignetteShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        LiveAnimatedEqualizer(
-                            isPlaying = true,
-                            barColor = if (isDark) MaterialTheme.colorScheme.primary else Color.White
-                        )
-                    }
-                }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Metadata Info
+            // Title and Artist Column
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp, end = 8.dp),
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = song.title.ifEmpty { "Unknown Title" },
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold,
-                        fontSize = 15.sp  // 15sp for glanceable at automotive distance on 160dpi
+                        fontSize = 15.sp
                     ),
                     color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = song.artist.ifEmpty { "Unknown Artist" },
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), // bumped for 160dpi
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                Text(
+                    text = song.artist.ifEmpty { "Unknown Artist" },
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Right Row: Status / Played Checkmark, Duration, and 3-dots Menu
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (isPlaying) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = "Playing",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
                     )
+                }
 
-                    // Codec & Duration Micro-Pill
-                    val badgeBg = if (isPlaying) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.22f else 0.14f)
-                    } else {
-                        if (isDark) BadgeDarkBg else BadgeLightBg
-                    }
-                    val badgeTextColor = if (isPlaying) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        if (isDark) BadgeDarkText else BadgeLightText
-                    }
+                val formattedDuration = song.getFormattedDuration()
+                if (formattedDuration.isNotEmpty()) {
+                    Text(
+                        text = formattedDuration,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Normal
+                        ),
+                        color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-                    Box(
-                        modifier = Modifier
-                            .background(badgeBg, shape = BadgeShape)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = song.getBadgeLabel(),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = badgeTextColor,
-                            letterSpacing = 0.4.sp
-                        )
-                    }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(SongCardShape)
+                        .clickable(onClick = onLongPress),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = "Options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }

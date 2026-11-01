@@ -921,8 +921,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         categorySearchJob = viewModelScope.launch {
             _isLoadingCategorySongs.value = true
             try {
-                // YouTube Music playlist IDs start with VL, RDCLAK, or are MPREb (albums)
-                val isYouTubeId = item.id.startsWith("VL") || item.id.startsWith("RDCLAK") || item.id.startsWith("MPREb") || item.id.startsWith("OLAK")
+                // YouTube Music playlist IDs start with VL, PL, RDCLAK, or are MPREb (albums)
+                val isYouTubeId = item.id.startsWith("VL") || item.id.startsWith("PL") || item.id.startsWith("RDCLAK") || item.id.startsWith("MPREb") || item.id.startsWith("OLAK")
                 val songs: List<com.aashik.music.model.Song> = if (isYouTubeId) {
                     // Resolve via YouTube Music browse + JioSaavn stream resolution
                     val ytTracks = com.aashik.music.service.YouTubeVideoResolver.fetchPlaylistOrAlbumTracks(item.id)

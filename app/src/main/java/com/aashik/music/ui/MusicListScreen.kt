@@ -986,6 +986,24 @@ fun GenreDetailScreen(
                     }
                 }
 
+                // Shelf 3: Community playlists
+                if (details?.communityPlaylists?.isNotEmpty() == true) {
+                    item {
+                        ShelfHeader(title = "Community playlists")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(items = details.communityPlaylists, key = { it.id }) { item ->
+                                CommunityPlaylistCard(
+                                    item = item,
+                                    onClick = { viewModel.playShelfItem(item) }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Shelf 4: Albums
                 if (details?.albums?.isNotEmpty() == true) {
                     item {
@@ -1115,6 +1133,110 @@ private fun ShelfGenericCard(
             text = item.subtitle,
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun CommunityPlaylistCard(
+    item: com.aashik.music.service.ExploreShelfItem,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(140.dp)
+            .clip(ShelfCardContainerShape)
+            .clickable(onClick = onClick)
+    ) {
+        // Artwork: 2x2 collage if 4 multi-thumbnails available, otherwise single artwork
+        Box(
+            modifier = Modifier
+                .size(140.dp)
+                .clip(ShelfCardContainerShape)
+        ) {
+            if (item.thumbnailUrls.size >= 4) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            AlbumArtImage(
+                                path = item.thumbnailUrls[0],
+                                artworkUrl = item.thumbnailUrls[0],
+                                size = 70.dp,
+                                borderRadius = 0.dp,
+                                isHighRes = true
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            AlbumArtImage(
+                                path = item.thumbnailUrls[1],
+                                artworkUrl = item.thumbnailUrls[1],
+                                size = 70.dp,
+                                borderRadius = 0.dp,
+                                isHighRes = true
+                            )
+                        }
+                    }
+                    Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            AlbumArtImage(
+                                path = item.thumbnailUrls[2],
+                                artworkUrl = item.thumbnailUrls[2],
+                                size = 70.dp,
+                                borderRadius = 0.dp,
+                                isHighRes = true
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            AlbumArtImage(
+                                path = item.thumbnailUrls[3],
+                                artworkUrl = item.thumbnailUrls[3],
+                                size = 70.dp,
+                                borderRadius = 0.dp,
+                                isHighRes = true
+                            )
+                        }
+                    }
+                }
+            } else {
+                AlbumArtImage(
+                    path = item.artworkUrl,
+                    artworkUrl = item.artworkUrl,
+                    size = 140.dp,
+                    borderRadius = 14.dp,
+                    isHighRes = true
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(7.dp))
+
+        // Title
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        // Subtitle formatted as: playlist • [Creator] • [details]
+        val subText = if (item.subtitle.isNotBlank() && !item.subtitle.startsWith("playlist", ignoreCase = true)) {
+            "playlist • ${item.subtitle}"
+        } else if (item.subtitle.isNotBlank()) {
+            item.subtitle
+        } else {
+            "playlist"
+        }
+
+        Text(
+            text = subText,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
