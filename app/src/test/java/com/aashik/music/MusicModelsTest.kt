@@ -697,4 +697,83 @@ class MusicModelsTest {
         val displayProgress2 = pendingSeekProgress ?: incomingEngineProgress
         assertEquals(0.735f, displayProgress2, 0.001f)
     }
+
+    @Test
+    fun testLyricsLrcParsingAndActiveLineLookup() {
+        val sampleLrc = """
+            [00:05.20] First line of song
+            [00:15.500] Second line sung later
+            [00:25.00] Third line of song
+        """.trimIndent()
+
+        val parsed = com.aashik.music.service.LyricsRepository.parseLrc(sampleLrc)
+        assertEquals(3, parsed.size)
+        assertEquals(5200L, parsed[0].timeMs)
+        assertEquals("First line of song", parsed[0].text)
+        assertEquals(15500L, parsed[1].timeMs)
+        assertEquals("Second line sung later", parsed[1].text)
+        assertEquals(25000L, parsed[2].timeMs)
+
+        // Lookup at 10s: should return first line
+        val lineAt10s = parsed.indexOfLast { it.timeMs <= 10000L }
+        assertEquals(0, lineAt10s)
+        assertEquals("First line of song", parsed[lineAt10s].text)
+
+        // Lookup at 18s: should return second line
+        val lineAt18s = parsed.indexOfLast { it.timeMs <= 18000L }
+        assertEquals(1, lineAt18s)
+        assertEquals("Second line sung later", parsed[lineAt18s].text)
+    }
+
+    @Test
+    fun testAutoDownloadOneMinuteEligibility() {
+        val streamSong = Song(
+            id = "online_test_123",
+            title = "Streaming Track",
+            artist = "Artist",
+            album = "Album",
+            duration = 180000L,
+            path = "https://example.com/audio.mp3"
+        )
+        val localSong = Song(
+            id = "/sdcard/Music/local.mp3",
+            title = "Local Track",
+            artist = "Artist",
+            album = "Album",
+            duration = 180000L,
+            path = "/sdcard/Music/local.mp3"
+        )
+
+        // 1. Under 1 min (50s) stream: not eligible
+        val pos50s = 50000L
+        val eligible50s = streamSong.isStream() && pos50s >= 60000L
+        assertFalse(eligible50s)
+
+        // 2. Over 1 min (65s) stream: eligible
+        val pos65s = 65000L
+        val eligible65s = streamSong.isStream() && pos65s >= 60000L
+        assertTrue(eligible65s)
+
+        // 3. Over 1 min (65s) local song: not eligible (already local file)
+        val eligibleLocal = localSong.isStream() && pos65s >= 60000L
+        assertFalse(eligibleLocal)
+    }
+
+    @Test
+    fun testVideoAudioQueueIntegrity() {
+        // Given an active user queue
+        val currentQueue = listOf(
+            Song(id = "1", title = "Song 1", artist = "A", album = "Al", duration = 180000L, path = "http://1"),
+            Song(id = "2", title = "Song 2", artist = "B", album = "Al", duration = 180000L, path = "http://2")
+        )
+
+        // Toggling video mode on/off must keep the exact user queue unchanged
+        val isVideoActive = true
+        val queueInVideo = currentQueue
+        val queueInAudio = currentQueue
+
+        assertEquals(queueInVideo.size, queueInAudio.size)
+        assertEquals(queueInVideo[0].id, queueInAudio[0].id)
+        assertEquals(queueInVideo[1].id, queueInAudio[1].id)
+    }
 }

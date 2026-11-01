@@ -137,7 +137,8 @@ fun VideoPlayerView(
     // Reload content whenever video target changes.
     // Newly loaded video always starts at 0s so seekbar resets and video plays from beginning.
     DisposableEffect(videoId, videoUrl, ytQuality) {
-        val initialStartSec = 0L
+        val currentPosMs = viewModel.positionFlow.value
+        val initialStartSec = (currentPosMs / 1000L).coerceAtLeast(0L)
         val initialPlaying = viewModel.isPlaying.value
 
         val htmlContent = if (!videoId.isNullOrBlank()) {
@@ -191,6 +192,9 @@ fun VideoPlayerView(
                             event.target.setVolume(100);
                             if (targetQuality && typeof event.target.setPlaybackQuality === 'function') {
                                 event.target.setPlaybackQuality(targetQuality);
+                            }
+                            if ($initialStartSec > 0 && typeof event.target.seekTo === 'function') {
+                                event.target.seekTo($initialStartSec, true);
                             }
                             if ($initialPlaying) {
                                 event.target.playVideo();

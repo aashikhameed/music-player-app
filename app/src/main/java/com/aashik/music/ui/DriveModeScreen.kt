@@ -697,6 +697,13 @@ fun DriveModeScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
+
+                                    HudLyricLineDisplay(
+                                        viewModel = viewModel,
+                                        textColor = primaryTextColor.copy(alpha = 0.85f),
+                                        fontSize = 12.5.sp,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
                                 }
                             }
                         }
@@ -1173,6 +1180,48 @@ private fun DriveHudActionBar(
 }
 
 /**
+ * Isolated leaf composable displaying the currently sung synchronized lyric line.
+ * Recomposition-scoped to playback ticks without triggering recompositions of the outer HUD stage.
+ */
+@Composable
+private fun HudLyricLineDisplay(
+    viewModel: MusicViewModel,
+    textColor: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    modifier: Modifier = Modifier
+) {
+    val lyrics by viewModel.currentLyrics.collectAsState()
+    val positionMs by viewModel.positionFlow.collectAsState()
+
+    if (lyrics.isEmpty()) return
+
+    val currentLine = remember(lyrics, positionMs) {
+        val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
+        if (idx >= 0) {
+            val line = lyrics[idx]
+            val nextLineTime = lyrics.getOrNull(idx + 1)?.timeMs
+            if (nextLineTime != null && positionMs >= nextLineTime) {
+                null
+            } else {
+                line.text.takeIf { it.isNotBlank() }
+            }
+        } else null
+    }
+
+    if (!currentLine.isNullOrBlank()) {
+        Text(
+            text = currentLine,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Medium,
+            color = textColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier
+        )
+    }
+}
+
+/**
  * Isolated leaf composable for the Drive HUD seek bar.
  * Ensures 250ms playback ticks only recompose the seekbar and not the outer HUD screen.
  */
@@ -1427,23 +1476,6 @@ private fun MobileDriveHudStage(
                         horizontalAlignment = Alignment.Start,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        if (currentSong?.isStream() == true) {
-                            Surface(
-                                shape = DriverBadgeShape,
-                                color = Color(0xFF00E676).copy(alpha = 0.15f),
-                                modifier = Modifier.padding(bottom = 4.dp)
-                            ) {
-                                Text(
-                                    text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color(0xFF00E676),
-                                    letterSpacing = 0.5.sp,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-
                         Text(
                             text = song?.title ?: currentSong?.title ?: "No Song Playing",
                             fontSize = 18.sp,
@@ -1465,6 +1497,13 @@ private fun MobileDriveHudStage(
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
+                        )
+
+                        HudLyricLineDisplay(
+                            viewModel = viewModel,
+                            textColor = primaryTextColor.copy(alpha = 0.85f),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 3.dp)
                         )
                     }
                 }

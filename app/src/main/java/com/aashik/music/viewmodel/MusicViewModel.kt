@@ -397,6 +397,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         override fun onProviderDisabled(provider: String) {}
     }
 
+    // ── Auto-Download Listened Tracks Setting ──
+    private val _autoDownloadStreamTracks = MutableStateFlow(
+        appPrefs.getBoolean("auto_download_streams", false)
+    )
+    val autoDownloadStreamTracks: StateFlow<Boolean> = _autoDownloadStreamTracks.asStateFlow()
+    private val autoDownloadedSongIds = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    // ── Synchronized Lyrics State ──
+    private var lyricsJob: Job? = null
+    private val _currentLyrics = MutableStateFlow<List<com.aashik.music.service.LyricLine>>(emptyList())
+    val currentLyrics: StateFlow<List<com.aashik.music.service.LyricLine>> = _currentLyrics.asStateFlow()
+
     init {
         viewModelScope.launch {
             themePref.isDarkMode.collect {
@@ -419,6 +431,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _currentSong.collect { song ->
                 resolveVideoForSong(song)
+                fetchLyricsForSong(song)
+            }
+        }
+
+        viewModelScope.launch {
+            positionFlow.collect { posMs ->
+                if (_autoDownloadStreamTracks.value && posMs >= 60_000L) {
+                    val song = _currentSong.value
+                    if (song != null && song.isStream() && !StreamDownloadManager.isDownloaded(song.id)) {
+                        if (autoDownloadedSongIds.add(song.id)) {
+                            Log.d(TAG, "Auto-downloading stream song after 1 min playback: ${song.title} (${song.id})")
+                            downloadSong(song)
+                        }
+                    }
+                }
             }
         }
 
@@ -1351,8 +1378,26 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setAutoDownloadStreamTracks(enabled: Boolean) {
+        _autoDownloadStreamTracks.value = enabled
+        appPrefs.edit().putBoolean("auto_download_streams", enabled).apply()
+    }
+
+    private fun fetchLyricsForSong(song: Song?) {
+        lyricsJob?.cancel()
+        _currentLyrics.value = emptyList()
+        if (song == null) return
+        lyricsJob = viewModelScope.launch(Dispatchers.IO) {
+            val lines = com.aashik.music.service.LyricsRepository.getLyrics(song)
+            if (lines != null && _currentSong.value?.id == song.id) {
+                _currentLyrics.value = lines
+            }
+        }
+    }
+
     private fun prefetchVideoQueue(seedVideoId: String, seedSong: Song) {
-        if (_userQueue.value.size > 2) return
+        // Only prefetch autoplay recommendations if user has no pending queue and isn't playing a multi-song playlist
+        if (_userQueue.value.isNotEmpty() || activePlaylist.size > 1) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val radioTracks = com.aashik.music.service.YouTubeVideoResolver.fetchRadioQueue(seedVideoId)
@@ -1378,6 +1423,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     if (videoSongs.isNotEmpty()) {
                         withContext(Dispatchers.Main) {
                             val currentQ = _userQueue.value
+                            if (currentQ.isNotEmpty() || activePlaylist.size > 1) return@withContext
                             val existingIds = (currentQ + listOf(seedSong)).map { it.id }.toSet()
                             val uniqueNew = videoSongs.filter { it.id !in existingIds }
                             if (uniqueNew.isNotEmpty()) {
@@ -1395,12 +1441,42 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setPlayVideoForStreams(enabled: Boolean) {
         _playVideoForStreams.value = enabled
         appPrefs.edit().putBoolean("play_video_for_streams", enabled).apply()
+        val current = _currentSong.value
+        val currentPos = positionFlow.value
+        val currentlyPlaying = _isPlaying.value
+
         if (enabled) {
             if (_currentVideoId.value.isNullOrBlank()) {
-                resolveVideoForSong(_currentSong.value)
+                resolveVideoForSong(current)
             }
         } else {
             musicPlayer.setAudioSilencedForVideo(false)
+            if (current != null) {
+                if (current.isStream() && !current.isDirectPlayable()) {
+                    viewModelScope.launch(Dispatchers.IO) {
+                        val resolved = OnlineStreamRepository.resolvePlayableSong(current)
+                        withContext(Dispatchers.Main) {
+                            if (_currentSong.value?.id == current.id) {
+                                musicPlayer.play(resolved, isAutoCrossfade = false)
+                                if (currentPos > 0) {
+                                    musicPlayer.seekTo(currentPos)
+                                }
+                                if (!currentlyPlaying) {
+                                    musicPlayer.pause()
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    musicPlayer.play(current, isAutoCrossfade = false)
+                    if (currentPos > 0) {
+                        musicPlayer.seekTo(currentPos)
+                    }
+                    if (!currentlyPlaying) {
+                        musicPlayer.pause()
+                    }
+                }
+            }
         }
     }
 
@@ -1592,25 +1668,25 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         musicPlayer.resetPlaybackForNewTrack(song)
 
         if (song.isStream() && !song.isDirectPlayable()) {
-            if (musicPlayer.isAudioSilencedForVideo()) {
-                musicPlayer.play(song, isAutoCrossfade)
-            } else {
-                _isRadioLoading.value = true
-                viewModelScope.launch(Dispatchers.IO) {
-                    val resolved = OnlineStreamRepository.resolvePlayableSong(song)
-                    withContext(Dispatchers.Main) {
-                        _isRadioLoading.value = false
-                        if (_currentSong.value?.id == song.id) {
-                            _currentSong.value = resolved
-                            activePlaylist = activePlaylist.map { if (it.id == song.id) resolved else it }
-                            _songs.value = _songs.value.map { if (it.id == song.id) resolved else it }
+            _isRadioLoading.value = true
+            viewModelScope.launch(Dispatchers.IO) {
+                val resolved = OnlineStreamRepository.resolvePlayableSong(song)
+                withContext(Dispatchers.Main) {
+                    _isRadioLoading.value = false
+                    if (_currentSong.value?.id == song.id) {
+                        _currentSong.value = resolved
+                        activePlaylist = activePlaylist.map { if (it.id == song.id) resolved else it }
+                        _songs.value = _songs.value.map { if (it.id == song.id) resolved else it }
+                        if (!musicPlayer.isAudioSilencedForVideo()) {
                             musicPlayer.play(resolved, isAutoCrossfade)
                         }
                     }
                 }
             }
         } else {
-            musicPlayer.play(song, isAutoCrossfade)
+            if (!musicPlayer.isAudioSilencedForVideo()) {
+                musicPlayer.play(song, isAutoCrossfade)
+            }
         }
         viewModelScope.launch {
             songDao.saveLastPlayed(song)
