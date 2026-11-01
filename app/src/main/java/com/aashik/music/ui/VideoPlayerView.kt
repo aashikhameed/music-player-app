@@ -134,7 +134,7 @@ fun VideoPlayerView(
                     * { margin: 0; padding: 0; box-sizing: border-box; }
                     body, html { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
                     #player { width: 100%; height: 100%; border: none; }
-                    iframe { width: 100%; height: 100%; border: none; }
+                    iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
                 </style>
             </head>
             <body>

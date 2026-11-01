@@ -2,6 +2,7 @@ package com.aashik.music.ui
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -119,6 +120,9 @@ private val TopVisualizerCapsuleShape = RoundedCornerShape(10.dp)
 private val EqPresetChipShape = RoundedCornerShape(10.dp)
 private val BottomMusicCardShape = RoundedCornerShape(18.dp)
 private val NightDimmerPillShape = RoundedCornerShape(10.dp)
+private val VideoOverlayCardShape = RoundedCornerShape(16.dp)
+private val VideoOverlayBorderColor = Color(0x33FFFFFF)
+private val VideoOverlayCardBg = Color(0xD90D131C)
 
 private val DriveHudBackground = Color(0xFF090D14)
 private val StealthOledBlack = Color(0xFF000000)
@@ -196,10 +200,19 @@ fun DriveModeScreen(
     var swipeFeedbackText by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
+    val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
+    val currentVideoId by viewModel.currentVideoId.collectAsState()
+    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
+    var areControlsVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(currentSong?.id) {
+        areControlsVisible = true
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(color = hudBg, shape = DriveHudContainerShape)
+            .background(color = if (isVideoActive) StealthOledBlack else hudBg, shape = DriveHudContainerShape)
             .statusBarsPadding()
             .pointerInput(swipeThresholdPx) {
                 var accumulatedDrag = 0f
@@ -236,17 +249,49 @@ fun DriveModeScreen(
             }
             .pointerInput(Unit) {
                 detectTapGestures(
+                    onTap = {
+                        if (isVideoActive) {
+                            areControlsVisible = !areControlsVisible
+                        }
+                    },
                     onDoubleTap = {
                         viewModel.togglePlayPause()
                     }
                 )
             }
-            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+        // ── Full-Screen Edge-to-Edge Video ──
+        if (isVideoActive) {
+            VideoPlayerView(
+                videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
+                videoUrl = if (currentSong?.isLocalVideo() == true) currentSong?.path else null,
+                viewModel = viewModel,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Dimming scrim when controls overlay is visible for high contrast
+            if (areControlsVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                )
+            }
+        }
+
+        // ── Controls Overlay ──
+        AnimatedVisibility(
+            visible = !isVideoActive || areControlsVisible,
+            enter = fadeIn(animationSpec = tween(250)),
+            exit = fadeOut(animationSpec = tween(250)),
+            modifier = Modifier.fillMaxSize()
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
             // ── Top Row: Left Side Time & Exit | Right Side Equalizer with Presets ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -369,36 +414,97 @@ fun DriveModeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
-                    val currentVideoId by viewModel.currentVideoId.collectAsState()
-                    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
-
-                    // Row: Hero Visual (Video or Artwork) on Left, Song Title & Artist next to it on Right
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        if (isVideoActive) {
-                            Box(
+                    if (isVideoActive) {
+                        // Floating translucent metadata card directly overlaying full-screen video
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
                                 modifier = Modifier
-                                    .size(width = 280.dp, height = 160.dp)
-                                    .background(
-                                        color = Color.Black,
-                                        shape = BigArtworkShape
-                                    )
-                                    .clip(BigArtworkShape)
+                                    .background(color = VideoOverlayCardBg, shape = VideoOverlayCardShape)
+                                    .border(width = 1.dp, color = VideoOverlayBorderColor, shape = VideoOverlayCardShape)
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(20.dp)
                             ) {
-                                VideoPlayerView(
-                                    videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
-                                    videoUrl = if (currentSong?.isLocalVideo() == true) currentSong?.path else null,
-                                    viewModel = viewModel,
-                                    modifier = Modifier.fillMaxSize()
+                                Column(
+                                    horizontalAlignment = Alignment.Start,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.widthIn(max = 500.dp)
+                                ) {
+                                    if (isStreamPlaying || isRadioActive) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    color = Color(0xFF00E676).copy(alpha = 0.2f),
+                                                    shape = DriverBadgeShape
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .background(Color(0xFF00E676), shape = CircleShape)
+                                                )
+                                                Text(
+                                                    text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
+                                                    fontSize = 9.5.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = Color(0xFF00E676),
+                                                    letterSpacing = 0.5.sp
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                    }
+
+                                    Text(
+                                        text = currentSong?.title ?: "No Song Playing",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    val albumStr = currentSong?.album.orEmpty()
+                                    val artistStr = currentSong?.artist ?: "Select a track to start"
+                                    Text(
+                                        text = if (albumStr.isNotBlank() && albumStr != currentSong?.title) "$artistStr • $albumStr" else artistStr,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                // Single Next Song Card (shows only the next queued song)
+                                HudSingleNextSongCard(
+                                    nextSong = upcomingSongs.firstOrNull(),
+                                    isRadioActive = isRadioActive,
+                                    isDark = true,
+                                    isNightDimmer = isNightDimmerActive,
+                                    onPlayNext = { s -> viewModel.play(s, direction = 1) }
                                 )
                             }
-                        } else {
+                        }
+                    } else {
+                        // Row: Hero Visual (Artwork) on Left, Song Title & Artist next to it on Right
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
                             // Hero Album Artwork with Apple CarPlay horizontal slide transition
                             Box(
                                 modifier = Modifier
@@ -588,6 +694,7 @@ fun DriveModeScreen(
 
             // ── Bottom Row: Seeker Bar and Playback Controls ──
             val bottomCardBg = when {
+                isVideoActive -> Color(0xD90A0E17)
                 isNightDimmerActive -> Color(0xFF090D13)
                 isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
@@ -690,6 +797,7 @@ fun DriveModeScreen(
                 }
             }
         }
+    }
 
         // ── Gesture Feedback Overlay Badge ──
         if (swipeFeedbackText != null) {
@@ -1250,19 +1358,54 @@ private fun MobileDriveHudStage(
         if (isVideoActive) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .height(210.dp),
-                contentAlignment = Alignment.Center
+                    .background(color = VideoOverlayCardBg, shape = VideoOverlayCardShape)
+                    .border(width = 1.dp, color = VideoOverlayBorderColor, shape = VideoOverlayCardShape)
             ) {
-                VideoPlayerView(
-                    videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
-                    videoUrl = if (currentSong?.isLocalVideo() == true) currentSong.path else null,
-                    viewModel = viewModel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                ) {
+                    if (currentSong?.isStream() == true) {
+                        Surface(
+                            shape = DriverBadgeShape,
+                            color = Color(0xFF00E676).copy(alpha = 0.2f),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        ) {
+                            Text(
+                                text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF00E676),
+                                letterSpacing = 0.5.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = currentSong?.title ?: "No Song Playing",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+
+                    val albumStr = currentSong?.album.orEmpty()
+                    val artistStr = currentSong?.artist ?: "Select a track to start"
+                    Text(
+                        text = if (albumStr.isNotBlank() && albumStr != currentSong?.title) "$artistStr • $albumStr" else artistStr,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             }
         } else {
             // Hero Album Artwork with Apple CarPlay horizontal slide transition
@@ -1318,52 +1461,52 @@ private fun MobileDriveHudStage(
                     }
                 }
             }
-        }
 
-        // Song Info Typography (Title, Artist, Album) - persistent across both video and artwork modes
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        ) {
-            if (currentSong?.isStream() == true) {
-                Surface(
-                    shape = DriverBadgeShape,
-                    color = Color(0xFF00E676).copy(alpha = 0.15f),
-                    modifier = Modifier.padding(bottom = 4.dp)
-                ) {
-                    Text(
-                        text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFF00E676),
-                        letterSpacing = 0.5.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
+            // Song Info Typography (Title, Artist, Album)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                if (currentSong?.isStream() == true) {
+                    Surface(
+                        shape = DriverBadgeShape,
+                        color = Color(0xFF00E676).copy(alpha = 0.15f),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    ) {
+                        Text(
+                            text = if (isRadioActive) "LIVE COMMUNITY RADIO" else "ONLINE STREAM",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF00E676),
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
                 }
+
+                Text(
+                    text = currentSong?.title ?: "No Song Playing",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = primaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+
+                val albumStr = currentSong?.album.orEmpty()
+                val artistStr = currentSong?.artist ?: "Select a track to start"
+                Text(
+                    text = if (albumStr.isNotBlank() && albumStr != currentSong?.title) "$artistStr • $albumStr" else artistStr,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
             }
-
-            Text(
-                text = currentSong?.title ?: "No Song Playing",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Black,
-                color = primaryTextColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-
-            val albumStr = currentSong?.album.orEmpty()
-            val artistStr = currentSong?.artist ?: "Select a track to start"
-            Text(
-                text = if (albumStr.isNotBlank() && albumStr != currentSong?.title) "$artistStr • $albumStr" else artistStr,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 2.dp)
-            )
         }
 
         // Single Next Song Card
