@@ -17,39 +17,80 @@ object YouTubeVideoResolver {
     private const val TAG = "YouTubeVideoResolver"
     private val videoCache = ConcurrentHashMap<String, String>()
 
-    private val FROM_REGEX = Regex("""(?i)\(From\s+["'][^"']+["']\)""")
-    private val REPRISE_REGEX = Regex("""(?i)\(Reprise\)""")
+    private val FROM_REGEX = Regex("""(?i)\(From\s+["']?[^"'\)]+["']?\)""")
+    private val BRACKET_FROM_REGEX = Regex("""(?i)\[From\s+[^\]]+\]""")
+    private val REPRISE_REGEX = Regex("""(?i)\(Reprise\)|\[Reprise\]""")
+    private val REMIX_REGEX = Regex("""(?i)\(Remix\)|\[Remix\]""")
     private val OFFICIAL_REGEX = Regex("""(?i)\(Official.*?\)""")
     private val BRACKET_REGEX = Regex("""\(.*?\)|\[.*?\]""")
+    private val PIPE_REGEX = Regex("""(?i)\|.*""")
+    private val FEAT_REGEX = Regex("""(?i)\b(feat\.|ft\.).*""")
+    private val VIEWS_REGEX = Regex("""(?i)[•·]\s*\d+.*views.*""")
     private val WHITESPACE_REGEX = Regex("""\s+""")
-    private val VIDEO_RENDERER_ID_REGEX = Regex(""""videoRenderer":\{"videoId":\s*"([a-zA-Z0-9_-]{11})"""")
+
+    private data class VideoCandidate(val id: String, val title: String, val channel: String)
 
     suspend fun resolveVideoId(title: String, artist: String): String? = withContext(Dispatchers.IO) {
         val cleanTitle = title
-            .replace("&amp;", "&")
             .replace(FROM_REGEX, "")
+            .replace(BRACKET_FROM_REGEX, "")
             .replace(REPRISE_REGEX, "")
+            .replace(REMIX_REGEX, "")
             .replace(OFFICIAL_REGEX, "")
+            .replace(PIPE_REGEX, "")
+            .replace(FEAT_REGEX, "")
             .replace(BRACKET_REGEX, "")
-            .replace(WHITESPACE_REGEX, " ")
-            .trim()
-        val cleanArtist = artist
             .replace("&amp;", "&")
-            .replace(BRACKET_REGEX, "")
             .replace(WHITESPACE_REGEX, " ")
             .trim()
+
+        var cleanArtist = artist
+            .replace(VIEWS_REGEX, "")
+            .replace(BRACKET_REGEX, "")
+            .replace("&amp;", "&")
+            .replace(WHITESPACE_REGEX, " ")
+            .trim()
+
+        if (cleanArtist.equals("<unknown>", ignoreCase = true) ||
+            cleanArtist.equals("Unknown Artist", ignoreCase = true) ||
+            cleanArtist.equals("Unknown Album", ignoreCase = true)) {
+            cleanArtist = ""
+        }
+
         val cacheKey = "$cleanTitle::$cleanArtist".lowercase()
         videoCache[cacheKey]?.let { return@withContext it }
 
-        // Primary: YouTube Search API for actual music video renderers (avoids static album art ATVs)
-        val query = "$cleanTitle $cleanArtist official music video"
+        // Multiple query strategies in order of precision: prioritize official music video over static album art
+        val queries = mutableListOf<String>()
+        if (cleanArtist.isNotBlank()) {
+            queries.add("$cleanTitle $cleanArtist official video")
+            queries.add("$cleanTitle $cleanArtist video song")
+            queries.add("$cleanTitle $cleanArtist")
+        } else {
+            queries.add("$cleanTitle official video")
+            queries.add("$cleanTitle video song")
+            queries.add(cleanTitle)
+        }
+
+        for (query in queries) {
+            val videoId = searchYouTubeForVideo(query)
+            if (!videoId.isNullOrBlank()) {
+                videoCache[cacheKey] = videoId
+                return@withContext videoId
+            }
+        }
+
+        null
+    }
+
+    private fun searchYouTubeForVideo(query: String): String? {
         var conn: HttpURLConnection? = null
         try {
             val url = URL("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
             conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
-                connectTimeout = 8000
-                readTimeout = 10000
+                connectTimeout = 6000
+                readTimeout = 8000
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
@@ -61,19 +102,85 @@ object YouTubeVideoResolver {
 
             if (conn.responseCode in 200..299) {
                 val response = conn.inputStream.bufferedReader().use { it.readText() }
-                val match = VIDEO_RENDERER_ID_REGEX.find(response)
-                val videoId = match?.groupValues?.get(1)
-                if (!videoId.isNullOrBlank()) {
-                    videoCache[cacheKey] = videoId
-                    return@withContext videoId
-                }
+                return parseBestVideoRenderer(response)
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Video resolution failed for $cleanTitle: ${e.message}")
+            Log.w(TAG, "Search failed for query '$query': ${e.message}")
         } finally {
             try { conn?.disconnect() } catch (_: Exception) {}
         }
-        null
+        return null
+    }
+
+    private fun parseBestVideoRenderer(jsonString: String): String? {
+        try {
+            val json = org.json.JSONObject(jsonString)
+            val contents = json.optJSONObject("contents")
+                ?.optJSONObject("twoColumnSearchResultsRenderer")
+                ?.optJSONObject("primaryContents")
+                ?.optJSONObject("sectionListRenderer")
+                ?.optJSONArray("contents")
+
+            if (contents != null) {
+                val candidates = mutableListOf<VideoCandidate>()
+                for (s in 0 until contents.length()) {
+                    val section = contents.optJSONObject(s) ?: continue
+                    val items = section.optJSONObject("itemSectionRenderer")?.optJSONArray("contents") ?: continue
+                    for (i in 0 until items.length()) {
+                        val it = items.optJSONObject(i) ?: continue
+                        val vr = it.optJSONObject("videoRenderer") ?: continue
+                        val vid = vr.optString("videoId")
+                        if (vid.length == 11) {
+                            val vtitle = vr.optJSONObject("title")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text") ?: ""
+                            val channel = vr.optJSONObject("ownerText")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text") ?: ""
+                            candidates.add(VideoCandidate(vid, vtitle, channel))
+                        }
+                    }
+                }
+
+                if (candidates.isNotEmpty()) {
+                    val best = candidates.maxByOrNull { scoreCandidate(it.title, it.channel) }
+                    if (best != null && scoreCandidate(best.title, best.channel) > -100) {
+                        return best.id
+                    }
+                    return candidates.first().id
+                }
+            }
+        } catch (_: Exception) {}
+
+        return fallbackRegexParse(jsonString)
+    }
+
+    private fun scoreCandidate(vtitle: String, channel: String): Int {
+        val vtLower = vtitle.lowercase()
+        val chLower = channel.lowercase()
+        // Strictly penalize YouTube Topic channels (Art Tracks with static album art!)
+        if (chLower.endsWith("- topic") || chLower.contains(" - topic")) {
+            return -100
+        }
+        if (vtLower.contains("official audio") || vtLower.contains("audio song") || vtLower.contains("(audio)")) {
+            return -50
+        }
+        var score = 0
+        if (vtLower.contains("official music video") || vtLower.contains("official video") ||
+            vtLower.contains("video song") || vtLower.contains("music video") || vtLower.contains("full video")) {
+            score += 50
+        } else if (vtLower.contains("video") || vtLower.contains("visualizer") || vtLower.contains("mv")) {
+            score += 30
+        }
+        if (vtLower.contains("lyric")) {
+            score += 15
+        }
+        if (chLower.contains("vevo") || chLower.contains("records") || chLower.contains("music") || chLower.contains("tv")) {
+            score += 10
+        }
+        return score
+    }
+
+    private fun fallbackRegexParse(response: String): String? {
+        val match = Regex(""""videoRenderer":\{[^}]*"videoId":\s*"([a-zA-Z0-9_-]{11})"""").find(response)
+            ?: Regex(""""videoId":\s*"([a-zA-Z0-9_-]{11})"""").find(response)
+        return match?.groupValues?.get(1)
     }
 
     suspend fun resolveVideoIdForSong(song: com.aashik.music.model.Song): String? {

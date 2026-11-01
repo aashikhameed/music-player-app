@@ -1344,6 +1344,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         setHideBottomBar(!_hideBottomBar.value)
     }
 
+    private fun getCachedVideoId(song: Song): String? {
+        val keyId = "yt_vid_" + song.id
+        val keyPath = "yt_vid_" + song.path
+        return appPrefs.getString(keyId, null) ?: appPrefs.getString(keyPath, null)
+    }
+
+    private fun cacheVideoId(song: Song, videoId: String) {
+        val keyId = "yt_vid_" + song.id
+        val keyPath = "yt_vid_" + song.path
+        appPrefs.edit().putString(keyId, videoId).putString(keyPath, videoId).apply()
+    }
+
     private fun resolveVideoForSong(song: Song?) {
         videoResolverJob?.cancel()
         if (song == null) {
@@ -1353,6 +1365,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val directId = song.getYouTubeVideoId()
         if (!directId.isNullOrBlank()) {
             _currentVideoId.value = directId
+            cacheVideoId(song, directId)
             if (_playVideoForStreams.value) {
                 prefetchVideoQueue(directId, song)
             }
@@ -1362,15 +1375,28 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             _currentVideoId.value = null
             return
         }
-        _currentVideoId.value = null // Clear immediately so previous video doesn't keep playing
+
+        // Check persistent video cache synchronously first to prevent layout dropping to album art
+        val cachedId = getCachedVideoId(song)
+        if (!cachedId.isNullOrBlank()) {
+            _currentVideoId.value = cachedId
+            if (_playVideoForStreams.value) {
+                prefetchVideoQueue(cachedId, song)
+            }
+            return
+        }
+
         videoResolverJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Resolving video for ${song.title} - ${song.artist}")
                 val resolved = com.aashik.music.service.YouTubeVideoResolver.resolveVideoId(song.title, song.artist)
                 Log.d(TAG, "Resolved video ID for ${song.title}: $resolved")
-                _currentVideoId.value = resolved
-                if (!resolved.isNullOrBlank() && _playVideoForStreams.value) {
-                    prefetchVideoQueue(resolved, song)
+                if (!resolved.isNullOrBlank()) {
+                    cacheVideoId(song, resolved)
+                    _currentVideoId.value = resolved
+                    if (_playVideoForStreams.value) {
+                        prefetchVideoQueue(resolved, song)
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Video resolution failed: ${e.message}")

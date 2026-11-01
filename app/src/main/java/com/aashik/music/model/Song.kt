@@ -54,7 +54,10 @@ data class Song(
                path.contains("googlevideo.com", ignoreCase = true) ||
                id.startsWith("yt_", ignoreCase = true) ||
                id.startsWith("youtube_", ignoreCase = true) ||
-               id.startsWith("online_yt_", ignoreCase = true)
+               id.startsWith("online_yt_", ignoreCase = true) ||
+               id.startsWith("download_yt_", ignoreCase = true) ||
+               id.startsWith("download_online_yt_", ignoreCase = true) ||
+               getYouTubeVideoId() != null
     }
 
     fun isDirectPlayable(): Boolean {
@@ -74,11 +77,31 @@ data class Song(
         if (id.startsWith("online_yt_")) return id.removePrefix("online_yt_")
         if (id.startsWith("yt_")) return id.removePrefix("yt_")
         if (id.startsWith("youtube_")) return id.removePrefix("youtube_")
+        if (id.startsWith("download_yt_")) return id.removePrefix("download_yt_")
+        if (id.startsWith("download_online_yt_")) return id.removePrefix("download_online_yt_")
+        if (!artworkUrl.isNullOrBlank()) {
+            val artMatch = Regex("""(?:ytimg\.com/vi/|youtube\.com/vi/)([a-zA-Z0-9_-]{11})""").find(artworkUrl)
+            if (artMatch != null) {
+                return artMatch.groupValues[1]
+            }
+        }
         return null
     }
 
     fun isLocalVideo(): Boolean {
-        return !isStream() && !isYouTube() && (path.endsWith(".mp4", ignoreCase = true) || path.endsWith(".webm", ignoreCase = true) || path.endsWith(".mkv", ignoreCase = true))
+        if (isStream() || isYouTube()) return false
+        val lower = path.lowercase()
+        if (lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.endsWith(".avi") || lower.endsWith(".mov")) return true
+        if (lower.endsWith(".mp4")) {
+            // Audio files in public Music or app private directories are audio streams in an MP4 container
+            if (lower.contains("/music/") || lower.contains("/podcasts/") || lower.contains("/audio/") || lower.contains("/bitchord/")) {
+                return false
+            }
+            if (lower.contains("/video/") || lower.contains("/movies/") || lower.contains("/dcim/")) {
+                return true
+            }
+        }
+        return false
     }
 
     fun isVideo(): Boolean {

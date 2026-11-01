@@ -806,4 +806,56 @@ class MusicModelsTest {
         assertFalse(fileName.contains("<"))
         assertFalse(fileName.contains(">"))
     }
+
+    @Test
+    fun testYouTubeVideoIdAndLocalVideoDiscrimination() {
+        // 1. Downloaded YouTube track
+        val downloadedYt = Song(
+            id = "download_yt_b68HETiNO98",
+            title = "Pavazha Malli",
+            artist = "Sai Abhyankkar",
+            album = "Downloads",
+            duration = 180000L,
+            path = "/storage/emulated/0/Music/MusicPlayer/Pavazha Malli.m4a"
+        )
+        assertEquals("b68HETiNO98", downloadedYt.getYouTubeVideoId())
+        assertTrue(downloadedYt.isYouTube())
+        assertFalse(downloadedYt.isLocalVideo())
+
+        // 2. Track with YouTube artwork URL
+        val songWithYtArt = Song(
+            id = "custom_id",
+            title = "Track",
+            artist = "Artist",
+            album = "Album",
+            duration = 180000L,
+            path = "/storage/emulated/0/Music/track.mp3",
+            artworkUrl = "https://i.ytimg.com/vi/VU23OPQ1Pmc/hq720.jpg"
+        )
+        assertEquals("VU23OPQ1Pmc", songWithYtArt.getYouTubeVideoId())
+        assertTrue(songWithYtArt.isYouTube())
+        assertFalse(songWithYtArt.isLocalVideo())
+
+        // 3. Audio file in Music directory ending with .mp4 must NOT be classified as local video
+        val audioMp4 = Song(
+            id = "audio_1",
+            title = "Song",
+            artist = "Artist",
+            album = "Album",
+            duration = 180000L,
+            path = "/storage/emulated/0/Music/MusicPlayer/song.mp4"
+        )
+        assertFalse(audioMp4.isLocalVideo())
+
+        // 4. Actual video file in Videos directory
+        val realVideo = Song(
+            id = "video_1",
+            title = "Video Clip",
+            artist = "Creator",
+            album = "Videos",
+            duration = 180000L,
+            path = "/storage/emulated/0/Movies/clip.mp4"
+        )
+        assertTrue(realVideo.isLocalVideo())
+    }
 }

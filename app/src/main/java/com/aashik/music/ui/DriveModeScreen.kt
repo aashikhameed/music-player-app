@@ -1082,7 +1082,7 @@ private fun DriveHudActionBar(
                         )
                         Text(
                             text = nextSong.title,
-                            fontSize = 14.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isNightDimmerActive) Color(0xFFE2E8F0) else if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -1479,7 +1479,7 @@ private fun MobileDriveHudStage(
 ) {
     val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
     val currentVideoId by viewModel.currentVideoId.collectAsState()
-    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isLocalVideo() == true)
+    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
 
     Column(
         modifier = modifier,
