@@ -590,7 +590,6 @@ fun DriveModeScreen(
                                     }
                                 }
                             }
-                        }
 
                             Spacer(modifier = Modifier.width(22.dp))
 
@@ -703,6 +702,7 @@ fun DriveModeScreen(
                         }
                     }
                 }
+            }
 
             // ── Bottom Row: Seeker Bar and Playback Controls ──
             val bottomCardBg = when {
