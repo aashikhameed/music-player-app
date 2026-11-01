@@ -14,7 +14,7 @@
   Engineered with modern <b>Jetpack Compose</b> and a bare-metal <b>C++17 OpenSL ES native audio engine</b> for flawless 60 FPS playback on low-memory ARM Cortex / Mali GPU automotive hardware.
 </p>
 
-[**Download Latest APK (v0.0.41)**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
+[**Get Latest APK Release**](https://github.com/aashikhameed/music-player-app/releases/latest) • [**Hardware Target**](#-hardware-targets--performance-benchmarks) • [**Key Features**](#-key-features) • [**Architecture**](#-architecture--tech-stack) • [**Build & Install**](#-build--installation)
 
 ---
 
@@ -182,6 +182,14 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 - **Build System**: Android Gradle Plugin, CMake 3.22.1, R8 Full Mode Shrinking, Single-ABI `arm64-v8a` Packaging.
 - **Automated Verification**: Integrated verification agent scripts (`audit_performance.sh`, `verify_release.sh`).
 
+### 🧩 Source-Agnostic Media Ingestion Architecture
+
+The player architecture is designed around an extensible, decoupled `MediaSourceProvider` contract:
+
+- **Decoupled Audio Core**: The high-performance C++ OpenSL ES engine, lock-free ring buffer, and biquad DSP suite operate purely on raw PCM audio streams, completely isolated from network transport or content delivery mechanisms.
+- **Extensible Media Source Providers**: Developers and integrators can implement custom `MediaSourceProvider` modules to supply audio from compliant sources — including onboard USB storage, local file systems, personal DLNA/UPnP home servers, or open podcast RSS feeds.
+- **Zero Hard-Coded Service Dependencies**: The core repository maintains strict separation of concerns, providing an agnostic foundation for automotive audio playback research and experimentation.
+
 ---
 
 ## 🚘 Compatible Automotive Platforms
@@ -198,9 +206,9 @@ This player is optimized for both factory-installed Android Automotive OS and af
 
 ## 📦 Build & Installation
 
-### Option 1: Direct Download (Ready to Install)
+### Option 1: Pre-Built Release APK (Ready to Install)
 Grab the pre-built, production-optimized APK from the releases page:
-👉 **[Download Latest APK (`app-release.apk`)](https://github.com/aashikhameed/music-player-app/releases/latest)**
+👉 **[Get Latest APK Release (`app-release.apk`)](https://github.com/aashikhameed/music-player-app/releases/latest)**
 
 Install directly onto your vehicle's head unit via USB drive or ADB:
 ```bash
@@ -278,34 +286,36 @@ This project is built with **zero heavy external dependencies** to comply strict
 - **[Android MediaNDK & OpenSL ES](https://developer.android.com/ndk/guides/audio/opensl/)**: Low-level C++17 native audio pipeline, SPSC lock-free ring buffer, and custom biquad IIR DSP filters.
 - **Standard Java/Android Cryptography (`javax.crypto.Cipher`, `DES/ECB/PKCS5Padding`)**: Lightweight media decryption without bundling OpenSSL or BouncyCastle.
 - **Standard Android Networking (`java.net.HttpURLConnection`)**: Zero-overhead HTTP client eliminating multi-megabyte third-party networking runtimes (e.g., OkHttp, Retrofit, Ktor).
-- **Hardware-Accelerated Android WebView**: Powers lightweight visual YouTube music video playback synchronized with the native audio engine.
+- **Hardware-Accelerated Android WebView**: Powers lightweight visual web video playback synchronized with the native audio engine.
 
-### 🙏 App References & Credits
-- **[BitChord](https://github.com/kushagrasinghx/BitChord)**: Core architectural inspiration for:
-  - YouTube Music InnerTube WEB_REMIX API integration (`youtubei/v1/next` and `youtubei/v1/browse`).
-  - Algorithmic `RDAMVM` watch-queue radio pipeline.
-  - Multi-tiered `QueueBuilder` de-duplication, title normalization, and per-artist capping algorithms.
-  - Explore category shelves (Songs, Featured playlists, Community playlists, Albums).
-- **[NewPipe](https://github.com/TeamNewPipe/NewPipe)** / **Metrolist InnerTubeX**: Early pioneering research into YouTube InnerTube client requests and media architectures.
-- **JioSaavn**: High-bitrate audio stream delivery (320 kbps / 160 kbps AAC) and search metadata catalog.
+### 🏛️ Architectural & Technical References
+
+The following open-source projects and client architectures were studied as technical references for understanding general patterns in client-side media library management, queue building, and UI interaction:
+
+- **[BitChord](https://github.com/kushagrasinghx/BitChord)**: Studied as a technical reference for client-side queue orchestration, multi-tiered queue deduplication, and media shelf hierarchy patterns.
+- **[NewPipe](https://github.com/TeamNewPipe/NewPipe)**: Studied as an architectural reference for client-side media player lifecycles, background service state management, and video player state machines.
+- **Community Media Schemas**: Analyzed for generic data models across track metadata, artist credits, album groupings, and bitrate categorization.
+
+> [!NOTE]
+> **Source-Agnostic Design**: The core codebase and playback pipeline in this repository are designed strictly to be **source-agnostic**, decoupled from any specific external commercial music service or proprietary streaming provider.
 
 ---
 
 ## ⚖️ Legal Disclaimer & Terms of Service Notice
 
 > [!WARNING]
-> **Educational & Personal Use Only**: This software is an independent, non-commercial open-source project developed solely for educational, research, and personal vehicle infotainment optimization purposes.
+> **Educational & Reference Architecture Only**: This software is an independent, non-commercial open-source project published strictly as a technical reference implementation for automotive audio engineering, embedded C++ DSP pipelines, and driver-distraction compliant UI design.
 
-### API & Intellectual Property Considerations:
-1. **Third-Party APIs**: This application interfaces with publicly accessible web endpoints provided by YouTube Music (Google LLC) and JioSaavn (Saavn Media Pvt. Ltd.). This project is **not** affiliated with, endorsed by, sponsored by, or connected to Google, YouTube, JioSaavn, or any of their parent companies.
-2. **Terms of Service (ToS)**:
-   - Accessing unofficial or internal APIs without standard API keys or authentication may violate the Terms of Service of respective content providers (e.g., YouTube Terms of Service § 4: *Permissions and Restrictions*).
-   - Commercial distribution, packaging with paid services, or publishing this app on commercial app stores (such as the Google Play Store) is strictly discouraged and may lead to account suspension or removal.
-3. **Copyright & Media Hosting**:
-   - This application **does not host, cache on servers, re-broadcast, or store** any copyrighted media files.
-   - All audio streams and album art are streamed directly from third-party Content Delivery Networks (CDNs) to the client device.
-   - Download functionality saves media solely to local user-designated storage for private, personal offline listening.
-4. **Trademarks**: All product names, logos, brands, and registered trademarks referenced in this repository are property of their respective owners. Their mention in this repository is strictly for identification and interoperability reference only.
+### Compliance & Intellectual Property Considerations:
+1. **No API Endpoints Shipped**: The public codebase in this repository does not ship with, bundle, or encourage the use of any specific third-party API endpoints or proprietary web service connections. The project provides a modular, source-agnostic audio playback framework intended for local and user-owned media.
+2. **Platform Policies & Terms of Service (ToS)**:
+   - Streaming services and content platforms maintain strict Terms of Service governing client access, reverse engineering, and unofficial API usage.
+   - Any developer or end-user who extends, configures, or adapts this code to interface with third-party web services or streaming platforms is solely responsible for ensuring their use complies with the applicable service's Terms of Service, developer agreements, and local copyright laws.
+   - Commercial distribution, monetization, or packaging of this project with unauthorized endpoints is strictly prohibited.
+3. **No Media Hosting or Content Delivery**:
+   - This repository **does not host, store, cache on remote servers, scrape, or distribute** any copyrighted audio, video, or image media.
+   - Any local storage management, local file caching layers, or offline playback capabilities are provided strictly for user-owned media on local, user-designated storage for private personal listening.
+4. **Trademarks**: All product names, logos, company names, and registered trademarks referenced in this repository remain the exclusive property of their respective owners. Their mention in this repository is strictly for identification, academic comparison, and technical compatibility purposes under nominative fair use.
 
 ---
 
