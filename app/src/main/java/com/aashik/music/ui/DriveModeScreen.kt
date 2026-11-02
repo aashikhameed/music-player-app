@@ -1173,7 +1173,7 @@ private fun DriveHudActionBar(
                 )
 
                 Column(
-                    modifier = Modifier.widthIn(min = 90.dp, max = 220.dp),
+                    modifier = Modifier.widthIn(min = 80.dp, max = 180.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.Start
                 ) {
@@ -1183,14 +1183,14 @@ private fun DriveHudActionBar(
                     ) {
                         Text(
                             text = "NEXT",
-                            fontSize = 16.sp,
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 0.4.sp
+                            letterSpacing = 0.5.sp
                         )
                         Text(
                             text = nextSong.title,
-                            fontSize = 16.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isNightDimmerActive) Color(0xFFE2E8F0) else if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -1200,7 +1200,7 @@ private fun DriveHudActionBar(
                     }
                     Text(
                         text = nextSong.artist,
-                        fontSize = 9.5.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Normal,
                         color = if (isNightDimmerActive) Color(0xFF8B98A9) else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1213,6 +1213,13 @@ private fun DriveHudActionBar(
                 modifier = Modifier
                     .height(44.dp)
                     .background(color = actionButtonBg, shape = NextSongActionBarShape)
+                    .border(
+                        width = 1.dp,
+                        color = if (isNightDimmerActive) Color(0xFF192330)
+                                else if (isDark) Color(0xFF283445)
+                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        shape = NextSongActionBarShape
+                    )
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1221,7 +1228,7 @@ private fun DriveHudActionBar(
                     imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                     contentDescription = null,
                     tint = controlInactiveColor,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(14.dp)
                 )
                 Text(
                     text = "Queue empty",
