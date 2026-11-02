@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 
 // Precomputed shapes hoisted to top-level constants for Mali GPU & zero GC
 private val ScrubberStripShape = RoundedCornerShape(12.dp)
-private val LetterBubbleShape = RoundedCornerShape(10.dp)
+private val LetterBubbleShape = RoundedCornerShape(8.dp)
 
 private val ALPHABET_LIST = listOf(
     '#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',

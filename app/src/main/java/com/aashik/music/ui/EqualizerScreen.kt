@@ -69,12 +69,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.roundToInt
 
-// Top-level precomputed shapes for Mali GPU fill rate & zero GC allocation
+// Top-level precomputed shapes matching Material 3 specifications
 private val EqContainerShape = RoundedCornerShape(16.dp)
 private val EqCardShape = RoundedCornerShape(12.dp)
 private val EqChipShape = RoundedCornerShape(8.dp)
-private val GridBorderShape = RoundedCornerShape(10.dp)
-private val ActionBtnShape = RoundedCornerShape(10.dp)
+private val GridBorderShape = RoundedCornerShape(12.dp)
+private val ActionBtnShape = RoundedCornerShape(8.dp)
 private val EqCurveContainerShape = RoundedCornerShape(8.dp)
 private val EqCurveBg = Color(0xFF10141D)
 private val EqCurveBorder = Color(0xFF1E293B)

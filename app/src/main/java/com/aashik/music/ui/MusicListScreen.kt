@@ -116,27 +116,27 @@ import java.io.File
 import kotlinx.coroutines.isActive
 import androidx.compose.material.icons.rounded.Shuffle
 
-private val PortraitSongCardShape = RoundedCornerShape(20.dp)
-private val LandscapeFullSongShape = RoundedCornerShape(18.dp)
-private val HeaderCapsuleShape = RoundedCornerShape(14.dp)
-private val PillShape10 = RoundedCornerShape(10.dp)
+private val PortraitSongCardShape = RoundedCornerShape(16.dp)
+private val LandscapeFullSongShape = RoundedCornerShape(16.dp)
+private val HeaderCapsuleShape = RoundedCornerShape(12.dp)
+private val PillShape10 = RoundedCornerShape(8.dp)
 private val StatusCapsuleShape = RoundedCornerShape(12.dp)
 private val RadioCardShape = RoundedCornerShape(16.dp)
-private val GenreChipShape = RoundedCornerShape(10.dp)
-private val LiveBadgeShape = RoundedCornerShape(6.dp)
+private val GenreChipShape = RoundedCornerShape(8.dp)
+private val LiveBadgeShape = RoundedCornerShape(4.dp)
 private val MoodCardShape = RoundedCornerShape(16.dp)
 private val MoodStripeShape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
-private val BackPillShape = RoundedCornerShape(10.dp)
-private val MobileMiniPlayerShape = RoundedCornerShape(20.dp)
+private val BackPillShape = RoundedCornerShape(8.dp)
+private val MobileMiniPlayerShape = RoundedCornerShape(16.dp)
 private val MiniCodecBadgeShape = RoundedCornerShape(4.dp)
-private val MobileNavBarShape = RoundedCornerShape(26.dp)
-private val MobileActiveTabShape = RoundedCornerShape(18.dp)
+private val MobileNavBarShape = RoundedCornerShape(28.dp)
+private val MobileActiveTabShape = RoundedCornerShape(16.dp)
 private val ShelfArtworkShape = RoundedCornerShape(12.dp)
-private val ShelfCardContainerShape = RoundedCornerShape(14.dp)
+private val ShelfCardContainerShape = RoundedCornerShape(12.dp)
 private val CircleBackButtonShape = CircleShape
 private val CircleAvatarShape = CircleShape
-private val MoreCardShape = RoundedCornerShape(16.dp)
-private val MoreIconContainerShape = RoundedCornerShape(12.dp)
+private val MoreCardShape = RoundedCornerShape(12.dp)
+private val MoreIconContainerShape = RoundedCornerShape(8.dp)
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -3243,7 +3243,7 @@ private fun IsolatedPortraitSeekBar(
     )
 }
 
-private val PortraitDockShape = RoundedCornerShape(18.dp)
+private val PortraitDockShape = RoundedCornerShape(16.dp)
 
 @Composable
 private fun PortraitSeekBarSection(

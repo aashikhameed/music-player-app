@@ -46,8 +46,8 @@ import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
 // Precomputed shapes hoisted to top-level constants for Mali GPU fill rate & zero GC allocation
-private val DialogContainerShape = RoundedCornerShape(18.dp)
-private val ChipPillShape = RoundedCornerShape(10.dp)
+private val DialogContainerShape = RoundedCornerShape(28.dp)
+private val ChipPillShape = RoundedCornerShape(8.dp)
 private val BandRowShape = RoundedCornerShape(12.dp)
 private val InfoBadgeShape = RoundedCornerShape(8.dp)
 

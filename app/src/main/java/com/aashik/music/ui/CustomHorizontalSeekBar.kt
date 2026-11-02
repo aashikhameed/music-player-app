@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
-private val TooltipShape = RoundedCornerShape(6.dp)
+private val TooltipShape = RoundedCornerShape(8.dp)
 private val InactiveDarkTrack = Color(0xFF263245)
 private val InactiveLightTrack = Color(0xFFCAD5E2)
 

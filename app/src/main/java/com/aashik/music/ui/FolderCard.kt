@@ -34,9 +34,9 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.MusicFolder
 import com.aashik.music.theme.AppGradients
 
-private val FolderCardShape = RoundedCornerShape(14.dp)
-private val FolderIconShape = RoundedCornerShape(10.dp)
-private val CountPillShape = RoundedCornerShape(6.dp)
+private val FolderCardShape = RoundedCornerShape(12.dp)
+private val FolderIconShape = RoundedCornerShape(8.dp)
+private val CountPillShape = RoundedCornerShape(8.dp)
 
 private val DarkFolderBg = Color(0xFF261D10)
 private val LightFolderBg = Color(0xFFFEF3C7)
@@ -104,8 +104,7 @@ fun FolderCard(
                 Text(
                     text = folder.name,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.5.sp
+                        fontWeight = FontWeight.SemiBold
                     ),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,

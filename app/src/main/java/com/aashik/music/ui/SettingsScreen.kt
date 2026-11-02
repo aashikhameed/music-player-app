@@ -89,15 +89,15 @@ import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
 // Precomputed shapes hoisted to top-level constants for Mali GPU fill rate & zero GC allocation
-private val SettingsContainerShape = RoundedCornerShape(18.dp)
-private val CardSectionShape = RoundedCornerShape(14.dp)
-private val ChipPillShape = RoundedCornerShape(10.dp)
+private val SettingsContainerShape = RoundedCornerShape(16.dp)
+private val CardSectionShape = RoundedCornerShape(12.dp)
+private val ChipPillShape = RoundedCornerShape(8.dp)
 private val InfoBadgeShape = RoundedCornerShape(8.dp)
-private val ActionButtonShape = RoundedCornerShape(10.dp)
-private val DownloadOptionShape = RoundedCornerShape(10.dp)
-private val PresetBadgeShape = RoundedCornerShape(6.dp)
+private val ActionButtonShape = RoundedCornerShape(8.dp)
+private val DownloadOptionShape = RoundedCornerShape(12.dp)
+private val PresetBadgeShape = RoundedCornerShape(4.dp)
 private val CustomPathFieldShape = RoundedCornerShape(8.dp)
-private val DialogContainerShape = RoundedCornerShape(16.dp)
+private val DialogContainerShape = RoundedCornerShape(28.dp)
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)

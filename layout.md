@@ -16,6 +16,45 @@ This document specifies the exact, frozen user interface architecture and screen
 
 ---
 
+## 1.5 Material 3 Component & Design Token Specifications (m3.material.io/components)
+
+All UI elements strictly adhere to official **Material Design 3 (M3)** component design tokens and structural specifications while preserving the zero-GC-churn and flat solid fill-rate constraints for low-spec automotive headunits:
+
+### A. Material 3 Shape System
+- **Extra Small (4dp)**: Badges (`LiveBadgeShape`, `MiniCodecBadgeShape`, `PresetBadgeShape`).
+- **Small (8dp)**: Chips & FilterChips (`GenreChipShape`, `EqChipShape`, `ChipPillShape`), Action buttons (`ActionButtonShape`, `ActionBtnShape`), Tooltips, Album art thumbnails (`SongArtShape`, `ActionArtThumbnailShape`, `ArtPlaceholderShape`).
+- **Medium (12dp)**: Cards (`SongCardShape`, `FolderCardShape`, `EqCardShape`, `CardSectionShape`, `MoreCardShape`), Header capsules, Minimized artwork.
+- **Large (16dp)**: Large Cards & Docks (`RadioCardShape`, `MoodCardShape`, `PortraitSongCardShape`, `LandscapeFullSongShape`, `PortraitDockShape`, `BottomMusicCardShape`, `EqContainerShape`, `SettingsContainerShape`, `DrawerShapeLandscape`).
+- **Extra Large (28dp)**: Dialogs (`DialogContainerShape`), Navigation Bars (`MobileNavBarShape`), Modal Bottom Sheets (`DrawerShapePortrait`).
+- **Full (CircleShape)**: Navigation bar active indicator pills (64×32dp), Circular transport buttons, FABs, Avatars.
+
+### B. Material 3 Color Role Tokens (m3.material.io/styles/color)
+- **Primary / OnPrimary**: Luminous Cyber Cyan `#00E5FF` (Dark) / Cobalt Azure `#0066FF` (Light). Used for primary CTAs, active equalizers, progress sliders.
+- **PrimaryContainer / OnPrimaryContainer**: `#004E5B` / `#B5F4FF` (Dark), `#D6E4FF` / `#001B3F` (Light). Used for active cards and focused pills.
+- **Secondary / OnSecondary**: Vibrant Amber `#FFFFB300` (Dark) / Daylight Amber `#D97706` (Light). Used for folder icons, secondary tags.
+- **Tertiary / OnTertiary**: Status Emerald `#00E676` (Dark) / `#059669` (Light). Used for download statuses, live indicators.
+- **Surface / SurfaceContainer (Lowest to Highest)**: `#090C12` base up to `#1B2230` container highest (Dark) / `#FFFFFF` to `#CBD5E1` (Light).
+- **Outline / OutlineVariant**: Structural separation borders `#252F42` / `#1C2433` (Dark) and `#CBD5E1` / `#E2E8F0` (Light).
+
+### C. Material 3 Typography Scale (m3.material.io/styles/typography)
+Full 15-tier type hierarchy powered by `Inter` (`AppFontFamily`):
+- `displayLarge` (57sp), `displayMedium` (45sp), `displaySmall` (36sp)
+- `headlineLarge` (32sp), `headlineMedium` (28sp), `headlineSmall` (24sp) — Screen titles, Dialog titles
+- `titleLarge` (22sp), `titleMedium` (16sp), `titleSmall` (14sp) — Track titles, Card titles, Folder names
+- `bodyLarge` (16sp), `bodyMedium` (14sp), `bodySmall` (12sp) — Artist names, Settings descriptions
+- `labelLarge` (14sp), `labelMedium` (12sp), `labelSmall` (11sp) — Button text, Chip labels, Durations, Badges
+
+### D. Component Alignments (m3.material.io/components)
+- **Buttons (`Button`, `OutlinedButton`, `TextButton`)**: Standard 40dp height, 16/24dp padding, `labelLarge` typography.
+- **Icon Buttons (`IconButton`)**: Standard 40×40dp container, 24dp icon glyph, minimum 48dp tactile interaction target.
+- **Chips (`FilterChip`)**: Standard 32dp height, 8dp radius (`shapes.small`), 12dp horizontal padding, `labelLarge` text.
+- **Cards (`Card`, `OutlinedCard`)**: Standard 12dp corner radius (`shapes.medium`), flat solid fill, 1dp `outlineVariant` border.
+- **Navigation Bar (`NavigationBar`)**: Standard 80dp height, `surfaceContainer` container, active 64×32dp `CircleShape` pill indicator.
+- **Dialogs (`AlertDialog`)**: Standard 28dp radius (`shapes.extraLarge`), `headlineSmall` title, 24dp structural padding.
+- **Sliders (`Slider`)**: 4dp active/inactive track height, 20×20dp circular thumb with tactile hit target.
+
+---
+
 ## 2. Core Screen Layouts
 
 ### 2.1 Main Media Library Screen (`MusicListScreen` / `MediaLibraryContent`)

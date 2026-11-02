@@ -59,7 +59,7 @@ import com.aashik.music.viewmodel.MusicViewModel
 
 private val DockCardShape = RoundedCornerShape(16.dp)
 private val BadgeShape = RoundedCornerShape(4.dp)
-private val ArtPlaceholderShape = RoundedCornerShape(10.dp)
+private val ArtPlaceholderShape = RoundedCornerShape(8.dp)
 
 private val StatusPlayingGreen = Color(0xFF00E676)
 private val StatusDarkGray = Color(0xFF475569)

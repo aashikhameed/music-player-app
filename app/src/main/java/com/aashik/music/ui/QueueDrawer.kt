@@ -51,12 +51,12 @@ import com.aashik.music.viewmodel.MusicViewModel
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 
-// Precomputed top-level shapes for Mali GPU fill rate & zero GC allocation
+// Precomputed top-level shapes matching Material 3 specifications
 private val DrawerShapeLandscape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
-private val DrawerShapePortrait = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-private val DrawerItemShape = RoundedCornerShape(10.dp)
-private val DrawerBadgeShape = RoundedCornerShape(6.dp)
-private val ReorderBtnShape = RoundedCornerShape(6.dp)
+private val DrawerShapePortrait = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+private val DrawerItemShape = RoundedCornerShape(12.dp)
+private val DrawerBadgeShape = RoundedCornerShape(8.dp)
+private val ReorderBtnShape = RoundedCornerShape(8.dp)
 
 private val BackdropColor = Color.Black.copy(alpha = 0.55f)
 private val GreenBadgeColor = Color(0xFF00E676)

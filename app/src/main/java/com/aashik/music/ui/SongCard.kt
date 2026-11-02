@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 
-private val SongCardShape = RoundedCornerShape(10.dp)
+private val SongCardShape = RoundedCornerShape(12.dp)
 private val SongArtShape = RoundedCornerShape(8.dp)
 
 private val PLAYING_EQ_HEIGHTS = floatArrayOf(0.40f, 0.95f, 0.60f, 0.85f)
@@ -150,8 +150,7 @@ fun SongCard(
                 Text(
                     text = song.title.ifEmpty { "Unknown Title" },
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold,
-                        fontSize = 15.sp
+                        fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold
                     ),
                     color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -162,7 +161,7 @@ fun SongCard(
 
                 Text(
                     text = song.artist.ifEmpty { "Unknown Artist" },
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -185,10 +184,7 @@ fun SongCard(
                 if (formattedDuration.isNotEmpty()) {
                     Text(
                         text = formattedDuration,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Normal
-                        ),
+                        style = MaterialTheme.typography.labelMedium,
                         color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

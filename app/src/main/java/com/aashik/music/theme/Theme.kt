@@ -1,6 +1,8 @@
 package com.aashik.music.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -13,6 +15,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.R
 
@@ -23,91 +26,203 @@ val AppFontFamily = FontFamily(
     Font(R.font.inter_bold, FontWeight.Bold)
 )
 
+// Pre-allocated static shapes to eliminate GC churn on low-spec hardware (M3 Shape Scale)
+val AppShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(28.dp)
+)
+
 private val AutoDarkColorScheme = darkColorScheme(
-    primary = AutoPrimaryCyan,
-    onPrimary = Color(0xFF001E2B),
-    primaryContainer = AutoDarkCardActive,
-    onPrimaryContainer = AutoPrimaryCyan,
-    secondary = AutoAccentAmber,
-    onSecondary = Color(0xFF1F1200),
-    background = AutoDarkBg,
-    onBackground = AutoTextPrimary,
-    surface = AutoDarkSurface,
-    onSurface = AutoTextPrimary,
-    surfaceVariant = AutoDarkCard,
-    onSurfaceVariant = AutoTextSecondary,
-    outline = AutoDarkBorder,
-    outlineVariant = Color(0xFF1C2433)
+    primary = M3DarkPrimary,
+    onPrimary = M3DarkOnPrimary,
+    primaryContainer = M3DarkPrimaryContainer,
+    onPrimaryContainer = M3DarkOnPrimaryContainer,
+    inversePrimary = M3DarkInversePrimary,
+    secondary = M3DarkSecondary,
+    onSecondary = M3DarkOnSecondary,
+    secondaryContainer = M3DarkSecondaryContainer,
+    onSecondaryContainer = M3DarkOnSecondaryContainer,
+    tertiary = M3DarkTertiary,
+    onTertiary = M3DarkOnTertiary,
+    tertiaryContainer = M3DarkTertiaryContainer,
+    onTertiaryContainer = M3DarkOnTertiaryContainer,
+    background = M3DarkBackground,
+    onBackground = M3DarkOnBackground,
+    surface = M3DarkSurface,
+    onSurface = M3DarkOnSurface,
+    surfaceVariant = M3DarkSurfaceVariant,
+    onSurfaceVariant = M3DarkOnSurfaceVariant,
+    surfaceTint = M3DarkSurfaceTint,
+    inverseSurface = M3DarkInverseSurface,
+    inverseOnSurface = M3DarkInverseOnSurface,
+    outline = M3DarkOutline,
+    outlineVariant = M3DarkOutlineVariant,
+    scrim = M3DarkScrim,
+    error = M3DarkError,
+    onError = M3DarkOnError,
+    errorContainer = M3DarkErrorContainer,
+    onErrorContainer = M3DarkOnErrorContainer,
+    surfaceContainerLowest = M3DarkSurfaceContainerLowest,
+    surfaceContainerLow = M3DarkSurfaceContainerLow,
+    surfaceContainer = M3DarkSurfaceContainer,
+    surfaceContainerHigh = M3DarkSurfaceContainerHigh,
+    surfaceContainerHighest = M3DarkSurfaceContainerHighest
 )
 
 private val AutoLightColorScheme = lightColorScheme(
-    primary = AutoPrimaryAzure,
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = AutoLightCardActive,
-    onPrimaryContainer = AutoPrimaryAzure,
-    secondary = AutoLightAccentAmber,
-    onSecondary = Color(0xFFFFFFFF),
-    background = AutoLightBg,
-    onBackground = AutoLightTextPrimary,
-    surface = AutoLightSurface,
-    onSurface = AutoLightTextPrimary,
-    surfaceVariant = Color(0xFFF1F5F9),
-    onSurfaceVariant = AutoLightTextSecondary,
-    outline = AutoLightBorder,
-    outlineVariant = Color(0xFFE2E8F0)
+    primary = M3LightPrimary,
+    onPrimary = M3LightOnPrimary,
+    primaryContainer = M3LightPrimaryContainer,
+    onPrimaryContainer = M3LightOnPrimaryContainer,
+    inversePrimary = M3LightInversePrimary,
+    secondary = M3LightSecondary,
+    onSecondary = M3LightOnSecondary,
+    secondaryContainer = M3LightSecondaryContainer,
+    onSecondaryContainer = M3LightOnSecondaryContainer,
+    tertiary = M3LightTertiary,
+    onTertiary = M3LightOnTertiary,
+    tertiaryContainer = M3LightTertiaryContainer,
+    onTertiaryContainer = M3LightOnTertiaryContainer,
+    background = M3LightBackground,
+    onBackground = M3LightOnBackground,
+    surface = M3LightSurface,
+    onSurface = M3LightOnSurface,
+    surfaceVariant = M3LightSurfaceVariant,
+    onSurfaceVariant = M3LightOnSurfaceVariant,
+    surfaceTint = M3LightSurfaceTint,
+    inverseSurface = M3LightInverseSurface,
+    inverseOnSurface = M3LightInverseOnSurface,
+    outline = M3LightOutline,
+    outlineVariant = M3LightOutlineVariant,
+    scrim = M3LightScrim,
+    error = M3LightError,
+    onError = M3LightOnError,
+    errorContainer = M3LightErrorContainer,
+    onErrorContainer = M3LightOnErrorContainer,
+    surfaceContainerLowest = M3LightSurfaceContainerLowest,
+    surfaceContainerLow = M3LightSurfaceContainerLow,
+    surfaceContainer = M3LightSurfaceContainer,
+    surfaceContainerHigh = M3LightSurfaceContainerHigh,
+    surfaceContainerHighest = M3LightSurfaceContainerHighest
 )
 
+// Material 3 Official 15-tier Typography Scale (m3.material.io/styles/typography/tokens)
 private val AutoTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 57.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-0.25).sp
+    ),
+    displayMedium = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 45.sp,
+        lineHeight = 52.sp,
+        letterSpacing = 0.sp
+    ),
+    displaySmall = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 36.sp,
+        lineHeight = 44.sp,
+        letterSpacing = 0.sp
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+        letterSpacing = 0.sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 28.sp,
+        lineHeight = 36.sp,
+        letterSpacing = 0.sp
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+        letterSpacing = 0.sp
+    ),
     titleLarge = TextStyle(
         fontFamily = AppFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp
     ),
     titleMedium = TextStyle(
         fontFamily = AppFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 15.sp,
-        lineHeight = 20.sp
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.15.sp
     ),
     titleSmall = TextStyle(
         fontFamily = AppFontFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 13.5.sp,
-        lineHeight = 18.sp
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = AppFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 12.5.sp,
-        lineHeight = 16.sp
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.25.sp
     ),
     bodySmall = TextStyle(
         fontFamily = AppFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 11.sp,
-        lineHeight = 15.sp
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.4.sp
     ),
     labelLarge = TextStyle(
         fontFamily = AppFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 13.5.sp,
-        lineHeight = 18.sp
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
     ),
     labelSmall = TextStyle(
         fontFamily = AppFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 10.sp,
-        lineHeight = 13.sp
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
     )
 )
 
 /**
  * Universal Theme-Responsive Linear Gradients.
- * Eliminates drop shadows / elevations in favor of modern, high-contrast linear gradients.
+ * Pre-allocated static brushes — Zero fragment shader overhead for weak automotive Mali GPUs.
  */
 object AppGradients {
-    // Pre-allocated static brushes — Zero fragment shader overhead for weak automotive GPUs
     private val DarkCardActive = SolidColor(Color(0xFF0F2D44))
     private val LightCardActive = SolidColor(Color(0xFFE3F2FD))
     private val DarkCardInactive = SolidColor(Color(0xFF161C28))
@@ -182,6 +297,7 @@ fun CarMusicTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = AutoTypography,
+        shapes = AppShapes,
         content = content
     )
 }
