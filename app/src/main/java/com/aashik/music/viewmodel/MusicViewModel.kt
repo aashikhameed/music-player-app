@@ -408,8 +408,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private var lyricsJob: Job? = null
     private val _currentLyrics = MutableStateFlow<List<com.aashik.music.service.LyricLine>>(emptyList())
     val currentLyrics: StateFlow<List<com.aashik.music.service.LyricLine>> = _currentLyrics.asStateFlow()
+    private val _isLoadingLyrics = MutableStateFlow(false)
+    val isLoadingLyrics: StateFlow<Boolean> = _isLoadingLyrics.asStateFlow()
 
     init {
+        com.aashik.music.service.LyricsRepository.init(application.applicationContext)
         viewModelScope.launch {
             themePref.isDarkMode.collect {
                 _isDarkTheme.value = it
@@ -1411,13 +1414,59 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun fetchLyricsForSong(song: Song?) {
         lyricsJob?.cancel()
+        if (song == null) {
+            _currentLyrics.value = emptyList()
+            _isLoadingLyrics.value = false
+            return
+        }
+
+        // Fast synchronous cache lookup (memory or disk)
+        val cached = com.aashik.music.service.LyricsRepository.getCachedLyrics(song)
+        if (cached != null && cached.isNotEmpty()) {
+            _currentLyrics.value = cached
+            _isLoadingLyrics.value = false
+            prefetchAdjacentLyrics(song)
+            return
+        }
+
+        _isLoadingLyrics.value = true
         _currentLyrics.value = emptyList()
-        if (song == null) return
         lyricsJob = viewModelScope.launch(Dispatchers.IO) {
-            val lines = com.aashik.music.service.LyricsRepository.getLyrics(song)
-            if (lines != null && _currentSong.value?.id == song.id) {
-                _currentLyrics.value = lines
+            try {
+                val lines = com.aashik.music.service.LyricsRepository.getLyrics(song)
+                withContext(Dispatchers.Main) {
+                    if (_currentSong.value?.id == song.id) {
+                        _currentLyrics.value = lines ?: emptyList()
+                        _isLoadingLyrics.value = false
+                    }
+                }
+                if (lines != null && lines.isNotEmpty()) {
+                    prefetchAdjacentLyrics(song)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    if (_currentSong.value?.id == song.id) {
+                        _isLoadingLyrics.value = false
+                    }
+                }
             }
+        }
+    }
+
+    private fun prefetchAdjacentLyrics(current: Song) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val nextSongs = getUpcomingSongs(2)
+                for (s in nextSongs) {
+                    com.aashik.music.service.LyricsRepository.getLyrics(s)
+                }
+                val playlist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value
+                val curIdx = playlist.indexOfFirst { it.id == current.id }
+                if (curIdx > 0) {
+                    val prevSong = playlist[curIdx - 1]
+                    com.aashik.music.service.LyricsRepository.getLyrics(prevSong)
+                }
+            } catch (_: Exception) {}
         }
     }
 

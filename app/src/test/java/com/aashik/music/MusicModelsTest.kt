@@ -858,4 +858,67 @@ class MusicModelsTest {
         )
         assertTrue(realVideo.isLocalVideo())
     }
+
+    @Test
+    fun testLyricsRepositoryParsingAndCleaning() {
+        // 1. Title Cleaning
+        val clean1 = com.aashik.music.service.LyricsRepository.cleanSongTitle("01 - Badass.mp3")
+        assertEquals("Badass", clean1)
+
+        val clean2 = com.aashik.music.service.LyricsRepository.cleanSongTitle("Vaseegara (From \"Minnale\") (Official Video)")
+        assertEquals("Vaseegara", clean2)
+
+        val clean3 = com.aashik.music.service.LyricsRepository.cleanSongTitle("Illuminati | Aavesham | Fahadh Faasil")
+        assertEquals("Illuminati", clean3)
+
+        val clean4 = com.aashik.music.service.LyricsRepository.cleanSongTitle("Hukum_Thalaivar_Alappara.m4a")
+        assertEquals("Hukum Thalaivar Alappara", clean4)
+
+        // 2. Artist Cleaning
+        val artist1 = com.aashik.music.service.LyricsRepository.cleanArtistName("Anirudh Ravichander - Topic")
+        assertEquals("Anirudh Ravichander", artist1)
+
+        val artist2 = com.aashik.music.service.LyricsRepository.cleanArtistName("Ed Sheeran feat. Justin Bieber")
+        assertEquals("Ed Sheeran", artist2)
+
+        val artist3 = com.aashik.music.service.LyricsRepository.cleanArtistName("Unknown Artist")
+        assertEquals("", artist3)
+
+        // 3. LRC Parsing & Serialization
+        val lrc = """
+            [00:10.50]Line 1
+            [00:25.00]Line 2
+            [01:05.120]Line 3
+        """.trimIndent()
+        val lines = com.aashik.music.service.LyricsRepository.parseLrc(lrc)
+        assertEquals(3, lines.size)
+        assertEquals(10500L, lines[0].timeMs)
+        assertEquals("Line 1", lines[0].text)
+        assertEquals(25000L, lines[1].timeMs)
+        assertEquals(65120L, lines[2].timeMs)
+
+        val serializedLrc = com.aashik.music.service.LyricsRepository.linesToLrc(lines)
+        val roundTrip = com.aashik.music.service.LyricsRepository.parseLrc(serializedLrc)
+        assertEquals(3, roundTrip.size)
+        assertEquals(10500L, roundTrip[0].timeMs)
+        assertEquals("Line 1", roundTrip[0].text)
+
+        // 4. TTML Parsing
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml">
+                <body>
+                    <div>
+                        <p begin="00:09.500" end="00:12.000"><span>First</span> <span>line</span></p>
+                        <p begin="25.200" end="28.000">Second line</p>
+                    </div>
+                </body>
+            </tt>
+        """.trimIndent()
+        val ttmlLines = com.aashik.music.service.LyricsRepository.parseTtml(ttml, 180000L)
+        assertEquals(2, ttmlLines.size)
+        assertEquals(9500L, ttmlLines[0].timeMs)
+        assertEquals("First line", ttmlLines[0].text)
+        assertEquals(25200L, ttmlLines[1].timeMs)
+        assertEquals("Second line", ttmlLines[1].text)
+    }
 }

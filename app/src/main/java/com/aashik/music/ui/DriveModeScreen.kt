@@ -220,10 +220,19 @@ fun DriveModeScreen(
     var lastInteractionTimestamp by remember { mutableLongStateOf(0L) }
     var isLyricsExpanded by rememberSaveable { mutableStateOf(false) }
 
+    val currentLyrics by viewModel.currentLyrics.collectAsState()
+    val isLoadingLyrics by viewModel.isLoadingLyrics.collectAsState()
+
     LaunchedEffect(currentSong?.id) {
         areControlsVisible = true
         lastInteractionTimestamp = System.currentTimeMillis()
-        isLyricsExpanded = false
+    }
+
+    // Collapse expanded lyrics only if loading has completed and no lyrics exist for the current track
+    LaunchedEffect(currentLyrics, isLoadingLyrics) {
+        if (!isLoadingLyrics && currentLyrics.isEmpty() && isLyricsExpanded) {
+            isLyricsExpanded = false
+        }
     }
 
     // Auto-hide controls after 4.5 seconds of inactivity during video playback
@@ -1141,21 +1150,26 @@ private fun HudLyricLineDisplay(
 ) {
     val lyrics by viewModel.currentLyrics.collectAsState()
     val positionMs by viewModel.positionFlow.collectAsState()
+    val isLoadingLyrics by viewModel.isLoadingLyrics.collectAsState()
 
-    if (lyrics.isEmpty()) return
+    if (lyrics.isEmpty() && !isLoadingLyrics) return
 
-    val currentLine = remember(lyrics, positionMs) {
-        val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
-        if (idx >= 0) {
-            val line = lyrics[idx]
-            val nextLineTime = lyrics.getOrNull(idx + 1)?.timeMs
-            if (nextLineTime != null && positionMs >= nextLineTime && line.text.isBlank()) {
-                "♪ ♪ ♪"
-            } else {
-                line.text.ifBlank { "♪ ♪ ♪" }
-            }
+    val currentLine = remember(lyrics, positionMs, isLoadingLyrics) {
+        if (lyrics.isEmpty() && isLoadingLyrics) {
+            "♪ Loading lyrics..."
         } else {
-            "♪ Lyrics"
+            val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
+            if (idx >= 0) {
+                val line = lyrics[idx]
+                val nextLineTime = lyrics.getOrNull(idx + 1)?.timeMs
+                if (nextLineTime != null && positionMs >= nextLineTime && line.text.isBlank()) {
+                    "♪ ♪ ♪"
+                } else {
+                    line.text.ifBlank { "♪ ♪ ♪" }
+                }
+            } else {
+                "♪ Lyrics"
+            }
         }
     }
 
@@ -1217,6 +1231,7 @@ private fun HudExpandedLyricsView(
 ) {
     val lyrics by viewModel.currentLyrics.collectAsState()
     val positionMs by viewModel.positionFlow.collectAsState()
+    val isLoadingLyrics by viewModel.isLoadingLyrics.collectAsState()
 
     if (lyrics.isEmpty()) {
         Column(
@@ -1228,14 +1243,14 @@ private fun HudExpandedLyricsView(
             horizontalAlignment = Alignment.Start
         ) {
             Text(
-                text = "No synchronized lyrics available",
+                text = if (isLoadingLyrics) "Loading synchronized lyrics..." else "No synchronized lyrics available",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = secondaryTextColor
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Tap to show track info",
+                text = if (isLoadingLyrics) "Fetching lyrics..." else "Tap to show track info",
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
