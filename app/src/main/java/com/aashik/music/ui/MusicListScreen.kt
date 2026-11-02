@@ -680,72 +680,6 @@ fun RadioExploreContent(
         if (selectedCategory == null) {
             // ── Main Explore Screen (Genres & Styles) ──
             // Top Toolbar: Favorites Quick Filter + Random Station Trigger
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // "Favorites Only" Quick Filter Toggle Button
-                val totalFavCount = favoriteCategoryIds.size + favoriteStationIds.size
-                Surface(
-                    onClick = { showFavoritesOnly = !showFavoritesOnly },
-                    shape = PillShape10,
-                    color = if (showFavoritesOnly) FavoriteHeartRed.copy(alpha = 0.22f)
-                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                            else MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (showFavoritesOnly) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Filter Favorites",
-                            tint = if (showFavoritesOnly) FavoriteHeartRed else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = if (showFavoritesOnly) "Favorites ($totalFavCount)" else "Favorite Streams",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (showFavoritesOnly) FavoriteHeartRed else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-
-                // Random Radio Quick-Play Button
-                Surface(
-                    onClick = { viewModel.playRandomOrNextRadioStation() },
-                    shape = PillShape10,
-                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                            else MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Shuffle,
-                            contentDescription = "Random Stream",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = "Surprise Me",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
             val favCategories = remember(genreCategories, favoriteCategoryIds) {
                 genreCategories.filter { favoriteCategoryIds.contains(it.id) }
             }
@@ -787,13 +721,11 @@ fun RadioExploreContent(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp
                                     ),
-                                    color = FavoriteHeartRed
                                 )
                                 Text(
                                     text = "${favCategories.size + favStations.size} saved",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = FavoriteHeartRed
                                 )
                             }
                         }
@@ -844,12 +776,32 @@ fun RadioExploreContent(
                                     ),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                Text(
-                                    text = "${genreCategories.size} styles",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Surface(
+                    onClick = { viewModel.playRandomOrNextRadioStation() },
+                    shape = PillShape10,
+                    color = if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Shuffle,
+                            contentDescription = "Random Stream",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Surprise Me",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                             }
                         }
 
@@ -907,47 +859,18 @@ fun GenreDetailScreen(
     favoriteStationIds: Set<String>,
     modifier: Modifier = Modifier
 ) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 8.dp)
     ) {
-        // Top Bar: Circular Back Button + Avatar on right
-        Row(
+        // Material 3 Standardized Top App Bar
+        AppTopBar(
+            title = category.title,
+            onBack = onBack,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleBackButtonShape)
-                    .background(if (isDark) Color(0xFF1E2028) else MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        // Bold Genre Title (e.g. "Tamil")
-        Text(
-            text = category.title,
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 28.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = 12.dp)
+                .padding(bottom = 4.dp)
         )
 
         if (isLoading || (details == null && categoryStations.isEmpty())) {
@@ -1637,6 +1560,7 @@ fun UnifiedGlobalSearchResults(
                     isPlaying = isPlaying,
                     onClick = { viewModel.play(song, playlist = onlineSongs) },
                     onLongPress = { onSongLongPress(song) },
+                    showOptions = false,
                     isFavorite = favoritePaths.contains(song.path),
                     onFavoriteClick = { viewModel.toggleFavorite(song.path) }
                 )
@@ -1664,6 +1588,7 @@ fun UnifiedGlobalSearchResults(
                     isPlaying = isPlaying,
                     onClick = { viewModel.play(song, playlist = localSongs) },
                     onLongPress = { onSongLongPress(song) },
+                    showOptions = false,
                     isFavorite = favoritePaths.contains(song.path),
                     onFavoriteClick = { viewModel.toggleFavorite(song.path) }
                 )
@@ -1979,160 +1904,100 @@ private fun MobileHeader(
 ) {
     if (isSearchOpen) {
         Row(
-            modifier = modifier.height(44.dp),
+            modifier = modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(color = MaterialTheme.colorScheme.surfaceVariant, shape = HeaderCapsuleShape)
+                .border(width = 1.dp, color = MaterialTheme.colorScheme.primary, shape = HeaderCapsuleShape)
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(brush = AppGradients.capsule(isActive = false), shape = HeaderCapsuleShape)
-                    .border(width = 1.dp, brush = AppGradients.border(isActive = true), shape = HeaderCapsuleShape)
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChanged,
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        decorationBox = { innerTextField ->
-                            if (searchQuery.isEmpty()) {
-                                Text(
-                                    text = "Search songs, artists...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                )
-                            }
-                            innerTextField()
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(
-                            onClick = { onSearchQueryChanged("") },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Clear,
-                                contentDescription = "Clear search",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    IconButton(
-                        onClick = {
-                            onToggleSearch()
-                            onSearchQueryChanged("")
-                        },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "Close search",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+            Icon(
+                imageVector = Icons.Rounded.Search,
+                contentDescription = "Search",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChanged,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                decorationBox = { innerTextField ->
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = "Search songs, artists, albums...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
-                }
+                    innerTextField()
+                },
+                modifier = Modifier.weight(1f)
+            )
+            // Single clean action: clear text if present, otherwise close search mode
+            IconButton(
+                onClick = {
+                    if (searchQuery.isNotEmpty()) {
+                        onSearchQueryChanged("")
+                    } else {
+                        onToggleSearch()
+                    }
+                },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = if (searchQuery.isNotEmpty()) "Clear search" else "Close search",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
     } else {
-        Row(
-            modifier = modifier.height(44.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Left: Title or Back Button (for Folders, Favorites, Explore)
-            val isSubPage = selectedTab == LibraryTab.FOLDERS ||
-                    selectedTab == LibraryTab.FAVORITES ||
-                    selectedTab == LibraryTab.RADIO
+        val isSubPage = selectedTab == LibraryTab.FOLDERS ||
+                selectedTab == LibraryTab.FAVORITES ||
+                selectedTab == LibraryTab.RADIO
 
-            if (isSubPage) {
-                val title = if (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
-                    try {
-                        File(selectedFolder).name.ifBlank { selectedFolder }
-                    } catch (_: Exception) {
-                        selectedFolder
-                    }
-                } else when (selectedTab) {
-                    LibraryTab.FOLDERS -> "Folders"
-                    LibraryTab.FAVORITES -> "Favorites"
-                    LibraryTab.RADIO -> "Explore"
-                    else -> "Back"
-                }
+        val title = if (selectedTab == LibraryTab.FOLDERS && selectedFolder != null) {
+            try {
+                File(selectedFolder).name.ifBlank { selectedFolder }
+            } catch (_: Exception) {
+                selectedFolder
+            }
+        } else when (selectedTab) {
+            LibraryTab.FOLDERS -> "Folders"
+            LibraryTab.FAVORITES -> "Favorites"
+            LibraryTab.RADIO -> "Explore"
+            LibraryTab.MORE -> "More"
+            LibraryTab.ALL_SONGS -> "Music"
+        }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
+        AppTopBar(
+            title = title,
+            onBack = if (isSubPage) onBack else null,
+            actions = {
+                if (selectedTab != LibraryTab.MORE) {
                     IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.size(36.dp)
+                        onClick = onToggleSearch,
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
-            } else {
-                val title = when (selectedTab) {
-                    LibraryTab.ALL_SONGS -> "Music"
-                    LibraryTab.MORE -> "More"
-                    else -> "Music"
-                }
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 22.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Right Action: Search icon (shown everywhere except More menu)
-            if (selectedTab != LibraryTab.MORE) {
-                IconButton(
-                    onClick = onToggleSearch,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
+            },
+            modifier = modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -2637,30 +2502,20 @@ fun LibraryModeHeader(
                             modifier = Modifier.weight(1f)
                         )
 
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(
-                                onClick = { onSearchQueryChanged("") },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Clear,
-                                    contentDescription = "Clear search",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
+                        // Single clean action: clear text if present, otherwise close search mode
                         IconButton(
                             onClick = {
-                                onToggleSearch()
-                                onSearchQueryChanged("")
+                                if (searchQuery.isNotEmpty()) {
+                                    onSearchQueryChanged("")
+                                } else {
+                                    onToggleSearch()
+                                }
                             },
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
-                                contentDescription = "Close search",
+                                contentDescription = if (searchQuery.isNotEmpty()) "Clear search" else "Close search",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )

@@ -75,17 +75,17 @@ class MusicModelsTest {
 
     @Test
     fun testEqualizerAcousticClarityPresetParameters() {
-        // Acoustic Clarity Preset Specification
-        val acousticBands = listOf(0.0f, -4.0f, 1.0f, 2.0f, 3.0f)
+        // Acoustic Clarity Preset Specification (10 Bands)
+        val acousticBands = listOf(0.0f, 1.0f, -1.0f, -4.0f, -1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f)
         val acousticHpf = 2 // 80 Hz Cut
 
-        assertEquals(5, acousticBands.size)
+        assertEquals(10, acousticBands.size)
         assertEquals(0.0f, acousticBands[0], 0.001f)
-        // Verify 250 Hz Mud-Cut is strictly attenuated (-4 dB)
-        assertEquals(-4.0f, acousticBands[1], 0.001f)
+        // Verify 250 Hz Mud-Cut (index 3) is strictly attenuated (-4 dB)
+        assertEquals(-4.0f, acousticBands[3], 0.001f)
         // Verify Vocal presence and treble air boost
-        assertTrue("Vocal presence should be boosted", acousticBands[3] > 0.0f)
-        assertTrue("Treble sparkle should be boosted", acousticBands[4] > 0.0f)
+        assertTrue("Vocal presence should be boosted", acousticBands[6] > 0.0f)
+        assertTrue("Treble sparkle should be boosted", acousticBands[8] > 0.0f)
         assertEquals(2, acousticHpf)
     }
 

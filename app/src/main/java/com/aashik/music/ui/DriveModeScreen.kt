@@ -358,206 +358,317 @@ fun DriveModeScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-            // ── Top Row: Left Side Time & Exit | Right Side Equalizer with Presets ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Left Side: Exit Button, Time (Digital Clock with AM/PM), Dimmer, Sleep Timer
+            // ── Top Row: In portrait mode render a clean, balanced mobile top bar; in landscape render full HUD cockpit bar ──
+            if (isPortrait) {
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Button(
+                    // Left: Standard back navigation button matching AppTopBar
+                    IconButton(
                         onClick = onClose,
-                        shape = ExitButtonShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isNightDimmerActive) Color(0xFF161C24)
-                                             else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                             else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        modifier = Modifier.height(36.dp)
+                        modifier = Modifier.size(44.dp)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = "Exit Drive Mode",
-                            modifier = Modifier.size(17.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Exit",
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.Bold
+                            tint = if (isNightDimmerActive) Color(0xFFE2E8F0) else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
 
-                    // Time: Continuous Digital Clock with glanceable 12-Hour AM/PM
-                    DriveHudClock(
-                        isDark = isDark,
-                        isNightDimmer = isNightDimmerActive
-                    )
-
-                    // Night Highway Dimmer Mode Toggle
+                    // Center: Clock and Status
                     Row(
-                        modifier = Modifier
-                            .height(36.dp)
-                            .background(
-                                color = if (isNightDimmerActive) NightDimmerAmber.copy(alpha = 0.22f)
-                                        else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = NightDimmerPillShape
-                            )
-                            .clickable { isNightDimmerActive = !isNightDimmerActive }
-                            .padding(horizontal = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.DarkMode,
-                            contentDescription = "Night Dimmer Mode",
-                            tint = if (isNightDimmerActive) NightDimmerAmber else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(15.dp)
+                        DriveHudClock(
+                            isDark = isDark,
+                            isNightDimmer = isNightDimmerActive
                         )
-                        Text(
-                            text = if (isNightDimmerActive) "Night ON" else "Dimmer",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isNightDimmerActive) NightDimmerAmber else MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
 
-                    // Sleep Timer Badge (if active)
-                    val sleepSec by viewModel.sleepTimerRemainingSec.collectAsState()
-                    if (sleepSec > 0) {
-                        val mins = (sleepSec / 60) + 1
-                        Row(
-                            modifier = Modifier
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                    shape = ClockBadgeShape
+                        val sleepSec by viewModel.sleepTimerRemainingSec.collectAsState()
+                        if (sleepSec > 0) {
+                            val mins = (sleepSec / 60) + 1
+                            Row(
+                                modifier = Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                        shape = ClockBadgeShape
+                                    )
+                                    .padding(horizontal = 7.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "💤 ${mins}m",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "💤 ${mins}m",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            }
                         }
                     }
 
-                    // In-cabin speed & SCVC telemetry badge (Task 4.3)
-                    val scvcGainDb by viewModel.scvcGainDb.collectAsState()
+                    // Right: Dimmer and Video toggle actions
                     Row(
-                        modifier = Modifier
-                            .height(36.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                                shape = ClockBadgeShape
-                            )
-                            .padding(horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = "${currentSpeedKmh.toInt()} km/h • +${String.format(java.util.Locale.US, "%.1f", scvcGainDb)} dB",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                        // Night Highway Dimmer Mode Toggle
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(
+                                    color = if (isNightDimmerActive) NightDimmerAmber.copy(alpha = 0.22f)
+                                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = CircleShape
+                                )
+                                .clickable { isNightDimmerActive = !isNightDimmerActive },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DarkMode,
+                                contentDescription = "Night Dimmer Mode",
+                                tint = if (isNightDimmerActive) NightDimmerAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
 
-                    // Driving Safety Video Interlock Pill (Task 7.2)
-                    if (isSpeedLockActive && playVideoForStreams) {
+                        // Play Music Video Toggle Icon
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(
+                                    color = if (playVideoForStreams) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                            else if (isNightDimmerActive) Color(0xFF161C24)
+                                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = CircleShape
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (playVideoForStreams) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                            else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable { viewModel.setPlayVideoForStreams(!playVideoForStreams) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MusicNote,
+                                contentDescription = if (playVideoForStreams) "Music Video On" else "Music Video Off",
+                                tint = if (playVideoForStreams) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                // ── Landscape Headunit Cockpit Top Bar ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Left Side: Exit Button, Time (Digital Clock with AM/PM), Dimmer, Sleep Timer
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onClose,
+                            shape = ExitButtonShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isNightDimmerActive) Color(0xFF161C24)
+                                                 else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                                 else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "Exit Drive Mode",
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Exit",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Time: Continuous Digital Clock with glanceable 12-Hour AM/PM
+                        DriveHudClock(
+                            isDark = isDark,
+                            isNightDimmer = isNightDimmerActive
+                        )
+
+                        // Night Highway Dimmer Mode Toggle
                         Row(
                             modifier = Modifier
                                 .height(36.dp)
                                 .background(
-                                    color = Color(0x33FFB300),
+                                    color = if (isNightDimmerActive) NightDimmerAmber.copy(alpha = 0.22f)
+                                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = NightDimmerPillShape
+                                )
+                                .clickable { isNightDimmerActive = !isNightDimmerActive }
+                                .padding(horizontal = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DarkMode,
+                                contentDescription = "Night Dimmer Mode",
+                                tint = if (isNightDimmerActive) NightDimmerAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = if (isNightDimmerActive) "Night ON" else "Dimmer",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isNightDimmerActive) NightDimmerAmber else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+
+                        // Sleep Timer Badge (if active)
+                        val sleepSec by viewModel.sleepTimerRemainingSec.collectAsState()
+                        if (sleepSec > 0) {
+                            val mins = (sleepSec / 60) + 1
+                            Row(
+                                modifier = Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                        shape = ClockBadgeShape
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "💤 ${mins}m",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        // In-cabin speed & SCVC telemetry badge (Task 4.3)
+                        val scvcGainDb by viewModel.scvcGainDb.collectAsState()
+                        Row(
+                            modifier = Modifier
+                                .height(36.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                                     shape = ClockBadgeShape
                                 )
                                 .padding(horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "🛡️ Audio-Only (Driving Safety)",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFB300)
+                                text = "${currentSpeedKmh.toInt()} km/h • +${String.format(java.util.Locale.US, "%.1f", scvcGainDb)} dB",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-                }
 
-                // Right Side: Play Music Video Toggle Switch (Top-Right in HUD Mode)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                        // Driving Safety Video Interlock Pill (Task 7.2)
+                        if (isSpeedLockActive && playVideoForStreams) {
+                            Row(
+                                modifier = Modifier
+                                    .height(36.dp)
+                                    .background(
+                                        color = Color(0x33FFB300),
+                                        shape = ClockBadgeShape
+                                    )
+                                    .padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "🛡️ Audio-Only (Driving Safety)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFFB300)
+                                )
+                            }
+                        }
+                    }
+
+                    // Right Side: Play Music Video Toggle Switch (Top-Right in HUD Mode)
                     Row(
-                        modifier = Modifier
-                            .height(36.dp)
-                            .background(
-                                color = if (playVideoForStreams) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                                        else if (isNightDimmerActive) Color(0xFF161C24)
-                                        else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = NightDimmerPillShape
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (playVideoForStreams) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                        else Color.Transparent,
-                                shape = NightDimmerPillShape
-                            )
-                            .clickable { viewModel.setPlayVideoForStreams(!playVideoForStreams) }
-                            .padding(start = 10.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = if (playVideoForStreams) "Music Video" else "Video Off",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (playVideoForStreams) MaterialTheme.colorScheme.primary
-                                    else if (isNightDimmerActive) Color(0xFF8B98A9)
-                                    else MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1
-                        )
-                        Switch(
-                            checked = playVideoForStreams,
-                            onCheckedChange = null,
-                            modifier = Modifier.scale(0.75f),
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                        Row(
+                            modifier = Modifier
+                                .height(36.dp)
+                                .background(
+                                    color = if (playVideoForStreams) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                            else if (isNightDimmerActive) Color(0xFF161C24)
+                                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = NightDimmerPillShape
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (playVideoForStreams) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                            else Color.Transparent,
+                                    shape = NightDimmerPillShape
+                                )
+                                .clickable { viewModel.setPlayVideoForStreams(!playVideoForStreams) }
+                                .padding(start = 10.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = if (playVideoForStreams) "Music Video" else "Video Off",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (playVideoForStreams) MaterialTheme.colorScheme.primary
+                                        else if (isNightDimmerActive) Color(0xFF8B98A9)
+                                        else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1
                             )
-                        )
-                    }
+                            Switch(
+                                checked = playVideoForStreams,
+                                onCheckedChange = null,
+                                modifier = Modifier.scale(0.75f),
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                    checkedTrackColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                        }
 
-                    // OpenSL ES Audio Pipeline Latency Readout Badge (Task 4.3)
-                    Row(
-                        modifier = Modifier
-                            .height(36.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                                shape = NightDimmerPillShape
+                        // OpenSL ES Audio Pipeline Latency Readout Badge (Task 4.3)
+                        Row(
+                            modifier = Modifier
+                                .height(36.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                    shape = NightDimmerPillShape
+                                )
+                                .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "48kHz • 96KB • 5.3ms",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                maxLines = 1
                             )
-                            .padding(horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "48kHz • 96KB • 5.3ms",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                            maxLines = 1
-                        )
+                        }
                     }
                 }
             }
@@ -619,7 +730,7 @@ fun DriveModeScreen(
                                 horizontalArrangement = Arrangement.Start
                             ) {
                                 val landscapeArtworkSize by animateDpAsState(
-                                    targetValue = if (isLyricsExpanded) 88.dp else 160.dp,
+                                    targetValue = if (isLyricsExpanded) 0.dp else 160.dp,
                                     animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
                                     label = "DriveHudArtworkSize"
                                 )
@@ -1034,25 +1145,6 @@ private fun DriveHudActionBar(
             )
         }
 
-        // 2b. Synchronized Lyrics Toggle Button
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .background(
-                    color = if (isLyricsExpanded) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
-                    shape = CircleShape
-                )
-                .clickable { onToggleLyrics(!isLyricsExpanded) },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MusicNote,
-                contentDescription = "Toggle Synchronized Lyrics",
-                tint = if (isLyricsExpanded) MaterialTheme.colorScheme.primary else controlInactiveColor,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
         // 3. Favorite Button
         Box(
             modifier = Modifier
@@ -1182,13 +1274,6 @@ private fun DriveHudActionBar(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "NEXT",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 0.5.sp
-                        )
-                        Text(
                             text = nextSong.title,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -1198,14 +1283,6 @@ private fun DriveHudActionBar(
                             modifier = Modifier.weight(1f, fill = false)
                         )
                     }
-                    Text(
-                        text = nextSong.artist,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = if (isNightDimmerActive) Color(0xFF8B98A9) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
             }
         } else {
@@ -1437,7 +1514,7 @@ private fun HudExpandedLyricsView(
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = "Show Info",
+                    text = "Close",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = secondaryTextColor
@@ -1482,11 +1559,7 @@ private fun HudExpandedLyricsView(
                     label = "LyricScale"
                 )
 
-                val activeBgColor = if (isCurrent) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                } else {
-                    Color.Transparent
-                }
+                val activeBgColor = Color.Transparent
 
                 Box(
                     modifier = Modifier
@@ -1508,7 +1581,7 @@ private fun HudExpandedLyricsView(
                         fontSize = if (isCurrent) 15.sp else 13.sp,
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                         color = animatedColor,
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -1672,7 +1745,7 @@ private fun MobileDriveHudStage(
                 horizontalArrangement = Arrangement.Start
             ) {
                 val mobileArtworkSize by animateDpAsState(
-                    targetValue = if (isLyricsExpanded) 68.dp else 130.dp,
+                    targetValue = if (isLyricsExpanded) 0.dp else 130.dp,
                     animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
                     label = "MobileHudArtworkSize"
                 )

@@ -170,76 +170,18 @@ fun SettingsScreen(
                 .padding(horizontal = if (isLandscape) 14.dp else 10.dp, vertical = if (isLandscape) 10.dp else 8.dp)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // ── Top Header Navigation Bar ──
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        modifier = Modifier.weight(1f, fill = false),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        IconButton(
-                            onClick = onClose,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back to Library",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                // ── Top Header Navigation Bar (Material 3 Standardized) ──
+                AppTopBar(
+                    title = "Settings",
+                    onBack = onClose
+                )
 
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-
-                        Column(modifier = Modifier.weight(1f, fill = false)) {
-                            Text(
-                                text = "Settings & Preferences",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "Automotive Audio & Headunit Setup",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(
-                        onClick = onClose,
-                        shape = ActionButtonShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Text(
-                            text = "Done",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                Text(
+                    text = "Automotive Audio & Headunit Preferences",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp, start = 4.dp)
+                )
 
                 // ── Unified Single Scrollable Column (No Split Screen) ──
                 Column(

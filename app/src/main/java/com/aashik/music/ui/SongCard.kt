@@ -87,6 +87,7 @@ fun SongCard(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
     cardWidth: Dp? = null,
+    showOptions: Boolean = true,
     @Suppress("UNUSED_PARAMETER") isFavorite: Boolean = false,
     @Suppress("UNUSED_PARAMETER") onFavoriteClick: (() -> Unit)? = null
 ) {
@@ -189,19 +190,21 @@ fun SongCard(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(SongCardShape)
-                        .clickable(onClick = onLongPress),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = "Song options for ${song.title}",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                if (showOptions) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(SongCardShape)
+                            .clickable(onClick = onLongPress),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.MoreVert,
+                            contentDescription = "Song options for ${song.title}",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

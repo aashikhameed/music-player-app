@@ -56,11 +56,16 @@ private val MudCutWarningColor = Color(0xFFFF8A65)
 private val VocalCyanColor = Color(0xFF4DD0E1)
 
 private val BAND_LABELS = listOf(
-    "60 Hz" to "Sub-Bass",
-    "250 Hz" to "Mud Cut (Door Resonance)",
-    "1.0 kHz" to "Vocal Body",
-    "3.5 kHz" to "Vocal Presence & Clarity",
-    "10 kHz" to "Treble Air & Sparkle"
+    "31 Hz" to "Sub-Bass",
+    "62 Hz" to "Punch",
+    "125 Hz" to "Warmth",
+    "250 Hz" to "Door Resonance (Mud Cut)",
+    "500 Hz" to "Low-Mid",
+    "1.0 kHz" to "Vocals",
+    "2.0 kHz" to "Clarity",
+    "4.0 kHz" to "Attack",
+    "8.0 kHz" to "Treble",
+    "16 kHz" to "Air"
 )
 
 private val PRESET_NAMES = listOf(
@@ -313,8 +318,8 @@ fun EqualizerDialog(
                 ) {
                     BAND_LABELS.forEachIndexed { bandIndex, (freqLabel, roleLabel) ->
                         val gain = bandGains.getOrElse(bandIndex) { 0.0f }
-                        val isMudZone = (bandIndex == 1) // 250 Hz Mud Cut
-                        val isVocalZone = (bandIndex == 2 || bandIndex == 3)
+                        val isMudZone = (bandIndex == 3) // 250 Hz Mud Cut
+                        val isVocalZone = (bandIndex == 5 || bandIndex == 6)
 
                         Row(
                             modifier = Modifier

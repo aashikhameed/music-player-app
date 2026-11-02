@@ -141,11 +141,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _equalizerBands = MutableStateFlow(
         listOf(
-            eqPrefs.getFloat("eq_band_0", 0.0f),
-            eqPrefs.getFloat("eq_band_1", -4.0f), // Mud Cut default
-            eqPrefs.getFloat("eq_band_2", 1.0f),
-            eqPrefs.getFloat("eq_band_3", 2.0f),
-            eqPrefs.getFloat("eq_band_4", 3.0f)
+            eqPrefs.getFloat("eq_band_0", 0.0f),   // 31 Hz
+            eqPrefs.getFloat("eq_band_1", 1.0f),   // 62 Hz
+            eqPrefs.getFloat("eq_band_2", -1.0f),  // 125 Hz
+            eqPrefs.getFloat("eq_band_3", -4.0f),  // 250 Hz (Mud Cut)
+            eqPrefs.getFloat("eq_band_4", -1.0f),  // 500 Hz
+            eqPrefs.getFloat("eq_band_5", 1.5f),   // 1 kHz
+            eqPrefs.getFloat("eq_band_6", 2.0f),   // 2 kHz
+            eqPrefs.getFloat("eq_band_7", 2.5f),   // 4 kHz
+            eqPrefs.getFloat("eq_band_8", 3.0f),   // 8 kHz
+            eqPrefs.getFloat("eq_band_9", 3.5f)    // 16 kHz
         )
     )
     val equalizerBands: StateFlow<List<Float>> = _equalizerBands.asStateFlow()
@@ -660,34 +665,32 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         when (preset) {
             0 -> { // Flat
                 _equalizerHpfMode.value = 0
-                _equalizerBands.value = listOf(0f, 0f, 0f, 0f, 0f)
+                _equalizerBands.value = listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
             }
             1 -> { // Acoustic Clarity
                 _equalizerHpfMode.value = 2
-                _equalizerBands.value = listOf(0f, -4f, 1f, 2f, 3f)
+                _equalizerBands.value = listOf(0f, 1f, -1f, -4f, -1f, 1.5f, 2f, 2.5f, 3f, 3.5f)
             }
             2 -> { // Vocal Separation
                 _equalizerHpfMode.value = 2
-                _equalizerBands.value = listOf(-2f, -5f, 2f, 3f, 1f)
+                _equalizerBands.value = listOf(-3f, -2f, -3f, -5f, 1f, 3f, 3.5f, 2f, 1f, 1f)
             }
             3 -> { // Bass Punch
                 _equalizerHpfMode.value = 1
-                _equalizerBands.value = listOf(3f, -3f, 0f, 1f, 2f)
+                _equalizerBands.value = listOf(4f, 4.5f, 2f, -3f, -1f, 0f, 1f, 1.5f, 2f, 2f)
             }
             4 -> { // Rock Dynamic
                 _equalizerHpfMode.value = 1
-                _equalizerBands.value = listOf(2f, -2f, 0f, 2f, 3f)
+                _equalizerBands.value = listOf(2.5f, 3f, 1f, -2.5f, -1.5f, 0f, 1.5f, 3f, 3.5f, 3f)
             }
         }
-        eqPrefs.edit()
+        val editor = eqPrefs.edit()
             .putInt("eq_preset", preset)
             .putInt("eq_hpf_mode", _equalizerHpfMode.value)
-            .putFloat("eq_band_0", _equalizerBands.value[0])
-            .putFloat("eq_band_1", _equalizerBands.value[1])
-            .putFloat("eq_band_2", _equalizerBands.value[2])
-            .putFloat("eq_band_3", _equalizerBands.value[3])
-            .putFloat("eq_band_4", _equalizerBands.value[4])
-            .apply()
+        _equalizerBands.value.forEachIndexed { i, gain ->
+            editor.putFloat("eq_band_$i", gain)
+        }
+        editor.apply()
     }
 
     fun cycleEqualizerPreset() {

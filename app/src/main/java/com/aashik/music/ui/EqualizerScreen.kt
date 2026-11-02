@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -83,11 +85,16 @@ private val EqCurveLineColor = Color(0xFF00E5FF)
 private val EqCurveBypassColor = Color(0x6694A3B8)
 
 private val BAND_INFO = listOf(
-    "60 Hz" to "Sub-Bass Punch",
+    "31 Hz" to "Sub-Bass Depth",
+    "62 Hz" to "Kick & Bass Punch",
+    "125 Hz" to "Upper Bass Warmth",
     "250 Hz" to "Door Resonance (Mud Cut)",
-    "1.0 kHz" to "Vocal Body & Midrange",
-    "3.5 kHz" to "Vocal Presence & Clarity",
-    "10 kHz" to "Treble Air & Sparkle"
+    "500 Hz" to "Low Midrange Body",
+    "1.0 kHz" to "Vocal Body & Presence",
+    "2.0 kHz" to "Vocal Clarity & Definition",
+    "4.0 kHz" to "Attack & Percussion",
+    "8.0 kHz" to "Treble Sparkle",
+    "16 kHz" to "Air & Shimmer"
 )
 
 private val PRESET_TITLES = listOf(
@@ -163,128 +170,58 @@ fun EqualizerScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                // ── Top Header Navigation Bar ──
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.weight(1f, fill = false)
-                    ) {
-                        IconButton(
-                            onClick = onClose,
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        Icon(
-                            imageVector = Icons.Rounded.GraphicEq,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp)
-                        )
-
-                        Column {
-                            Text(
-                                text = "Equalizer",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "Tuning • OpenSL ES Engine",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Quick Reset / Flat Button
-                        Button(
-                            onClick = {
-                                viewModel.setEqualizerPreset(0) // Flat
-                            },
-                            shape = ActionBtnShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.RestartAlt,
-                                contentDescription = "Reset Flat",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "Flat", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-
-                        // Master On/Off Switch
+                // ── Top Header Navigation Bar (Material 3 Standardized) ──
+                AppTopBar(
+                    title = "Equalizer",
+                    onBack = onClose,
+                    actions = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(ActionBtnShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(end = 8.dp)
                         ) {
                             Text(
-                                text = if (isEnabled) "DSP ACTIVE" else "BYPASS",
-                                fontSize = 11.sp,
+                                text = if (isEnabled) "ACTIVE" else "BYPASS",
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
                             Switch(
                                 checked = isEnabled,
                                 onCheckedChange = { viewModel.setEqualizerEnabled(it) },
-                                thumbContent = null,
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = MaterialTheme.colorScheme.primary,
                                     checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                                ),
-                                modifier = Modifier.size(34.dp)
+                                )
                             )
                         }
-
-                        Button(
-                            onClick = onClose,
-                            shape = ActionBtnShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            ),
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Text(text = "Done", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
                     }
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.GraphicEq,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Acoustic Tuning • OpenSL ES Native Engine",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 // ── Section 1: Presets ──
                 DspCard(title = "Acoustic Tuning Presets", icon = Icons.Rounded.Tune) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         PRESET_TITLES.forEachIndexed { index, name ->
@@ -314,8 +251,8 @@ fun EqualizerScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // ── Section 2: 5-Band Graphic Equalizer ──
-                DspCard(title = "5-Band Graphic Equalizer (-12 dB to +12 dB)", icon = Icons.Rounded.GraphicEq) {
+                // ── Section 2: 10-Band Graphic Equalizer ──
+                DspCard(title = "10-Band Graphic Equalizer (-12 dB to +12 dB)", icon = Icons.Rounded.GraphicEq) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         EqualizerCurveCanvas(
                             bandGains = bandGains,
@@ -399,7 +336,9 @@ fun EqualizerScreen(
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         HPF_LABELS.forEachIndexed { index, label ->
@@ -433,7 +372,9 @@ fun EqualizerScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             SURROUND_LABELS.forEachIndexed { index, label ->
@@ -463,7 +404,9 @@ fun EqualizerScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             TIME_ALIGNMENT_LABELS.forEachIndexed { index, label ->
@@ -493,7 +436,9 @@ fun EqualizerScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             BASS_BOOST_LABELS.forEachIndexed { index, label ->
@@ -533,7 +478,9 @@ private fun BalanceFaderCard(viewModel: MusicViewModel) {
         ) {
             // Preset Focus Buttons Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -602,8 +549,6 @@ private fun BalanceFaderCard(viewModel: MusicViewModel) {
                     modifier = Modifier.height(30.dp)
                 )
 
-                Spacer(modifier = Modifier.weight(1f))
-
                 IconButton(
                     onClick = { viewModel.resetBalanceFader() },
                     modifier = Modifier.size(30.dp)
@@ -618,202 +563,265 @@ private fun BalanceFaderCard(viewModel: MusicViewModel) {
             }
 
             // 2D Touch Grid Canvas & Sliders
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Interactive 2D Soundstage Touchpad
-                val primaryColor = MaterialTheme.colorScheme.primary
-                val gridBgColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-                val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val isCompact = maxWidth < 480.dp
 
-                Box(
-                    modifier = Modifier
-                        .size(width = 190.dp, height = 130.dp)
-                        .background(gridBgColor, shape = GridBorderShape)
-                        .border(1.dp, gridLineColor, GridBorderShape)
-                        .pointerInput(Unit) {
-                            detectTapGestures { offset ->
-                                val normX = ((offset.x / size.width) * 2f - 1f).coerceIn(-1f, 1f)
-                                val normY = -((offset.y / size.height) * 2f - 1f).coerceIn(-1f, 1f)
-                                viewModel.setBalance(normX)
-                                viewModel.setFader(normY)
-                            }
-                        }
-                        .pointerInput(Unit) {
-                            detectDragGestures { change, _ ->
-                                change.consume()
-                                val normX = ((change.position.x / size.width) * 2f - 1f).coerceIn(-1f, 1f)
-                                val normY = -((change.position.y / size.height) * 2f - 1f).coerceIn(-1f, 1f)
-                                viewModel.setBalance(normX)
-                                viewModel.setFader(normY)
-                            }
-                        }
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val w = size.width
-                        val h = size.height
-                        val cx = w / 2f
-                        val cy = h / 2f
-
-                        // Crosshairs
-                        drawLine(
-                            color = gridLineColor,
-                            start = Offset(cx, 0f),
-                            end = Offset(cx, h),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                        drawLine(
-                            color = gridLineColor,
-                            start = Offset(0f, cy),
-                            end = Offset(w, cy),
-                            strokeWidth = 1.dp.toPx()
+                if (isCompact) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Interactive 2D Soundstage Touchpad
+                        AcousticTouchPad(
+                            balance = balance,
+                            fader = fader,
+                            onUpdate = { newBal, newFad ->
+                                viewModel.setBalance(newBal)
+                                viewModel.setFader(newFad)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
                         )
 
-                        // 4 Speaker Corner Indicators
-                        val speakerColor = primaryColor.copy(alpha = 0.35f)
-                        val spRad = 4.dp.toPx()
-                        drawCircle(speakerColor, spRad, Offset(16.dp.toPx(), 16.dp.toPx()))
-                        drawCircle(speakerColor, spRad, Offset(w - 16.dp.toPx(), 16.dp.toPx()))
-                        drawCircle(speakerColor, spRad, Offset(16.dp.toPx(), h - 16.dp.toPx()))
-                        drawCircle(speakerColor, spRad, Offset(w - 16.dp.toPx(), h - 16.dp.toPx()))
-
-                        // Focal Puck Position (balance maps to x, fader maps to -y)
-                        val puckX = cx + balance * (cx - 18.dp.toPx())
-                        val puckY = cy - fader * (cy - 18.dp.toPx())
-
-                        // Outer acoustic halo
-                        drawCircle(
-                            color = primaryColor.copy(alpha = 0.25f),
-                            radius = 16.dp.toPx(),
-                            center = Offset(puckX, puckY)
-                        )
-                        // Inner focal puck
-                        drawCircle(
-                            color = primaryColor,
-                            radius = 8.dp.toPx(),
-                            center = Offset(puckX, puckY)
-                        )
-                        drawCircle(
-                            color = Color.White,
-                            radius = 3.dp.toPx(),
-                            center = Offset(puckX, puckY)
+                        // Fine Adjustment Sliders
+                        AcousticFineSliders(
+                            balance = balance,
+                            fader = fader,
+                            onBalanceChange = { viewModel.setBalance(it) },
+                            onFaderChange = { viewModel.setFader(it) },
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-
-                    // Cabin Axis Labels
-                    Text(
-                        text = "FRONT",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 2.dp)
-                    )
-                    Text(
-                        text = "REAR",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp)
-                    )
-                    Text(
-                        text = "L",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp)
-                    )
-                    Text(
-                        text = "R",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp)
-                    )
-                }
-
-                // Fine Adjustment Sliders
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // Balance Slider
-                    val balPercent = (balance * 100).roundToInt()
-                    val balText = when {
-                        balPercent < 0 -> "Left ${-balPercent}%"
-                        balPercent > 0 -> "Right $balPercent%"
-                        else -> "Center"
-                    }
+                } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Balance (L ↔ R):",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                        AcousticTouchPad(
+                            balance = balance,
+                            fader = fader,
+                            onUpdate = { newBal, newFad ->
+                                viewModel.setBalance(newBal)
+                                viewModel.setFader(newFad)
+                            },
+                            modifier = Modifier.size(width = 180.dp, height = 130.dp)
                         )
-                        Text(
-                            text = balText,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Slider(
-                        value = balance,
-                        onValueChange = { viewModel.setBalance(it) },
-                        valueRange = -1.0f..1.0f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.fillMaxWidth().height(26.dp)
-                    )
 
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    // Fader Slider
-                    val fadPercent = (fader * 100).roundToInt()
-                    val fadText = when {
-                        fadPercent > 0 -> "Front +$fadPercent%"
-                        fadPercent < 0 -> "Rear ${fadPercent}%"
-                        else -> "Center"
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Fader (Rear ↔ Front):",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = fadText,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                        AcousticFineSliders(
+                            balance = balance,
+                            fader = fader,
+                            onBalanceChange = { viewModel.setBalance(it) },
+                            onFaderChange = { viewModel.setFader(it) },
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                    Slider(
-                        value = fader,
-                        onValueChange = { viewModel.setFader(it) },
-                        valueRange = -1.0f..1.0f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.fillMaxWidth().height(26.dp)
-                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AcousticTouchPad(
+    balance: Float,
+    fader: Float,
+    onUpdate: (Float, Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val gridBgColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+    val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+
+    Box(
+        modifier = modifier
+            .background(gridBgColor, shape = GridBorderShape)
+            .border(1.dp, gridLineColor, GridBorderShape)
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    val normX = ((offset.x / size.width) * 2f - 1f).coerceIn(-1f, 1f)
+                    val normY = -((offset.y / size.height) * 2f - 1f).coerceIn(-1f, 1f)
+                    onUpdate(normX, normY)
+                }
+            }
+            .pointerInput(Unit) {
+                detectDragGestures { change, _ ->
+                    change.consume()
+                    val normX = ((change.position.x / size.width) * 2f - 1f).coerceIn(-1f, 1f)
+                    val normY = -((change.position.y / size.height) * 2f - 1f).coerceIn(-1f, 1f)
+                    onUpdate(normX, normY)
+                }
+            }
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val cx = w / 2f
+            val cy = h / 2f
+
+            // Crosshairs
+            drawLine(
+                color = gridLineColor,
+                start = Offset(cx, 0f),
+                end = Offset(cx, h),
+                strokeWidth = 1.dp.toPx()
+            )
+            drawLine(
+                color = gridLineColor,
+                start = Offset(0f, cy),
+                end = Offset(w, cy),
+                strokeWidth = 1.dp.toPx()
+            )
+
+            // 4 Speaker Corner Indicators
+            val speakerColor = primaryColor.copy(alpha = 0.35f)
+            val spRad = 4.dp.toPx()
+            drawCircle(speakerColor, spRad, Offset(16.dp.toPx(), 16.dp.toPx()))
+            drawCircle(speakerColor, spRad, Offset(w - 16.dp.toPx(), 16.dp.toPx()))
+            drawCircle(speakerColor, spRad, Offset(16.dp.toPx(), h - 16.dp.toPx()))
+            drawCircle(speakerColor, spRad, Offset(w - 16.dp.toPx(), h - 16.dp.toPx()))
+
+            // Focal Puck Position (balance maps to x, fader maps to -y)
+            val puckX = cx + balance * (cx - 18.dp.toPx())
+            val puckY = cy - fader * (cy - 18.dp.toPx())
+
+            // Outer acoustic halo
+            drawCircle(
+                color = primaryColor.copy(alpha = 0.25f),
+                radius = 16.dp.toPx(),
+                center = Offset(puckX, puckY)
+            )
+            // Inner focal puck
+            drawCircle(
+                color = primaryColor,
+                radius = 8.dp.toPx(),
+                center = Offset(puckX, puckY)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 3.dp.toPx(),
+                center = Offset(puckX, puckY)
+            )
+        }
+
+        // Cabin Axis Labels
+        Text(
+            text = "FRONT",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 2.dp)
+        )
+        Text(
+            text = "REAR",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp)
+        )
+        Text(
+            text = "L",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp)
+        )
+        Text(
+            text = "R",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun AcousticFineSliders(
+    balance: Float,
+    fader: Float,
+    onBalanceChange: (Float) -> Unit,
+    onFaderChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // Balance Slider
+        val balPercent = (balance * 100).roundToInt()
+        val balText = when {
+            balPercent < 0 -> "Left ${-balPercent}%"
+            balPercent > 0 -> "Right $balPercent%"
+            else -> "Center"
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Balance (L ↔ R)",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = balText,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            value = balance,
+            onValueChange = onBalanceChange,
+            valueRange = -1.0f..1.0f,
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary
+            ),
+            modifier = Modifier.fillMaxWidth().height(26.dp)
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        // Fader Slider
+        val fadPercent = (fader * 100).roundToInt()
+        val fadText = when {
+            fadPercent > 0 -> "Front +$fadPercent%"
+            fadPercent < 0 -> "Rear ${fadPercent}%"
+            else -> "Center"
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Fader (Rear ↔ Front)",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = fadText,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            value = fader,
+            onValueChange = onFaderChange,
+            valueRange = -1.0f..1.0f,
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary
+            ),
+            modifier = Modifier.fillMaxWidth().height(26.dp)
+        )
     }
 }
 

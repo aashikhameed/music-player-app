@@ -88,7 +88,7 @@ struct BiquadState {
  */
 class AudioEqualizer {
 public:
-    static constexpr size_t NUM_BANDS = 5;
+    static constexpr size_t NUM_BANDS = 10;
     static constexpr size_t MAX_CHANNELS = 2;
 
     AudioEqualizer();
@@ -164,18 +164,23 @@ private:
     std::atomic<float> mBalance{0.0f};
     std::atomic<float> mFader{0.0f};
 
-    // 5 target frequencies:
-    // Band 0: 60 Hz (Sub-bass / Low punch)
-    // Band 1: 250 Hz (Mud Zone - car door acoustic cavity resonance)
-    // Band 2: 1000 Hz (Vocal midrange body)
-    // Band 3: 3500 Hz (Vocal presence / instrument clarity)
-    // Band 4: 10000 Hz (Treble air & tweeter shimmer)
+    // 10 target frequencies:
+    // Band 0: 31 Hz (Sub-bass / Low Rumble)
+    // Band 1: 62 Hz (Kick & Bass Punch)
+    // Band 2: 125 Hz (Upper Bass Warmth)
+    // Band 3: 250 Hz (Door Resonance / Mud Cut)
+    // Band 4: 500 Hz (Low Midrange Body)
+    // Band 5: 1000 Hz (Vocal Fundamental)
+    // Band 6: 2000 Hz (Speech Intelligibility & Clarity)
+    // Band 7: 4000 Hz (Attack & Percussion Clarity)
+    // Band 8: 8000 Hz (Cymbal Shimmer & Treble Sparkle)
+    // Band 9: 16000 Hz (Air & High-Frequency Shimmer)
     static constexpr std::array<float, NUM_BANDS> BAND_FREQUENCIES = {
-        60.0f, 250.0f, 1000.0f, 3500.0f, 10000.0f
+        31.0f, 62.0f, 125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f, 16000.0f
     };
 
     static constexpr std::array<float, NUM_BANDS> BAND_Q = {
-        0.9f, 1.2f, 1.0f, 1.2f, 0.8f
+        0.9f, 1.0f, 1.1f, 1.4f, 1.2f, 1.0f, 1.1f, 1.2f, 1.0f, 0.8f
     };
 
     std::array<std::atomic<float>, NUM_BANDS> mBandGainsDb;

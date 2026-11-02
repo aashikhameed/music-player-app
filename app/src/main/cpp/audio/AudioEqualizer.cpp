@@ -29,55 +29,71 @@ void AudioEqualizer::applyPresetGains(int32_t preset) {
     switch (preset) {
         case PRESET_FLAT:
             mHpfMode.store(HPF_OFF, std::memory_order_relaxed);
-            mBandGainsDb[0].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[4].store(0.0f, std::memory_order_relaxed);
+            for (size_t i = 0; i < NUM_BANDS; ++i) {
+                mBandGainsDb[i].store(0.0f, std::memory_order_relaxed);
+            }
             break;
 
         case PRESET_ACOUSTIC_CLARITY:
             // Tuned for vehicle cabin + external processor + door speakers:
             // - HPF at 80 Hz eliminates woofer excursion distortion
             // - Mud cut (-4.0 dB) at 250 Hz eliminates hollow door resonance
-            // - +1.0 dB at 1 kHz brings vocal fundamentals forward
-            // - +2.0 dB at 3.5 kHz adds crisp vocal/instrument separation
-            // - +3.0 dB at 10 kHz brings out tweeter sparkle
+            // - Midrange and treble contours provide crisp separation and air
             mHpfMode.store(HPF_80HZ, std::memory_order_relaxed);
             mBandGainsDb[0].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(-4.0f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(1.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(2.0f, std::memory_order_relaxed);
-            mBandGainsDb[4].store(3.0f, std::memory_order_relaxed);
+            mBandGainsDb[1].store(1.0f, std::memory_order_relaxed);
+            mBandGainsDb[2].store(-1.0f, std::memory_order_relaxed);
+            mBandGainsDb[3].store(-4.0f, std::memory_order_relaxed);
+            mBandGainsDb[4].store(-1.0f, std::memory_order_relaxed);
+            mBandGainsDb[5].store(1.5f, std::memory_order_relaxed);
+            mBandGainsDb[6].store(2.0f, std::memory_order_relaxed);
+            mBandGainsDb[7].store(2.5f, std::memory_order_relaxed);
+            mBandGainsDb[8].store(3.0f, std::memory_order_relaxed);
+            mBandGainsDb[9].store(3.5f, std::memory_order_relaxed);
             break;
 
         case PRESET_VOCAL_SEPARATION:
             // Heavy vocal isolation with maximum acoustic mud suppression
             mHpfMode.store(HPF_80HZ, std::memory_order_relaxed);
-            mBandGainsDb[0].store(-2.0f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(-5.0f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(2.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(3.0f, std::memory_order_relaxed);
+            mBandGainsDb[0].store(-3.0f, std::memory_order_relaxed);
+            mBandGainsDb[1].store(-2.0f, std::memory_order_relaxed);
+            mBandGainsDb[2].store(-3.0f, std::memory_order_relaxed);
+            mBandGainsDb[3].store(-5.0f, std::memory_order_relaxed);
             mBandGainsDb[4].store(1.0f, std::memory_order_relaxed);
+            mBandGainsDb[5].store(3.0f, std::memory_order_relaxed);
+            mBandGainsDb[6].store(3.5f, std::memory_order_relaxed);
+            mBandGainsDb[7].store(2.0f, std::memory_order_relaxed);
+            mBandGainsDb[8].store(1.0f, std::memory_order_relaxed);
+            mBandGainsDb[9].store(1.0f, std::memory_order_relaxed);
             break;
 
         case PRESET_BASS_PUNCH:
             // Tight, fast mid-bass punch without door boominess
             mHpfMode.store(HPF_60HZ, std::memory_order_relaxed);
-            mBandGainsDb[0].store(3.0f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(-3.0f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(1.0f, std::memory_order_relaxed);
-            mBandGainsDb[4].store(2.0f, std::memory_order_relaxed);
+            mBandGainsDb[0].store(4.0f, std::memory_order_relaxed);
+            mBandGainsDb[1].store(4.5f, std::memory_order_relaxed);
+            mBandGainsDb[2].store(2.0f, std::memory_order_relaxed);
+            mBandGainsDb[3].store(-3.0f, std::memory_order_relaxed);
+            mBandGainsDb[4].store(-1.0f, std::memory_order_relaxed);
+            mBandGainsDb[5].store(0.0f, std::memory_order_relaxed);
+            mBandGainsDb[6].store(1.0f, std::memory_order_relaxed);
+            mBandGainsDb[7].store(1.5f, std::memory_order_relaxed);
+            mBandGainsDb[8].store(2.0f, std::memory_order_relaxed);
+            mBandGainsDb[9].store(2.0f, std::memory_order_relaxed);
             break;
 
         case PRESET_ROCK_DYNAMIC:
             mHpfMode.store(HPF_60HZ, std::memory_order_relaxed);
-            mBandGainsDb[0].store(2.0f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(-2.0f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(2.0f, std::memory_order_relaxed);
-            mBandGainsDb[4].store(3.0f, std::memory_order_relaxed);
+            mBandGainsDb[0].store(2.5f, std::memory_order_relaxed);
+            mBandGainsDb[1].store(3.0f, std::memory_order_relaxed);
+            mBandGainsDb[2].store(1.0f, std::memory_order_relaxed);
+            mBandGainsDb[3].store(-2.5f, std::memory_order_relaxed);
+            mBandGainsDb[4].store(-1.5f, std::memory_order_relaxed);
+            mBandGainsDb[5].store(0.0f, std::memory_order_relaxed);
+            mBandGainsDb[6].store(1.5f, std::memory_order_relaxed);
+            mBandGainsDb[7].store(3.0f, std::memory_order_relaxed);
+            mBandGainsDb[8].store(3.5f, std::memory_order_relaxed);
+            mBandGainsDb[9].store(3.0f, std::memory_order_relaxed);
             break;
 
         default:
@@ -300,19 +316,19 @@ void AudioEqualizer::updateCoefficients(int32_t sampleRate) {
         mHpfCoeffs.a1 = 0.0f; mHpfCoeffs.a2 = 0.0f;
     }
 
-    // 2. Band 0: Low-Shelf @ 60 Hz
+    // 2. Band 0: Low-Shelf @ 31 Hz
     float g0 = mBandGainsDb[0].load(std::memory_order_relaxed);
     mBandCoeffs[0] = computeLowShelf(BAND_FREQUENCIES[0], fs, g0, BAND_Q[0]);
 
-    // 3. Bands 1..3: Peaking EQ
-    for (size_t i = 1; i < 4; ++i) {
+    // 3. Bands 1..8: Peaking EQ
+    for (size_t i = 1; i < NUM_BANDS - 1; ++i) {
         float g = mBandGainsDb[i].load(std::memory_order_relaxed);
         mBandCoeffs[i] = computePeakingEQ(BAND_FREQUENCIES[i], fs, g, BAND_Q[i]);
     }
 
-    // 4. Band 4: High-Shelf @ 10 kHz
-    float g4 = mBandGainsDb[4].load(std::memory_order_relaxed);
-    mBandCoeffs[4] = computeHighShelf(BAND_FREQUENCIES[4], fs, g4, BAND_Q[4]);
+    // 4. Band 9: High-Shelf @ 16 kHz
+    float gLast = mBandGainsDb[NUM_BANDS - 1].load(std::memory_order_relaxed);
+    mBandCoeffs[NUM_BANDS - 1] = computeHighShelf(BAND_FREQUENCIES[NUM_BANDS - 1], fs, gLast, BAND_Q[NUM_BANDS - 1]);
 
     // 5. Digital Headroom / Preamp Calculation
     // Find maximum boost across all bands and ensure at least 2.5 dB headroom
