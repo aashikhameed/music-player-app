@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -215,7 +216,9 @@ fun DriveModeScreen(
 
     val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
     val currentVideoId by viewModel.currentVideoId.collectAsState()
-    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
+    val currentSpeedKmh by viewModel.currentSpeedKmh.collectAsState()
+    val isSpeedLockActive = currentSpeedKmh > 1.0f
+    val isVideoActive = playVideoForStreams && !isSpeedLockActive && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
     var areControlsVisible by remember { mutableStateOf(true) }
     var lastInteractionTimestamp by remember { mutableLongStateOf(0L) }
     var isLyricsExpanded by rememberSaveable { mutableStateOf(false) }
@@ -442,6 +445,47 @@ fun DriveModeScreen(
                             )
                         }
                     }
+
+                    // In-cabin speed & SCVC telemetry badge (Task 4.3)
+                    val scvcGainDb by viewModel.scvcGainDb.collectAsState()
+                    Row(
+                        modifier = Modifier
+                            .height(36.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                shape = ClockBadgeShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${currentSpeedKmh.toInt()} km/h • +${String.format(java.util.Locale.US, "%.1f", scvcGainDb)} dB",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    // Driving Safety Video Interlock Pill (Task 7.2)
+                    if (isSpeedLockActive && playVideoForStreams) {
+                        Row(
+                            modifier = Modifier
+                                .height(36.dp)
+                                .background(
+                                    color = Color(0x33FFB300),
+                                    shape = ClockBadgeShape
+                                )
+                                .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "🛡️ Audio-Only (Driving Safety)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFB300)
+                            )
+                        }
+                    }
                 }
 
                 // Right Side: Play Music Video Toggle Switch (Top-Right in HUD Mode)
@@ -487,6 +531,26 @@ fun DriveModeScreen(
                                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                                 checkedTrackColor = MaterialTheme.colorScheme.primary
                             )
+                        )
+                    }
+
+                    // OpenSL ES Audio Pipeline Latency Readout Badge (Task 4.3)
+                    Row(
+                        modifier = Modifier
+                            .height(36.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                shape = NightDimmerPillShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "48kHz • 96KB • 5.3ms",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                            maxLines = 1
                         )
                     }
                 }
@@ -548,10 +612,16 @@ fun DriveModeScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Start
                             ) {
+                                val landscapeArtworkSize by animateDpAsState(
+                                    targetValue = if (isLyricsExpanded) 88.dp else 160.dp,
+                                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                                    label = "DriveHudArtworkSize"
+                                )
+
                                 // Hero Album Artwork with Apple CarPlay horizontal slide transition
                                 Box(
                                     modifier = Modifier
-                                        .size(160.dp)
+                                        .size(landscapeArtworkSize)
                                         .background(
                                             color = if (isNightDimmerActive) Color(0xFF0D1117)
                                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -593,8 +663,8 @@ fun DriveModeScreen(
                                             AlbumArtImage(
                                                 path = song.path,
                                                 artworkUrl = song.artworkUrl,
-                                                size = 160.dp,
-                                                borderRadius = 20.dp,
+                                                size = landscapeArtworkSize,
+                                                borderRadius = if (isLyricsExpanded) 12.dp else 20.dp,
                                                 isHighRes = true,
                                                 modifier = Modifier.fillMaxSize()
                                             )
@@ -607,14 +677,14 @@ fun DriveModeScreen(
                                                     imageVector = Icons.Rounded.DirectionsCar,
                                                     contentDescription = null,
                                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                                    modifier = Modifier.size(68.dp)
+                                                    modifier = Modifier.size(if (isLyricsExpanded) 40.dp else 68.dp)
                                                 )
                                             }
                                         }
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.width(24.dp))
+                                Spacer(modifier = Modifier.width(if (isLyricsExpanded) 16.dp else 24.dp))
 
                                 // Content Area: Song Info or Synced Lyrics (Fixed height 160.dp matching Album Art)
                                 Box(
@@ -919,14 +989,14 @@ private fun DriveHudActionBar(
         if (currentSong != null && isVideoActive) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(44.dp)
                     .background(color = actionButtonBg, shape = ActionArtThumbnailShape)
                     .clip(ActionArtThumbnailShape)
             ) {
                 AlbumArtImage(
                     path = currentSong.path,
                     artworkUrl = currentSong.artworkUrl,
-                    size = 38.dp,
+                    size = 44.dp,
                     borderRadius = 8.dp,
                     isPlaying = isPlaying,
                     modifier = Modifier.fillMaxSize()
@@ -937,7 +1007,7 @@ private fun DriveHudActionBar(
         // 2. Queue Drawer Button
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(44.dp)
                 .background(
                     color = if (isQueueOpen) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
                     shape = CircleShape
@@ -956,7 +1026,7 @@ private fun DriveHudActionBar(
         // 3. Favorite Button
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(44.dp)
                 .background(
                     color = if (isFavorite) FavoriteRedColor.copy(alpha = 0.22f) else actionButtonBg,
                     shape = CircleShape
@@ -975,7 +1045,6 @@ private fun DriveHudActionBar(
         }
 
         // 4. Download Button (if streamable)
-        // 4. Download Button (Circular 38dp, styled identical to Fav button)
         if (isStreamDownloadable) {
             val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded
             val isDownloading = currentDownloadStatus is DownloadStatus.Downloading
@@ -992,7 +1061,7 @@ private fun DriveHudActionBar(
 
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(44.dp)
                     .background(color = downloadBg, shape = CircleShape)
                     .clickable { currentSong?.let { viewModel.downloadSong(it) } },
                 contentAlignment = Alignment.Center
@@ -1001,7 +1070,7 @@ private fun DriveHudActionBar(
                     val progress = (currentDownloadStatus as? DownloadStatus.Downloading)?.progress ?: 0f
                     CircularProgressIndicator(
                         progress = { progress },
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -1016,11 +1085,11 @@ private fun DriveHudActionBar(
             }
         }
 
-        // 5. Start Radio Button (Circular 38dp, styled identical to Fav button)
+        // 5. Start Radio Button
         if (isStream) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(44.dp)
                     .background(
                         color = if (isRadioActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
                         shape = CircleShape
@@ -1030,7 +1099,7 @@ private fun DriveHudActionBar(
             ) {
                 if (isRadioLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -1045,12 +1114,12 @@ private fun DriveHudActionBar(
             }
         }
 
-        // 6. Next Song Container (Redesigned with thumbnail, stacked title & artist, skip icon)
+        // 6. Next Song Container
         val nextSong = upcomingSongs.firstOrNull()
         if (nextSong != null) {
             Row(
                 modifier = Modifier
-                    .height(38.dp)
+                    .height(44.dp)
                     .background(color = actionButtonBg, shape = NextSongActionBarShape)
                     .border(
                         width = 1.dp,
@@ -1067,10 +1136,10 @@ private fun DriveHudActionBar(
                 AlbumArtImage(
                     path = nextSong.path,
                     artworkUrl = nextSong.artworkUrl,
-                    size = 28.dp,
+                    size = 32.dp,
                     borderRadius = 6.dp,
                     isPlaying = false,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(32.dp)
                 )
 
                 Column(
@@ -1112,7 +1181,7 @@ private fun DriveHudActionBar(
         } else {
             Row(
                 modifier = Modifier
-                    .height(38.dp)
+                    .height(44.dp)
                     .background(color = actionButtonBg, shape = NextSongActionBarShape)
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1494,7 +1563,9 @@ private fun MobileDriveHudStage(
 ) {
     val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
     val currentVideoId by viewModel.currentVideoId.collectAsState()
-    val isVideoActive = playVideoForStreams && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
+    val currentSpeedKmh by viewModel.currentSpeedKmh.collectAsState()
+    val isSpeedLockActive = currentSpeedKmh > 1.0f
+    val isVideoActive = playVideoForStreams && !isSpeedLockActive && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
 
     Column(
         modifier = modifier,
@@ -1524,10 +1595,16 @@ private fun MobileDriveHudStage(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Start
             ) {
+                val mobileArtworkSize by animateDpAsState(
+                    targetValue = if (isLyricsExpanded) 68.dp else 130.dp,
+                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                    label = "MobileHudArtworkSize"
+                )
+
                 // Hero Album Artwork with Apple CarPlay horizontal slide transition
                 Box(
                     modifier = Modifier
-                        .size(130.dp)
+                        .size(mobileArtworkSize)
                         .background(
                             color = if (isNightDimmerActive) Color(0xFF0D1117)
                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -1569,8 +1646,8 @@ private fun MobileDriveHudStage(
                             AlbumArtImage(
                                 path = song.path,
                                 artworkUrl = song.artworkUrl,
-                                size = 130.dp,
-                                borderRadius = 16.dp,
+                                size = mobileArtworkSize,
+                                borderRadius = if (isLyricsExpanded) 10.dp else 16.dp,
                                 isPlaying = isPlaying,
                                 isHighRes = true,
                                 modifier = Modifier.fillMaxSize()
@@ -1584,14 +1661,14 @@ private fun MobileDriveHudStage(
                                     imageVector = Icons.Rounded.DirectionsCar,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(52.dp)
+                                    modifier = Modifier.size(if (isLyricsExpanded) 32.dp else 52.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(18.dp))
+                Spacer(modifier = Modifier.width(if (isLyricsExpanded) 12.dp else 18.dp))
 
                 // Song Info Typography or Expanded Lyrics (Fixed height 130.dp, weight(1f))
                 Box(

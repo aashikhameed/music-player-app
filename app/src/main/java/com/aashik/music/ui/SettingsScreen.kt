@@ -1,6 +1,10 @@
 package com.aashik.music.ui
 
+import android.content.Intent
 import android.content.res.Configuration
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1364,6 +1368,21 @@ private fun DownloadLocationDialog(
     var isCustomSelected by remember { mutableStateOf(currentPreset == StreamDownloadManager.PRESET_CUSTOM) }
     var customPathInput by remember { mutableStateOf(if (currentPreset == StreamDownloadManager.PRESET_CUSTOM) currentPath else "") }
     var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    val context = LocalContext.current
+    val safLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+            } catch (_: Exception) {}
+            val path = uri.path ?: uri.toString()
+            customPathInput = path
+            isCustomSelected = true
+            onSelectPreset(StreamDownloadManager.PRESET_CUSTOM, path)
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -1485,9 +1504,27 @@ private fun DownloadLocationDialog(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Button(
+                                onClick = { safLauncher.launch(null) },
+                                shape = ActionButtonShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                                    contentColor = MaterialTheme.colorScheme.secondary
+                                ),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Folder,
+                                    contentDescription = "Browse Storage Access Framework",
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Browse (SAF)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
                             Button(
                                 onClick = {
                                     val trimmed = customPathInput.trim()

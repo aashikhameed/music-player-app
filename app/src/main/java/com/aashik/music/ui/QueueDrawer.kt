@@ -176,7 +176,7 @@ fun QueueDrawer(
 
                         IconButton(
                             onClick = onClose,
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
@@ -474,26 +474,26 @@ private fun QueueItemRow(
                 if (index > 0) {
                     IconButton(
                         onClick = onMoveUp,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ArrowUpward,
                             contentDescription = "Move Up",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
                 if (index < totalCount - 1) {
                     IconButton(
                         onClick = onMoveDown,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ArrowDownward,
                             contentDescription = "Move Down",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -502,13 +502,13 @@ private fun QueueItemRow(
             // Remove button
             IconButton(
                 onClick = onRemove,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = "Remove from Queue",
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }

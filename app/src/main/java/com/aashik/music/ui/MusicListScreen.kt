@@ -406,15 +406,11 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                             Spacer(modifier = Modifier.height(6.dp))
                         }
 
-                        // Mobile Bottom Navigation Bar (All Songs, More)
+                        // Mobile Bottom Navigation Bar (Songs, Radio, More)
                         MobileBottomNavBar(
                             selectedTab = selectedTab,
                             onTabSelected = { tab ->
-                                if (tab == LibraryTab.ALL_SONGS) {
-                                    viewModel.selectTab(LibraryTab.ALL_SONGS)
-                                } else {
-                                    viewModel.selectTab(LibraryTab.MORE)
-                                }
+                                viewModel.selectTab(tab)
                             }
                         )
                     }
@@ -1536,19 +1532,19 @@ fun RadioStationCard(
 
             IconButton(
                 onClick = onStartRadioClick,
-                modifier = Modifier.size(34.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Podcasts,
                     contentDescription = "Start Radio",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
             IconButton(
                 onClick = onFavoriteClick,
-                modifier = Modifier.size(34.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
@@ -2335,21 +2331,28 @@ private fun MobileBottomNavBar(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
         ) {
             MobileNavTabItem(
-                label = "All Songs",
+                label = "Songs",
                 icon = Icons.AutoMirrored.Rounded.QueueMusic,
                 isSelected = selectedTab == LibraryTab.ALL_SONGS,
                 onClick = { onTabSelected(LibraryTab.ALL_SONGS) },
                 modifier = Modifier.weight(1f)
             )
             MobileNavTabItem(
+                label = "Radio",
+                icon = Icons.Rounded.Podcasts,
+                isSelected = selectedTab == LibraryTab.RADIO,
+                onClick = { onTabSelected(LibraryTab.RADIO) },
+                modifier = Modifier.weight(1f)
+            )
+            MobileNavTabItem(
                 label = "More",
                 icon = Icons.Rounded.MoreHoriz,
-                isSelected = selectedTab != LibraryTab.ALL_SONGS,
+                isSelected = selectedTab == LibraryTab.MORE || selectedTab == LibraryTab.FOLDERS || selectedTab == LibraryTab.FAVORITES,
                 onClick = { onTabSelected(LibraryTab.MORE) },
                 modifier = Modifier.weight(1f)
             )

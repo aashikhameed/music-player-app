@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -99,7 +100,7 @@ fun SongCard(
     Box(
         modifier = modifier
             .then(widthModifier)
-            .height(64.dp)
+            .height(68.dp)
             .background(color = rowBackground, shape = SongCardShape)
             .clip(SongCardShape)
             .combinedClickable(
@@ -107,6 +108,16 @@ fun SongCard(
                 onLongClick = onLongPress
             )
     ) {
+        // Left accent bar when currently playing
+        if (isPlaying) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -164,11 +175,9 @@ fun SongCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (isPlaying) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = "Playing",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                    LiveAnimatedEqualizer(
+                        isPlaying = isPlaying,
+                        barColor = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -186,14 +195,14 @@ fun SongCard(
 
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(44.dp)
                         .clip(SongCardShape)
                         .clickable(onClick = onLongPress),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
-                        contentDescription = "Options",
+                        contentDescription = "Song options for ${song.title}",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )

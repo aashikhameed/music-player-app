@@ -33,6 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.aashik.music.model.Song
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -60,7 +63,9 @@ fun AlphabetScrubber(
     if (songs.size <= 15) return // Scrubber not needed for small lists
 
     val coroutineScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     var activeBubbleLetter by remember { mutableStateOf<Char?>(null) }
+    var columnHeightPx by remember { mutableStateOf(1f) }
 
     // Precompute letter-to-index mapping (zero allocation on recomposition)
     val letterIndexMap = remember(songs) {
@@ -84,6 +89,9 @@ fun AlphabetScrubber(
     }
 
     fun jumpToLetter(letter: Char) {
+        if (activeBubbleLetter != letter) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
         activeBubbleLetter = letter
         val targetIdx = letterIndexMap[letter] ?: run {
             // Find nearest available letter
@@ -133,12 +141,28 @@ fun AlphabetScrubber(
         // Vertical Scrubber Strip
         Column(
             modifier = Modifier
-                .width(22.dp)
+                .width(26.dp)
                 .fillMaxHeight()
                 .background(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
                     shape = ScrubberStripShape
                 )
+                .onSizeChanged { columnHeightPx = it.height.toFloat().coerceAtLeast(1f) }
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val fraction = (offset.y / columnHeightPx).coerceIn(0f, 0.999f)
+                            val index = (fraction * ALPHABET_LIST.size).toInt()
+                            jumpToLetter(ALPHABET_LIST[index])
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            val fraction = (change.position.y / columnHeightPx).coerceIn(0f, 0.999f)
+                            val index = (fraction * ALPHABET_LIST.size).toInt()
+                            jumpToLetter(ALPHABET_LIST[index])
+                        }
+                    )
+                }
                 .padding(vertical = 4.dp),
             verticalArrangement = Arrangement.SpaceEvenly,
             horizontalAlignment = Alignment.CenterHorizontally

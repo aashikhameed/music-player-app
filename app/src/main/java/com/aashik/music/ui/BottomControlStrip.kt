@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
@@ -39,10 +40,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +58,8 @@ import com.aashik.music.viewmodel.MusicViewModel
 
 private val BottomDockShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
 private val BannerShape = RoundedCornerShape(12.dp)
+private val MicroScrubberActiveColor = Color(0xFF00E5FF)
+private val MicroScrubberTrackColor = Color(0x3300E5FF)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -75,6 +83,12 @@ fun BottomControlStrip(
             .background(brush = dockGradient, shape = BottomDockShape)
             .border(width = 1.dp, brush = borderBrush, shape = BottomDockShape)
     ) {
+        if (currentSong != null) {
+            MobileMicroScrubber(
+                viewModel = viewModel,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -130,7 +144,7 @@ fun BottomControlStrip(
                         val isEqualizerOpen by viewModel.isEqualizerOpen.collectAsState()
                         IconButton(
                             onClick = { viewModel.toggleEqualizer() },
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.GraphicEq,
@@ -145,7 +159,7 @@ fun BottomControlStrip(
                         val userQueue by viewModel.userQueue.collectAsState()
                         IconButton(
                             onClick = { viewModel.toggleQueue() },
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
@@ -169,7 +183,7 @@ fun BottomControlStrip(
                         val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
                         IconButton(
                             onClick = { viewModel.toggleSettings() },
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Settings,
@@ -196,7 +210,7 @@ fun BottomControlStrip(
                 // Search Toggle
                 IconButton(
                     onClick = onToggleSearch,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = if (isSearchVisible) Icons.Rounded.SearchOff else Icons.Rounded.Search,
@@ -253,7 +267,7 @@ fun BottomControlStrip(
                 if (currentSong?.isStream() != true) {
                     IconButton(
                         onClick = { viewModel.toggleShuffle() },
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(44.dp)
                     ) {
                         Icon(
                             imageVector = if (isShuffleOn) Icons.Rounded.ShuffleOn else Icons.Rounded.Shuffle,
@@ -265,5 +279,63 @@ fun BottomControlStrip(
                 }
             }
         }
+    }
+}
+
+/**
+ * High-sensitivity 16dp touch-target micro scrubber along the top edge of the collapsed player dock.
+ * Reads high-frequency playback flows strictly in this leaf composable.
+ */
+@Composable
+private fun MobileMicroScrubber(
+    viewModel: MusicViewModel,
+    modifier: Modifier = Modifier
+) {
+    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
+    val durationMs by viewModel.durationFlow.collectAsState()
+    var isDragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableFloatStateOf(0f) }
+    val displayProgress = if (isDragging) dragFraction else progress
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(16.dp)
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        isDragging = true
+                        dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                    },
+                    onDragEnd = {
+                        isDragging = false
+                        viewModel.seekTo((dragFraction * durationMs).toLong())
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                    }
+                )
+            }
+    ) {
+        // Background track (2dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .align(Alignment.TopStart)
+                .background(MicroScrubberTrackColor)
+        )
+        // Active visual progress bar (3dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fraction = displayProgress.coerceIn(0f, 1f))
+                .height(3.dp)
+                .align(Alignment.TopStart)
+                .background(MicroScrubberActiveColor)
+        )
     }
 }
