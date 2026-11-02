@@ -3,14 +3,18 @@ package com.aashik.music.ui
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -120,7 +124,9 @@ import kotlinx.coroutines.launch
 private val DriveHudContainerShape = RoundedCornerShape(0.dp)
 private val ExitButtonShape = RoundedCornerShape(12.dp)
 private val BigArtworkShape = RoundedCornerShape(20.dp)
+private val MinimizedArtworkShape = RoundedCornerShape(12.dp)
 private val MobileArtworkShape = RoundedCornerShape(16.dp)
+private val MobileMinimizedArtworkShape = RoundedCornerShape(10.dp)
 private val DriverBadgeShape = RoundedCornerShape(8.dp)
 private val SwipeFeedbackBadgeShape = RoundedCornerShape(14.dp)
 private val ClockBadgeShape = RoundedCornerShape(8.dp)
@@ -625,12 +631,13 @@ fun DriveModeScreen(
                                         .background(
                                             color = if (isNightDimmerActive) Color(0xFF0D1117)
                                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                            shape = BigArtworkShape
+                                            shape = if (isLyricsExpanded) MinimizedArtworkShape else BigArtworkShape
                                         )
-                                        .clip(BigArtworkShape)
+                                        .clip(if (isLyricsExpanded) MinimizedArtworkShape else BigArtworkShape)
                                 ) {
                                     AnimatedContent(
                                         targetState = navigatingTrack,
+                                        modifier = Modifier.fillMaxSize(),
                                         transitionSpec = {
                                             if (targetState.direction >= 0) {
                                                 (slideInHorizontally(
@@ -835,6 +842,8 @@ fun DriveModeScreen(
                 isDark = isDark,
                 controlInactiveColor = controlInactiveColor,
                 isVideoActive = isVideoActive,
+                isLyricsExpanded = isLyricsExpanded,
+                onToggleLyrics = { isLyricsExpanded = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = if (isPortrait) 6.dp else 0.dp)
@@ -966,6 +975,8 @@ private fun DriveHudActionBar(
     isDark: Boolean,
     controlInactiveColor: Color,
     isVideoActive: Boolean = false,
+    isLyricsExpanded: Boolean = false,
+    onToggleLyrics: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isQueueOpen by viewModel.isQueueOpen.collectAsState()
@@ -1019,6 +1030,25 @@ private fun DriveHudActionBar(
                 imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                 contentDescription = "Upcoming Queue Drawer",
                 tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        // 2b. Synchronized Lyrics Toggle Button
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(
+                    color = if (isLyricsExpanded) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
+                    shape = CircleShape
+                )
+                .clickable { onToggleLyrics(!isLyricsExpanded) },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.MusicNote,
+                contentDescription = "Toggle Synchronized Lyrics",
+                tint = if (isLyricsExpanded) MaterialTheme.colorScheme.primary else controlInactiveColor,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -1204,6 +1234,8 @@ private fun DriveHudActionBar(
     }
 }
 
+private data class LyricTickerState(val index: Int, val text: String)
+
 /**
  * Isolated leaf composable displaying the currently sung synchronized lyric line.
  * Recomposition-scoped to playback ticks without triggering recompositions of the outer HUD stage.
@@ -1223,38 +1255,39 @@ private fun HudLyricLineDisplay(
 
     if (lyrics.isEmpty() && !isLoadingLyrics) return
 
-    val currentLine = remember(lyrics, positionMs, isLoadingLyrics) {
+    val tickerState = remember(lyrics, positionMs, isLoadingLyrics) {
         if (lyrics.isEmpty() && isLoadingLyrics) {
-            "♪ Loading lyrics..."
+            LyricTickerState(-1, "♪ Loading lyrics...")
         } else {
             val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
             if (idx >= 0) {
                 val line = lyrics[idx]
                 val nextLineTime = lyrics.getOrNull(idx + 1)?.timeMs
-                if (nextLineTime != null && positionMs >= nextLineTime && line.text.isBlank()) {
+                val text = if (nextLineTime != null && positionMs >= nextLineTime && line.text.isBlank()) {
                     "♪ ♪ ♪"
                 } else {
                     line.text.ifBlank { "♪ ♪ ♪" }
                 }
+                LyricTickerState(idx, text)
             } else {
-                "♪ Lyrics"
+                LyricTickerState(-1, "♪ Lyrics")
             }
         }
     }
 
     AnimatedContent(
-        targetState = currentLine,
+        targetState = tickerState,
         transitionSpec = {
-            (slideInVertically(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)) { height -> height / 2 } +
+            (slideInVertically(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)) { height -> height } +
              fadeIn(animationSpec = tween(durationMillis = 260)))
                 .togetherWith(
-                    slideOutVertically(animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)) { height -> -height / 2 } +
+                    slideOutVertically(animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)) { height -> -height } +
                     fadeOut(animationSpec = tween(durationMillis = 180))
                 )
         },
         label = "HudLyricLineAnimation",
         modifier = modifier
-    ) { lineText ->
+    ) { state ->
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -1274,7 +1307,7 @@ private fun HudLyricLineDisplay(
                 modifier = Modifier.size(13.dp)
             )
             Text(
-                text = lineText,
+                text = state.text,
                 fontSize = fontSize,
                 fontWeight = FontWeight.SemiBold,
                 color = textColor,
@@ -1329,15 +1362,24 @@ private fun HudExpandedLyricsView(
     }
 
     val currentIndex = remember(lyrics, positionMs) {
-        lyrics.indexOfLast { it.timeMs <= positionMs }.coerceAtLeast(0)
+        val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
+        idx.coerceAtLeast(0)
     }
 
-    val listState = rememberLazyListState()
+    val initialIndex = remember {
+        val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
+        idx.coerceAtLeast(0)
+    }
+
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = (initialIndex - 1).coerceAtLeast(0)
+    )
 
     LaunchedEffect(currentIndex) {
         if (currentIndex in lyrics.indices) {
+            val target = (currentIndex - 1).coerceAtLeast(0)
             listState.animateScrollToItem(
-                index = maxOf(0, currentIndex - 1),
+                index = target,
                 scrollOffset = 0
             )
         }
@@ -1408,7 +1450,7 @@ private fun HudExpandedLyricsView(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             itemsIndexed(
                 items = lyrics,
@@ -1417,25 +1459,52 @@ private fun HudExpandedLyricsView(
                 val isCurrent = index == currentIndex
                 val isPast = index < currentIndex
 
-                Text(
-                    text = line.text.ifBlank { "♪" },
-                    fontSize = if (isCurrent) 16.sp else 12.5.sp,
-                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                    color = when {
+                val animatedColor by animateColorAsState(
+                    targetValue = when {
                         isCurrent -> MaterialTheme.colorScheme.primary
                         isPast -> secondaryTextColor.copy(alpha = 0.45f)
                         else -> primaryTextColor.copy(alpha = 0.85f)
                     },
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                    label = "LyricColor"
+                )
+
+                val animatedScale by animateFloatAsState(
+                    targetValue = if (isCurrent) 1.05f else 1.0f,
+                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                    label = "LyricScale"
+                )
+
+                val activeBgColor = if (isCurrent) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                } else {
+                    Color.Transparent
+                }
+
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = animatedScale
+                            scaleY = animatedScale
+                            transformOrigin = TransformOrigin(0f, 0.5f)
+                        }
+                        .background(color = activeBgColor, shape = LyricLineShape)
                         .clip(LyricLineShape)
                         .clickable {
                             viewModel.seekTo(line.timeMs)
                         }
-                        .padding(vertical = 2.dp, horizontal = 4.dp)
-                )
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = line.text.ifBlank { "♪" },
+                        fontSize = if (isCurrent) 15.sp else 13.sp,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                        color = animatedColor,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -1597,7 +1666,7 @@ private fun MobileDriveHudStage(
             ) {
                 val mobileArtworkSize by animateDpAsState(
                     targetValue = if (isLyricsExpanded) 68.dp else 130.dp,
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
                     label = "MobileHudArtworkSize"
                 )
 
@@ -1608,12 +1677,13 @@ private fun MobileDriveHudStage(
                         .background(
                             color = if (isNightDimmerActive) Color(0xFF0D1117)
                                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            shape = MobileArtworkShape
+                            shape = if (isLyricsExpanded) MobileMinimizedArtworkShape else MobileArtworkShape
                         )
-                        .clip(MobileArtworkShape)
+                        .clip(if (isLyricsExpanded) MobileMinimizedArtworkShape else MobileArtworkShape)
                 ) {
                     AnimatedContent(
                         targetState = navigatingTrack,
+                        modifier = Modifier.fillMaxSize(),
                         transitionSpec = {
                             if (targetState.direction >= 0) {
                                 (slideInHorizontally(
