@@ -23,6 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.ArrowDropUp
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.SpatialAudio
@@ -31,6 +34,8 @@ import androidx.compose.material.icons.rounded.SurroundSound
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -45,6 +50,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import com.aashik.music.model.EqualizerPresetRegistry
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,7 +86,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.roundToInt
 
 // Top-level precomputed shapes matching Material 3 specifications
-private val EqContainerShape = RoundedCornerShape(16.dp)
 private val EqCardShape = RoundedCornerShape(12.dp)
 private val EqChipShape = RoundedCornerShape(8.dp)
 private val GridBorderShape = RoundedCornerShape(12.dp)
@@ -100,14 +110,7 @@ private val BAND_INFO = listOf(
     "16 kHz" to "Air & Shimmer"
 )
 
-private val PRESET_TITLES = listOf(
-    "Flat",
-    "Acoustic Clarity",
-    "Vocal Separation",
-    "Punchy Bass",
-    "Rock Dynamic",
-    "Custom"
-)
+private val EqDropdownShape = RoundedCornerShape(12.dp)
 
 private val HPF_LABELS = listOf(
     "Full Range (Off)",
@@ -152,27 +155,17 @@ fun EqualizerScreen(
     val timeAlignmentMode by viewModel.timeAlignmentMode.collectAsState()
     val bassMode by viewModel.bassNormalizerMode.collectAsState()
 
-    val cardBg = AppGradients.card(isActive = false)
-    val cardBorder = AppGradients.border(isActive = false)
-
     Surface(
         color = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 10.dp, vertical = 8.dp)
-                .background(brush = cardBg, shape = EqContainerShape)
-                .border(width = 1.dp, brush = cardBorder, shape = EqContainerShape)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .verticalScroll(rememberScrollState())
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
                 // ── Top Header Navigation Bar (Material 3 Standardized) ──
                 AppTopBar(
                     title = "Equalizer",
@@ -219,105 +212,174 @@ fun EqualizerScreen(
                     )
                 }
 
-                // ── Section 1: Presets ──
+                // ── Section 1: Presets Dropdown ──
                 DspCard(title = "Acoustic Tuning Presets", icon = Icons.Rounded.Tune) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        PRESET_TITLES.forEachIndexed { index, name ->
-                            val isSelected = activePreset == index
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { viewModel.setEqualizerPreset(index) },
-                                label = {
-                                    Text(
-                                        text = name,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    var isDropdownExpanded by remember { mutableStateOf(false) }
+                    val currentPresetName = EqualizerPresetRegistry.getPresetName(activePreset)
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(EqDropdownShape)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, EqDropdownShape)
+                                .clickable(enabled = isEnabled) { isDropdownExpanded = true }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                            shape = CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.GraphicEq,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                },
-                                shape = EqChipShape,
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                    labelColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                modifier = Modifier.height(32.dp)
+                                }
+                                Column {
+                                    Text(
+                                        text = currentPresetName,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (activePreset == EqualizerPresetRegistry.PRESET_CUSTOM) "Custom manual 10-band profile"
+                                               else "Hardware DSP profile (${activePreset + 1} of ${EqualizerPresetRegistry.PRESET_NAMES.size})",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Icon(
+                                imageVector = if (isDropdownExpanded) Icons.Rounded.ArrowDropUp else Icons.Rounded.ArrowDropDown,
+                                contentDescription = "Select Preset",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
+
+                        DropdownMenu(
+                            expanded = isDropdownExpanded,
+                            onDismissRequest = { isDropdownExpanded = false },
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .heightIn(max = 380.dp)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        ) {
+                            EqualizerPresetRegistry.PRESET_NAMES.forEachIndexed { index, name ->
+                                val isSelected = activePreset == index
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = name,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = "Selected",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        viewModel.setEqualizerPreset(index)
+                                        isDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    EqualizerCurveCanvas(
+                        bandGains = bandGains,
+                        isEnabled = isEnabled
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                // ── Section 2: 10-Band Graphic Equalizer (Custom only) ──
+                if (activePreset == EqualizerPresetRegistry.PRESET_CUSTOM) {
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                // ── Section 2: 10-Band Graphic Equalizer ──
-                DspCard(title = "10-Band Graphic Equalizer (-12 dB to +12 dB)", icon = Icons.Rounded.GraphicEq) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        EqualizerCurveCanvas(
-                            bandGains = bandGains,
-                            isEnabled = isEnabled
-                        )
-
-                        BAND_INFO.forEachIndexed { index, (freq, description) ->
-                            val gainDb = bandGains.getOrElse(index) { 0f }
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(EqCardShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                    DspCard(title = "10-Band Custom Equalizer (-12 dB to +12 dB)", icon = Icons.Rounded.GraphicEq) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            BAND_INFO.forEachIndexed { index, (freq, description) ->
+                                val gainDb = bandGains.getOrElse(index) { 0f }
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(EqCardShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
                                 ) {
                                     Row(
+                                        modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = freq,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "• $description",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
                                         Text(
-                                            text = freq,
+                                            text = String.format("%+.1f dB", gainDb),
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "• $description",
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            fontSize = 12.sp,
+                                            color = if (gainDb > 0.05f) MaterialTheme.colorScheme.primary
+                                                    else if (gainDb < -0.05f) Color(0xFFFF8A65)
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
 
-                                    Text(
-                                        text = String.format("%+.1f dB", gainDb),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        color = if (gainDb > 0.05f) MaterialTheme.colorScheme.primary
-                                                else if (gainDb < -0.05f) Color(0xFFFF8A65)
-                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                    Slider(
+                                        value = gainDb,
+                                        onValueChange = { newGain ->
+                                            viewModel.setEqualizerBandGain(index, newGain)
+                                        },
+                                        valueRange = -12f..12f,
+                                        steps = 23,
+                                        enabled = isEnabled,
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = MaterialTheme.colorScheme.primary,
+                                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                                            inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
+                                        ),
+                                        modifier = Modifier.height(26.dp)
                                     )
                                 }
-
-                                Slider(
-                                    value = gainDb,
-                                    onValueChange = { newGain ->
-                                        viewModel.setEqualizerBandGain(index, newGain)
-                                    },
-                                    valueRange = -12f..12f,
-                                    steps = 23,
-                                    enabled = isEnabled,
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = MaterialTheme.colorScheme.primary,
-                                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                                        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
-                                    ),
-                                    modifier = Modifier.height(26.dp)
-                                )
                             }
                         }
                     }
@@ -467,4 +529,3 @@ fun EqualizerScreen(
             }
         }
     }
-}

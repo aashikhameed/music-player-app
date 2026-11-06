@@ -91,10 +91,28 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     // Equalizer preset definitions matching C++ AudioEqualizer DSP
     private val PRESET_GAINS = arrayOf(
         floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f),      // 0: Flat
-        floatArrayOf(0.0f, -4.0f, 1.0f, 2.0f, 3.0f),     // 1: Acoustic Clarity
-        floatArrayOf(-2.0f, -5.0f, 2.0f, 3.0f, 1.0f),    // 2: Vocal Separation
-        floatArrayOf(3.0f, -3.0f, 0.0f, 1.0f, 2.0f),     // 3: Bass Punch
-        floatArrayOf(2.0f, -2.0f, 0.0f, 2.0f, 3.0f)      // 4: Rock Dynamic
+        floatArrayOf(1.0f, -4.0f, 1.5f, 2.5f, 3.5f),     // 1: Acoustic
+        floatArrayOf(6.0f, 3.0f, 0.0f, 0.0f, 0.0f),      // 2: Bass Booster
+        floatArrayOf(-6.0f, -3.0f, 0.0f, 0.0f, 0.0f),    // 3: Bass Reducer
+        floatArrayOf(3.0f, 0.0f, 0.0f, 2.0f, 3.5f),      // 4: Classical
+        floatArrayOf(5.5f, 0.0f, 2.0f, 4.0f, 3.5f),      // 5: Dance
+        floatArrayOf(4.5f, 1.0f, -1.0f, -2.0f, -4.0f),   // 6: Deep
+        floatArrayOf(4.0f, 0.0f, 1.5f, 3.5f, 4.0f),      // 7: Electronic
+        floatArrayOf(5.5f, 1.0f, 1.0f, 2.0f, 2.0f),      // 8: Hip-Hop
+        floatArrayOf(2.5f, 1.0f, 2.0f, 2.5f, 2.5f),      // 9: Jazz
+        floatArrayOf(2.5f, -1.5f, 2.0f, 3.5f, 2.0f),     // 10: Latin
+        floatArrayOf(4.5f, 0.0f, 0.0f, 2.5f, 4.5f),      // 11: Loudness
+        floatArrayOf(1.0f, 2.0f, 1.0f, 2.0f, -2.0f),     // 12: Lounge
+        floatArrayOf(2.5f, 1.0f, 3.0f, 2.5f, 2.0f),      // 13: Piano
+        floatArrayOf(1.5f, 3.5f, 1.0f, 3.0f, 2.5f),      // 14: Pop
+        floatArrayOf(6.0f, -1.0f, 2.0f, 3.0f, 3.0f),     // 15: R&B
+        floatArrayOf(3.5f, -2.0f, 1.0f, 3.0f, 4.0f),     // 16: Rock
+        floatArrayOf(-5.0f, 1.0f, 3.0f, 3.0f, 1.0f),     // 17: Small Speakers
+        floatArrayOf(-5.0f, -1.0f, 4.0f, 2.0f, -2.0f),    // 18: Spoken Word
+        floatArrayOf(0.0f, 0.0f, 1.0f, 4.0f, 6.0f),      // 19: Treble Booster
+        floatArrayOf(0.0f, 0.0f, -1.0f, -4.0f, -6.0f),   // 20: Treble Reducer
+        floatArrayOf(-2.0f, -5.0f, 3.0f, 2.0f, 1.0f),    // 21: Vocal Booster
+        floatArrayOf(2.0f, 0.0f, 1.5f, 1.0f, -1.0f)      // 22: Late Night
     )
 
     init {
@@ -321,7 +339,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             val currentPreset = nativeBridge.getEqualizerPreset()
             Log.d(TAG, "syncStreamEqualizer: enabled=$enabled, preset=$currentPreset, bands=$numBands")
 
-            val gains = if (currentPreset in 0..4) {
+            val gains = if (currentPreset in PRESET_GAINS.indices) {
                 PRESET_GAINS[currentPreset]
             } else {
                 FloatArray(5) { band -> nativeBridge.getEqualizerBandGain(band) }
@@ -826,6 +844,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         } catch (e: Exception) {
             Log.w(TAG, "Error toggling stream equalizer: ${e.message}")
         }
+    }
+
+    fun setRepeatMode(mode: Int) {
+        nativeBridge.setRepeatMode(mode)
     }
 
     fun isEqualizerEnabled(): Boolean = nativeBridge.isEqualizerEnabled()

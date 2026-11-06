@@ -47,29 +47,15 @@ fun MobileNextTrackPreview(
     nextSong: Song?,
     onPlayNext: () -> Unit,
     onOpenQueue: () -> Unit,
-    isNightDimmerActive: Boolean,
-    isDark: Boolean,
+    @Suppress("UNUSED_PARAMETER") isNightDimmerActive: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") isDark: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     if (nextSong == null) return
 
-    val containerBg = when {
-        isNightDimmerActive -> Color(0xFF0F151F)
-        isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
-        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
-    }
-
-    val containerBorder = when {
-        isNightDimmerActive -> Color(0xFF1E293B)
-        isDark -> Color(0xFF263342)
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f)
-    }
-
-    val titleColor = when {
-        isNightDimmerActive -> Color(0xFFE2E8F0)
-        isDark -> Color.White
-        else -> MaterialTheme.colorScheme.onSurface
-    }
+    val containerBg = MaterialTheme.colorScheme.surfaceContainerHigh
+    val containerBorder = MaterialTheme.colorScheme.outlineVariant
+    val titleColor = MaterialTheme.colorScheme.onSurface
 
     Row(
         modifier = modifier

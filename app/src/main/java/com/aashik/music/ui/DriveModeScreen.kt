@@ -26,8 +26,10 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -641,76 +643,95 @@ fun DriveModeScreen(
                         secondaryTextColor = secondaryTextColor,
                         onToggleLyrics = { isLyricsExpanded = it },
                         onHideControls = { areControlsVisible = false },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 6.dp)
+                        modifier = if (isLyricsExpanded) {
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(horizontal = 20.dp, vertical = 4.dp)
+                        } else {
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 6.dp)
+                        }
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // ── Portrait Title & Artist (Centered) ──
-                    AnimatedContent(
-                        targetState = navigatingTrack,
-                        transitionSpec = {
-                            if (targetState.direction >= 0) {
-                                (slideInVertically(
-                                    animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                                    initialOffsetY = { h -> h / 2 }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
-                                    .togetherWith(
-                                        slideOutVertically(
-                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                            targetOffsetY = { h -> -h / 2 }
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 180))
-                                    )
-                            } else {
-                                (slideInVertically(
-                                    animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                                    initialOffsetY = { h -> -h / 2 }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
-                                    .togetherWith(
-                                        slideOutVertically(
-                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                            targetOffsetY = { h -> h / 2 }
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 180))
-                                    )
-                            }
-                        },
-                        label = "MobilePortraitTitleTransition",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 2.dp)
-                    ) { track ->
-                        val song = track.song ?: currentSong
+                    // ── Portrait Title & Artist (Hidden when lyrics expanded to give maximum height) ──
+                    AnimatedVisibility(
+                        visible = !isLyricsExpanded,
+                        enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(250)),
+                        exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(animationSpec = tween(200))
+                    ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = song?.title ?: "No Song Playing",
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.Black,
-                                color = primaryTextColor,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            val albumStr = song?.album.orEmpty()
-                            val artistStr = song?.artist ?: "Select a track to start"
-                            Text(
-                                text = if (albumStr.isNotBlank() && albumStr != song?.title) "$artistStr • $albumStr" else artistStr,
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // ── Portrait Title & Artist (Centered) ──
+                            AnimatedContent(
+                                targetState = navigatingTrack,
+                                transitionSpec = {
+                                    if (targetState.direction >= 0) {
+                                        (slideInVertically(
+                                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                            initialOffsetY = { h -> h / 2 }
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
+                                            .togetherWith(
+                                                slideOutVertically(
+                                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                                    targetOffsetY = { h -> -h / 2 }
+                                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                            )
+                                    } else {
+                                        (slideInVertically(
+                                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                            initialOffsetY = { h -> -h / 2 }
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
+                                            .togetherWith(
+                                                slideOutVertically(
+                                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                                    targetOffsetY = { h -> h / 2 }
+                                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                            )
+                                    }
+                                },
+                                label = "MobilePortraitTitleTransition",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 2.dp)
+                            ) { track ->
+                                val song = track.song ?: currentSong
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = song?.title ?: "No Song Playing",
+                                        fontSize = 21.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = primaryTextColor,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    val albumStr = song?.album.orEmpty()
+                                    val artistStr = song?.artist ?: "Select a track to start"
+                                    Text(
+                                        text = if (albumStr.isNotBlank() && albumStr != song?.title) "$artistStr • $albumStr" else artistStr,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(if (isLyricsExpanded) 6.dp else 10.dp))
 
                     // ── Portrait Action Bar (Fav, Download | Lyrics, Radio) ──
                     MobilePlayerActionBar(
@@ -964,17 +985,15 @@ fun DriveModeScreen(
                 }
             }
 
-            // ── Bottom Row: Seeker Bar and Playback Controls ──
+            // ── Bottom Row: Seeker Bar and Playback Controls (Material 3 standard) ──
             val bottomCardBg = when {
                 isVideoActive -> Color(0xD90A0E17)
                 isNightDimmerActive -> Color(0xFF090D13)
-                isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                else -> MaterialTheme.colorScheme.surfaceContainer
             }
             val bottomCardBorder = when {
                 isNightDimmerActive -> Color(0xFF141D2A)
-                isDark -> Color(0xFF222C3A)
-                else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                else -> MaterialTheme.colorScheme.outlineVariant
             }
 
             // ── Action Bar: landscape/car only (portrait uses MobilePlayerActionBar above) ──

@@ -20,6 +20,7 @@ import com.aashik.music.data.MusicDatabase
 import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
 import com.aashik.music.model.NavigatingTrack
+import com.aashik.music.model.PlaybackMode
 import com.aashik.music.model.RadioCategory
 import com.aashik.music.model.RadioStation
 import com.aashik.music.pref.ThemePreference
@@ -175,6 +176,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appPrefs = application.getSharedPreferences("automotive_prefs", Context.MODE_PRIVATE)
 
+    private val _playbackMode = MutableStateFlow(
+        try {
+            PlaybackMode.valueOf(appPrefs.getString("playback_mode", PlaybackMode.SHUFFLE.name) ?: PlaybackMode.SHUFFLE.name)
+        } catch (_: Exception) {
+            PlaybackMode.SHUFFLE
+        }
+    )
+    val playbackMode: StateFlow<PlaybackMode> = _playbackMode.asStateFlow()
+
     // ── Crossfade Duration (Seconds, default 3s) ──
     private val _crossfadeSeconds = MutableStateFlow(appPrefs.getInt("crossfade_seconds", 3))
     val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds.asStateFlow()
@@ -246,7 +256,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onVideoEnded() {
         viewModelScope.launch(Dispatchers.Main) {
-            playNextSong(isAutoCrossfade = false)
+            if (_playbackMode.value == PlaybackMode.REPEAT_ONE) {
+                _currentSong.value?.let { current ->
+                    seekTo(0)
+                    play(current, playlist = activePlaylist, isAutoCrossfade = false, direction = 0)
+                    MusicController.play(current)
+                }
+            } else {
+                playNextSong(isAutoCrossfade = false)
+            }
         }
     }
 
@@ -417,6 +435,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val isLoadingLyrics: StateFlow<Boolean> = _isLoadingLyrics.asStateFlow()
 
     init {
+        _isShuffleOn.value = (_playbackMode.value == PlaybackMode.SHUFFLE)
         com.aashik.music.service.LyricsRepository.init(application.applicationContext)
         viewModelScope.launch {
             themePref.isDarkMode.collect {
@@ -458,7 +477,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         musicPlayer.onCompletion = { isAutoCrossfade ->
-            playNextSong(isAutoCrossfade = isAutoCrossfade)
+            if (_playbackMode.value == PlaybackMode.REPEAT_ONE) {
+                _currentSong.value?.let { current ->
+                    seekTo(0)
+                    play(current, playlist = activePlaylist, isAutoCrossfade = isAutoCrossfade, direction = 0)
+                    MusicController.play(current)
+                }
+            } else {
+                playNextSong(isAutoCrossfade = isAutoCrossfade)
+            }
         }
 
         viewModelScope.launch {
@@ -662,27 +689,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setEqualizerPreset(preset: Int) {
         _equalizerPreset.value = preset
         musicPlayer.setEqualizerPreset(preset)
-        when (preset) {
-            0 -> { // Flat
-                _equalizerHpfMode.value = 0
-                _equalizerBands.value = listOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
-            }
-            1 -> { // Acoustic Clarity
-                _equalizerHpfMode.value = 2
-                _equalizerBands.value = listOf(0f, 1f, -1f, -4f, -1f, 1.5f, 2f, 2.5f, 3f, 3.5f)
-            }
-            2 -> { // Vocal Separation
-                _equalizerHpfMode.value = 2
-                _equalizerBands.value = listOf(-3f, -2f, -3f, -5f, 1f, 3f, 3.5f, 2f, 1f, 1f)
-            }
-            3 -> { // Bass Punch
-                _equalizerHpfMode.value = 1
-                _equalizerBands.value = listOf(4f, 4.5f, 2f, -3f, -1f, 0f, 1f, 1.5f, 2f, 2f)
-            }
-            4 -> { // Rock Dynamic
-                _equalizerHpfMode.value = 1
-                _equalizerBands.value = listOf(2.5f, 3f, 1f, -2.5f, -1.5f, 0f, 1.5f, 3f, 3.5f, 3f)
-            }
+        val def = com.aashik.music.model.EqualizerPresetRegistry.PRESET_DEFINITIONS.getOrNull(preset)
+        if (def != null) {
+            _equalizerHpfMode.value = def.hpfMode
+            _equalizerBands.value = def.bandGains
         }
         val editor = eqPrefs.edit()
             .putInt("eq_preset", preset)
@@ -694,8 +704,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun cycleEqualizerPreset() {
-        // Cycle through presets 0 (Flat), 1 (Acoustic), 2 (Vocal), 3 (Bass Punch), 4 (Rock Dynamic)
-        val next = (_equalizerPreset.value + 1) % 5
+        val count = com.aashik.music.model.EqualizerPresetRegistry.PRESET_DEFINITIONS.size
+        val next = (_equalizerPreset.value + 1) % count
         setEqualizerPreset(next)
     }
 
@@ -704,10 +714,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         if (bandIndex in current.indices) {
             current[bandIndex] = gainDb
             _equalizerBands.value = current
-            _equalizerPreset.value = 5 // Custom
+            _equalizerPreset.value = com.aashik.music.model.EqualizerPresetRegistry.PRESET_CUSTOM
             musicPlayer.setEqualizerBandGain(bandIndex, gainDb)
             eqPrefs.edit()
-                .putInt("eq_preset", 5)
+                .putInt("eq_preset", com.aashik.music.model.EqualizerPresetRegistry.PRESET_CUSTOM)
                 .putFloat("eq_band_$bandIndex", gainDb)
                 .apply()
         }
@@ -1915,32 +1925,77 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleShuffle() {
-        // Online streams & live radios preserve uninterrupted curated progression - shuffle is disabled
+        cyclePlaybackMode()
+    }
+
+    fun cyclePlaybackMode() {
+        val nextMode = _playbackMode.value.next()
+        setPlaybackMode(nextMode)
+    }
+
+    fun setPlaybackMode(mode: PlaybackMode) {
+        _playbackMode.value = mode
+        appPrefs.edit().putString("playback_mode", mode.name).apply()
+
         if (_currentSong.value?.isStream() == true) {
-            _isShuffleOn.value = false
+            when (mode) {
+                PlaybackMode.SHUFFLE -> {
+                    _isShuffleOn.value = true
+                    musicPlayer.setRepeatMode(0)
+                    if (_userQueue.value.isNotEmpty()) {
+                        _userQueue.value = _userQueue.value.shuffled()
+                    }
+                }
+                PlaybackMode.QUEUE -> {
+                    _isShuffleOn.value = false
+                    musicPlayer.setRepeatMode(0)
+                }
+                PlaybackMode.REPEAT_ONE -> {
+                    _isShuffleOn.value = false
+                    musicPlayer.setRepeatMode(2)
+                }
+            }
             return
         }
-        val newState = !_isShuffleOn.value
-        _isShuffleOn.value = newState
+
         val baseList = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
 
-        if (newState) {
-            val current = _currentSong.value
-            val others = if (current != null) {
-                baseList.filter { it.id != current.id }.shuffled()
-            } else {
-                baseList.shuffled()
+        when (mode) {
+            PlaybackMode.SHUFFLE -> {
+                _isShuffleOn.value = true
+                musicPlayer.setRepeatMode(0)
+                val current = _currentSong.value
+                val others = if (current != null) {
+                    baseList.filter { it.id != current.id }.shuffled()
+                } else {
+                    baseList.shuffled()
+                }
+                activeShuffledSongs = if (current != null) {
+                    (listOf(current) + others).toMutableList()
+                } else {
+                    others.toMutableList()
+                }
+                shuffledSongs = activeShuffledSongs
+                val startIndex = current?.let { cur -> activeShuffledSongs.indexOfFirst { it.id == cur.id } } ?: 0
+                musicPlayer.setPlaylist(activeShuffledSongs, startIndex.coerceAtLeast(0))
             }
-            activeShuffledSongs = if (current != null) {
-                (listOf(current) + others).toMutableList()
-            } else {
-                others.toMutableList()
+            PlaybackMode.QUEUE -> {
+                _isShuffleOn.value = false
+                musicPlayer.setRepeatMode(0)
+                activeShuffledSongs.clear()
+                val current = _currentSong.value
+                val startIndex = current?.let { cur -> baseList.indexOfFirst { it.id == cur.id } } ?: 0
+                musicPlayer.setPlaylist(baseList, startIndex.coerceAtLeast(0))
             }
-            shuffledSongs = activeShuffledSongs
+            PlaybackMode.REPEAT_ONE -> {
+                _isShuffleOn.value = false
+                musicPlayer.setRepeatMode(2)
+                activeShuffledSongs.clear()
+                val current = _currentSong.value
+                val startIndex = current?.let { cur -> baseList.indexOfFirst { it.id == cur.id } } ?: 0
+                musicPlayer.setPlaylist(baseList, startIndex.coerceAtLeast(0))
+            }
         }
-        val activeList = if (newState) activeShuffledSongs else baseList
-        val startIndex = _currentSong.value?.let { cur -> activeList.indexOfFirst { it.id == cur.id } } ?: 0
-        musicPlayer.setPlaylist(activeList, startIndex.coerceAtLeast(0))
     }
 
     fun getCurrentFolderName(): String {

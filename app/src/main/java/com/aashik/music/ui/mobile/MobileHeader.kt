@@ -78,6 +78,7 @@ private val CircleBackButtonShape = CircleShape
 private val CircleAvatarShape = CircleShape
 private val MoreCardShape = RoundedCornerShape(12.dp)
 private val MoreIconContainerShape = RoundedCornerShape(8.dp)
+private val SearchBarShape = RoundedCornerShape(28.dp)
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -102,16 +103,16 @@ fun MobileHeader(
             modifier = modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .background(color = MaterialTheme.colorScheme.surfaceVariant, shape = HeaderCapsuleShape)
-                .border(width = 1.dp, color = MaterialTheme.colorScheme.primary, shape = HeaderCapsuleShape)
-                .padding(horizontal = 12.dp),
+                .background(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = SearchBarShape)
+                .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant, shape = SearchBarShape)
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Rounded.Search,
                 contentDescription = "Search",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             BasicTextField(

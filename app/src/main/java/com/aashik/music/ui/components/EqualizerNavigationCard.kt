@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.aashik.music.service.StreamDownloadManager
+import com.aashik.music.model.EqualizerPresetRegistry
 import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 import kotlin.math.roundToInt
@@ -54,15 +55,6 @@ private val RefetchGreenColor = Color(0xFF00E676)
  * Prominently surfaces the active equalizer profile and links to the dedicated EqualizerScreen.
  */
 
-private val PRESET_NAMES = listOf(
-    "Flat",
-    "Acoustic Clarity",
-    "Vocal Separation",
-    "Punchy Bass",
-    "Rock Dynamic",
-    "Custom"
-)
-
 @Composable
 fun EqualizerNavigationCard(
     viewModel: MusicViewModel,
@@ -71,7 +63,7 @@ fun EqualizerNavigationCard(
     val isEnabled by viewModel.isEqualizerEnabled.collectAsState()
     val activePreset by viewModel.equalizerPreset.collectAsState()
     val cardBorder = AppGradients.border(isActive = false)
-    val presetName = PRESET_NAMES.getOrElse(activePreset) { "Custom" }
+    val presetName = EqualizerPresetRegistry.getPresetName(activePreset)
 
     Surface(
         modifier = Modifier

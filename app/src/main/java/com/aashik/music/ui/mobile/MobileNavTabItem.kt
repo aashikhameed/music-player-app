@@ -94,8 +94,9 @@ fun MobileNavTabItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val activeBg = if (isDark) MaterialTheme.colorScheme.primary.copy(alpha = 0.20f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+    val activeBg = MaterialTheme.colorScheme.primaryContainer
+    val iconColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         modifier = modifier
@@ -112,14 +113,15 @@ fun MobileNavTabItem(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                tint = iconColor,
                 modifier = Modifier.size(19.dp)
             )
             Text(
                 text = label,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelLarge,
+                fontSize = 12.5.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                color = textColor,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis

@@ -16,10 +16,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.ArrowDropUp
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +40,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.aashik.music.model.EqualizerPresetRegistry
 import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
@@ -68,14 +78,7 @@ private val BAND_LABELS = listOf(
     "16 kHz" to "Air"
 )
 
-private val PRESET_NAMES = listOf(
-    "Flat",
-    "Acoustic Clarity",
-    "Vocal Separation",
-    "Punchy Bass",
-    "Rock Dynamic",
-    "Custom"
-)
+private val DropdownSelectorShape = RoundedCornerShape(10.dp)
 
 private val HPF_NAMES = listOf(
     "Full Range (Off)",
@@ -202,52 +205,89 @@ fun EqualizerDialog(
                     }
                 }
 
-                // ── Presets Selection Chips ──
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Profiles:",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 4.dp)
-                    )
+                // ── Presets Dropdown Selector ──
+                var isDropdownExpanded by remember { mutableStateOf(false) }
+                val currentPresetName = EqualizerPresetRegistry.getPresetName(activePreset)
 
-                    PRESET_NAMES.forEachIndexed { index, name ->
-                        val isSelected = (activePreset == index)
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.setEqualizerPreset(index) },
-                            enabled = isEnabled,
-                            label = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (index == 1) { // Recommended profile
-                                        Icon(
-                                            imageVector = Icons.Rounded.Star,
-                                            contentDescription = null,
-                                            tint = if (isSelected) AccentGoldColor else MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                    }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = DropdownSelectorShape
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                shape = DropdownSelectorShape
+                            )
+                            .clickable(enabled = isEnabled) { isDropdownExpanded = true }
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Profile:",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = currentPresetName,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Icon(
+                            imageVector = if (isDropdownExpanded) Icons.Rounded.ArrowDropUp else Icons.Rounded.ArrowDropDown,
+                            contentDescription = "Select Profile",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = isDropdownExpanded,
+                        onDismissRequest = { isDropdownExpanded = false },
+                        modifier = Modifier
+                            .fillMaxWidth(0.85f)
+                            .heightIn(max = 320.dp)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    ) {
+                        EqualizerPresetRegistry.PRESET_NAMES.forEachIndexed { index, name ->
+                            val isSelected = (activePreset == index)
+                            DropdownMenuItem(
+                                text = {
                                     Text(
                                         text = name,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                     )
+                                },
+                                trailingIcon = {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.setEqualizerPreset(index)
+                                    isDropdownExpanded = false
                                 }
-                            },
-                            shape = ChipPillShape,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        )
+                        }
                     }
                 }
 
@@ -311,95 +351,97 @@ fun EqualizerDialog(
                     }
                 }
 
-                // ── 5 Equalizer Sliders ──
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    BAND_LABELS.forEachIndexed { bandIndex, (freqLabel, roleLabel) ->
-                        val gain = bandGains.getOrElse(bandIndex) { 0.0f }
-                        val isMudZone = (bandIndex == 3) // 250 Hz Mud Cut
-                        val isVocalZone = (bandIndex == 5 || bandIndex == 6)
+                // ── 10 Equalizer Sliders (Custom only) ──
+                if (activePreset == EqualizerPresetRegistry.PRESET_CUSTOM) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        BAND_LABELS.forEachIndexed { bandIndex, (freqLabel, roleLabel) ->
+                            val gain = bandGains.getOrElse(bandIndex) { 0.0f }
+                            val isMudZone = (bandIndex == 3) // 250 Hz Mud Cut
+                            val isVocalZone = (bandIndex == 5 || bandIndex == 6)
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (isMudZone) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f)
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                    shape = BandRowShape
-                                )
-                                .padding(horizontal = 10.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Band Frequency and Role Label
-                            Column(modifier = Modifier.width(160.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = freqLabel,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.5.sp,
-                                        color = if (isMudZone) MudCutWarningColor
-                                                else if (isVocalZone) VocalCyanColor
-                                                else MaterialTheme.colorScheme.onSurface
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (isMudZone) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f)
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                        shape = BandRowShape
                                     )
-                                    if (isMudZone) {
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .background(MudCutWarningColor.copy(alpha = 0.2f), shape = InfoBadgeShape)
-                                                .padding(horizontal = 4.dp, vertical = 1.dp)
-                                        ) {
-                                            Text(
-                                                text = "Car Resonance",
-                                                fontSize = 8.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MudCutWarningColor
-                                            )
+                                    .padding(horizontal = 10.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Band Frequency and Role Label
+                                Column(modifier = Modifier.width(160.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = freqLabel,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.5.sp,
+                                            color = if (isMudZone) MudCutWarningColor
+                                                    else if (isVocalZone) VocalCyanColor
+                                                    else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (isMudZone) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(MudCutWarningColor.copy(alpha = 0.2f), shape = InfoBadgeShape)
+                                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Car Resonance",
+                                                    fontSize = 8.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MudCutWarningColor
+                                                )
+                                            }
                                         }
                                     }
+                                    Text(
+                                        text = roleLabel,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
                                 }
-                                Text(
-                                    text = roleLabel,
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                            }
 
-                            // Horizontal Slider
-                            Slider(
-                                value = gain,
-                                onValueChange = { newGain ->
-                                    viewModel.setEqualizerBandGain(bandIndex, (newGain * 2).toInt() / 2f)
-                                },
-                                valueRange = -10f..10f,
-                                steps = 39, // 0.5 dB step intervals
-                                enabled = isEnabled,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 8.dp),
-                                colors = SliderDefaults.colors(
-                                    thumbColor = if (isMudZone) MudCutWarningColor else MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = if (isMudZone) MudCutWarningColor else MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                // Horizontal Slider
+                                Slider(
+                                    value = gain,
+                                    onValueChange = { newGain ->
+                                        viewModel.setEqualizerBandGain(bandIndex, (newGain * 2).toInt() / 2f)
+                                    },
+                                    valueRange = -10f..10f,
+                                    steps = 39, // 0.5 dB step intervals
+                                    enabled = isEnabled,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 8.dp),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = if (isMudZone) MudCutWarningColor else MaterialTheme.colorScheme.primary,
+                                        activeTrackColor = if (isMudZone) MudCutWarningColor else MaterialTheme.colorScheme.primary,
+                                        inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    )
                                 )
-                            )
 
-                            // Formatted Gain Text: e.g. "-4.0 dB", "+2.5 dB"
-                            Box(
-                                modifier = Modifier.width(55.dp),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                val gainText = if (gain > 0f) "+${String.format("%.1f", gain)}" else "${String.format("%.1f", gain)}"
-                                Text(
-                                    text = "$gainText dB",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (gain < 0f && isMudZone) MudCutWarningColor
-                                            else if (gain > 0f) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                // Formatted Gain Text: e.g. "-4.0 dB", "+2.5 dB"
+                                Box(
+                                    modifier = Modifier.width(55.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    val gainText = if (gain > 0f) "+${String.format("%.1f", gain)}" else "${String.format("%.1f", gain)}"
+                                    Text(
+                                        text = "$gainText dB",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (gain < 0f && isMudZone) MudCutWarningColor
+                                                else if (gain > 0f) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }

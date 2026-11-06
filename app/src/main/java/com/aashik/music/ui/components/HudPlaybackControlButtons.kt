@@ -19,50 +19,40 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.viewmodel.MusicViewModel
 
+/**
+ * Standard Material 3 Playback Controls (Balanced 5-Button Cluster).
+ * Shuffle has been moved next to Lyrics in MobilePlayerActionBar.
+ */
 @Composable
 fun HudPlaybackControlButtons(
     viewModel: MusicViewModel,
     isPlaying: Boolean,
-    isShuffleOn: Boolean,
-    isStream: Boolean,
-    controlIconColor: Color,
-    controlInactiveColor: Color
+    @Suppress("UNUSED_PARAMETER") isShuffleOn: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") isStream: Boolean = false,
+    controlIconColor: Color = MaterialTheme.colorScheme.onSurface,
+    controlInactiveColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Shuffle Mode Toggle (only for local playback - hidden when streaming)
-        if (!isStream) {
-            IconButton(
-                onClick = { viewModel.toggleShuffle() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Text(
-                    text = if (isShuffleOn) "SHUF" else "SEQ",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Black,
-                    color = if (isShuffleOn) MaterialTheme.colorScheme.primary else controlInactiveColor
-                )
-            }
-        }
-
         // Previous Track
         IconButton(
             onClick = { viewModel.playPreviousSong() },
-            modifier = Modifier.size(52.dp)
+            modifier = Modifier.size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.SkipPrevious,
                 contentDescription = "Previous Song",
                 tint = controlIconColor,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(34.dp)
             )
         }
 
@@ -73,20 +63,21 @@ fun HudPlaybackControlButtons(
         ) {
             Text(
                 text = "-10s",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                color = controlIconColor
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = controlInactiveColor
             )
         }
 
-        // Hero Play/Pause Button
+        // Hero Play/Pause Button (Material 3 Primary Filled Circle)
         Box(
             modifier = Modifier
-                .size(60.dp)
+                .size(64.dp)
                 .background(
                     color = MaterialTheme.colorScheme.primary,
                     shape = CircleShape
                 )
+                .clip(CircleShape)
                 .clickable { viewModel.togglePlayPause() },
             contentAlignment = Alignment.Center
         ) {
@@ -105,24 +96,23 @@ fun HudPlaybackControlButtons(
         ) {
             Text(
                 text = "+10s",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                color = controlIconColor
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = controlInactiveColor
             )
         }
 
         // Next Track
         IconButton(
             onClick = { viewModel.playNextSong() },
-            modifier = Modifier.size(52.dp)
+            modifier = Modifier.size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.Rounded.SkipNext,
                 contentDescription = "Next Song",
                 tint = controlIconColor,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(34.dp)
             )
         }
     }
 }
-

@@ -116,8 +116,8 @@ fun MobileMiniPlayer(
     val durationMs by viewModel.durationFlow.collectAsState()
     val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
 
-    val surfaceBg = if (isDark) Color(0xFF131822) else MaterialTheme.colorScheme.surfaceVariant
-    val surfaceBorder = if (isDark) Color(0xFF202A3C) else Color(0xFFCBD5E1)
+    val surfaceBg = MaterialTheme.colorScheme.surfaceContainer
+    val surfaceBorder = MaterialTheme.colorScheme.outlineVariant
     val codecBadge = remember(song) { getMobileAudioCodecBadge(song) }
 
     // After 5s of playing, swap song info with waveform seekbar. When paused, show song info again.
@@ -249,7 +249,7 @@ fun MobileMiniPlayer(
                 modifier = Modifier
                     .size(36.dp)
                     .background(
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.09f else 0.06f),
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
                         shape = CircleShape
                     )
                     .clip(CircleShape)

@@ -99,7 +99,6 @@ import com.aashik.music.ui.components.ThemeDisplaySection
 
 
 // Precomputed shapes hoisted to top-level constants for Mali GPU fill rate & zero GC allocation
-private val SettingsContainerShape = RoundedCornerShape(16.dp)
 private val CardSectionShape = RoundedCornerShape(12.dp)
 private val ChipPillShape = RoundedCornerShape(8.dp)
 private val InfoBadgeShape = RoundedCornerShape(8.dp)
@@ -112,15 +111,6 @@ private val DialogContainerShape = RoundedCornerShape(28.dp)
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
 private val RefetchGreenColor = Color(0xFF00E676)
-
-private val PRESET_NAMES = listOf(
-    "Flat",
-    "Acoustic Clarity",
-    "Vocal Separation",
-    "Punchy Bass",
-    "Rock Dynamic",
-    "Custom"
-)
 
 private val CROSSFADE_OPTIONS = listOf(0, 1, 2, 3, 5, 8)
 
@@ -156,35 +146,28 @@ fun SettingsScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    val cardBg = AppGradients.card(isActive = false)
-    val cardBorder = AppGradients.border(isActive = false)
-
     Surface(
         color = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .then(
                     if (!isLandscape) {
                         Modifier
                             .statusBarsPadding()
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
                     } else {
-                        Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                        Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                     }
                 )
-                .background(brush = cardBg, shape = SettingsContainerShape)
-                .border(width = 1.dp, brush = cardBorder, shape = SettingsContainerShape)
-                .padding(horizontal = if (isLandscape) 14.dp else 10.dp, vertical = if (isLandscape) 10.dp else 8.dp)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // ── Top Header Navigation Bar (Material 3 Standardized) ──
-                AppTopBar(
-                    title = "Settings",
-                    onBack = onClose
-                )
+            // ── Top Header Navigation Bar (Material 3 Standardized) ──
+            AppTopBar(
+                title = "Settings",
+                onBack = onClose
+            )
 
                 Text(
                     text = "Automotive Audio & Headunit Preferences",
@@ -216,4 +199,3 @@ fun SettingsScreen(
             }
         }
     }
-}

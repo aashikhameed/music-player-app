@@ -121,7 +121,9 @@ fun HudExpandedLyricsView(
     }
 
     Box(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xD906090F))
     ) {
         // Centered Scrolling Lyrics
         LazyColumn(

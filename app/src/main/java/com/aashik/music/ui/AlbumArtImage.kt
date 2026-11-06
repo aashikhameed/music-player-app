@@ -54,7 +54,7 @@ fun AlbumArtImage(
     artworkUrl: String? = null,
     size: Dp = 54.dp,
     borderRadius: Dp = 10.dp,
-    isPlaying: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") isPlaying: Boolean = false,
     isHighRes: Boolean = false
 ) {
     val shape = when (borderRadius) {
@@ -98,21 +98,9 @@ fun AlbumArtImage(
         }
     }
 
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val glowModifier = if (isPlaying) {
-        Modifier.border(
-            width = 1.5.dp,
-            color = primaryColor.copy(alpha = 0.85f),
-            shape = shape
-        )
-    } else {
-        Modifier
-    }
-
     Box(
         modifier = modifier
             .size(size)
-            .then(glowModifier)
             .clip(shape),
         contentAlignment = Alignment.Center
     ) {
@@ -136,7 +124,7 @@ fun AlbumArtImage(
                 Icon(
                     imageVector = if (isStream) Icons.Rounded.Radio else Icons.Rounded.MusicNote,
                     contentDescription = null,
-                    tint = primaryColor.copy(alpha = 0.6f),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                     modifier = Modifier.size(size * 0.45f)
                 )
             }

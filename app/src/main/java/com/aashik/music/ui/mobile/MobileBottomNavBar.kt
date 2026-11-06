@@ -93,8 +93,6 @@ fun MobileBottomNavBar(
     modifier: Modifier = Modifier,
     isDocked: Boolean = false
 ) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-
     val navContent = @Composable {
         Row(
             modifier = Modifier
@@ -133,13 +131,13 @@ fun MobileBottomNavBar(
     } else {
         Surface(
             shape = MobileNavBarShape,
-            color = if (isDark) Color(0xFF111622) else MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.surfaceContainer,
             modifier = modifier
                 .fillMaxWidth()
                 .height(56.dp)
                 .border(
                     width = 0.8.dp,
-                    color = if (isDark) Color(0xFF202A3C) else Color(0xFFD0D4DC),
+                    color = MaterialTheme.colorScheme.outlineVariant,
                     shape = MobileNavBarShape
                 )
         ) {

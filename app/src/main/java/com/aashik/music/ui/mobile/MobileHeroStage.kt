@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import com.aashik.music.model.NavigatingTrack
 import com.aashik.music.model.Song
 import com.aashik.music.ui.AlbumArtImage
-import com.aashik.music.ui.components.HeroBorderVisualizer
 import com.aashik.music.ui.components.HudExpandedLyricsView
 import com.aashik.music.viewmodel.MusicViewModel
 
@@ -73,10 +72,16 @@ fun MobileHeroStage(
                 || currentSong?.isYouTube() == true
                 || currentSong?.isLocalVideo() == true)
 
-    Box(
-        modifier = modifier
+    val stageModifier = if (isLyricsExpanded) {
+        modifier.fillMaxWidth()
+    } else {
+        modifier
             .fillMaxWidth()
-            .aspectRatio(1f),
+            .aspectRatio(1f)
+    }
+
+    Box(
+        modifier = stageModifier,
         contentAlignment = Alignment.Center
     ) {
         // 1. Clipped Card Content
@@ -154,9 +159,9 @@ fun MobileHeroStage(
                     }
                 }
 
-                // ── 3. Dimming Scrim when Lyrics is Shown ──
+                // ── 3. High-Contrast Dimming Backdrop when Lyrics is Shown ──
                 val scrimAlpha by animateFloatAsState(
-                    targetValue = if (isLyricsExpanded) 0.82f else 0.0f,
+                    targetValue = if (isLyricsExpanded) 0.96f else 0.0f,
                     animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
                     label = "LyricsScrimAlpha"
                 )
@@ -166,8 +171,8 @@ fun MobileHeroStage(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                color = if (isNightDimmerActive) Color(0xFF090D14).copy(alpha = scrimAlpha)
-                                        else Color.Black.copy(alpha = scrimAlpha)
+                                color = if (isNightDimmerActive) Color(0xFF05080E).copy(alpha = scrimAlpha)
+                                        else Color(0xFF070B12).copy(alpha = scrimAlpha)
                             )
                     )
                 }
@@ -184,15 +189,6 @@ fun MobileHeroStage(
                 }
             }
         }
-
-        // 2. Dim Border & Live Animated Visualizer along the perimeter
-        HeroBorderVisualizer(
-            isPlaying = isPlaying,
-            borderColor = DimArtworkBorder,
-            visualizerColor = MaterialTheme.colorScheme.primary,
-            cornerRadius = 20.dp,
-            modifier = Modifier.fillMaxSize()
-        )
     }
 }
 

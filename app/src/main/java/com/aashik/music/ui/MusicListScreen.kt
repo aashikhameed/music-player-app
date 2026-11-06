@@ -405,9 +405,8 @@ fun MusicListScreen(viewModel: MusicViewModel) {
 
                         // ── Unified Mobile Bottom Dock (Mini-Player + Bottom Nav Bar merged with 0 gap) ──
                         if (currentSong != null) {
-                            val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-                            val dockBg = if (isDark) Color(0xFF131822) else MaterialTheme.colorScheme.surfaceVariant
-                            val dockBorder = if (isDark) Color(0xFF202A3C) else Color(0xFFCBD5E1)
+                            val dockBg = MaterialTheme.colorScheme.surfaceContainer
+                            val dockBorder = MaterialTheme.colorScheme.outlineVariant
 
                             Surface(
                                 shape = MobileDockShape,

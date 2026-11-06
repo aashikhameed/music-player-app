@@ -25,81 +25,69 @@ void AudioEqualizer::setPreset(int32_t preset) {
     }
 }
 
+struct PresetTableEntry {
+    int32_t hpfMode;
+    std::array<float, AudioEqualizer::NUM_BANDS> gains;
+};
+
+static const std::array<PresetTableEntry, PRESET_CUSTOM> PRESET_TABLE = {{
+    // 0: Flat
+    { HPF_OFF,  { 0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f } },
+    // 1: Acoustic
+    { HPF_80HZ, { 0.0f,  1.0f, -1.0f, -4.0f, -1.0f,  1.5f,  2.0f,  2.5f,  3.0f,  3.5f } },
+    // 2: Bass Booster
+    { HPF_60HZ, { 6.0f,  6.0f,  4.5f,  3.0f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f } },
+    // 3: Bass Reducer
+    { HPF_80HZ, {-6.0f, -6.0f, -4.5f, -3.0f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f } },
+    // 4: Classical
+    { HPF_60HZ, { 4.0f,  3.0f,  2.0f,  0.0f,  0.0f,  0.0f,  0.0f,  2.0f,  3.0f,  3.5f } },
+    // 5: Dance
+    { HPF_60HZ, { 5.0f,  5.5f,  3.5f,  0.0f,  1.0f,  2.0f,  3.0f,  4.0f,  4.5f,  3.5f } },
+    // 6: Deep
+    { HPF_OFF,  { 5.0f,  4.5f,  3.0f,  1.0f,  0.0f, -1.0f, -2.0f, -2.0f, -3.0f, -4.0f } },
+    // 7: Electronic
+    { HPF_60HZ, { 4.5f,  4.0f,  2.0f,  0.0f, -1.5f,  1.5f,  2.5f,  3.5f,  4.5f,  4.0f } },
+    // 8: Hip-Hop
+    { HPF_60HZ, { 6.0f,  5.5f,  3.5f,  1.0f, -1.0f,  1.0f,  1.5f,  2.0f,  2.5f,  2.0f } },
+    // 9: Jazz
+    { HPF_60HZ, { 3.0f,  2.5f,  1.5f,  1.0f,  1.5f,  2.0f,  1.5f,  2.5f,  3.0f,  2.5f } },
+    // 10: Latin
+    { HPF_60HZ, { 3.0f,  2.5f,  0.0f, -1.5f,  0.0f,  2.0f,  2.5f,  3.5f,  3.0f,  2.0f } },
+    // 11: Loudness
+    { HPF_60HZ, { 5.5f,  4.5f,  2.0f,  0.0f, -1.5f,  0.0f,  1.0f,  2.5f,  4.0f,  4.5f } },
+    // 12: Lounge
+    { HPF_60HZ, {-2.0f,  1.0f,  3.0f,  2.0f,  0.0f,  1.0f,  1.5f,  2.0f, -1.0f, -2.0f } },
+    // 13: Piano
+    { HPF_60HZ, { 2.0f,  2.5f,  2.0f,  1.0f,  2.0f,  3.0f,  3.0f,  2.5f,  2.0f,  2.0f } },
+    // 14: Pop
+    { HPF_60HZ, {-1.0f,  1.5f,  3.0f,  3.5f,  2.0f,  1.0f,  2.0f,  3.0f,  3.5f,  2.5f } },
+    // 15: R&B
+    { HPF_60HZ, { 5.0f,  6.0f,  3.0f, -1.0f,  1.0f,  2.0f,  2.5f,  3.0f,  3.5f,  3.0f } },
+    // 16: Rock
+    { HPF_60HZ, { 4.0f,  3.5f,  1.5f, -2.0f, -1.0f,  1.0f,  2.0f,  3.0f,  4.0f,  4.0f } },
+    // 17: Small Speakers
+    { HPF_80HZ, {-6.0f, -5.0f, -2.0f,  1.0f,  2.5f,  3.0f,  3.5f,  3.0f,  2.0f,  1.0f } },
+    // 18: Spoken Word
+    { HPF_80HZ, {-6.0f, -5.0f, -3.0f, -1.0f,  3.0f,  4.0f,  4.0f,  2.0f,  0.0f, -2.0f } },
+    // 19: Treble Booster
+    { HPF_60HZ, { 0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  1.0f,  2.5f,  4.0f,  5.5f,  6.0f } },
+    // 20: Treble Reducer
+    { HPF_60HZ, { 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, -1.0f, -2.5f, -4.0f, -5.5f, -6.0f } },
+    // 21: Vocal Booster
+    { HPF_80HZ, {-3.0f, -2.0f, -3.0f, -5.0f,  1.0f,  3.0f,  3.5f,  2.0f,  1.0f,  1.0f } },
+    // 22: Late Night
+    { HPF_60HZ, { 3.0f,  2.0f,  1.0f,  0.0f,  1.0f,  1.5f,  1.5f,  1.0f,  0.0f, -1.0f } }
+}};
+
 void AudioEqualizer::applyPresetGains(int32_t preset) {
-    switch (preset) {
-        case PRESET_FLAT:
-            mHpfMode.store(HPF_OFF, std::memory_order_relaxed);
-            for (size_t i = 0; i < NUM_BANDS; ++i) {
-                mBandGainsDb[i].store(0.0f, std::memory_order_relaxed);
-            }
-            break;
-
-        case PRESET_ACOUSTIC_CLARITY:
-            // Tuned for vehicle cabin + external processor + door speakers:
-            // - HPF at 80 Hz eliminates woofer excursion distortion
-            // - Mud cut (-4.0 dB) at 250 Hz eliminates hollow door resonance
-            // - Midrange and treble contours provide crisp separation and air
-            mHpfMode.store(HPF_80HZ, std::memory_order_relaxed);
-            mBandGainsDb[0].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(1.0f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(-1.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(-4.0f, std::memory_order_relaxed);
-            mBandGainsDb[4].store(-1.0f, std::memory_order_relaxed);
-            mBandGainsDb[5].store(1.5f, std::memory_order_relaxed);
-            mBandGainsDb[6].store(2.0f, std::memory_order_relaxed);
-            mBandGainsDb[7].store(2.5f, std::memory_order_relaxed);
-            mBandGainsDb[8].store(3.0f, std::memory_order_relaxed);
-            mBandGainsDb[9].store(3.5f, std::memory_order_relaxed);
-            break;
-
-        case PRESET_VOCAL_SEPARATION:
-            // Heavy vocal isolation with maximum acoustic mud suppression
-            mHpfMode.store(HPF_80HZ, std::memory_order_relaxed);
-            mBandGainsDb[0].store(-3.0f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(-2.0f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(-3.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(-5.0f, std::memory_order_relaxed);
-            mBandGainsDb[4].store(1.0f, std::memory_order_relaxed);
-            mBandGainsDb[5].store(3.0f, std::memory_order_relaxed);
-            mBandGainsDb[6].store(3.5f, std::memory_order_relaxed);
-            mBandGainsDb[7].store(2.0f, std::memory_order_relaxed);
-            mBandGainsDb[8].store(1.0f, std::memory_order_relaxed);
-            mBandGainsDb[9].store(1.0f, std::memory_order_relaxed);
-            break;
-
-        case PRESET_BASS_PUNCH:
-            // Tight, fast mid-bass punch without door boominess
-            mHpfMode.store(HPF_60HZ, std::memory_order_relaxed);
-            mBandGainsDb[0].store(4.0f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(4.5f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(2.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(-3.0f, std::memory_order_relaxed);
-            mBandGainsDb[4].store(-1.0f, std::memory_order_relaxed);
-            mBandGainsDb[5].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[6].store(1.0f, std::memory_order_relaxed);
-            mBandGainsDb[7].store(1.5f, std::memory_order_relaxed);
-            mBandGainsDb[8].store(2.0f, std::memory_order_relaxed);
-            mBandGainsDb[9].store(2.0f, std::memory_order_relaxed);
-            break;
-
-        case PRESET_ROCK_DYNAMIC:
-            mHpfMode.store(HPF_60HZ, std::memory_order_relaxed);
-            mBandGainsDb[0].store(2.5f, std::memory_order_relaxed);
-            mBandGainsDb[1].store(3.0f, std::memory_order_relaxed);
-            mBandGainsDb[2].store(1.0f, std::memory_order_relaxed);
-            mBandGainsDb[3].store(-2.5f, std::memory_order_relaxed);
-            mBandGainsDb[4].store(-1.5f, std::memory_order_relaxed);
-            mBandGainsDb[5].store(0.0f, std::memory_order_relaxed);
-            mBandGainsDb[6].store(1.5f, std::memory_order_relaxed);
-            mBandGainsDb[7].store(3.0f, std::memory_order_relaxed);
-            mBandGainsDb[8].store(3.5f, std::memory_order_relaxed);
-            mBandGainsDb[9].store(3.0f, std::memory_order_relaxed);
-            break;
-
-        default:
-            break;
+    if (preset >= 0 && preset < static_cast<int32_t>(PRESET_TABLE.size())) {
+        const auto& def = PRESET_TABLE[preset];
+        mHpfMode.store(def.hpfMode, std::memory_order_relaxed);
+        for (size_t i = 0; i < NUM_BANDS; ++i) {
+            mBandGainsDb[i].store(def.gains[i], std::memory_order_relaxed);
+        }
+        mCoeffsDirty.store(true, std::memory_order_release);
     }
-    mCoeffsDirty.store(true, std::memory_order_release);
 }
 
 void AudioEqualizer::setBandGain(size_t bandIndex, float gainDb) {
