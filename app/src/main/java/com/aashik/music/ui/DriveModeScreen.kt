@@ -781,9 +781,15 @@ fun DriveModeScreen(
                                 .padding(horizontal = 24.dp),
                             contentAlignment = Alignment.Center
                         ) {
+                            val landscapeStageHeight by animateDpAsState(
+                                targetValue = if (isLyricsExpanded) 380.dp else 160.dp,
+                                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                                label = "LandscapeStageHeight"
+                            )
+
                             Row(
                                 modifier = Modifier
-                                    .widthIn(max = 700.dp)
+                                    .widthIn(max = if (isLyricsExpanded) 840.dp else 700.dp)
                                     .fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Start
@@ -861,13 +867,13 @@ fun DriveModeScreen(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.width(if (isLyricsExpanded) 16.dp else 24.dp))
+                                Spacer(modifier = Modifier.width(if (isLyricsExpanded) 0.dp else 24.dp))
 
-                                // Content Area: Song Info or Synced Lyrics (Fixed height 160.dp matching Album Art)
+                                // Content Area: Song Info or Synced Lyrics (Expanded to 340.dp when lyrics active)
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(160.dp),
+                                        .height(landscapeStageHeight),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     AnimatedContent(
@@ -889,7 +895,14 @@ fun DriveModeScreen(
                                                 primaryTextColor = primaryTextColor,
                                                 secondaryTextColor = secondaryTextColor,
                                                 onClose = { isLyricsExpanded = false },
-                                                modifier = Modifier.fillMaxSize()
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .clip(BigArtworkShape)
+                                                    .border(
+                                                        width = if (!isDark) 1.dp else 0.dp,
+                                                        color = if (!isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f) else Color.Transparent,
+                                                        shape = BigArtworkShape
+                                                    )
                                             )
                                         } else {
                                             // Current Song Title & Artist with Automotive Vertical Slide Transition
