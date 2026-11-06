@@ -1266,20 +1266,22 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val tab = _selectedTab.value
         val baseList = when {
             tab == LibraryTab.ALL_SONGS -> {
-                originalSongs
+                originalSongs.filter { !it.isStream() }
             }
             tab == LibraryTab.FAVORITES -> {
-                originalSongs.filter { _favoritePaths.value.contains(it.path) }
+                originalSongs.filter { !it.isStream() && _favoritePaths.value.contains(it.path) }
             }
             tab == LibraryTab.FOLDERS && selectedFolder != null -> {
                 originalSongs.filter {
-                    val p = it.path
-                    val lastSlash = p.lastIndexOf('/')
-                    lastSlash > 0 && p.substring(0, lastSlash) == selectedFolder
+                    !it.isStream() && run {
+                        val p = it.path
+                        val lastSlash = p.lastIndexOf('/')
+                        lastSlash > 0 && p.substring(0, lastSlash) == selectedFolder
+                    }
                 }
             }
             else -> {
-                originalSongs
+                originalSongs.filter { !it.isStream() }
             }
         }
 
@@ -1589,7 +1591,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 songDao.clearAll()
                 songDao.insertAll(songs)
-                songs
+                songs.filter { !it.isStream() }
             }
 
             originalSongs = scanned
@@ -1626,7 +1628,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             val context = getApplication<Application>().applicationContext
             val loadedSongs = withContext(Dispatchers.IO) {
                 val dbSongs = songDao.getAllSongs()
-                if (dbSongs.isEmpty()) {
+                // Purge any online stream URLs from local database so songs table strictly represents local music
+                val streamEntries = dbSongs.filter { it.isStream() }
+                if (streamEntries.isNotEmpty()) {
+                    streamEntries.forEach { songDao.delete(it) }
+                }
+                val localDbSongs = dbSongs.filter { !it.isStream() }
+                if (localDbSongs.isEmpty()) {
                     val scannedSongs = AudioScanner.scan(context) { loaded, total ->
                         _loadedCount.value = loaded
                         _totalCount.value = total
@@ -1636,7 +1644,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     // Check and repair any downloaded songs that have missing metadata or legacy filenames
                     var hasUpdates = false
-                    val sanitized = dbSongs.map { song ->
+                    val sanitized = localDbSongs.map { song ->
                         val meta = StreamDownloadManager.getMetadataForPath(context, song.path)
                         if (meta != null && (song.artist == "<unknown>" || song.artist == "Unknown Artist" || song.title != meta.title || (song.artworkUrl.isNullOrBlank() && !meta.artworkUrl.isNullOrBlank()))) {
                             hasUpdates = true
@@ -1662,8 +1670,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            originalSongs = loadedSongs
-            activePlaylist = loadedSongs
+            originalSongs = loadedSongs.filter { !it.isStream() }
+            activePlaylist = originalSongs
 
             if (shuffledSongs.isEmpty()) {
                 shuffledSongs = originalSongs.shuffled().toMutableList()

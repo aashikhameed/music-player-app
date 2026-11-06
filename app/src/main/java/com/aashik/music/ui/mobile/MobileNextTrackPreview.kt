@@ -1,11 +1,10 @@
 package com.aashik.music.ui.mobile
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,9 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,17 +31,17 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.ui.AlbumArtImage
 
-private val NextTrackCardShape = RoundedCornerShape(12.dp)
+private val NextTrackCardShape = RoundedCornerShape(14.dp)
 private val NextBadgeShape = RoundedCornerShape(6.dp)
+private val QueueButtonCircle = CircleShape
 
 /**
  * Glanceable Next Song preview row displayed just above the bottom player controls container in mobile portrait.
  *
  * Interaction:
- *  - Tap: Plays the next song immediately.
- *  - Long Press: Opens the user playback queue drawer.
+ *  - Tap on the card: Plays the next song immediately.
+ *  - Tap on the queue button: Opens the user playback queue drawer / modal.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MobileNextTrackPreview(
     nextSong: Song?,
@@ -55,25 +55,20 @@ fun MobileNextTrackPreview(
 
     val containerBg = when {
         isNightDimmerActive -> Color(0xFF0F151F)
-        isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
     }
 
     val containerBorder = when {
         isNightDimmerActive -> Color(0xFF1E293B)
-        isDark -> Color(0xFF2D3B4E)
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        isDark -> Color(0xFF263342)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f)
     }
 
     val titleColor = when {
         isNightDimmerActive -> Color(0xFFE2E8F0)
         isDark -> Color.White
         else -> MaterialTheme.colorScheme.onSurface
-    }
-
-    val subtitleColor = when {
-        isNightDimmerActive -> Color(0xFF94A3B8)
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Row(
@@ -83,10 +78,7 @@ fun MobileNextTrackPreview(
             .background(color = containerBg, shape = NextTrackCardShape)
             .border(width = 0.8.dp, color = containerBorder, shape = NextTrackCardShape)
             .clip(NextTrackCardShape)
-            .combinedClickable(
-                onClick = onPlayNext,
-                onLongClick = onOpenQueue
-            )
+            .clickable { onPlayNext() }
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -94,24 +86,24 @@ fun MobileNextTrackPreview(
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // "NEXT" Badge
-            Row(
+            // "NEXT" Pill Badge
+            Box(
                 modifier = Modifier
                     .background(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                         shape = NextBadgeShape
                     )
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "NEXT",
-                    fontSize = 9.5.sp,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.7.sp
                 )
             }
 
@@ -125,39 +117,38 @@ fun MobileNextTrackPreview(
                 modifier = Modifier.size(32.dp)
             )
 
-            // Title + Artist
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = nextSong.title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = titleColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = nextSong.artist,
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = subtitleColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            // Song Title (Single line, artist removed)
+            Text(
+                text = nextSong.title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
         }
 
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-        // Trailing Skip Cue Icon
-        Icon(
-            imageVector = Icons.Rounded.SkipNext,
-            contentDescription = "Play Next (Long press for queue)",
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-            modifier = Modifier.size(22.dp)
-        )
+        // Queue Toggle Button (Tapping opens the queue modal)
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    shape = QueueButtonCircle
+                )
+                .clip(QueueButtonCircle)
+                .clickable { onOpenQueue() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                contentDescription = "Open Queue Modal",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
     }
 }
-

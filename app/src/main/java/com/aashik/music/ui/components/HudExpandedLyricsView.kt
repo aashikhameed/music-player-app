@@ -141,8 +141,8 @@ fun HudExpandedLyricsView(
                 val animatedColor by animateColorAsState(
                     targetValue = when {
                         isCurrent -> MaterialTheme.colorScheme.primary
-                        isPast -> secondaryTextColor.copy(alpha = 0.38f)
-                        else -> primaryTextColor.copy(alpha = 0.75f)
+                        isPast -> secondaryTextColor.copy(alpha = 0.22f)
+                        else -> secondaryTextColor.copy(alpha = 0.32f)
                     },
                     animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
                     label = "LyricColor"
