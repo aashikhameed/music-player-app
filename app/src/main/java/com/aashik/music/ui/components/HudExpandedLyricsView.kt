@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,13 +57,14 @@ private val FloatingCloseShape = CircleShape
 fun HudExpandedLyricsView(
     viewModel: MusicViewModel,
     primaryTextColor: Color,
-    secondaryTextColor: Color,
+    @Suppress("UNUSED_PARAMETER") secondaryTextColor: Color,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val lyrics by viewModel.currentLyrics.collectAsState()
     val positionMs by viewModel.positionFlow.collectAsState()
     val isLoadingLyrics by viewModel.isLoadingLyrics.collectAsState()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     if (lyrics.isEmpty()) {
         Box(
@@ -80,7 +82,7 @@ fun HudExpandedLyricsView(
                     text = if (isLoadingLyrics) "Loading synchronized lyrics..." else "No synchronized lyrics found",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = primaryTextColor,
+                    color = if (isDark) primaryTextColor else MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(6.dp))
@@ -120,10 +122,15 @@ fun HudExpandedLyricsView(
         }
     }
 
+    val lyricsCardBg = when {
+        isDark -> Color(0xD906090F)
+        else -> MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.95f)
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xD906090F))
+            .background(lyricsCardBg)
     ) {
         // Centered Scrolling Lyrics
         LazyColumn(
@@ -143,8 +150,10 @@ fun HudExpandedLyricsView(
                 val animatedColor by animateColorAsState(
                     targetValue = when {
                         isCurrent -> MaterialTheme.colorScheme.primary
-                        isPast -> secondaryTextColor.copy(alpha = 0.22f)
-                        else -> secondaryTextColor.copy(alpha = 0.32f)
+                        isPast -> if (isDark) Color.White.copy(alpha = 0.35f)
+                                  else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                        else -> if (isDark) Color.White.copy(alpha = 0.65f)
+                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
                     },
                     animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
                     label = "LyricColor"
@@ -186,13 +195,18 @@ fun HudExpandedLyricsView(
         }
 
         // Sleek Minimal Floating Close Button in Top-Right Corner
+        val closeBtnBg = if (isDark) Color.Black.copy(alpha = 0.45f)
+                         else MaterialTheme.colorScheme.surfaceContainerHigh
+        val closeBtnTint = if (isDark) Color.White.copy(alpha = 0.85f)
+                          else MaterialTheme.colorScheme.onSurface
+
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(10.dp)
                 .size(30.dp)
                 .background(
-                    color = Color.Black.copy(alpha = 0.45f),
+                    color = closeBtnBg,
                     shape = FloatingCloseShape
                 )
                 .clip(FloatingCloseShape)
@@ -202,7 +216,7 @@ fun HudExpandedLyricsView(
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = "Close Lyrics",
-                tint = primaryTextColor.copy(alpha = 0.85f),
+                tint = closeBtnTint,
                 modifier = Modifier.size(16.dp)
             )
         }

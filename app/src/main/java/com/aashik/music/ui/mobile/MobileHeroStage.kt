@@ -10,6 +10,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.aashik.music.model.NavigatingTrack
 import com.aashik.music.model.Song
@@ -84,6 +86,8 @@ fun MobileHeroStage(
         modifier = stageModifier,
         contentAlignment = Alignment.Center
     ) {
+        val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
         // 1. Clipped Card Content
         Box(
             modifier = Modifier
@@ -91,7 +95,13 @@ fun MobileHeroStage(
                 .clip(HeroArtworkShape)
                 .background(
                     color = if (isNightDimmerActive) Color(0xFF0D1117)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                            else MaterialTheme.colorScheme.surfaceContainerLowest,
+                    shape = HeroArtworkShape
+                )
+                .border(
+                    width = if (!isDark && isLyricsExpanded) 1.dp else 0.dp,
+                    color = if (!isDark && isLyricsExpanded) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f) else Color.Transparent,
                     shape = HeroArtworkShape
                 ),
             contentAlignment = Alignment.Center
@@ -167,12 +177,16 @@ fun MobileHeroStage(
                 )
 
                 if (scrimAlpha > 0.01f) {
+                    val scrimColor = when {
+                        isNightDimmerActive -> Color(0xFF05080E)
+                        isDark -> Color(0xFF070B12)
+                        else -> MaterialTheme.colorScheme.surfaceContainerLowest
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                color = if (isNightDimmerActive) Color(0xFF05080E).copy(alpha = scrimAlpha)
-                                        else Color(0xFF070B12).copy(alpha = scrimAlpha)
+                                color = scrimColor.copy(alpha = scrimAlpha)
                             )
                     )
                 }
