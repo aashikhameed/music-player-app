@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -76,6 +77,8 @@ fun CustomHorizontalSeekBar(
     activeColor: Color = MaterialTheme.colorScheme.primary,
     inactiveColor: Color = Color.Unspecified,
     showTimeLabels: Boolean = true,
+    showTooltip: Boolean = showTimeLabels,
+    onTap: (() -> Unit)? = null,
     isLoading: Boolean = false
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -91,6 +94,9 @@ fun CustomHorizontalSeekBar(
     var dragProgress by remember { mutableFloatStateOf(0f) }
     var pendingSeekProgress by remember { mutableStateOf<Float?>(null) }
     var barWidthPx by remember { mutableFloatStateOf(1f) }
+
+    val viewConfiguration = LocalViewConfiguration.current
+    val touchSlop = viewConfiguration.touchSlop
 
     // Clear pendingSeekProgress once incoming engine progress catches up to seek target
     androidx.compose.runtime.LaunchedEffect(progress) {
@@ -119,33 +125,35 @@ fun CustomHorizontalSeekBar(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Floating Time Tooltip during Drag Scrubbing — fixed 18.dp row so layout never shifts
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(18.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            if (isDragging && durationMs > 0L) {
-                val scrubMs = (displayProgress * durationMs).toLong()
+        if (showTooltip) {
+            // Floating Time Tooltip during Drag Scrubbing — fixed 18.dp row so layout never shifts
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(18.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (isDragging && durationMs > 0L) {
+                    val scrubMs = (displayProgress * durationMs).toLong()
 
-                Box(
-                    modifier = Modifier
-                        .offset {
-                            val tipWidthPx = 48.dp.roundToPx()
-                            val offsetX = ((displayProgress * barWidthPx) - (tipWidthPx / 2f))
-                                .coerceIn(0f, (barWidthPx - tipWidthPx).coerceAtLeast(0f))
-                            IntOffset(offsetX.roundToInt(), 0)
-                        }
-                        .background(color = activeColor, shape = TooltipShape)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = formatSeekTime(scrubMs),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Box(
+                        modifier = Modifier
+                            .offset {
+                                val tipWidthPx = 48.dp.roundToPx()
+                                val offsetX = ((displayProgress * barWidthPx) - (tipWidthPx / 2f))
+                                    .coerceIn(0f, (barWidthPx - tipWidthPx).coerceAtLeast(0f))
+                                IntOffset(offsetX.roundToInt(), 0)
+                            }
+                            .background(color = activeColor, shape = TooltipShape)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = formatSeekTime(scrubMs),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
@@ -156,35 +164,55 @@ fun CustomHorizontalSeekBar(
                 .fillMaxWidth()
                 .height(28.dp)
                 .onSizeChanged { barWidthPx = it.width.toFloat() }
-                .pointerInput(isLoading) {
+                .pointerInput(isLoading, onTap) {
                     if (isLoading) return@pointerInput
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val downX = down.position.x
-                        if (barWidthPx > 0f) {
-                            dragProgress = (downX / barWidthPx).coerceIn(0f, 1f)
-                        }
-                        isDragging = true
-
                         val pointerId = down.id
+                        var hasDragged = false
+                        var currentX: Float
+
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == pointerId } ?: break
 
                             if (!change.pressed) {
-                                change.consume()
                                 break
                             }
 
-                            change.consume()
-                            if (barWidthPx > 0f) {
-                                dragProgress = (change.position.x / barWidthPx).coerceIn(0f, 1f)
+                            currentX = change.position.x
+                            val dragDistance = kotlin.math.abs(currentX - downX)
+
+                            if (!hasDragged && dragDistance > touchSlop) {
+                                hasDragged = true
+                                isDragging = true
+                            }
+
+                            if (hasDragged) {
+                                change.consume()
+                                if (barWidthPx > 0f) {
+                                    dragProgress = (currentX / barWidthPx).coerceIn(0f, 1f)
+                                }
                             }
                         }
 
-                        isDragging = false
-                        pendingSeekProgress = dragProgress
-                        onProgressChanged(dragProgress)
+                        if (hasDragged) {
+                            isDragging = false
+                            pendingSeekProgress = dragProgress
+                            onProgressChanged(dragProgress)
+                        } else if (onTap != null) {
+                            isDragging = false
+                            onTap.invoke()
+                        } else {
+                            // Tap-to-seek when onTap is not provided
+                            isDragging = false
+                            if (barWidthPx > 0f) {
+                                val tapProgress = (downX / barWidthPx).coerceIn(0f, 1f)
+                                pendingSeekProgress = tapProgress
+                                onProgressChanged(tapProgress)
+                            }
+                        }
                     }
                 },
             contentAlignment = Alignment.CenterStart

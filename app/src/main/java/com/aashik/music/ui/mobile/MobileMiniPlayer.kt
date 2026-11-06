@@ -56,6 +56,7 @@ import com.aashik.music.viewmodel.LibraryTab
 import com.aashik.music.viewmodel.MusicViewModel
 import java.io.File
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 
 private val PortraitSongCardShape = RoundedCornerShape(16.dp)
 private val LandscapeFullSongShape = RoundedCornerShape(16.dp)
@@ -105,7 +106,8 @@ fun MobileMiniPlayer(
     viewModel: MusicViewModel,
     song: Song,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDocked: Boolean = false
 ) {
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -118,142 +120,167 @@ fun MobileMiniPlayer(
     val surfaceBorder = if (isDark) Color(0xFF202A3C) else Color(0xFFCBD5E1)
     val codecBadge = remember(song) { getMobileAudioCodecBadge(song) }
 
-    Surface(
-        onClick = onClick,
-        shape = MobileMiniPlayerShape,
-        color = surfaceBg,
-        modifier = modifier
-            .fillMaxWidth()
-            .border(
-                width = 0.8.dp,
-                color = surfaceBorder,
-                shape = MobileMiniPlayerShape
-            )
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
+    // After 5s of playing, swap song info with waveform seekbar. When paused, show song info again.
+    var showSeekbar by remember { mutableStateOf(false) }
+    LaunchedEffect(isPlaying, song.id) {
+        if (isPlaying) {
+            delay(5000L)
+            showSeekbar = true
+        } else {
+            showSeekbar = false
+        }
+    }
+
+    val content = @Composable {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clickable { onClick() }
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Dynamic 48-Bar Waveform Scrubber across Mini-Dock
-            CustomHorizontalSeekBar(
-                progress = progress,
-                onProgressChanged = { viewModel.seekToFraction(it) },
-                isPlaying = isPlaying,
-                currentPositionMs = positionMs,
-                durationMs = durationMs,
-                waveSeed = song.id.hashCode(),
-                showTimeLabels = false,
-                isLoading = isPlayerLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 2.dp)
+            AlbumArtImage(
+                path = song.path,
+                artworkUrl = song.artworkUrl,
+                size = 40.dp,
+                borderRadius = 10.dp,
+                isPlaying = isPlaying
             )
 
-            Row(
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // In-place swap: Song Info vs Seekbar (Vertically centered)
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, end = 10.dp, top = 2.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center
             ) {
-                AlbumArtImage(
-                    path = song.path,
-                    artworkUrl = song.artworkUrl,
-                    size = 40.dp,
-                    borderRadius = 10.dp,
-                    isPlaying = isPlaying
-                )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                if (showSeekbar) {
+                    CustomHorizontalSeekBar(
+                        progress = progress,
+                        onProgressChanged = { viewModel.seekToFraction(it) },
+                        isPlaying = isPlaying,
+                        currentPositionMs = positionMs,
+                        durationMs = durationMs,
+                        waveSeed = song.id.hashCode(),
+                        showTimeLabels = false,
+                        showTooltip = false,
+                        onTap = onClick,
+                        isLoading = isPlayerLoading,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Text(
-                            text = song.title,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.5.sp,
-                                letterSpacing = 0.15.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = song.title,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    letterSpacing = 0.15.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
 
-                        if (codecBadge.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.22f else 0.12f),
-                                        shape = MiniCodecBadgeShape
+                            if (codecBadge.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.22f else 0.12f),
+                                            shape = MiniCodecBadgeShape
+                                        )
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = codecBadge,
+                                        fontSize = 8.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                            ) {
-                                Text(
-                                    text = codecBadge,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                }
                             }
                         }
-                    }
 
-                    Text(
-                        text = song.artist,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Hero Play/Pause Button
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
-                        .clip(CircleShape)
-                        .clickable { viewModel.togglePlayPause() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Next Track Button
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.09f else 0.06f),
-                            shape = CircleShape
+                        Text(
+                            text = song.artist,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        .clip(CircleShape)
-                        .clickable { viewModel.playNextSong() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = "Next Track",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Hero Play/Pause Button
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
+                    .clip(CircleShape)
+                    .clickable { viewModel.togglePlayPause() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Next Track Button
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDark) 0.09f else 0.06f),
+                        shape = CircleShape
+                    )
+                    .clip(CircleShape)
+                    .clickable { viewModel.playNextSong() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.SkipNext,
+                    contentDescription = "Next Track",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+
+    if (isDocked) {
+        content()
+    } else {
+        Surface(
+            shape = MobileMiniPlayerShape,
+            color = surfaceBg,
+            modifier = modifier
+                .fillMaxWidth()
+                .border(
+                    width = 0.8.dp,
+                    color = surfaceBorder,
+                    shape = MobileMiniPlayerShape
+                )
+        ) {
+            content()
         }
     }
 }

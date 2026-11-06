@@ -98,7 +98,6 @@ fun PortraitSeekBarSection(
         modifier = Modifier
             .fillMaxWidth()
             .background(brush = AppGradients.card(isActive = false), shape = PortraitDockShape)
-            .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = PortraitDockShape)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         IsolatedPortraitSeekBar(

@@ -90,25 +90,16 @@ private val FavoriteHeartRed = Color(0xFFFF5252)
 fun MobileBottomNavBar(
     selectedTab: LibraryTab,
     onTabSelected: (LibraryTab) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDocked: Boolean = false
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-    Surface(
-        shape = MobileNavBarShape,
-        color = if (isDark) Color(0xFF111622) else MaterialTheme.colorScheme.surfaceVariant,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .border(
-                width = 0.8.dp,
-                color = if (isDark) Color(0xFF202A3C) else Color(0xFFD0D4DC),
-                shape = MobileNavBarShape
-            )
-    ) {
+    val navContent = @Composable {
         Row(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .height(52.dp)
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
@@ -134,6 +125,25 @@ fun MobileBottomNavBar(
                 onClick = { onTabSelected(LibraryTab.MORE) },
                 modifier = Modifier.weight(1f)
             )
+        }
+    }
+
+    if (isDocked) {
+        navContent()
+    } else {
+        Surface(
+            shape = MobileNavBarShape,
+            color = if (isDark) Color(0xFF111622) else MaterialTheme.colorScheme.surfaceVariant,
+            modifier = modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .border(
+                    width = 0.8.dp,
+                    color = if (isDark) Color(0xFF202A3C) else Color(0xFFD0D4DC),
+                    shape = MobileNavBarShape
+                )
+        ) {
+            navContent()
         }
     }
 }

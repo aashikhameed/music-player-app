@@ -137,12 +137,12 @@ fun RadioExploreContent(
                     )
                 }
             } else {
-                // Genres & Styles Grid (Text-only cards, no images, with favorite icon)
+                // Genres & Styles Grid (Vibrant Spotify/Apple Music cards with cover thumbnails)
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns.coerceAtLeast(2)),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // ── 1. Favorites Pinned at the Top (when favorites exist) ──

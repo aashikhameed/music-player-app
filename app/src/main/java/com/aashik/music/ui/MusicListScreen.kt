@@ -99,6 +99,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -135,6 +136,7 @@ private val BackPillShape = RoundedCornerShape(8.dp)
 private val MobileMiniPlayerShape = RoundedCornerShape(16.dp)
 private val MiniCodecBadgeShape = RoundedCornerShape(4.dp)
 private val MobileNavBarShape = RoundedCornerShape(28.dp)
+private val MobileDockShape = RoundedCornerShape(22.dp)
 private val MobileActiveTabShape = RoundedCornerShape(16.dp)
 private val ShelfArtworkShape = RoundedCornerShape(12.dp)
 private val ShelfCardContainerShape = RoundedCornerShape(12.dp)
@@ -401,23 +403,53 @@ fun MusicListScreen(viewModel: MusicViewModel) {
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Floating Mini-Player (when a track is selected/loaded)
+                        // ── Unified Mobile Bottom Dock (Mini-Player + Bottom Nav Bar merged with 0 gap) ──
                         if (currentSong != null) {
-                            MobileMiniPlayer(
-                                viewModel = viewModel,
-                                song = currentSong!!,
-                                onClick = { viewModel.openDriveMode() }
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                        }
+                            val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                            val dockBg = if (isDark) Color(0xFF131822) else MaterialTheme.colorScheme.surfaceVariant
+                            val dockBorder = if (isDark) Color(0xFF202A3C) else Color(0xFFCBD5E1)
 
-                        // Mobile Bottom Navigation Bar (Songs, Radio, More)
-                        MobileBottomNavBar(
-                            selectedTab = selectedTab,
-                            onTabSelected = { tab ->
-                                viewModel.selectTab(tab)
+                            Surface(
+                                shape = MobileDockShape,
+                                color = dockBg,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(
+                                        width = 0.8.dp,
+                                        color = dockBorder,
+                                        shape = MobileDockShape
+                                    )
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    MobileMiniPlayer(
+                                        viewModel = viewModel,
+                                        song = currentSong!!,
+                                        onClick = { viewModel.openDriveMode() },
+                                        isDocked = true
+                                    )
+                                    HorizontalDivider(
+                                        color = dockBorder,
+                                        thickness = 0.8.dp
+                                    )
+                                    MobileBottomNavBar(
+                                        selectedTab = selectedTab,
+                                        onTabSelected = { tab ->
+                                            viewModel.selectTab(tab)
+                                        },
+                                        isDocked = true
+                                    )
+                                }
                             }
-                        )
+                        } else {
+                            // Standalone Bottom Navigation Bar (no song loaded)
+                            MobileBottomNavBar(
+                                selectedTab = selectedTab,
+                                onTabSelected = { tab ->
+                                    viewModel.selectTab(tab)
+                                },
+                                isDocked = false
+                            )
+                        }
                     }
                 } else {
                     // ─────────────────────────────────────────────────────────────────────────
@@ -442,7 +474,6 @@ fun MusicListScreen(viewModel: MusicViewModel) {
                                     .weight(1f)
                                     .fillMaxWidth()
                                     .background(brush = AppGradients.card(isActive = false), shape = LandscapeFullSongShape)
-                                    .border(width = 1.dp, brush = AppGradients.border(isActive = false), shape = LandscapeFullSongShape)
                                     .padding(horizontal = 10.dp, vertical = 8.dp)
                             ) {
                                 val canScroll = (selectedTab == LibraryTab.ALL_SONGS || selectedTab == LibraryTab.MORE || selectedFolder != null) && songs.size > 5
