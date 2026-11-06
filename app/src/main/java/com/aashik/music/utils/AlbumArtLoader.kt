@@ -57,16 +57,37 @@ fun loadAlbumArt(path: String, artworkUrl: String? = null): Bitmap? {
 
     if (embedded != null) return embedded
 
+    val companion = loadCompanionArt(path, targetSize = 64)
+    if (companion != null) return companion
+
     // Fallback: try registered stream artwork URL or explicit artworkUrl for local/downloaded songs
     val fallbackUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path)
         ?: artworkUrl?.takeIf { it.isNotBlank() && (it.startsWith("http://") || it.startsWith("https://")) }
     return if (fallbackUrl != null) loadRemoteBitmap(fallbackUrl, targetSize = 64) else null
 }
 
-fun loadAlbumArtHighRes(path: String, artworkUrl: String? = null, targetSize: Int = 256): Bitmap? {
+private fun upgradeToFullRes(url: String): String {
+    return when {
+        url.contains("hqdefault.jpg") -> url.replace("hqdefault.jpg", "maxresdefault.jpg")
+        url.contains("mqdefault.jpg") -> url.replace("mqdefault.jpg", "maxresdefault.jpg")
+        url.contains("default.jpg") && !url.contains("maxresdefault.jpg") -> url.replace("default.jpg", "maxresdefault.jpg")
+        url.contains("150x150.jpg") -> url.replace("150x150.jpg", "500x500.jpg")
+        url.contains("50x50.jpg") -> url.replace("50x50.jpg", "500x500.jpg")
+        url.contains("=w120-h120") -> url.replace("=w120-h120", "=w1000-h1000")
+        url.contains("=w226-h226") -> url.replace("=w226-h226", "=w1000-h1000")
+        url.contains("=s120") -> url.replace("=s120", "=s1000")
+        else -> url
+    }
+}
+
+fun loadAlbumArtHighRes(path: String, artworkUrl: String? = null, targetSize: Int = 1024): Bitmap? {
     if (path.startsWith("http://") || path.startsWith("https://")) {
-        val artUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path) ?: if (isDirectImageUrl(path)) path else null
-        return if (artUrl != null) loadRemoteBitmap(artUrl, targetSize = targetSize) else null
+        val artUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path) ?: artworkUrl ?: if (isDirectImageUrl(path)) path else null
+        val fullResUrl = artUrl?.let { upgradeToFullRes(it) } ?: artUrl
+        val loaded = if (fullResUrl != null) loadRemoteBitmap(fullResUrl, targetSize = targetSize) else null
+        if (loaded != null) return loaded
+        // Fallback to original url if maxres didn't exist
+        return if (artUrl != null && artUrl != fullResUrl) loadRemoteBitmap(artUrl, targetSize = targetSize) else null
     }
     var retriever: MediaMetadataRetriever? = null
     val embedded: Bitmap? = try {
@@ -108,10 +129,41 @@ fun loadAlbumArtHighRes(path: String, artworkUrl: String? = null, targetSize: In
 
     if (embedded != null) return embedded
 
+    val companion = loadCompanionArt(path, targetSize = targetSize)
+    if (companion != null) return companion
+
     // Fallback: try registered stream artwork URL or explicit artworkUrl for local/downloaded songs
     val fallbackUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path)
         ?: artworkUrl?.takeIf { it.isNotBlank() && (it.startsWith("http://") || it.startsWith("https://")) }
     return if (fallbackUrl != null) loadRemoteBitmap(fallbackUrl, targetSize = targetSize) else null
+}
+
+private fun loadCompanionArt(path: String, targetSize: Int): Bitmap? {
+    return try {
+        val file = java.io.File(path)
+        val parent = file.parentFile ?: return null
+        val baseName = file.nameWithoutExtension
+        val candidate = java.io.File(parent, "$baseName.jpg").takeIf { it.exists() && it.length() > 0 }
+            ?: java.io.File(parent, "$baseName.png").takeIf { it.exists() && it.length() > 0 }
+            ?: java.io.File(parent, "cover.jpg").takeIf { it.exists() && it.length() > 0 }
+            ?: java.io.File(parent, "folder.jpg").takeIf { it.exists() && it.length() > 0 }
+
+        if (candidate != null) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(candidate.absolutePath, bounds)
+            var sampleSize = 1
+            while (bounds.outWidth / sampleSize > targetSize * 2 || bounds.outHeight / sampleSize > targetSize * 2) {
+                sampleSize *= 2
+            }
+            val opts = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+            BitmapFactory.decodeFile(candidate.absolutePath, opts)
+        } else null
+    } catch (_: Exception) {
+        null
+    }
 }
 
 private fun loadRemoteBitmap(urlStr: String, targetSize: Int): Bitmap? {

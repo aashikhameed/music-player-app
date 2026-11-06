@@ -54,6 +54,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.theme.AppGradients
+import com.aashik.music.ui.car.BottomBarSeekBar
+import com.aashik.music.ui.car.BottomBarTimeCounter
 import com.aashik.music.utils.formatTime
 import com.aashik.music.viewmodel.MusicViewModel
 
@@ -457,25 +459,6 @@ fun AndroidAutoBottomBar(
     }
 }
 
-/**
- * Isolated Time Counter — limits 250ms recompositions strictly to this Text widget.
- */
-@Composable
-private fun BottomBarTimeCounter(viewModel: MusicViewModel) {
-    val positionMs by viewModel.positionFlow.collectAsState()
-    val durationMs by viewModel.durationFlow.collectAsState()
-
-    Text(
-        text = "${formatTime(positionMs)} / ${formatTime(durationMs)}",
-        style = MaterialTheme.typography.bodySmall.copy(
-            fontSize      = 11.sp,
-            fontWeight    = FontWeight.SemiBold,
-            letterSpacing = 0.3.sp
-        ),
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-}
-
 private fun getAudioCodecBadge(song: com.aashik.music.model.Song?): String {
     if (song == null) return ""
     if (song.isStream()) return "320K"
@@ -488,28 +471,4 @@ private fun getAudioCodecBadge(song: com.aashik.music.model.Song?): String {
         path.endsWith(".mp3") -> "MP3"
         else -> song.getFileExtension().uppercase()
     }
-}
-
-/**
- * Isolated Seekbar — limits progress recompositions strictly to the canvas.
- */
-@Composable
-private fun BottomBarSeekBar(viewModel: MusicViewModel, isPlaying: Boolean) {
-    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
-    val positionMs by viewModel.positionFlow.collectAsState()
-    val durationMs by viewModel.durationFlow.collectAsState()
-    val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
-    val currentSong by viewModel.currentSong.collectAsState()
-
-    CustomHorizontalSeekBar(
-        progress          = progress,
-        onProgressChanged = { viewModel.seekToFraction(it) },
-        isPlaying         = isPlaying,
-        currentPositionMs = positionMs,
-        durationMs        = durationMs,
-        waveSeed          = currentSong?.id?.hashCode() ?: currentSong?.title?.hashCode() ?: 42,
-        showTimeLabels    = false,
-        isLoading         = isPlayerLoading,
-        modifier          = Modifier.fillMaxWidth()
-    )
 }

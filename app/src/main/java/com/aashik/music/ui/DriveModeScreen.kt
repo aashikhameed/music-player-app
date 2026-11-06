@@ -1,5 +1,16 @@
 package com.aashik.music.ui
 
+import com.aashik.music.ui.components.DriveHudActionBar
+import com.aashik.music.ui.components.DriveHudClock
+import com.aashik.music.ui.components.DriveHudSeekBar
+import com.aashik.music.ui.components.HudExpandedLyricsView
+import com.aashik.music.ui.components.HudLyricLineDisplay
+import com.aashik.music.ui.components.HudPlaybackControlButtons
+import com.aashik.music.ui.mobile.MobileDriveHudStage
+import com.aashik.music.ui.mobile.MobileHeroStage
+import com.aashik.music.ui.mobile.MobileNextTrackPreview
+import com.aashik.music.ui.mobile.MobilePlayerActionBar
+
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -63,6 +74,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Podcasts
@@ -229,19 +241,9 @@ fun DriveModeScreen(
     var lastInteractionTimestamp by remember { mutableLongStateOf(0L) }
     var isLyricsExpanded by rememberSaveable { mutableStateOf(false) }
 
-    val currentLyrics by viewModel.currentLyrics.collectAsState()
-    val isLoadingLyrics by viewModel.isLoadingLyrics.collectAsState()
-
     LaunchedEffect(currentSong?.id) {
         areControlsVisible = true
         lastInteractionTimestamp = System.currentTimeMillis()
-    }
-
-    // Collapse expanded lyrics only if loading has completed and no lyrics exist for the current track
-    LaunchedEffect(currentLyrics, isLoadingLyrics) {
-        if (!isLoadingLyrics && currentLyrics.isEmpty() && isLyricsExpanded) {
-            isLyricsExpanded = false
-        }
     }
 
     // Auto-hide controls after 4.5 seconds of inactivity during video playback
@@ -380,16 +382,11 @@ fun DriveModeScreen(
                         )
                     }
 
-                    // Center: Clock and Status
+                    // Right: Clock and Sleep Status (moved to right in portrait)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        DriveHudClock(
-                            isDark = isDark,
-                            isNightDimmer = isNightDimmerActive
-                        )
-
                         val sleepSec by viewModel.sleepTimerRemainingSec.collectAsState()
                         if (sleepSec > 0) {
                             val mins = (sleepSec / 60) + 1
@@ -410,61 +407,11 @@ fun DriveModeScreen(
                                 )
                             }
                         }
-                    }
 
-                    // Right: Dimmer and Video toggle actions
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Night Highway Dimmer Mode Toggle
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(
-                                    color = if (isNightDimmerActive) NightDimmerAmber.copy(alpha = 0.22f)
-                                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                            else MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = CircleShape
-                                )
-                                .clickable { isNightDimmerActive = !isNightDimmerActive },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.DarkMode,
-                                contentDescription = "Night Dimmer Mode",
-                                tint = if (isNightDimmerActive) NightDimmerAmber else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-
-                        // Play Music Video Toggle Icon
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(
-                                    color = if (playVideoForStreams) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                                            else if (isNightDimmerActive) Color(0xFF161C24)
-                                            else if (isDark) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                            else MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = CircleShape
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (playVideoForStreams) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                            else Color.Transparent,
-                                    shape = CircleShape
-                                )
-                                .clickable { viewModel.setPlayVideoForStreams(!playVideoForStreams) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.MusicNote,
-                                contentDescription = if (playVideoForStreams) "Music Video On" else "Music Video Off",
-                                tint = if (playVideoForStreams) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
+                        DriveHudClock(
+                            isDark = isDark,
+                            isNightDimmer = isNightDimmerActive
+                        )
                     }
                 }
             } else {
@@ -674,22 +621,113 @@ fun DriveModeScreen(
             }
 
             if (isPortrait) {
-                MobileDriveHudStage(
-                    viewModel = viewModel,
-                    currentSong = currentSong,
-                    isPlaying = isPlaying,
-                    navigatingTrack = navigatingTrack,
-                    isRadioActive = isRadioActive,
-                    isNightDimmerActive = isNightDimmerActive,
-                    primaryTextColor = primaryTextColor,
-                    isLyricsExpanded = isLyricsExpanded,
-                    onToggleLyrics = { isLyricsExpanded = it },
-                    onHideControls = { areControlsVisible = false },
+                // ── Centered Mobile Portrait Stage: Hero + Info + Action Bar ──
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                        .padding(vertical = 4.dp)
-                )
+                        .weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // ── Portrait Hero Stage (Art / Lyrics / Video) ──
+                    MobileHeroStage(
+                        viewModel = viewModel,
+                        currentSong = currentSong,
+                        isPlaying = isPlaying,
+                        navigatingTrack = navigatingTrack,
+                        isLyricsExpanded = isLyricsExpanded,
+                        isNightDimmerActive = isNightDimmerActive,
+                        primaryTextColor = primaryTextColor,
+                        secondaryTextColor = secondaryTextColor,
+                        onToggleLyrics = { isLyricsExpanded = it },
+                        onHideControls = { areControlsVisible = false },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 6.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // ── Portrait Title & Artist (Centered) ──
+                    AnimatedContent(
+                        targetState = navigatingTrack,
+                        transitionSpec = {
+                            if (targetState.direction >= 0) {
+                                (slideInVertically(
+                                    animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { h -> h / 2 }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
+                                    .togetherWith(
+                                        slideOutVertically(
+                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                            targetOffsetY = { h -> -h / 2 }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                    )
+                            } else {
+                                (slideInVertically(
+                                    animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { h -> -h / 2 }
+                                ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
+                                    .togetherWith(
+                                        slideOutVertically(
+                                            animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                                            targetOffsetY = { h -> h / 2 }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 180))
+                                    )
+                            }
+                        },
+                        label = "MobilePortraitTitleTransition",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 2.dp)
+                    ) { track ->
+                        val song = track.song ?: currentSong
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = song?.title ?: "No Song Playing",
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Black,
+                                color = primaryTextColor,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            val albumStr = song?.album.orEmpty()
+                            val artistStr = song?.artist ?: "Select a track to start"
+                            Text(
+                                text = if (albumStr.isNotBlank() && albumStr != song?.title) "$artistStr • $albumStr" else artistStr,
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // ── Portrait Action Bar (Fav, Download | Lyrics, Radio) ──
+                    MobilePlayerActionBar(
+                        viewModel = viewModel,
+                        currentSong = currentSong,
+                        isFavorite = isFavorite,
+                        isLyricsExpanded = isLyricsExpanded,
+                        isRadioActive = isRadioActive,
+                        isRadioLoading = isRadioLoading,
+                        currentDownloadStatus = currentDownloadStatus,
+                        controlInactiveColor = controlInactiveColor,
+                        isNightDimmerActive = isNightDimmerActive,
+                        isDark = isDark,
+                        onToggleLyrics = { isLyricsExpanded = it },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
             } else {
                 // ── Landscape Infotainment Stage: Unified Centered Layout ──
                 Column(
@@ -939,26 +977,45 @@ fun DriveModeScreen(
                 else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             }
 
-            // ── Unified Action Bar (Album Art, Queue, Fav, Download, Radio, Next Song) ──
-            DriveHudActionBar(
-                viewModel = viewModel,
-                currentSong = currentSong,
-                isPlaying = isPlaying,
-                upcomingSongs = upcomingSongs,
-                isFavorite = isFavorite,
-                isRadioActive = isRadioActive,
-                isRadioLoading = isRadioLoading,
-                currentDownloadStatus = currentDownloadStatus,
-                isNightDimmerActive = isNightDimmerActive,
-                isDark = isDark,
-                controlInactiveColor = controlInactiveColor,
-                isVideoActive = isVideoActive,
-                isLyricsExpanded = isLyricsExpanded,
-                onToggleLyrics = { isLyricsExpanded = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = if (isPortrait) 6.dp else 0.dp)
-            )
+            // ── Action Bar: landscape/car only (portrait uses MobilePlayerActionBar above) ──
+            if (!isPortrait) {
+                DriveHudActionBar(
+                    viewModel = viewModel,
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                    upcomingSongs = upcomingSongs,
+                    isFavorite = isFavorite,
+                    isRadioActive = isRadioActive,
+                    isRadioLoading = isRadioLoading,
+                    currentDownloadStatus = currentDownloadStatus,
+                    isNightDimmerActive = isNightDimmerActive,
+                    isDark = isDark,
+                    controlInactiveColor = controlInactiveColor,
+                    isVideoActive = isVideoActive,
+                    isLyricsExpanded = isLyricsExpanded,
+                    onToggleLyrics = { isLyricsExpanded = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 0.dp)
+                )
+            }
+            // ── Next Track Preview (Portrait Mobile): Just above the player controls container ──
+            if (isPortrait) {
+                val nextSong = upcomingSongs.firstOrNull()
+                if (nextSong != null) {
+                    MobileNextTrackPreview(
+                        nextSong = nextSong,
+                        onPlayNext = { viewModel.playNextSong() },
+                        onOpenQueue = { viewModel.openQueue() },
+                        isNightDimmerActive = isNightDimmerActive,
+                        isDark = isDark,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -971,9 +1028,10 @@ fun DriveModeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Full-width Seeker Bar in portrait
+                        // Full-width Seeker Bar in portrait (no timestamps)
                         DriveHudSeekBar(
                             viewModel = viewModel,
+                            showTimeLabels = false,
                             modifier = Modifier.fillMaxWidth()
                         )
 
@@ -1066,962 +1124,3 @@ fun DriveModeScreen(
     }
 }
 
-/**
- * Unified Quick Action Bar for Drive HUD.
- * Displays:
- * [Current Song Art (only art)] -> [Queue] -> [Favorite] -> [Download] -> [Radio] -> [Next Song (replaces EQ list)] -> [EQ Dialog].
- * Uses zero dynamic allocations (all precomputed constants) and Mali GPU friendly flat colors.
- */
-@Composable
-private fun DriveHudActionBar(
-    viewModel: MusicViewModel,
-    currentSong: Song?,
-    isPlaying: Boolean,
-    upcomingSongs: List<Song>,
-    isFavorite: Boolean,
-    isRadioActive: Boolean,
-    isRadioLoading: Boolean,
-    currentDownloadStatus: DownloadStatus,
-    isNightDimmerActive: Boolean,
-    isDark: Boolean,
-    controlInactiveColor: Color,
-    isVideoActive: Boolean = false,
-    isLyricsExpanded: Boolean = false,
-    onToggleLyrics: (Boolean) -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    val isQueueOpen by viewModel.isQueueOpen.collectAsState()
-    val isStream = currentSong?.isStream() == true
-    val isStreamDownloadable = isStream && (currentSong?.duration ?: 0) > 0
-
-    val actionButtonBg = when {
-        isNightDimmerActive -> Color(0xFF131922)
-        isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
-    ) {
-        // 1. Current Song: Only Album Art immediately before Queue button
-        if (currentSong != null && isVideoActive) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(color = actionButtonBg, shape = ActionArtThumbnailShape)
-                    .clip(ActionArtThumbnailShape)
-            ) {
-                AlbumArtImage(
-                    path = currentSong.path,
-                    artworkUrl = currentSong.artworkUrl,
-                    size = 44.dp,
-                    borderRadius = 8.dp,
-                    isPlaying = isPlaying,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-
-        // 2. Queue Drawer Button
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .background(
-                    color = if (isQueueOpen) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
-                    shape = CircleShape
-                )
-                .clickable { viewModel.toggleQueue() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                contentDescription = "Upcoming Queue Drawer",
-                tint = if (isQueueOpen) MaterialTheme.colorScheme.primary else controlInactiveColor,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        // 3. Favorite Button
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .background(
-                    color = if (isFavorite) FavoriteRedColor.copy(alpha = 0.22f) else actionButtonBg,
-                    shape = CircleShape
-                )
-                .clickable {
-                    currentSong?.path?.let { viewModel.toggleFavorite(it) }
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                contentDescription = "Toggle Favorite",
-                tint = if (isFavorite) FavoriteRedColor else controlInactiveColor,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        // 4. Download Button (if streamable)
-        if (isStreamDownloadable) {
-            val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded
-            val isDownloading = currentDownloadStatus is DownloadStatus.Downloading
-            val downloadTint = when {
-                isDownloaded -> Color(0xFF00E676)
-                isDownloading -> MaterialTheme.colorScheme.primary
-                else -> controlInactiveColor
-            }
-            val downloadBg = when {
-                isDownloaded -> Color(0xFF00E676).copy(alpha = 0.22f)
-                isDownloading -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                else -> actionButtonBg
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(color = downloadBg, shape = CircleShape)
-                    .clickable { currentSong?.let { viewModel.downloadSong(it) } },
-                contentAlignment = Alignment.Center
-            ) {
-                if (isDownloading) {
-                    val progress = (currentDownloadStatus as? DownloadStatus.Downloading)?.progress ?: 0f
-                    CircularProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = if (isDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
-                        contentDescription = if (isDownloaded) "Saved Offline" else "Download Track",
-                        tint = downloadTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-        // 5. Start Radio Button
-        if (isStream) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(
-                        color = if (isRadioActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
-                        shape = CircleShape
-                    )
-                    .clickable { viewModel.startRadioForCurrentSong() },
-                contentAlignment = Alignment.Center
-            ) {
-                if (isRadioLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.Podcasts,
-                        contentDescription = "Start Radio",
-                        tint = if (isRadioActive) MaterialTheme.colorScheme.primary else controlInactiveColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-        // 6. Next Song Container
-        val nextSong = upcomingSongs.firstOrNull()
-        if (nextSong != null) {
-            Row(
-                modifier = Modifier
-                    .height(44.dp)
-                    .background(color = actionButtonBg, shape = NextSongActionBarShape)
-                    .border(
-                        width = 1.dp,
-                        color = if (isNightDimmerActive) Color(0xFF192330)
-                                else if (isDark) Color(0xFF283445)
-                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        shape = NextSongActionBarShape
-                    )
-                    .clickable { viewModel.play(nextSong, direction = 1) }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AlbumArtImage(
-                    path = nextSong.path,
-                    artworkUrl = nextSong.artworkUrl,
-                    size = 32.dp,
-                    borderRadius = 6.dp,
-                    isPlaying = false,
-                    modifier = Modifier.size(32.dp)
-                )
-
-                Column(
-                    modifier = Modifier.widthIn(min = 80.dp, max = 180.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = nextSong.title,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isNightDimmerActive) Color(0xFFE2E8F0) else if (isDark) Color.White else MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                    }
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .height(44.dp)
-                    .background(color = actionButtonBg, shape = NextSongActionBarShape)
-                    .border(
-                        width = 1.dp,
-                        color = if (isNightDimmerActive) Color(0xFF192330)
-                                else if (isDark) Color(0xFF283445)
-                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                        shape = NextSongActionBarShape
-                    )
-                    .padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                    contentDescription = null,
-                    tint = controlInactiveColor,
-                    modifier = Modifier.size(14.dp)
-                )
-                Text(
-                    text = "Queue empty",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = controlInactiveColor
-                )
-            }
-        }
-    }
-}
-
-private data class LyricTickerState(val index: Int, val text: String)
-
-/**
- * Isolated leaf composable displaying the currently sung synchronized lyric line.
- * Recomposition-scoped to playback ticks without triggering recompositions of the outer HUD stage.
- * Features smooth slide + crossfade animation when moving between lines.
- */
-@Composable
-private fun HudLyricLineDisplay(
-    viewModel: MusicViewModel,
-    textColor: Color,
-    fontSize: androidx.compose.ui.unit.TextUnit,
-    onClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
-) {
-    val lyrics by viewModel.currentLyrics.collectAsState()
-    val positionMs by viewModel.positionFlow.collectAsState()
-    val isLoadingLyrics by viewModel.isLoadingLyrics.collectAsState()
-
-    if (lyrics.isEmpty() && !isLoadingLyrics) return
-
-    val tickerState = remember(lyrics, positionMs, isLoadingLyrics) {
-        if (lyrics.isEmpty() && isLoadingLyrics) {
-            LyricTickerState(-1, "♪ Loading lyrics...")
-        } else {
-            val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
-            if (idx >= 0) {
-                val line = lyrics[idx]
-                val nextLineTime = lyrics.getOrNull(idx + 1)?.timeMs
-                val text = if (nextLineTime != null && positionMs >= nextLineTime && line.text.isBlank()) {
-                    "♪ ♪ ♪"
-                } else {
-                    line.text.ifBlank { "♪ ♪ ♪" }
-                }
-                LyricTickerState(idx, text)
-            } else {
-                LyricTickerState(-1, "♪ Lyrics")
-            }
-        }
-    }
-
-    AnimatedContent(
-        targetState = tickerState,
-        transitionSpec = {
-            (slideInVertically(animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)) { height -> height } +
-             fadeIn(animationSpec = tween(durationMillis = 260)))
-                .togetherWith(
-                    slideOutVertically(animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)) { height -> -height } +
-                    fadeOut(animationSpec = tween(durationMillis = 180))
-                )
-        },
-        label = "HudLyricLineAnimation",
-        modifier = modifier
-    ) { state ->
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            modifier = Modifier
-                .background(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    shape = LyricLineShape
-                )
-                .clip(LyricLineShape)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .padding(horizontal = 10.dp, vertical = 5.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MusicNote,
-                contentDescription = "Lyrics",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(13.dp)
-            )
-            Text(
-                text = state.text,
-                fontSize = fontSize,
-                fontWeight = FontWeight.SemiBold,
-                color = textColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-/**
- * Isolated leaf composable displaying full synchronized scrolling lyrics when expanded.
- * Tapping a lyric line seeks to that timestamp.
- * Tapping "Show Info" / Close returns to title and artist view.
- */
-@Composable
-private fun HudExpandedLyricsView(
-    viewModel: MusicViewModel,
-    primaryTextColor: Color,
-    secondaryTextColor: Color,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val lyrics by viewModel.currentLyrics.collectAsState()
-    val positionMs by viewModel.positionFlow.collectAsState()
-    val isLoadingLyrics by viewModel.isLoadingLyrics.collectAsState()
-
-    if (lyrics.isEmpty()) {
-        Column(
-            modifier = modifier
-                .clip(LyricLineShape)
-                .clickable { onClose() }
-                .padding(8.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.Start
-        ) {
-            Text(
-                text = if (isLoadingLyrics) "Loading synchronized lyrics..." else "No synchronized lyrics available",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = secondaryTextColor
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = if (isLoadingLyrics) "Fetching lyrics..." else "Tap to show track info",
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        return
-    }
-
-    val currentIndex = remember(lyrics, positionMs) {
-        val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
-        idx.coerceAtLeast(0)
-    }
-
-    val initialIndex = remember {
-        val idx = lyrics.indexOfLast { it.timeMs <= positionMs }
-        idx.coerceAtLeast(0)
-    }
-
-    val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = (initialIndex - 1).coerceAtLeast(0)
-    )
-
-    LaunchedEffect(currentIndex) {
-        if (currentIndex in lyrics.indices) {
-            val target = (currentIndex - 1).coerceAtLeast(0)
-            listState.animateScrollToItem(
-                index = target,
-                scrollOffset = 0
-            )
-        }
-    }
-
-    Column(
-        modifier = modifier
-    ) {
-        // Top Header: "LYRICS" Badge on Left, "Show Info" Toggle on Right
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                        shape = LyricBadgeShape
-                    )
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(12.dp)
-                )
-                Text(
-                    text = "LYRICS",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 0.5.sp
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier
-                    .clip(LyricBadgeShape)
-                    .clickable { onClose() }
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = "Close",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = secondaryTextColor
-                )
-                Icon(
-                    imageVector = Icons.Rounded.Close,
-                    contentDescription = "Close Lyrics",
-                    tint = secondaryTextColor,
-                    modifier = Modifier.size(14.dp)
-                )
-            }
-        }
-
-        // Synced Lyrics Scrollable List
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            itemsIndexed(
-                items = lyrics,
-                key = { index, line -> "${index}_${line.timeMs}" }
-            ) { index, line ->
-                val isCurrent = index == currentIndex
-                val isPast = index < currentIndex
-
-                val animatedColor by animateColorAsState(
-                    targetValue = when {
-                        isCurrent -> MaterialTheme.colorScheme.primary
-                        isPast -> secondaryTextColor.copy(alpha = 0.45f)
-                        else -> primaryTextColor.copy(alpha = 0.85f)
-                    },
-                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                    label = "LyricColor"
-                )
-
-                val animatedScale by animateFloatAsState(
-                    targetValue = if (isCurrent) 1.05f else 1.0f,
-                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-                    label = "LyricScale"
-                )
-
-                val activeBgColor = Color.Transparent
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer {
-                            scaleX = animatedScale
-                            scaleY = animatedScale
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                        }
-                        .background(color = activeBgColor, shape = LyricLineShape)
-                        .clip(LyricLineShape)
-                        .clickable {
-                            viewModel.seekTo(line.timeMs)
-                        }
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = line.text.ifBlank { "♪" },
-                        fontSize = if (isCurrent) 15.sp else 13.sp,
-                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                        color = animatedColor,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * Isolated leaf composable for the Drive HUD seek bar.
- * Ensures 250ms playback ticks only recompose the seekbar and not the outer HUD screen.
- */
-@Composable
-private fun DriveHudSeekBar(
-    viewModel: MusicViewModel,
-    modifier: Modifier = Modifier
-) {
-    val positionMs by viewModel.positionFlow.collectAsState()
-    val durationMs by viewModel.durationFlow.collectAsState()
-    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val isPlayerLoading by viewModel.isPlayerLoading.collectAsState()
-    val currentSong by viewModel.currentSong.collectAsState()
-
-    CustomHorizontalSeekBar(
-        progress = progress,
-        onProgressChanged = { viewModel.seekToFraction(it) },
-        isPlaying = isPlaying,
-        currentPositionMs = positionMs,
-        durationMs = durationMs,
-        waveSeed = currentSong?.id?.hashCode() ?: 42,
-        showTimeLabels = true,
-        isLoading = isPlayerLoading,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    )
-}
-
-/**
- * Isolated leaf composable for the Drive HUD clock.
- * Updates at 15s intervals without triggering recompositions of the outer HUD.
- */
-@Composable
-private fun DriveHudClock(
-    isDark: Boolean,
-    isNightDimmer: Boolean = false,
-    modifier: Modifier = Modifier
-) {
-    var currentTime by remember { mutableStateOf(getCurrentTimeWithAmPm()) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(15_000L)
-            currentTime = getCurrentTimeWithAmPm()
-        }
-    }
-
-    val badgeBg = when {
-        isNightDimmer -> Color(0xFF131922)
-        isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
-    val textColor = when {
-        isNightDimmer -> Color(0xFFCCD6E0)
-        isDark -> Color.White
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-
-    val timeParts = currentTime.split(" ")
-    val timeDigits = timeParts.getOrElse(0) { currentTime }
-    val amPmLabel = timeParts.getOrElse(1) { "" }
-
-    Row(
-        modifier = modifier
-            .background(color = badgeBg, shape = ClockBadgeShape)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Rounded.Schedule,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(15.dp)
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = buildAnnotatedString {
-                withStyle(
-                    SpanStyle(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        letterSpacing = 0.2.sp
-                    )
-                ) { append(timeDigits) }
-                if (amPmLabel.isNotEmpty()) {
-                    append("\u202F")
-                    withStyle(
-                        SpanStyle(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 8.5.sp,
-                            baselineShift = BaselineShift.Superscript,
-                            color = textColor.copy(alpha = 0.75f)
-                        )
-                    ) { append(amPmLabel) }
-                }
-            },
-            color = textColor
-        )
-    }
-}
-
-
-
-@Composable
-private fun MobileDriveHudStage(
-    viewModel: MusicViewModel,
-    currentSong: Song?,
-    isPlaying: Boolean,
-    navigatingTrack: NavigatingTrack,
-    isRadioActive: Boolean,
-    isNightDimmerActive: Boolean,
-    primaryTextColor: Color,
-    isLyricsExpanded: Boolean = false,
-    onToggleLyrics: (Boolean) -> Unit = {},
-    onHideControls: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    val playVideoForStreams by viewModel.playVideoForStreams.collectAsState()
-    val currentVideoId by viewModel.currentVideoId.collectAsState()
-    val currentSpeedKmh by viewModel.currentSpeedKmh.collectAsState()
-    val isSpeedLockActive = currentSpeedKmh > 1.0f
-    val isVideoActive = playVideoForStreams && !isSpeedLockActive && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
-
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (isVideoActive) {
-            // In video mode, video is full-screen and completely unobstructed.
-            // Current song album art is before Queue in the action bar, and Next Song replaces the EQ list.
-            Spacer(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        onHideControls()
-                    }
-            )
-        } else {
-            // Row: Hero Visual (Artwork) on Left, Song Title & Artist next to it on Right
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start
-            ) {
-                val mobileArtworkSize by animateDpAsState(
-                    targetValue = if (isLyricsExpanded) 0.dp else 130.dp,
-                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                    label = "MobileHudArtworkSize"
-                )
-
-                // Hero Album Artwork with Apple CarPlay horizontal slide transition
-                Box(
-                    modifier = Modifier
-                        .size(mobileArtworkSize)
-                        .background(
-                            color = if (isNightDimmerActive) Color(0xFF0D1117)
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            shape = if (isLyricsExpanded) MobileMinimizedArtworkShape else MobileArtworkShape
-                        )
-                        .clip(if (isLyricsExpanded) MobileMinimizedArtworkShape else MobileArtworkShape)
-                ) {
-                    AnimatedContent(
-                        targetState = navigatingTrack,
-                        modifier = Modifier.fillMaxSize(),
-                        transitionSpec = {
-                            if (targetState.direction >= 0) {
-                                (slideInHorizontally(
-                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { fullWidth -> fullWidth }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 280)))
-                                    .togetherWith(
-                                        slideOutHorizontally(
-                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                            targetOffsetX = { fullWidth -> -fullWidth }
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
-                                    )
-                            } else {
-                                (slideInHorizontally(
-                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                    initialOffsetX = { fullWidth -> -fullWidth }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 280)))
-                                    .togetherWith(
-                                        slideOutHorizontally(
-                                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-                                            targetOffsetX = { fullWidth -> fullWidth }
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
-                                    )
-                            }
-                        },
-                        label = "MobileCarPlaySlideTransition"
-                    ) { navState ->
-                        val song = navState.song
-                        if (song != null) {
-                            AlbumArtImage(
-                                path = song.path,
-                                artworkUrl = song.artworkUrl,
-                                size = mobileArtworkSize,
-                                borderRadius = if (isLyricsExpanded) 10.dp else 16.dp,
-                                isPlaying = isPlaying,
-                                isHighRes = true,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.DirectionsCar,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(if (isLyricsExpanded) 32.dp else 52.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(if (isLyricsExpanded) 12.dp else 18.dp))
-
-                // Song Info Typography or Expanded Lyrics (Fixed height 130.dp, weight(1f))
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(130.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    AnimatedContent(
-                        targetState = isLyricsExpanded,
-                        transitionSpec = {
-                            (slideInVertically(animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)) { fullHeight -> fullHeight / 4 } +
-                             fadeIn(animationSpec = tween(durationMillis = 260)))
-                                .togetherWith(
-                                    slideOutVertically(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)) { fullHeight -> -fullHeight / 4 } +
-                                    fadeOut(animationSpec = tween(durationMillis = 180))
-                                )
-                        },
-                        label = "MobileHudLyricsToggleTransition",
-                        modifier = Modifier.fillMaxSize()
-                    ) { expanded ->
-                        if (expanded) {
-                            HudExpandedLyricsView(
-                                viewModel = viewModel,
-                                primaryTextColor = primaryTextColor,
-                                secondaryTextColor = primaryTextColor.copy(alpha = 0.7f),
-                                onClose = { onToggleLyrics(false) },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            // Song Info Typography (Title, Artist, Album) - Next to Album Art
-                            AnimatedContent(
-                                targetState = navigatingTrack,
-                                transitionSpec = {
-                                    if (targetState.direction >= 0) {
-                                        (slideInVertically(
-                                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                                            initialOffsetY = { fullHeight -> fullHeight / 2 }
-                                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
-                                            .togetherWith(
-                                                slideOutVertically(
-                                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                                    targetOffsetY = { fullHeight -> -fullHeight / 2 }
-                                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
-                                            )
-                                    } else {
-                                        (slideInVertically(
-                                            animationSpec = tween(durationMillis = 300, delayMillis = 30, easing = FastOutSlowInEasing),
-                                            initialOffsetY = { fullHeight -> -fullHeight / 2 }
-                                        ) + fadeIn(animationSpec = tween(durationMillis = 260, delayMillis = 30)))
-                                            .togetherWith(
-                                                slideOutVertically(
-                                                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                                                    targetOffsetY = { fullHeight -> fullHeight / 2 }
-                                                ) + fadeOut(animationSpec = tween(durationMillis = 180))
-                                            )
-                                    }
-                                },
-                                label = "MobileTypographyTransition",
-                                modifier = Modifier.fillMaxWidth()
-                            ) { track ->
-                                val song = track.song
-                                Column(
-                                    horizontalAlignment = Alignment.Start,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = song?.title ?: currentSong?.title ?: "No Song Playing",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = primaryTextColor,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    Spacer(modifier = Modifier.height(3.dp))
-
-                                    val albumStr = song?.album ?: currentSong?.album.orEmpty()
-                                    val artistStr = song?.artist ?: currentSong?.artist ?: "Select a track to start"
-                                    val fullSongTitle = song?.title ?: currentSong?.title
-                                    Text(
-                                        text = if (albumStr.isNotBlank() && albumStr != fullSongTitle) "$artistStr • $albumStr" else artistStr,
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    HudLyricLineDisplay(
-                                        viewModel = viewModel,
-                                        textColor = primaryTextColor.copy(alpha = 0.9f),
-                                        fontSize = 12.sp,
-                                        onClick = { onToggleLyrics(true) },
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HudPlaybackControlButtons(
-    viewModel: MusicViewModel,
-    isPlaying: Boolean,
-    isShuffleOn: Boolean,
-    isStream: Boolean,
-    controlIconColor: Color,
-    controlInactiveColor: Color
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        // Shuffle Mode Toggle (only for local playback - hidden when streaming)
-        if (!isStream) {
-            IconButton(
-                onClick = { viewModel.toggleShuffle() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Text(
-                    text = if (isShuffleOn) "SHUF" else "SEQ",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Black,
-                    color = if (isShuffleOn) MaterialTheme.colorScheme.primary else controlInactiveColor
-                )
-            }
-        }
-
-        // Previous Track
-        IconButton(
-            onClick = { viewModel.playPreviousSong() },
-            modifier = Modifier.size(52.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.SkipPrevious,
-                contentDescription = "Previous Song",
-                tint = controlIconColor,
-                modifier = Modifier.size(36.dp)
-            )
-        }
-
-        // Quick Skip -10s
-        IconButton(
-            onClick = { viewModel.skipBackward10s() },
-            modifier = Modifier.size(44.dp)
-        ) {
-            Text(
-                text = "-10s",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                color = controlIconColor
-            )
-        }
-
-        // Hero Play/Pause Button
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = CircleShape
-                )
-                .clickable { viewModel.togglePlayPause() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(38.dp)
-            )
-        }
-
-        // Quick Skip +10s
-        IconButton(
-            onClick = { viewModel.skipForward10s() },
-            modifier = Modifier.size(44.dp)
-        ) {
-            Text(
-                text = "+10s",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                color = controlIconColor
-            )
-        }
-
-        // Next Track
-        IconButton(
-            onClick = { viewModel.playNextSong() },
-            modifier = Modifier.size(52.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.SkipNext,
-                contentDescription = "Next Song",
-                tint = controlIconColor,
-                modifier = Modifier.size(36.dp)
-            )
-        }
-    }
-}

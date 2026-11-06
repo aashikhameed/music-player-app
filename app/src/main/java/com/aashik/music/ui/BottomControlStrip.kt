@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.theme.AppGradients
+import com.aashik.music.ui.mobile.MobileMicroScrubber
 import com.aashik.music.viewmodel.MusicViewModel
 
 private val BottomDockShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
@@ -279,63 +280,5 @@ fun BottomControlStrip(
                 }
             }
         }
-    }
-}
-
-/**
- * High-sensitivity 16dp touch-target micro scrubber along the top edge of the collapsed player dock.
- * Reads high-frequency playback flows strictly in this leaf composable.
- */
-@Composable
-private fun MobileMicroScrubber(
-    viewModel: MusicViewModel,
-    modifier: Modifier = Modifier
-) {
-    val progress by viewModel.currentProgressFlow.collectAsState(initial = 0f)
-    val durationMs by viewModel.durationFlow.collectAsState()
-    var isDragging by remember { mutableStateOf(false) }
-    var dragFraction by remember { mutableFloatStateOf(0f) }
-    val displayProgress = if (isDragging) dragFraction else progress
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(16.dp)
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { offset ->
-                        isDragging = true
-                        dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
-                    },
-                    onDragEnd = {
-                        isDragging = false
-                        viewModel.seekTo((dragFraction * durationMs).toLong())
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                    },
-                    onHorizontalDrag = { change, _ ->
-                        change.consume()
-                        dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                    }
-                )
-            }
-    ) {
-        // Background track (2dp)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(2.dp)
-                .align(Alignment.TopStart)
-                .background(MicroScrubberTrackColor)
-        )
-        // Active visual progress bar (3dp)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(fraction = displayProgress.coerceIn(0f, 1f))
-                .height(3.dp)
-                .align(Alignment.TopStart)
-                .background(MicroScrubberActiveColor)
-        )
     }
 }

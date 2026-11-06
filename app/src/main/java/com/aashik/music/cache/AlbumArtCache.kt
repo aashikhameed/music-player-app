@@ -120,6 +120,19 @@ object AlbumArtCache {
         }
     }
 
+    fun saveCustomArt(context: Context, path: String, bitmap: Bitmap) {
+        if (path.isBlank()) return
+        memoryCache.put(path, bitmap)
+        memoryCache.put(path + "_hr", bitmap)
+        noArtPaths.remove(path)
+        noArtPaths.remove(path + "_hr")
+        try {
+            val noArt = getNoArtFile(context, path)
+            if (noArt.exists()) noArt.delete()
+        } catch (_: Exception) {}
+        saveToDisk(context, path, bitmap)
+    }
+
     fun contains(path: String) = memoryCache.get(path) != null
 
     fun get(path: String): Bitmap? = memoryCache.get(path)

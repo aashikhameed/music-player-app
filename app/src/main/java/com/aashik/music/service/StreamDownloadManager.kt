@@ -2,6 +2,7 @@ package com.aashik.music.service
 
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
 import android.net.Uri
@@ -646,6 +647,7 @@ object StreamDownloadManager {
 
             val savedFile = targetFile
             if (savedFile != null && savedFile.exists() && savedFile.length() > 20_000L) {
+                saveArtworkForDownload(context, song, savedFile, ext)
                 val localSong = createLocalSong(song, savedFile)
                 songDao.insert(localSong)
                 persistDownloadedRecord(context, song, savedFile.absolutePath)
@@ -675,6 +677,132 @@ object StreamDownloadManager {
                 }
             }
         }
+    }
+
+    private fun saveArtworkForDownload(context: Context, song: Song, savedFile: File, ext: String) {
+        val artUrl = song.artworkUrl
+        if (artUrl.isNullOrBlank()) return
+
+        try {
+            val conn = openConnectionWithRedirects(artUrl)
+            val artBytes = conn.inputStream.use { it.readBytes() }
+            conn.disconnect()
+            if (artBytes.isEmpty()) return
+
+            // 1. Save companion image file next to downloaded audio file
+            val parent = savedFile.parentFile
+            if (parent != null && parent.exists()) {
+                val companion = File(parent, "${savedFile.nameWithoutExtension}.jpg")
+                try {
+                    FileOutputStream(companion).use { it.write(artBytes) }
+                } catch (_: Exception) {}
+            }
+
+            // 2. Decode bitmap and populate AlbumArtCache disk + memory
+            val bmp = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+            if (bmp != null) {
+                AlbumArtCache.saveCustomArt(context, savedFile.absolutePath, bmp)
+                AlbumArtCache.saveCustomArt(context, song.path, bmp)
+            }
+
+            // 3. For MP3 files, embed ID3v2 APIC tag so MediaMetadataRetriever sees it natively
+            if (ext.equals("mp3", ignoreCase = true)) {
+                embedId3Tag(savedFile, song, artBytes)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed caching artwork for ${song.title}: ${e.message}")
+        }
+    }
+
+    private fun embedId3Tag(file: File, song: Song, artBytes: ByteArray) {
+        try {
+            val audioBytes = file.readBytes()
+            val offset = if (audioBytes.size >= 10 && audioBytes[0] == 'I'.code.toByte() && audioBytes[1] == 'D'.code.toByte() && audioBytes[2] == '3'.code.toByte()) {
+                val s0 = audioBytes[6].toInt() and 0x7F
+                val s1 = audioBytes[7].toInt() and 0x7F
+                val s2 = audioBytes[8].toInt() and 0x7F
+                val s3 = audioBytes[9].toInt() and 0x7F
+                10 + (s0 shl 21) or (s1 shl 14) or (s2 shl 7) or s3
+            } else 0
+
+            val rawAudio = if (offset in 1 until audioBytes.size) {
+                audioBytes.copyOfRange(offset, audioBytes.size)
+            } else {
+                audioBytes
+            }
+
+            val framesOut = java.io.ByteArrayOutputStream()
+            writeTextFrame(framesOut, "TIT2", song.title)
+            writeTextFrame(framesOut, "TPE1", song.artist)
+            writeTextFrame(framesOut, "TALB", song.album)
+
+            val apicPayload = java.io.ByteArrayOutputStream()
+            apicPayload.write(0)
+            apicPayload.write("image/jpeg\u0000".toByteArray(Charsets.ISO_8859_1))
+            apicPayload.write(3)
+            apicPayload.write(0)
+            apicPayload.write(artBytes)
+            val apicBytes = apicPayload.toByteArray()
+
+            framesOut.write("APIC".toByteArray(Charsets.ISO_8859_1))
+            writeBigEndianInt(framesOut, apicBytes.size)
+            framesOut.write(0)
+            framesOut.write(0)
+            framesOut.write(apicBytes)
+
+            val allFrames = framesOut.toByteArray()
+            val synchsafeSize = encodeSynchsafe(allFrames.size)
+
+            val header = ByteArray(10)
+            header[0] = 'I'.code.toByte()
+            header[1] = 'D'.code.toByte()
+            header[2] = '3'.code.toByte()
+            header[3] = 3
+            header[4] = 0
+            header[5] = 0
+            header[6] = synchsafeSize[0]
+            header[7] = synchsafeSize[1]
+            header[8] = synchsafeSize[2]
+            header[9] = synchsafeSize[3]
+
+            FileOutputStream(file).use { out ->
+                out.write(header)
+                out.write(allFrames)
+                out.write(rawAudio)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed embedding ID3 tag: ${e.message}")
+        }
+    }
+
+    private fun writeTextFrame(out: java.io.ByteArrayOutputStream, frameId: String, text: String) {
+        if (text.isBlank()) return
+        val textBytes = text.toByteArray(Charsets.UTF_8)
+        val payload = ByteArray(1 + textBytes.size)
+        payload[0] = 3
+        System.arraycopy(textBytes, 0, payload, 1, textBytes.size)
+
+        out.write(frameId.toByteArray(Charsets.ISO_8859_1))
+        writeBigEndianInt(out, payload.size)
+        out.write(0)
+        out.write(0)
+        out.write(payload)
+    }
+
+    private fun writeBigEndianInt(out: java.io.ByteArrayOutputStream, value: Int) {
+        out.write((value shr 24) and 0xFF)
+        out.write((value shr 16) and 0xFF)
+        out.write((value shr 8) and 0xFF)
+        out.write(value and 0xFF)
+    }
+
+    private fun encodeSynchsafe(size: Int): ByteArray {
+        val b = ByteArray(4)
+        b[0] = ((size shr 21) and 0x7F).toByte()
+        b[1] = ((size shr 14) and 0x7F).toByte()
+        b[2] = ((size shr 7) and 0x7F).toByte()
+        b[3] = (size and 0x7F).toByte()
+        return b
     }
 
     private fun createLocalSong(sourceSong: Song, targetFile: File): Song {

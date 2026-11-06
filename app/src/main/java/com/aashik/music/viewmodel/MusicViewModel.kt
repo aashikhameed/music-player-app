@@ -1705,6 +1705,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val currentId = _currentSong.value?.id
         _currentSong.value = song
+        fetchLyricsForSong(song)
 
         val targetList = playlist ?: when {
             _songs.value.any { it.id == song.id } -> _songs.value

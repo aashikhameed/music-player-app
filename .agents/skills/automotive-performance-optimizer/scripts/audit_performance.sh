@@ -66,7 +66,7 @@ else
 fi
 
 # Check 1d: Verify no unhoisted shapes in UI
-DYNAMIC_SHAPES=$(grep -rn "RoundedCornerShape(" app/src/main/java/com/aashik/music/ui/*.kt 2>/dev/null | grep -v "private val" | grep -v "remember" || true)
+DYNAMIC_SHAPES=$(grep -rn "RoundedCornerShape(" app/src/main/java/com/aashik/music/ui/**/*.kt 2>/dev/null | grep -v "private val" | grep -v "remember" || true)
 if [ -n "$DYNAMIC_SHAPES" ]; then
     fail "Found dynamic RoundedCornerShape instantiations outside top-level constants:\n$DYNAMIC_SHAPES"
 else
@@ -74,10 +74,10 @@ else
 fi
 
 # Check 1e: Verify LiveAnimatedEqualizer uses direct Canvas drawing
-if grep -q "Canvas(modifier = modifier.size(18.dp))" app/src/main/java/com/aashik/music/ui/SongCard.kt; then
-    pass "SongCard.kt: Direct Canvas drawRoundRect equalizer verified (0 intermediate LayoutNodes)"
+if grep -q "Canvas(modifier = modifier.size(18.dp))" app/src/main/java/com/aashik/music/ui/components/LiveAnimatedEqualizer.kt 2>/dev/null || grep -q "Canvas(modifier = modifier.size(18.dp))" app/src/main/java/com/aashik/music/ui/SongCard.kt 2>/dev/null; then
+    pass "LiveAnimatedEqualizer.kt: Direct Canvas drawRoundRect equalizer verified (0 intermediate LayoutNodes)"
 else
-    fail "SongCard.kt: LiveAnimatedEqualizer should use direct Canvas drawRoundRect to avoid layout passes"
+    fail "LiveAnimatedEqualizer.kt: LiveAnimatedEqualizer should use direct Canvas drawRoundRect to avoid layout passes"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
