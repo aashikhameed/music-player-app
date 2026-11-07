@@ -115,7 +115,7 @@ fun HudExpandedLyricsView(
     )
 
     LaunchedEffect(currentIndex) {
-        if (currentIndex in lyrics.indices) {
+        if (currentIndex in lyrics.indices && !listState.isScrollInProgress) {
             listState.animateScrollToItem(
                 index = currentIndex,
                 scrollOffset = 0
@@ -186,27 +186,6 @@ fun HudExpandedLyricsView(
                     label = "LyricColor"
                 )
 
-                val fontSize = when (distance) {
-                    0 -> 20.sp
-                    1 -> 16.sp
-                    2 -> 14.sp
-                    else -> 12.5.sp
-                }
-
-                val lineHeight = when (distance) {
-                    0 -> 28.sp
-                    1 -> 22.sp
-                    2 -> 19.sp
-                    else -> 17.sp
-                }
-
-                val fontWeight = when (distance) {
-                    0 -> FontWeight.Bold
-                    1 -> FontWeight.SemiBold
-                    2 -> FontWeight.Medium
-                    else -> FontWeight.Normal
-                }
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -225,11 +204,11 @@ fun HudExpandedLyricsView(
                 ) {
                     Text(
                         text = line.text.ifBlank { "♪" },
-                        fontSize = fontSize,
-                        fontWeight = fontWeight,
+                        fontSize = 17.sp,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                         color = animatedColor,
                         textAlign = TextAlign.Center,
-                        lineHeight = lineHeight,
+                        lineHeight = 24.sp,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
