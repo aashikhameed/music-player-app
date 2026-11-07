@@ -160,19 +160,21 @@ fun HudExpandedLyricsView(
 
                 val animatedAlpha by animateFloatAsState(
                     targetValue = targetAlpha,
-                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
                     label = "LyricAlpha"
                 )
 
                 val targetScale = when (distance) {
-                    0 -> 1.06f
-                    1 -> 0.98f
-                    else -> 0.94f
+                    0 -> 1.08f
+                    1 -> 0.94f
+                    2 -> 0.84f
+                    3 -> 0.76f
+                    else -> 0.70f
                 }
 
                 val animatedScale by animateFloatAsState(
                     targetValue = targetScale,
-                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
                     label = "LyricScale"
                 )
 
@@ -180,7 +182,7 @@ fun HudExpandedLyricsView(
                     targetValue = if (isCurrent) MaterialTheme.colorScheme.primary
                                   else if (isDark) Color.White
                                   else MaterialTheme.colorScheme.onSurface,
-                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
                     label = "LyricColor"
                 )
 
@@ -202,11 +204,11 @@ fun HudExpandedLyricsView(
                 ) {
                     Text(
                         text = line.text.ifBlank { "♪" },
-                        fontSize = if (isCurrent) 18.sp else 15.sp,
-                        fontWeight = if (isCurrent) FontWeight.Black else FontWeight.SemiBold,
+                        fontSize = 17.sp,
+                        fontWeight = if (isCurrent) FontWeight.Black else if (distance == 1) FontWeight.Bold else FontWeight.SemiBold,
                         color = animatedColor,
                         textAlign = TextAlign.Center,
-                        lineHeight = if (isCurrent) 26.sp else 22.sp,
+                        lineHeight = 24.sp,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )

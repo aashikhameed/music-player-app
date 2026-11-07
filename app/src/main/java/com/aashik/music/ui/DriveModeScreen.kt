@@ -731,23 +731,30 @@ fun DriveModeScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(if (isLyricsExpanded) 6.dp else 10.dp))
-
-                    // ── Portrait Action Bar (Fav, Download | Lyrics, Radio) ──
-                    MobilePlayerActionBar(
-                        viewModel = viewModel,
-                        currentSong = currentSong,
-                        isFavorite = isFavorite,
-                        isLyricsExpanded = isLyricsExpanded,
-                        isRadioActive = isRadioActive,
-                        isRadioLoading = isRadioLoading,
-                        currentDownloadStatus = currentDownloadStatus,
-                        controlInactiveColor = controlInactiveColor,
-                        isNightDimmerActive = isNightDimmerActive,
-                        isDark = isDark,
-                        onToggleLyrics = { isLyricsExpanded = it },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
+                    // ── Portrait Action Bar (Fav, Download | Lyrics, Radio) - Hidden when lyrics expanded ──
+                    AnimatedVisibility(
+                        visible = !isLyricsExpanded,
+                        enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(250)),
+                        exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(animationSpec = tween(200))
+                    ) {
+                        Column {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            MobilePlayerActionBar(
+                                viewModel = viewModel,
+                                currentSong = currentSong,
+                                isFavorite = isFavorite,
+                                isLyricsExpanded = isLyricsExpanded,
+                                isRadioActive = isRadioActive,
+                                isRadioLoading = isRadioLoading,
+                                currentDownloadStatus = currentDownloadStatus,
+                                controlInactiveColor = controlInactiveColor,
+                                isNightDimmerActive = isNightDimmerActive,
+                                isDark = isDark,
+                                onToggleLyrics = { isLyricsExpanded = it },
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
                 }
             } else {
                 // ── Landscape Infotainment Stage: Unified Centered Layout ──
@@ -1009,27 +1016,33 @@ fun DriveModeScreen(
                 else -> MaterialTheme.colorScheme.outlineVariant
             }
 
-            // ── Action Bar: landscape/car only (portrait uses MobilePlayerActionBar above) ──
+            // ── Action Bar: landscape/car only (hidden when lyrics expanded) ──
             if (!isPortrait) {
-                DriveHudActionBar(
-                    viewModel = viewModel,
-                    currentSong = currentSong,
-                    isPlaying = isPlaying,
-                    upcomingSongs = upcomingSongs,
-                    isFavorite = isFavorite,
-                    isRadioActive = isRadioActive,
-                    isRadioLoading = isRadioLoading,
-                    currentDownloadStatus = currentDownloadStatus,
-                    isNightDimmerActive = isNightDimmerActive,
-                    isDark = isDark,
-                    controlInactiveColor = controlInactiveColor,
-                    isVideoActive = isVideoActive,
-                    isLyricsExpanded = isLyricsExpanded,
-                    onToggleLyrics = { isLyricsExpanded = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 0.dp)
-                )
+                AnimatedVisibility(
+                    visible = !isLyricsExpanded,
+                    enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(250)),
+                    exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(animationSpec = tween(200))
+                ) {
+                    DriveHudActionBar(
+                        viewModel = viewModel,
+                        currentSong = currentSong,
+                        isPlaying = isPlaying,
+                        upcomingSongs = upcomingSongs,
+                        isFavorite = isFavorite,
+                        isRadioActive = isRadioActive,
+                        isRadioLoading = isRadioLoading,
+                        currentDownloadStatus = currentDownloadStatus,
+                        isNightDimmerActive = isNightDimmerActive,
+                        isDark = isDark,
+                        controlInactiveColor = controlInactiveColor,
+                        isVideoActive = isVideoActive,
+                        isLyricsExpanded = isLyricsExpanded,
+                        onToggleLyrics = { isLyricsExpanded = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 0.dp)
+                    )
+                }
             }
             // ── Next Track Preview (Portrait Mobile): Just above the player controls container ──
             if (isPortrait) {
