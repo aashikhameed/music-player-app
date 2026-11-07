@@ -100,6 +100,7 @@ fun SongActionDialog(
     isDownloaded: Boolean = false,
     onDownload: (Song) -> Unit = {},
     onRedownload: (Song) -> Unit = {},
+    onDeleteDownload: (Song) -> Unit = {},
     onDeleteRequest: (Song) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -253,39 +254,100 @@ fun SongActionDialog(
                     }
 
                     // Download / Re-download Song Button (for Streams or previously downloaded stream songs)
-                    val canDownload = (song.isStream() && song.duration > 0) || song.id.startsWith("download_") || isDownloaded
+                    val isCurrentlyDownloaded = isDownloaded || song.id.startsWith("download_") || song.path.contains("MusicPlayer")
+                    val canDownload = (song.isStream() && song.duration > 0) || isCurrentlyDownloaded
                     if (canDownload) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    if (isDownloaded || song.id.startsWith("download_")) {
+                        if (isCurrentlyDownloaded) {
+                            // 1. Re-download Song (Delete in local and re-download fresh)
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
                                         onRedownload(song)
-                                    } else {
-                                        onDownload(song)
-                                    }
-                                    onDismiss()
-                                },
-                            shape = PillShape10,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        onDismiss()
+                                    },
+                                shape = PillShape10,
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
                             ) {
-                                Icon(
-                                    imageVector = if (isDownloaded || song.id.startsWith("download_")) Icons.Rounded.Refresh else Icons.Rounded.Download,
-                                    contentDescription = null,
-                                    tint = if (isDownloaded || song.id.startsWith("download_")) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = if (isDownloaded || song.id.startsWith("download_")) "Re-download Song (Update Tags & Art)" else "Download Song for Offline",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Refresh,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Re-download Song (Delete & Download Fresh)",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            // 2. Delete Download (Removes file, icon goes back to Download)
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onDeleteDownload(song)
+                                        onDismiss()
+                                    },
+                                shape = PillShape10,
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF00E676),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Delete Download (Reset Back to Download)",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        } else {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onDownload(song)
+                                        onDismiss()
+                                    },
+                                shape = PillShape10,
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Download,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Download Song for Offline",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
                     }

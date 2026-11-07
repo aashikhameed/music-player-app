@@ -74,7 +74,10 @@ fun DriveHudActionBar(
 ) {
     val isQueueOpen by viewModel.isQueueOpen.collectAsState()
     val isStream = currentSong?.isStream() == true
-    val isStreamDownloadable = isStream && (currentSong?.duration ?: 0) > 0
+    val isDownloadedSong = currentSong?.let {
+        viewModel.isSongDownloaded(it.id) || it.id.startsWith("download_") || it.path.contains("MusicPlayer")
+    } == true
+    val isStreamDownloadable = (isStream && (currentSong?.duration ?: 0) > 0) || isDownloadedSong
 
     val actionButtonBg = when {
         isNightDimmerActive -> Color(0xFF131922)
@@ -150,7 +153,7 @@ fun DriveHudActionBar(
 
         // 4. Download Button (if streamable)
         if (isStreamDownloadable) {
-            val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded
+            val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded || isDownloadedSong
             val isDownloading = currentDownloadStatus is DownloadStatus.Downloading
             val downloadTint = when {
                 isDownloaded -> Color(0xFF00E676)
@@ -170,7 +173,7 @@ fun DriveHudActionBar(
                     .clickable {
                         currentSong?.let {
                             if (isDownloaded) {
-                                viewModel.redownloadSong(it)
+                                viewModel.deleteDownload(it)
                             } else {
                                 viewModel.downloadSong(it)
                             }

@@ -26,6 +26,9 @@ interface SongDao {
     @Delete
     suspend fun delete(song: Song)
 
+    @Query("DELETE FROM songs WHERE path = :path")
+    suspend fun deleteByPath(path: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(songs: List<Song>)
 

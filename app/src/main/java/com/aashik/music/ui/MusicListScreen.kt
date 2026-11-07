@@ -290,6 +290,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         onStartRadio = { song -> viewModel.startRadioForSong(song) },
         onDownload = { song -> viewModel.downloadSong(song) },
         onRedownload = { song -> viewModel.redownloadSong(song) },
+        onDeleteDownload = { song -> viewModel.deleteDownload(song) },
         onDeleteRequest = { song -> songToDelete = song },
         onDismiss = { songForActionMenu = null }
     )

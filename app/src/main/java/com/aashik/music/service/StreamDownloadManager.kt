@@ -1122,6 +1122,11 @@ object StreamDownloadManager {
             if (file.exists()) {
                 file.delete()
             }
+            val parent = file.parentFile
+            if (parent != null && parent.exists()) {
+                val companion = File(parent, "${file.nameWithoutExtension}.jpg")
+                if (companion.exists()) companion.delete()
+            }
         } catch (_: Exception) {}
 
         // Also clean from MediaStore
@@ -1147,6 +1152,9 @@ object StreamDownloadManager {
             updated.remove(song.id)
             updated.remove(streamId)
             updated.remove(localId)
+            updated[song.id] = DownloadStatus.Idle
+            updated[streamId] = DownloadStatus.Idle
+            updated[localId] = DownloadStatus.Idle
             updated
         }
     }

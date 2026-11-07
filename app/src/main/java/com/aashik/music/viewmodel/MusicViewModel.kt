@@ -1220,18 +1220,89 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun redownloadSong(song: Song) {
-        if (song.isStream()) {
-            downloadSong(song, force = true)
-            return
+    fun deleteDownload(song: Song) {
+        val app = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            val cleanId = song.id.removePrefix("download_").removePrefix("online_")
+            val streamUrl = StreamDownloadManager.getStreamUrlForPath(song.path)
+                ?: if (song.isStream()) song.path else null
+
+            // 1. Delete physical audio file, companion jpg, MediaStore, and download state
+            StreamDownloadManager.onSongDeleted(app, song)
+
+            // 2. Delete from Room database
+            try {
+                songDao.deleteByPath(song.path)
+            } catch (_: Exception) {}
+            try {
+                songDao.delete(song)
+            } catch (_: Exception) {}
+
+            // 3. Remove local downloaded song from in-memory list
+            val localId = "download_$cleanId"
+            originalSongs = originalSongs.filter { it.id != song.id && it.id != localId && it.path != song.path }
+
+            withContext(Dispatchers.Main) {
+                _songs.value = originalSongs
+                updateFolderList()
+
+                // If currently playing the deleted local file, keep playback reference aligned to stream URL
+                if (_currentSong.value?.path == song.path && !streamUrl.isNullOrBlank()) {
+                    val onlineSong = song.copy(
+                        id = "online_$cleanId",
+                        path = streamUrl
+                    )
+                    _currentSong.value = onlineSong
+                }
+            }
         }
-        val streamUrl = StreamDownloadManager.getStreamUrlForPath(song.path)
-        if (!streamUrl.isNullOrBlank()) {
-            val streamSong = song.copy(
-                id = song.id.replace("download_", "online_"),
-                path = streamUrl
-            )
-            downloadSong(streamSong, force = true)
+    }
+
+    fun redownloadSong(song: Song) {
+        val app = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            val cleanId = song.id.removePrefix("download_").removePrefix("online_")
+            val streamUrl = StreamDownloadManager.getStreamUrlForPath(song.path)
+                ?: if (song.isStream()) song.path else null
+
+            // Step 1: Delete downloaded song in local
+            StreamDownloadManager.onSongDeleted(app, song)
+            try {
+                songDao.deleteByPath(song.path)
+            } catch (_: Exception) {}
+            try {
+                songDao.delete(song)
+            } catch (_: Exception) {}
+
+            // Step 2: Remove local song from memory & update UI so icon is immediately back to download
+            val localId = "download_$cleanId"
+            originalSongs = originalSongs.filter { it.id != song.id && it.id != localId && it.path != song.path }
+            withContext(Dispatchers.Main) {
+                _songs.value = originalSongs
+                updateFolderList()
+                if (_currentSong.value?.path == song.path && !streamUrl.isNullOrBlank()) {
+                    _currentSong.value = song.copy(id = "online_$cleanId", path = streamUrl)
+                }
+            }
+
+            // Step 3: Now start fresh download from stream
+            val songToDownload = if (song.isStream()) {
+                song
+            } else if (!streamUrl.isNullOrBlank()) {
+                song.copy(id = "online_$cleanId", path = streamUrl)
+            } else null
+
+            if (songToDownload != null) {
+                StreamDownloadManager.downloadSong(app, songToDownload, songDao, forceRedownload = true) { downloadedSong ->
+                    viewModelScope.launch(Dispatchers.Main) {
+                        if (originalSongs.none { it.id == downloadedSong.id }) {
+                            originalSongs = (originalSongs + downloadedSong).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
+                            _songs.value = originalSongs
+                            updateFolderList()
+                        }
+                    }
+                }
+            }
         }
     }
 

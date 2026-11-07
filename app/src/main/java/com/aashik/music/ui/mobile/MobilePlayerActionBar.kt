@@ -60,8 +60,11 @@ fun MobilePlayerActionBar(
     modifier: Modifier = Modifier
 ) {
     val isStream = currentSong?.isStream() == true
-    val isStreamDownloadable = isStream && (currentSong?.duration ?: 0) > 0
-    val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded
+    val isDownloadedSong = currentSong?.let {
+        viewModel.isSongDownloaded(it.id) || it.id.startsWith("download_") || it.path.contains("MusicPlayer")
+    } == true
+    val isStreamDownloadable = (isStream && (currentSong?.duration ?: 0) > 0) || isDownloadedSong
+    val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded || isDownloadedSong
     val isDownloading = currentDownloadStatus is DownloadStatus.Downloading
 
     val surfaceContainer = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -113,7 +116,7 @@ fun MobilePlayerActionBar(
                     onClick = {
                         currentSong?.let {
                             if (isDownloaded) {
-                                viewModel.redownloadSong(it)
+                                viewModel.deleteDownload(it)
                             } else {
                                 viewModel.downloadSong(it)
                             }
