@@ -105,6 +105,42 @@ fun MediaLibraryContent(
     onSongLongPress: (Song) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val audioPermission = remember {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            android.Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+    }
+    var hasAudioPermission by remember {
+        mutableStateOf(
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                audioPermission
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val audioPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasAudioPermission = isGranted
+        if (isGranted) {
+            viewModel.loadSongs()
+        }
+    }
+
+    val onScanOrRequestPermission = remember(hasAudioPermission) {
+        {
+            if (hasAudioPermission) {
+                viewModel.loadSongs()
+            } else {
+                audioPermissionLauncher.launch(audioPermission)
+            }
+        }
+    }
+
     Box(modifier = modifier) {
         when {
             searchQuery.isNotBlank() -> {
@@ -127,7 +163,11 @@ fun MediaLibraryContent(
             }
             selectedTab == LibraryTab.FOLDERS && selectedFolder == null -> {
                 if (folders.isEmpty()) {
-                    EmptyFoldersView(modifier = Modifier.fillMaxSize())
+                    EmptyFoldersView(
+                        hasPermission = hasAudioPermission,
+                        onScanClick = onScanOrRequestPermission,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
@@ -159,7 +199,8 @@ fun MediaLibraryContent(
                 if (songs.isEmpty()) {
                     EmptySongsView(
                         isSearching = searchQuery.isNotBlank(),
-                        onScanClick = { viewModel.loadSongs() },
+                        hasPermission = hasAudioPermission,
+                        onScanClick = onScanOrRequestPermission,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {

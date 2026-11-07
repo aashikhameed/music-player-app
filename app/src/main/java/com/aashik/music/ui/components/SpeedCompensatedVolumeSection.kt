@@ -62,11 +62,31 @@ private val SCVC_MODES = listOf(
  */
 @Composable
 fun SpeedCompensatedVolumeSection(viewModel: MusicViewModel) {
+    val context = LocalContext.current
     val scvcMode by viewModel.scvcMode.collectAsState()
     val currentSpeedKmh by viewModel.currentSpeedKmh.collectAsState()
     val scvcGainDb by viewModel.scvcGainDb.collectAsState()
     val testSimulation by viewModel.testSpeedSimulation.collectAsState()
     val testSpeedKmh by viewModel.testSpeedKmh.collectAsState()
+
+    var pendingScvcMode by remember { mutableStateOf<Int?>(null) }
+    val locationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val hasFine = grants[android.Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val hasCoarse = grants[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (hasFine || hasCoarse) {
+            pendingScvcMode?.let { viewModel.setScvcMode(it) }
+        } else {
+            viewModel.setScvcMode(0)
+            android.widget.Toast.makeText(
+                context,
+                "Location permission is required for Speed-Compensated Volume Control",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+        pendingScvcMode = null
+    }
 
     val cardBorder = AppGradients.border(isActive = scvcMode > 0)
 
@@ -152,7 +172,31 @@ fun SpeedCompensatedVolumeSection(viewModel: MusicViewModel) {
                     val isSelected = scvcMode == mode
                     FilterChip(
                         selected = isSelected,
-                        onClick = { viewModel.setScvcMode(mode) },
+                        onClick = {
+                            if (mode == 0) {
+                                viewModel.setScvcMode(0)
+                            } else {
+                                val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (hasFine || hasCoarse) {
+                                    viewModel.setScvcMode(mode)
+                                } else {
+                                    pendingScvcMode = mode
+                                    locationLauncher.launch(
+                                        arrayOf(
+                                            android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                            android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            }
+                        },
                         label = { Text(text = label, fontSize = 11.sp) },
                         shape = ChipPillShape,
                         colors = FilterChipDefaults.filterChipColors(

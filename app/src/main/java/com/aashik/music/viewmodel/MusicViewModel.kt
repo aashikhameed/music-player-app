@@ -1768,12 +1768,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val localDbSongs = dbSongs.filter { !it.isStream() }
                 if (localDbSongs.isEmpty()) {
-                    val scannedSongs = AudioScanner.scan(context) { loaded, total ->
-                        _loadedCount.value = loaded
-                        _totalCount.value = total
+                    val hasPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_MEDIA_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    } else {
+                        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
                     }
-                    songDao.insertAll(scannedSongs)
-                    scannedSongs
+                    if (hasPermission) {
+                        val scannedSongs = AudioScanner.scan(context) { loaded, total ->
+                            _loadedCount.value = loaded
+                            _totalCount.value = total
+                        }
+                        songDao.insertAll(scannedSongs)
+                        scannedSongs
+                    } else {
+                        emptyList()
+                    }
                 } else {
                     // Check and repair any downloaded songs that have missing metadata or legacy filenames
                     var hasUpdates = false

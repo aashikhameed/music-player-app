@@ -23,7 +23,11 @@ object AudioScanner {
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 5000"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
 
-        val cursor = context.contentResolver.query(uri, projection, selection, null, sortOrder)
+        val cursor = try {
+            context.contentResolver.query(uri, projection, selection, null, sortOrder)
+        } catch (_: Exception) {
+            null
+        }
         val total = cursor?.count ?: 0
         val songs = ArrayList<Song>(total.coerceAtLeast(16))
 

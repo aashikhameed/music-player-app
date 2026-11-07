@@ -55,10 +55,33 @@ private val RefetchGreenColor = Color(0xFF00E676)
  */
 @Composable
 fun RefetchSection(viewModel: MusicViewModel) {
+    val context = LocalContext.current
     val isRefetching by viewModel.isRefetching.collectAsState()
     val refetchStatus by viewModel.refetchStatus.collectAsState()
     val songs by viewModel.songs.collectAsState()
     val folders by viewModel.folders.collectAsState()
+
+    val audioPermission = remember {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            android.Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+    }
+    val storageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.refetchSongs()
+        } else {
+            android.widget.Toast.makeText(
+                context,
+                "Storage permission is required to scan device media",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     val cardBorder = AppGradients.border(isActive = false)
 
     Surface(
@@ -137,7 +160,17 @@ fun RefetchSection(viewModel: MusicViewModel) {
                 horizontalArrangement = Arrangement.End
             ) {
                 Button(
-                    onClick = { viewModel.refetchSongs() },
+                    onClick = {
+                        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context,
+                            audioPermission
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        if (hasPermission) {
+                            viewModel.refetchSongs()
+                        } else {
+                            storageLauncher.launch(audioPermission)
+                        }
+                    },
                     enabled = !isRefetching,
                     shape = ActionButtonShape,
                     colors = ButtonDefaults.buttonColors(

@@ -87,7 +87,11 @@ private val ClockLightGray = Color(0xFFB0BEC5)
 private val FavoriteHeartRed = Color(0xFFFF5252)
 
 @Composable
-fun EmptyFoldersView(modifier: Modifier = Modifier) {
+fun EmptyFoldersView(
+    hasPermission: Boolean = true,
+    onScanClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
@@ -98,7 +102,7 @@ fun EmptyFoldersView(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(24.dp)
         ) {
             Icon(
-                imageVector = Icons.Rounded.Folder,
+                imageVector = if (!hasPermission) Icons.Rounded.FolderSpecial else Icons.Rounded.Folder,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(64.dp)
@@ -107,7 +111,7 @@ fun EmptyFoldersView(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "No music folders found",
+                text = if (!hasPermission) "Storage Access Needed" else "No music folders found",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -115,11 +119,19 @@ fun EmptyFoldersView(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Audio files located in storage folders will appear here",
+                text = if (!hasPermission) "Allow access to audio files to browse folders on this device"
+                       else "Audio files located in storage folders will appear here",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+
+            if (!hasPermission && onScanClick != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = onScanClick) {
+                    Text("Grant Permission & Scan")
+                }
+            }
         }
     }
 }

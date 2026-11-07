@@ -90,6 +90,7 @@ private val FavoriteHeartRed = Color(0xFFFF5252)
 fun EmptySongsView(
     isSearching: Boolean,
     onScanClick: () -> Unit,
+    hasPermission: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -102,7 +103,7 @@ fun EmptySongsView(
             modifier = Modifier.padding(24.dp)
         ) {
             Icon(
-                imageVector = Icons.Rounded.MusicOff,
+                imageVector = if (!hasPermission && !isSearching) Icons.Rounded.FolderSpecial else Icons.Rounded.MusicOff,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 modifier = Modifier.size(64.dp)
@@ -111,7 +112,9 @@ fun EmptySongsView(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = if (isSearching) "No matches found" else "No music found on device",
+                text = if (isSearching) "No matches found"
+                       else if (!hasPermission) "Storage Access Needed"
+                       else "No music found on device",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -119,7 +122,9 @@ fun EmptySongsView(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = if (isSearching) "Try a different search term" else "Connect USB drive or copy audio files to storage",
+                text = if (isSearching) "Try a different search term"
+                       else if (!hasPermission) "Allow access to audio files to scan and play songs stored on this device"
+                       else "Connect USB drive or copy audio files to storage",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -128,7 +133,7 @@ fun EmptySongsView(
             if (!isSearching) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = onScanClick) {
-                    Text("Scan Library")
+                    Text(if (!hasPermission) "Grant Permission & Scan" else "Scan Library")
                 }
             }
         }

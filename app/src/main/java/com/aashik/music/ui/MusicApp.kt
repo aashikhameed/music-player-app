@@ -14,7 +14,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aashik.music.service.NotificationPlaybackService
@@ -41,43 +43,11 @@ fun MusicApp() {
         }
     }
 
-    val permissions = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
-                Manifest.permission.READ_MEDIA_AUDIO,
-                Manifest.permission.POST_NOTIFICATIONS,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-        }
-    }
-
     fun startAndBindService() {
         val intent = Intent(context, NotificationPlaybackService::class.java)
         NotificationPlaybackService.startService(context)
         context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         NotificationPlaybackService.instance?.setViewModel(viewModel)
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        val audioGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            grants[Manifest.permission.READ_MEDIA_AUDIO] == true
-        } else {
-            grants[Manifest.permission.READ_EXTERNAL_STORAGE] == true
-        }
-        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-            viewModel.setupLocationUpdates()
-        }
-        if (audioGranted) {
-            viewModel.loadSongs()
-            startAndBindService()
-        }
     }
 
     DisposableEffect(context) {
@@ -88,7 +58,7 @@ fun MusicApp() {
         }
     }
 
-    // Initial check & auto-launch if already granted
+    // Load songs only if permission was already granted previously; start playback service
     LaunchedEffect(Unit) {
         val isAudioGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -98,15 +68,33 @@ fun MusicApp() {
 
         if (isAudioGranted) {
             viewModel.loadSongs()
-            startAndBindService()
         }
+        startAndBindService()
+    }
 
-        // Request missing permissions (e.g. storage or POST_NOTIFICATIONS on Android 13+)
-        val missing = permissions.filter {
-            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (missing.isNotEmpty()) {
-            permissionLauncher.launch(permissions)
+    // Request notification permission on Android 13+ only when playback is actively initiated
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
+    var hasRequestedNotificationPermission by remember { mutableStateOf(false) }
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Notification permission response handled
+    }
+
+    LaunchedEffect(isPlaying, currentSong) {
+        if (isPlaying && currentSong != null && !hasRequestedNotificationPermission) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val hasNotif = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!hasNotif) {
+                    hasRequestedNotificationPermission = true
+                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
         }
     }
 
