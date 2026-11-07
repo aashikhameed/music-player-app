@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -109,14 +110,14 @@ fun HudExpandedLyricsView(
     }
 
     val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = (initialIndex - 1).coerceAtLeast(0)
+        initialFirstVisibleItemIndex = initialIndex,
+        initialFirstVisibleItemScrollOffset = 0
     )
 
     LaunchedEffect(currentIndex) {
         if (currentIndex in lyrics.indices) {
-            val target = (currentIndex - 1).coerceAtLeast(0)
             listState.animateScrollToItem(
-                index = target,
+                index = currentIndex,
                 scrollOffset = 0
             )
         }
@@ -127,16 +128,18 @@ fun HudExpandedLyricsView(
         else -> MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.95f)
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(lyricsCardBg)
     ) {
-        // Centered Scrolling Lyrics
+        val verticalPadding = (maxHeight / 2 - 20.dp).coerceAtLeast(16.dp)
+
+        // Centered Scrolling Lyrics with Depth-of-Field Position Opacity
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 48.dp, bottom = 48.dp, start = 16.dp, end = 16.dp),
+            contentPadding = PaddingValues(top = verticalPadding, bottom = verticalPadding, start = 16.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -144,25 +147,41 @@ fun HudExpandedLyricsView(
                 items = lyrics,
                 key = { index, line -> "${index}_${line.timeMs}" }
             ) { index, line ->
-                val isCurrent = index == currentIndex
-                val isPast = index < currentIndex
+                val distance = kotlin.math.abs(index - currentIndex)
+                val isCurrent = distance == 0
 
-                val animatedColor by animateColorAsState(
-                    targetValue = when {
-                        isCurrent -> MaterialTheme.colorScheme.primary
-                        isPast -> if (isDark) Color.White.copy(alpha = 0.35f)
-                                  else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                        else -> if (isDark) Color.White.copy(alpha = 0.65f)
-                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
-                    },
+                val targetAlpha = when (distance) {
+                    0 -> 1.0f
+                    1 -> 0.65f
+                    2 -> 0.38f
+                    3 -> 0.20f
+                    else -> 0.10f
+                }
+
+                val animatedAlpha by animateFloatAsState(
+                    targetValue = targetAlpha,
                     animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                    label = "LyricColor"
+                    label = "LyricAlpha"
                 )
 
+                val targetScale = when (distance) {
+                    0 -> 1.06f
+                    1 -> 0.98f
+                    else -> 0.94f
+                }
+
                 val animatedScale by animateFloatAsState(
-                    targetValue = if (isCurrent) 1.06f else 1.0f,
+                    targetValue = targetScale,
                     animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
                     label = "LyricScale"
+                )
+
+                val animatedColor by animateColorAsState(
+                    targetValue = if (isCurrent) MaterialTheme.colorScheme.primary
+                                  else if (isDark) Color.White
+                                  else MaterialTheme.colorScheme.onSurface,
+                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                    label = "LyricColor"
                 )
 
                 Box(
@@ -171,6 +190,7 @@ fun HudExpandedLyricsView(
                         .graphicsLayer {
                             scaleX = animatedScale
                             scaleY = animatedScale
+                            alpha = animatedAlpha
                             transformOrigin = TransformOrigin(0.5f, 0.5f)
                         }
                         .clip(LyricLineShape)
@@ -182,11 +202,11 @@ fun HudExpandedLyricsView(
                 ) {
                     Text(
                         text = line.text.ifBlank { "♪" },
-                        fontSize = if (isCurrent) 18.sp else 14.sp,
+                        fontSize = if (isCurrent) 18.sp else 15.sp,
                         fontWeight = if (isCurrent) FontWeight.Black else FontWeight.SemiBold,
                         color = animatedColor,
                         textAlign = TextAlign.Center,
-                        lineHeight = if (isCurrent) 24.sp else 20.sp,
+                        lineHeight = if (isCurrent) 26.sp else 22.sp,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
