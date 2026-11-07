@@ -110,7 +110,15 @@ fun MobilePlayerActionBar(
             // Download Button (only for downloadable streams)
             if (isStreamDownloadable) {
                 IconButton(
-                    onClick = { currentSong?.let { viewModel.downloadSong(it) } },
+                    onClick = {
+                        currentSong?.let {
+                            if (isDownloaded) {
+                                viewModel.redownloadSong(it)
+                            } else {
+                                viewModel.downloadSong(it)
+                            }
+                        }
+                    },
                     modifier = Modifier.size(44.dp)
                 ) {
                     val downloadBg = when {

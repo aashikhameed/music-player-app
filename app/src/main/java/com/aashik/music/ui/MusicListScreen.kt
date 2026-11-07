@@ -289,6 +289,7 @@ fun MusicListScreen(viewModel: MusicViewModel) {
         onToggleFavorite = { path -> viewModel.toggleFavorite(path) },
         onStartRadio = { song -> viewModel.startRadioForSong(song) },
         onDownload = { song -> viewModel.downloadSong(song) },
+        onRedownload = { song -> viewModel.redownloadSong(song) },
         onDeleteRequest = { song -> songToDelete = song },
         onDismiss = { songForActionMenu = null }
     )

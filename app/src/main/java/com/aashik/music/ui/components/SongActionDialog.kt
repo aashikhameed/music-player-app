@@ -99,6 +99,7 @@ fun SongActionDialog(
     onStartRadio: (Song) -> Unit = {},
     isDownloaded: Boolean = false,
     onDownload: (Song) -> Unit = {},
+    onRedownload: (Song) -> Unit = {},
     onDeleteRequest: (Song) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -251,13 +252,18 @@ fun SongActionDialog(
                         }
                     }
 
-                    // Download Song Button (for Streams)
-                    if (song.isStream() && song.duration > 0) {
+                    // Download / Re-download Song Button (for Streams or previously downloaded stream songs)
+                    val canDownload = (song.isStream() && song.duration > 0) || song.id.startsWith("download_") || isDownloaded
+                    if (canDownload) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    onDownload(song)
+                                    if (isDownloaded || song.id.startsWith("download_")) {
+                                        onRedownload(song)
+                                    } else {
+                                        onDownload(song)
+                                    }
                                     onDismiss()
                                 },
                             shape = PillShape10,
@@ -269,16 +275,16 @@ fun SongActionDialog(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (isDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
+                                    imageVector = if (isDownloaded || song.id.startsWith("download_")) Icons.Rounded.Refresh else Icons.Rounded.Download,
                                     contentDescription = null,
-                                    tint = if (isDownloaded) Color(0xFF00E676) else MaterialTheme.colorScheme.primary,
+                                    tint = if (isDownloaded || song.id.startsWith("download_")) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = if (isDownloaded) "Downloaded (Offline Available)" else "Download Song for Offline",
+                                    text = if (isDownloaded || song.id.startsWith("download_")) "Re-download Song (Update Tags & Art)" else "Download Song for Offline",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (isDownloaded) Color(0xFF00E676) else MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }

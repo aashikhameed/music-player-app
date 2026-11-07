@@ -2,6 +2,7 @@ package com.aashik.music.service
 
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
@@ -35,7 +36,8 @@ data class DownloadedMetadata(
     val artist: String,
     val album: String,
     val artworkUrl: String?,
-    val duration: Long
+    val duration: Long,
+    val streamUrl: String? = null
 )
 
 sealed class DownloadStatus {
@@ -124,7 +126,8 @@ object StreamDownloadManager {
                                 artist = json.optString("artist"),
                                 album = json.optString("album"),
                                 artworkUrl = json.optString("art").takeIf { it.isNotBlank() },
-                                duration = json.optLong("dur", 0L)
+                                duration = json.optLong("dur", 0L),
+                                streamUrl = json.optString("stream_url").takeIf { it.isNotBlank() }
                             )
                             pathToMetadata[localPath] = meta
                             if (!meta.artworkUrl.isNullOrBlank()) {
@@ -165,6 +168,11 @@ object StreamDownloadManager {
                     val combined = HashMap(current)
                     combined.putAll(initialMap)
                     combined
+                }
+
+                // Background check: retro-tag any existing downloaded files that have companion art or metadata
+                downloadScope.launch(Dispatchers.IO) {
+                    retroTagExistingDownloads(context)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Initialization failed: ${e.message}", e)
@@ -493,12 +501,16 @@ object StreamDownloadManager {
         context: Context,
         song: Song,
         songDao: SongDao,
+        forceRedownload: Boolean = false,
         onSongDownloaded: (Song) -> Unit = {}
     ) {
         if (!song.isStream()) return
 
         val currentStatus = getStatus(song.id)
-        if (currentStatus is DownloadStatus.Downloading || currentStatus is DownloadStatus.Downloaded) {
+        if (currentStatus is DownloadStatus.Downloading) {
+            return
+        }
+        if (!forceRedownload && currentStatus is DownloadStatus.Downloaded) {
             return
         }
 
@@ -521,7 +533,7 @@ object StreamDownloadManager {
             // Check if already present in effective download directory
             val activeDir = getDownloadsDir(context)
             val existingCheck = File(activeDir, fileName)
-            if (existingCheck.exists() && existingCheck.length() > 20_000L) {
+            if (!forceRedownload && existingCheck.exists() && existingCheck.length() > 20_000L) {
                 val localSong = createLocalSong(song, existingCheck)
                 songDao.insert(localSong)
                 persistDownloadedRecord(context, song, existingCheck.absolutePath)
@@ -530,6 +542,9 @@ object StreamDownloadManager {
                 }
                 withContext(Dispatchers.Main) { onSongDownloaded(localSong) }
                 return@launch
+            }
+            if (forceRedownload && existingCheck.exists()) {
+                try { existingCheck.delete() } catch (_: Exception) {}
             }
 
             val preset = getStoragePreset(context)
@@ -647,7 +662,7 @@ object StreamDownloadManager {
 
             val savedFile = targetFile
             if (savedFile != null && savedFile.exists() && savedFile.length() > 20_000L) {
-                saveArtworkForDownload(context, song, savedFile, ext)
+                saveArtworkAndMetadataForDownload(context, song, savedFile, ext)
                 val localSong = createLocalSong(song, savedFile)
                 songDao.insert(localSong)
                 persistDownloadedRecord(context, song, savedFile.absolutePath)
@@ -679,38 +694,60 @@ object StreamDownloadManager {
         }
     }
 
-    private fun saveArtworkForDownload(context: Context, song: Song, savedFile: File, ext: String) {
+    private fun saveArtworkAndMetadataForDownload(context: Context, song: Song, savedFile: File, ext: String) {
         val artUrl = song.artworkUrl
-        if (artUrl.isNullOrBlank()) return
+        var artBytes: ByteArray? = null
 
+        if (!artUrl.isNullOrBlank()) {
+            try {
+                val conn = openConnectionWithRedirects(artUrl)
+                val bytes = conn.inputStream.use { it.readBytes() }
+                conn.disconnect()
+                if (bytes.isNotEmpty()) {
+                    val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (bmp != null) {
+                        val jpegOut = java.io.ByteArrayOutputStream()
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 85, jpegOut)
+                        val jpegBytes = jpegOut.toByteArray()
+                        artBytes = jpegBytes
+
+                        AlbumArtCache.saveCustomArt(context, savedFile.absolutePath, bmp)
+                        AlbumArtCache.saveCustomArt(context, song.path, bmp)
+
+                        // 1. Save companion image file next to downloaded audio file (standard JPEG)
+                        val parent = savedFile.parentFile
+                        if (parent != null && parent.exists()) {
+                            val companion = File(parent, "${savedFile.nameWithoutExtension}.jpg")
+                            try {
+                                FileOutputStream(companion).use { it.write(jpegBytes) }
+                            } catch (_: Exception) {}
+                        }
+                    } else {
+                        artBytes = bytes
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed downloading artwork for ${song.title}: ${e.message}")
+            }
+        }
+
+        // 3. Embed metadata + art in audio container natively (APIC for MP3, ilst for M4A)
         try {
-            val conn = openConnectionWithRedirects(artUrl)
-            val artBytes = conn.inputStream.use { it.readBytes() }
-            conn.disconnect()
-            if (artBytes.isEmpty()) return
-
-            // 1. Save companion image file next to downloaded audio file
-            val parent = savedFile.parentFile
-            if (parent != null && parent.exists()) {
-                val companion = File(parent, "${savedFile.nameWithoutExtension}.jpg")
-                try {
-                    FileOutputStream(companion).use { it.write(artBytes) }
-                } catch (_: Exception) {}
-            }
-
-            // 2. Decode bitmap and populate AlbumArtCache disk + memory
-            val bmp = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-            if (bmp != null) {
-                AlbumArtCache.saveCustomArt(context, savedFile.absolutePath, bmp)
-                AlbumArtCache.saveCustomArt(context, song.path, bmp)
-            }
-
-            // 3. For MP3 files, embed ID3v2 APIC tag so MediaMetadataRetriever sees it natively
             if (ext.equals("mp3", ignoreCase = true)) {
-                embedId3Tag(savedFile, song, artBytes)
+                if (artBytes != null) {
+                    embedId3Tag(savedFile, song, artBytes)
+                }
+            } else if (ext.equals("m4a", ignoreCase = true) || ext.equals("mp4", ignoreCase = true)) {
+                Mp4TagEditor.embedMetadata(
+                    file = savedFile,
+                    title = song.title,
+                    artist = song.artist,
+                    album = song.album,
+                    artBytes = artBytes
+                )
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed caching artwork for ${song.title}: ${e.message}")
+            Log.w(TAG, "Failed embedding container metadata for ${savedFile.name}: ${e.message}")
         }
     }
 
@@ -840,12 +877,14 @@ object StreamDownloadManager {
         idToLocalPath["online_$cleanId"] = localPath
         idToLocalPath["download_$cleanId"] = localPath
 
+        val streamUrl = if (song.isStream()) song.path else null
         val metadata = DownloadedMetadata(
             title = song.title,
             artist = song.artist,
             album = song.album,
             artworkUrl = song.artworkUrl,
-            duration = song.duration
+            duration = song.duration,
+            streamUrl = streamUrl
         )
         pathToMetadata[localPath] = metadata
         if (!song.artworkUrl.isNullOrBlank()) {
@@ -860,6 +899,7 @@ object StreamDownloadManager {
                 put("album", song.album)
                 put("art", song.artworkUrl ?: "")
                 put("dur", song.duration)
+                if (streamUrl != null) put("stream_url", streamUrl)
             }
             prefs.edit()
                 .putString("dl_${song.id}", localPath)
@@ -867,6 +907,66 @@ object StreamDownloadManager {
                 .putString("dl_download_$cleanId", localPath)
                 .putString("meta_$localPath", json.toString())
                 .apply()
+        } catch (_: Exception) {}
+    }
+
+    fun getStreamUrlForPath(path: String): String? {
+        return pathToMetadata[path]?.streamUrl
+    }
+
+    fun retroTagExistingDownloads(context: Context) {
+        try {
+            val downloadDir = getDownloadsDir(context)
+            if (!downloadDir.exists()) return
+            val audioFiles = downloadDir.listFiles { f ->
+                f.isFile && (f.extension.equals("m4a", ignoreCase = true) || f.extension.equals("mp3", ignoreCase = true))
+            } ?: return
+
+            for (audioFile in audioFiles) {
+                try {
+                    val companion = File(audioFile.parentFile, "${audioFile.nameWithoutExtension}.jpg")
+                    val artBytes = if (companion.exists() && companion.length() > 0) {
+                        try {
+                            val bmp = BitmapFactory.decodeFile(companion.absolutePath)
+                            if (bmp != null) {
+                                val jpegOut = java.io.ByteArrayOutputStream()
+                                bmp.compress(Bitmap.CompressFormat.JPEG, 85, jpegOut)
+                                val jpegBytes = jpegOut.toByteArray()
+                                try { FileOutputStream(companion).use { it.write(jpegBytes) } } catch (_: Exception) {}
+                                jpegBytes
+                            } else {
+                                companion.readBytes()
+                            }
+                        } catch (_: Exception) { null }
+                    } else null
+
+                    val meta = getMetadataForPath(context, audioFile.absolutePath)
+                    val title = meta?.title?.takeIf { it.isNotBlank() } ?: audioFile.nameWithoutExtension
+                    val artist = meta?.artist?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Unknown Artist"
+                    val album = meta?.album?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Downloads"
+
+                    if (audioFile.extension.equals("m4a", ignoreCase = true)) {
+                        val tagged = Mp4TagEditor.embedMetadata(audioFile, title, artist, album, artBytes)
+                        if (tagged) {
+                            Log.d(TAG, "Retro-tagged M4A metadata and artwork for: ${audioFile.name}")
+                            MediaScannerConnection.scanFile(context, arrayOf(audioFile.absolutePath), arrayOf("audio/mp4"), null)
+                        }
+                    } else if (audioFile.extension.equals("mp3", ignoreCase = true) && artBytes != null) {
+                        val mockSong = Song(
+                            id = audioFile.nameWithoutExtension,
+                            title = title,
+                            artist = artist,
+                            album = album,
+                            duration = meta?.duration ?: 0L,
+                            path = audioFile.absolutePath
+                        )
+                        embedId3Tag(audioFile, mockSong, artBytes)
+                        MediaScannerConnection.scanFile(context, arrayOf(audioFile.absolutePath), arrayOf("audio/mpeg"), null)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error retro-tagging ${audioFile.name}: ${e.message}")
+                }
+            }
         } catch (_: Exception) {}
     }
 
@@ -885,7 +985,8 @@ object StreamDownloadManager {
                     artist = json.optString("artist"),
                     album = json.optString("album"),
                     artworkUrl = json.optString("art").takeIf { it.isNotBlank() },
-                    duration = json.optLong("dur", 0L)
+                    duration = json.optLong("dur", 0L),
+                    streamUrl = json.optString("stream_url").takeIf { it.isNotBlank() }
                 )
                 pathToMetadata[path] = meta
                 if (!meta.artworkUrl.isNullOrBlank()) {

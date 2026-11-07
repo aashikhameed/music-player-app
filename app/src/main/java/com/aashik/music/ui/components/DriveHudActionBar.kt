@@ -167,7 +167,15 @@ fun DriveHudActionBar(
                 modifier = Modifier
                     .size(44.dp)
                     .background(color = downloadBg, shape = CircleShape)
-                    .clickable { currentSong?.let { viewModel.downloadSong(it) } },
+                    .clickable {
+                        currentSong?.let {
+                            if (isDownloaded) {
+                                viewModel.redownloadSong(it)
+                            } else {
+                                viewModel.downloadSong(it)
+                            }
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (isDownloading) {

@@ -1207,9 +1207,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         return StreamDownloadManager.testDirectoryWritable(path)
     }
 
-    fun downloadSong(song: Song) {
+    fun downloadSong(song: Song, force: Boolean = false) {
         val app = getApplication<Application>()
-        StreamDownloadManager.downloadSong(app, song, songDao) { downloadedSong ->
+        StreamDownloadManager.downloadSong(app, song, songDao, forceRedownload = force) { downloadedSong ->
             viewModelScope.launch(Dispatchers.Main) {
                 if (originalSongs.none { it.id == downloadedSong.id }) {
                     originalSongs = (originalSongs + downloadedSong).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
@@ -1217,6 +1217,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     updateFolderList()
                 }
             }
+        }
+    }
+
+    fun redownloadSong(song: Song) {
+        if (song.isStream()) {
+            downloadSong(song, force = true)
+            return
+        }
+        val streamUrl = StreamDownloadManager.getStreamUrlForPath(song.path)
+        if (!streamUrl.isNullOrBlank()) {
+            val streamSong = song.copy(
+                id = song.id.replace("download_", "online_"),
+                path = streamUrl
+            )
+            downloadSong(streamSong, force = true)
         }
     }
 
