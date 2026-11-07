@@ -223,36 +223,34 @@ fun MobilePlayerActionBar(
                 }
             }
 
-            // Radio Button (only for streams)
-            if (isStream) {
-                IconButton(
-                    onClick = { viewModel.startRadioForCurrentSong() },
-                    modifier = Modifier.size(44.dp)
+            // Radio Button (Available for all songs: stream or local)
+            IconButton(
+                onClick = { viewModel.startRadioForCurrentSong() },
+                modifier = Modifier.size(44.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            color = if (isRadioActive) primaryContainer else surfaceContainer,
+                            shape = ActionButtonCircle
+                        )
+                        .clip(ActionButtonCircle),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                color = if (isRadioActive) primaryContainer else surfaceContainer,
-                                shape = ActionButtonCircle
-                            )
-                            .clip(ActionButtonCircle),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isRadioLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
-                                color = primaryColor
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.Podcasts,
-                                contentDescription = "Start Radio",
-                                tint = if (isRadioActive) onPrimaryContainer else onSurfaceVariant,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                    if (isRadioLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp,
+                            color = primaryColor
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.Podcasts,
+                            contentDescription = "Start Radio",
+                            tint = if (isRadioActive) onPrimaryContainer else onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
             }

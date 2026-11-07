@@ -200,32 +200,30 @@ fun DriveHudActionBar(
             }
         }
 
-        // 5. Start Radio Button
-        if (isStream) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(
-                        color = if (isRadioActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
-                        shape = CircleShape
-                    )
-                    .clickable { viewModel.startRadioForCurrentSong() },
-                contentAlignment = Alignment.Center
-            ) {
-                if (isRadioLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.Podcasts,
-                        contentDescription = "Start Radio",
-                        tint = if (isRadioActive) MaterialTheme.colorScheme.primary else controlInactiveColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+        // 5. Start Radio Button (Available for all songs: stream or local)
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(
+                    color = if (isRadioActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else actionButtonBg,
+                    shape = CircleShape
+                )
+                .clickable { viewModel.startRadioForCurrentSong() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (isRadioLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Rounded.Podcasts,
+                    contentDescription = "Start Radio",
+                    tint = if (isRadioActive) MaterialTheme.colorScheme.primary else controlInactiveColor,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
 

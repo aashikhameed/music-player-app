@@ -152,13 +152,13 @@ fun HudExpandedLyricsView(
 
                 val targetAlpha = when (distance) {
                     0 -> 1.0f
-                    1 -> 0.65f
-                    2 -> 0.38f
-                    3 -> 0.20f
-                    else -> 0.10f
+                    1 -> 0.70f
+                    2 -> 0.45f
+                    3 -> 0.25f
+                    else -> 0.12f
                 }
 
-                val animatedAlpha by animateFloatAsState(
+                val animatedAlpha = animateFloatAsState(
                     targetValue = targetAlpha,
                     animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
                     label = "LyricAlpha"
@@ -172,7 +172,7 @@ fun HudExpandedLyricsView(
                     else -> 0.70f
                 }
 
-                val animatedScale by animateFloatAsState(
+                val animatedScale = animateFloatAsState(
                     targetValue = targetScale,
                     animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
                     label = "LyricScale"
@@ -190,9 +190,9 @@ fun HudExpandedLyricsView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .graphicsLayer {
-                            scaleX = animatedScale
-                            scaleY = animatedScale
-                            alpha = animatedAlpha
+                            scaleX = animatedScale.value
+                            scaleY = animatedScale.value
+                            alpha = animatedAlpha.value
                             transformOrigin = TransformOrigin(0.5f, 0.5f)
                         }
                         .clip(LyricLineShape)
