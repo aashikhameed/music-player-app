@@ -394,13 +394,13 @@ object StreamDownloadManager {
      * Downloads an audio stream into Android MediaStore on API 29+ (Android 10–15).
      * Bypasses Scoped Storage POSIX restrictions and requires zero runtime permissions.
      */
-    private fun downloadViaMediaStore(
+    private fun publishFileToMediaStore(
         context: Context,
+        sourceFile: File,
         song: Song,
         fileName: String,
         ext: String,
-        subDir: String,
-        onProgress: (Float) -> Unit
+        subDir: String
     ): File? {
         val resolver = context.contentResolver
         val mimeType = if (ext.equals("mp3", ignoreCase = true)) "audio/mpeg" else "audio/mp4"
@@ -425,31 +425,15 @@ object StreamDownloadManager {
         } ?: return null
 
         var success = false
-        var conn: HttpURLConnection? = null
         try {
-            conn = openConnectionWithRedirects(song.path)
-            val totalBytes = conn.contentLengthLong.coerceAtLeast(1L)
             val outputStream = resolver.openOutputStream(uri) ?: return null
 
-            conn.inputStream.use { input ->
+            sourceFile.inputStream().use { input ->
                 outputStream.use { out ->
                     val buffer = ByteArray(BUFFER_SIZE)
                     var bytesRead: Int
-                    var downloadedBytes = 0L
-                    var lastProgressReportMs = System.currentTimeMillis()
-                    var lastReportedProgress = 0f
-
                     while (input.read(buffer).also { bytesRead = it } != -1) {
                         out.write(buffer, 0, bytesRead)
-                        downloadedBytes += bytesRead
-
-                        val now = System.currentTimeMillis()
-                        val progress = (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
-                        if (progress - lastReportedProgress >= 0.05f || (now - lastProgressReportMs >= 250 && progress > lastReportedProgress)) {
-                            lastReportedProgress = progress
-                            lastProgressReportMs = now
-                            onProgress(progress)
-                        }
                     }
                     out.flush()
                 }
@@ -489,7 +473,6 @@ object StreamDownloadManager {
         } catch (e: Exception) {
             Log.e(TAG, "Failed downloading to MediaStore uri: ${e.message}", e)
         } finally {
-            try { conn?.disconnect() } catch (_: Exception) {}
             if (!success) {
                 try { resolver.delete(uri, null, null) } catch (_: Exception) {}
             }
@@ -547,122 +530,117 @@ object StreamDownloadManager {
                 try { existingCheck.delete() } catch (_: Exception) {}
             }
 
-            val preset = getStoragePreset(context)
-            val subDirName = if (preset == PRESET_PUBLIC_DOWNLOADS) "Download/MusicPlayer" else "Music/MusicPlayer"
+            // Strategy 1: Staged download with pre-embedded artwork & metadata
+            val stageFile = File(context.cacheDir, "dl_stage_${System.currentTimeMillis()}.$ext")
+            var stageSuccess = false
 
-            // Strategy 1: Android MediaStore API (Android 10+, zero permission needed for public storage)
-            val canTryMediaStore = (preset == PRESET_PUBLIC_MUSIC || preset == PRESET_PUBLIC_DOWNLOADS) &&
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            try {
+                if (stageFile.exists()) stageFile.delete()
+                val conn = openConnectionWithRedirects(song.path)
+                val totalBytes = conn.contentLengthLong.coerceAtLeast(1L)
+                var downloadedBytes = 0L
+                var lastProgressReportMs = System.currentTimeMillis()
+                var lastReportedProgress = 0f
 
-            if (canTryMediaStore) {
-                try {
-                    targetFile = downloadViaMediaStore(
-                        context = context,
-                        song = song,
-                        fileName = fileName,
-                        ext = ext,
-                        subDir = subDirName,
-                        onProgress = { p ->
-                            _downloadStates.update { it + (song.id to DownloadStatus.Downloading(p)) }
+                conn.inputStream.use { input ->
+                    FileOutputStream(stageFile).use { output ->
+                        val buffer = ByteArray(BUFFER_SIZE)
+                        var bytesRead: Int
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            downloadedBytes += bytesRead
+
+                            val now = System.currentTimeMillis()
+                            val progress = (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+                            if (progress - lastReportedProgress >= 0.05f || (now - lastProgressReportMs >= 250 && progress > lastReportedProgress)) {
+                                lastReportedProgress = progress
+                                lastProgressReportMs = now
+                                _downloadStates.update { it + (song.id to DownloadStatus.Downloading(progress)) }
+                            }
                         }
-                    )
-                } catch (e: Exception) {
-                    Log.w(TAG, "MediaStore download attempt failed: ${e.message}")
-                    lastError = e.message
+                        output.flush()
+                    }
                 }
+                conn.disconnect()
+
+                if (stageFile.length() < 20_000L) {
+                    throw IllegalStateException("Downloaded stream is incomplete")
+                }
+
+                // Pre-embed ID3 / MP4 container metadata and album art inside private cache where POSIX write is 100% permitted
+                saveArtworkAndMetadataForDownload(context, song, stageFile, ext)
+                stageSuccess = true
+            } catch (e: Exception) {
+                Log.w(TAG, "Staged download or tagging failed: ${e.message}")
+                lastError = e.message
             }
 
-            // Strategy 2: Direct filesystem write to target directory
-            if (targetFile == null || !targetFile.exists()) {
-                val tempFile = File(activeDir, "$fileName.tmp")
-                val finalFile = File(activeDir, fileName)
+            if (stageSuccess && stageFile.exists()) {
+                val preset = getStoragePreset(context)
+                val subDirName = if (preset == PRESET_PUBLIC_DOWNLOADS) "Download/MusicPlayer" else "Music/MusicPlayer"
 
-                try {
-                    if (tempFile.exists()) tempFile.delete()
-                    val conn = openConnectionWithRedirects(song.path)
-                    val totalBytes = conn.contentLengthLong.coerceAtLeast(1L)
-                    var downloadedBytes = 0L
-                    var lastProgressReportMs = System.currentTimeMillis()
-                    var lastReportedProgress = 0f
+                // Publish tagged file via Android MediaStore (Android 10+)
+                val canTryMediaStore = (preset == PRESET_PUBLIC_MUSIC || preset == PRESET_PUBLIC_DOWNLOADS) &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
 
-                    conn.inputStream.use { input ->
-                        FileOutputStream(tempFile).use { output ->
-                            val buffer = ByteArray(BUFFER_SIZE)
-                            var bytesRead: Int
-                            while (input.read(buffer).also { bytesRead = it } != -1) {
-                                output.write(buffer, 0, bytesRead)
-                                downloadedBytes += bytesRead
-
-                                val now = System.currentTimeMillis()
-                                val progress = (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
-                                if (progress - lastReportedProgress >= 0.05f || (now - lastProgressReportMs >= 250 && progress > lastReportedProgress)) {
-                                    lastReportedProgress = progress
-                                    lastProgressReportMs = now
-                                    _downloadStates.update { it + (song.id to DownloadStatus.Downloading(progress)) }
-                                }
-                            }
-                            output.flush()
-                        }
+                if (canTryMediaStore) {
+                    try {
+                        targetFile = publishFileToMediaStore(
+                            context = context,
+                            sourceFile = stageFile,
+                            song = song,
+                            fileName = fileName,
+                            ext = ext,
+                            subDir = subDirName
+                        )
+                    } catch (e: Exception) {
+                        Log.w(TAG, "MediaStore publish attempt failed: ${e.message}")
+                        lastError = e.message
                     }
-                    conn.disconnect()
+                }
 
-                    if (tempFile.length() < 20_000L) {
-                        throw IllegalStateException("Downloaded file is incomplete")
-                    }
-
-                    if (safeMoveFile(tempFile, finalFile)) {
-                        targetFile = finalFile
-                        lastError = null
-                    } else {
-                        throw IllegalStateException("Failed to move temporary download to target location")
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Direct write failed: ${e.message}")
-                    lastError = e.message
-                    try { if (tempFile.exists()) tempFile.delete() } catch (_: Exception) {}
-
-                    // Strategy 3: Safe fallback to app-internal storage (guaranteed writable on all devices)
-                    val safeDir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "Downloads")
-                    if (activeDir.absolutePath != safeDir.absolutePath) {
-                        val safeTemp = File(safeDir, "$fileName.tmp")
-                        val safeFinal = File(safeDir, fileName)
-                        try {
+                // Strategy 2: Direct filesystem write to target directory
+                if (targetFile == null || !targetFile.exists()) {
+                    val finalFile = File(activeDir, fileName)
+                    try {
+                        if (safeMoveFile(stageFile, finalFile)) {
+                            targetFile = finalFile
+                            lastError = null
+                        } else {
+                            // Fallback to app-internal storage
+                            val safeDir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "Downloads")
                             if (!safeDir.exists()) safeDir.mkdirs()
-                            if (safeTemp.exists()) safeTemp.delete()
-                            val conn = openConnectionWithRedirects(song.path)
-                            val totalBytes = conn.contentLengthLong.coerceAtLeast(1L)
-                            var downloadedBytes = 0L
-                            conn.inputStream.use { input ->
-                                FileOutputStream(safeTemp).use { output ->
-                                    val buffer = ByteArray(BUFFER_SIZE)
-                                    var bytesRead: Int
-                                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                                        output.write(buffer, 0, bytesRead)
-                                        downloadedBytes += bytesRead
-                                        val progress = (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
-                                        _downloadStates.update { it + (song.id to DownloadStatus.Downloading(progress)) }
-                                    }
-                                    output.flush()
-                                }
-                            }
-                            conn.disconnect()
-
-                            if (safeTemp.length() >= 20_000L && safeMoveFile(safeTemp, safeFinal)) {
+                            val safeFinal = File(safeDir, fileName)
+                            if (safeMoveFile(stageFile, safeFinal)) {
                                 targetFile = safeFinal
                                 lastError = null
                             }
-                        } catch (fallbackEx: Exception) {
-                            Log.e(TAG, "Fallback to app storage also failed: ${fallbackEx.message}")
-                            lastError = fallbackEx.message
-                            try { if (safeTemp.exists()) safeTemp.delete() } catch (_: Exception) {}
                         }
+                    } catch (fsEx: Exception) {
+                        Log.e(TAG, "Filesystem publish failed: ${fsEx.message}")
+                        lastError = fsEx.message
                     }
                 }
+
+                // Cleanup stage file
+                try { if (stageFile.exists()) stageFile.delete() } catch (_: Exception) {}
             }
 
             val savedFile = targetFile
             if (savedFile != null && savedFile.exists() && savedFile.length() > 20_000L) {
-                saveArtworkAndMetadataForDownload(context, song, savedFile, ext)
+                val artBmp = AlbumArtCache.get(song.path) ?: AlbumArtCache.get(stageFile.absolutePath)
+                if (artBmp != null) {
+                    AlbumArtCache.saveCustomArt(context, savedFile.absolutePath, artBmp)
+                    try {
+                        val parent = savedFile.parentFile
+                        if (parent != null && parent.canWrite()) {
+                            val companion = File(parent, "${savedFile.nameWithoutExtension}.jpg")
+                            val jpegOut = java.io.ByteArrayOutputStream()
+                            artBmp.compress(Bitmap.CompressFormat.JPEG, 85, jpegOut)
+                            FileOutputStream(companion).use { it.write(jpegOut.toByteArray()) }
+                        }
+                    } catch (_: Exception) {}
+                }
                 val localSong = createLocalSong(song, savedFile)
                 songDao.insert(localSong)
                 persistDownloadedRecord(context, song, savedFile.absolutePath)
@@ -695,7 +673,7 @@ object StreamDownloadManager {
     }
 
     private fun saveArtworkAndMetadataForDownload(context: Context, song: Song, savedFile: File, ext: String) {
-        val artUrl = song.artworkUrl
+        val artUrl = song.artworkUrl?.takeIf { it.isNotBlank() } ?: AlbumArtCache.getStreamArtwork(song.path)
         var artBytes: ByteArray? = null
 
         if (!artUrl.isNullOrBlank()) {
@@ -716,7 +694,7 @@ object StreamDownloadManager {
 
                         // 1. Save companion image file next to downloaded audio file (standard JPEG)
                         val parent = savedFile.parentFile
-                        if (parent != null && parent.exists()) {
+                        if (parent != null && parent.exists() && parent.canWrite()) {
                             val companion = File(parent, "${savedFile.nameWithoutExtension}.jpg")
                             try {
                                 FileOutputStream(companion).use { it.write(jpegBytes) }
@@ -728,6 +706,18 @@ object StreamDownloadManager {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed downloading artwork for ${song.title}: ${e.message}")
+            }
+        }
+
+        if (artBytes == null) {
+            val cachedBmp = AlbumArtCache.getHighRes(song.path) ?: AlbumArtCache.get(song.path)
+            if (cachedBmp != null) {
+                try {
+                    val jpegOut = java.io.ByteArrayOutputStream()
+                    cachedBmp.compress(Bitmap.CompressFormat.JPEG, 85, jpegOut)
+                    artBytes = jpegOut.toByteArray()
+                    AlbumArtCache.saveCustomArt(context, savedFile.absolutePath, cachedBmp)
+                } catch (_: Exception) {}
             }
         }
 
@@ -743,7 +733,8 @@ object StreamDownloadManager {
                     title = song.title,
                     artist = song.artist,
                     album = song.album,
-                    artBytes = artBytes
+                    artBytes = artBytes,
+                    tempDir = context.cacheDir
                 )
             }
         } catch (e: Exception) {
@@ -946,7 +937,7 @@ object StreamDownloadManager {
                     val album = meta?.album?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Downloads"
 
                     if (audioFile.extension.equals("m4a", ignoreCase = true)) {
-                        val tagged = Mp4TagEditor.embedMetadata(audioFile, title, artist, album, artBytes)
+                        val tagged = Mp4TagEditor.embedMetadata(audioFile, title, artist, album, artBytes, tempDir = context.cacheDir)
                         if (tagged) {
                             Log.d(TAG, "Retro-tagged M4A metadata and artwork for: ${audioFile.name}")
                             MediaScannerConnection.scanFile(context, arrayOf(audioFile.absolutePath), arrayOf("audio/mp4"), null)

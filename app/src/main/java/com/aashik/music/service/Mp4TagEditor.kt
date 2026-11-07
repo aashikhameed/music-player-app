@@ -31,11 +31,13 @@ object Mp4TagEditor {
         title: String?,
         artist: String?,
         album: String?,
-        artBytes: ByteArray?
+        artBytes: ByteArray?,
+        tempDir: File? = null
     ): Boolean {
         if (!file.exists() || file.length() < 32L) return false
 
-        val tempFile = File(file.parentFile, "${file.name}.tag_${System.currentTimeMillis()}.tmp")
+        val effectiveTempDir = tempDir ?: file.parentFile?.takeIf { it.canWrite() } ?: File(System.getProperty("java.io.tmpdir") ?: "/tmp")
+        val tempFile = File(effectiveTempDir, "${file.name}.tag_${System.currentTimeMillis()}.tmp")
         try {
             RandomAccessFile(file, "r").use { raf ->
                 val fileSize = raf.length()
@@ -123,15 +125,43 @@ object Mp4TagEditor {
 
             // 7. Atomically replace original file with tempFile
             if (tempFile.exists() && tempFile.length() > 20_000L) {
-                val origName = file.name
-                val destBackup = File(file.parentFile, "$origName.bak_${System.currentTimeMillis()}")
-                if (file.renameTo(destBackup)) {
-                    if (tempFile.renameTo(file)) {
-                        destBackup.delete()
-                        return true
-                    } else {
-                        destBackup.renameTo(file)
+                var replaced = false
+                try {
+                    val origName = file.name
+                    val parent = file.parentFile
+                    if (parent != null && parent.canWrite()) {
+                        val destBackup = File(parent, "$origName.bak_${System.currentTimeMillis()}")
+                        if (file.renameTo(destBackup)) {
+                            if (tempFile.renameTo(file)) {
+                                destBackup.delete()
+                                replaced = true
+                            } else {
+                                destBackup.renameTo(file)
+                            }
+                        }
                     }
+                } catch (_: Exception) {}
+
+                if (!replaced) {
+                    try {
+                        tempFile.inputStream().use { input ->
+                            FileOutputStream(file, false).use { output ->
+                                val buf = ByteArray(65536)
+                                var r: Int
+                                while (input.read(buf).also { r = it } != -1) {
+                                    output.write(buf, 0, r)
+                                }
+                                output.flush()
+                            }
+                        }
+                        replaced = true
+                    } catch (streamEx: Exception) {
+                        Log.e(TAG, "Stream-copy replacement failed for ${file.name}: ${streamEx.message}")
+                    }
+                }
+
+                if (replaced) {
+                    return true
                 }
             }
         } catch (e: Exception) {
