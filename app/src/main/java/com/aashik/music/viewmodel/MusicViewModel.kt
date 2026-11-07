@@ -29,6 +29,8 @@ import com.aashik.music.service.MusicPlayer
 import com.aashik.music.service.OnlineStreamRepository
 import com.aashik.music.service.DownloadStatus
 import com.aashik.music.service.StreamDownloadManager
+import com.aashik.music.service.AppUpdateManager
+import com.aashik.music.service.UpdateState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -549,6 +551,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         // Initialize Offline Stream Download Engine
         StreamDownloadManager.init(application, songDao)
+
+        // Silent background check for updates on startup
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(3000)
+            AppUpdateManager.checkForUpdates(application, silent = true)
+        }
     }
 
     fun setupLocationUpdates() {
@@ -1309,6 +1317,35 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun isSongDownloaded(songId: String): Boolean = StreamDownloadManager.isDownloaded(songId)
 
     fun getDownloadStatus(song: Song): DownloadStatus = StreamDownloadManager.getStatus(song.id)
+
+    // ── GitHub App Auto-Update Management ──
+    val updateState: StateFlow<UpdateState> = AppUpdateManager.updateState
+
+    fun checkForUpdates(silent: Boolean = false) {
+        viewModelScope.launch {
+            AppUpdateManager.checkForUpdates(getApplication(), silent = silent)
+        }
+    }
+
+    fun downloadAndInstallUpdate(context: Context? = null) {
+        val state = updateState.value
+        if (state is UpdateState.UpdateAvailable) {
+            viewModelScope.launch {
+                val app = getApplication<Application>()
+                val file = AppUpdateManager.downloadUpdate(app, state.apkDownloadUrl, state.latestVersion)
+                if (file != null) {
+                    AppUpdateManager.installApk(context ?: app, file)
+                }
+            }
+        } else if (state is UpdateState.ReadyToInstall) {
+            val app = getApplication<Application>()
+            AppUpdateManager.installApk(context ?: app, state.apkFile)
+        }
+    }
+
+    fun dismissUpdate() {
+        AppUpdateManager.dismissUpdate()
+    }
 
     fun openFolder(folderPath: String) {
         _selectedFolder.value = folderPath

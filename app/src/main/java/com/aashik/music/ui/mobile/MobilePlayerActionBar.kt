@@ -50,8 +50,8 @@ fun MobilePlayerActionBar(
     currentSong: Song?,
     isFavorite: Boolean,
     isLyricsExpanded: Boolean,
-    isRadioActive: Boolean,
-    isRadioLoading: Boolean,
+    @Suppress("UNUSED_PARAMETER") isRadioActive: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") isRadioLoading: Boolean = false,
     currentDownloadStatus: DownloadStatus,
     @Suppress("UNUSED_PARAMETER") controlInactiveColor: Color = Color.Unspecified,
     @Suppress("UNUSED_PARAMETER") isNightDimmerActive: Boolean = false,
@@ -220,38 +220,6 @@ fun MobilePlayerActionBar(
                         tint = if (isLyricsExpanded) onPrimaryContainer else onSurfaceVariant,
                         modifier = Modifier.size(22.dp)
                     )
-                }
-            }
-
-            // Radio Button (Available for all songs: stream or local)
-            IconButton(
-                onClick = { viewModel.startRadioForCurrentSong() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = if (isRadioActive) primaryContainer else surfaceContainer,
-                            shape = ActionButtonCircle
-                        )
-                        .clip(ActionButtonCircle),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isRadioLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.dp,
-                            color = primaryColor
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.Podcasts,
-                            contentDescription = "Start Radio",
-                            tint = if (isRadioActive) onPrimaryContainer else onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
                 }
             }
         }

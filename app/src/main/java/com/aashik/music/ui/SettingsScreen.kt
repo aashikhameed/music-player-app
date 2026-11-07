@@ -88,6 +88,7 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.theme.AppGradients
 import com.aashik.music.viewmodel.MusicViewModel
 
+import com.aashik.music.ui.components.AppUpdateSection
 import com.aashik.music.ui.components.CacheManagementSection
 import com.aashik.music.ui.components.DownloadStorageSection
 import com.aashik.music.ui.components.EqualizerNavigationCard
@@ -194,6 +195,7 @@ fun SettingsScreen(
                     DownloadStorageSection(viewModel = viewModel)
                     CacheManagementSection(viewModel = viewModel)
                     SystemInfoSection()
+                    AppUpdateSection(viewModel = viewModel)
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }

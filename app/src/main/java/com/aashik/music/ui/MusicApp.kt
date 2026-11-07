@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aashik.music.service.NotificationPlaybackService
 import com.aashik.music.theme.CarMusicTheme
+import com.aashik.music.ui.components.AppUpdateDialog
 import com.aashik.music.viewmodel.MusicViewModel
 
 @Composable
@@ -120,5 +121,6 @@ fun MusicApp() {
         isDarkMode = isDarkMode
     ) {
         MusicListScreen(viewModel)
+        AppUpdateDialog(viewModel = viewModel)
     }
 }

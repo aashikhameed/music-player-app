@@ -1044,20 +1044,63 @@ fun DriveModeScreen(
                     )
                 }
             }
-            // ── Next Track Preview (Portrait Mobile): Just above the player controls container ──
+            // ── Next Track Preview & Radio Button (Portrait Mobile): Just above the player controls container ──
             if (isPortrait) {
                 val nextSong = upcomingSongs.firstOrNull()
-                if (nextSong != null) {
-                    MobileNextTrackPreview(
-                        nextSong = nextSong,
-                        onPlayNext = { viewModel.playNextSong() },
-                        onOpenQueue = { viewModel.openQueue() },
-                        isNightDimmerActive = isNightDimmerActive,
-                        isDark = isDark,
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (nextSong != null) {
+                        MobileNextTrackPreview(
+                            nextSong = nextSong,
+                            onPlayNext = { viewModel.playNextSong() },
+                            onOpenQueue = { viewModel.openQueue() },
+                            isNightDimmerActive = isNightDimmerActive,
+                            isDark = isDark,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+
+                    // Radio Button next to next playing song container
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    )
+                            .size(48.dp)
+                            .background(
+                                color = if (isRadioActive) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                shape = CircleShape
+                            )
+                            .border(
+                                width = 0.8.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                shape = CircleShape
+                            )
+                            .clip(CircleShape)
+                            .clickable { viewModel.startRadioForCurrentSong() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isRadioLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Rounded.Podcasts,
+                                contentDescription = "Start Radio",
+                                tint = if (isRadioActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
                 }
             }
 
