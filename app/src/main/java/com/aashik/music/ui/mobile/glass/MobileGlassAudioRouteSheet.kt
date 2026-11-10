@@ -11,8 +11,8 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.Laptop
 import androidx.compose.material.icons.rounded.PhoneIphone
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.aashik.music.ui.designsystem.Icon
+import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment

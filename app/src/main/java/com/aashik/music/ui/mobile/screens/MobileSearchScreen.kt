@@ -13,10 +13,10 @@ import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
+import com.aashik.music.ui.designsystem.HorizontalDivider
+import com.aashik.music.ui.designsystem.Icon
+import com.aashik.music.ui.designsystem.IconButton
+import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,9 +28,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
+import androidx.compose.ui.graphics.SolidColor
 import com.aashik.music.ui.mobile.glass.MobileGlassSearchBar
 import com.aashik.music.ui.mobile.glass.MobileGlassSegmentedPill
 import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
+
+private val CategoryCardShape = RoundedCornerShape(12.dp)
 
 data class BrowseCategory(
     val title: String,
@@ -365,10 +368,10 @@ private fun BrowseCategoryCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(96.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Brush.linearGradient(category.gradientColors))
+            .clip(CategoryCardShape)
+            .background(SolidColor(category.gradientColors.first()))
             .mobileLiquidGlass(
-                shape = RoundedCornerShape(12.dp),
+                shape = CategoryCardShape,
                 tintColor = Color.White.copy(alpha = 0.05f),
                 borderColor = Color.White.copy(alpha = 0.12f)
             )

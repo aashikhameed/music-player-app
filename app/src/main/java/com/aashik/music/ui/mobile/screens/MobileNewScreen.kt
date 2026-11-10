@@ -14,9 +14,9 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
+import com.aashik.music.ui.designsystem.Icon
+import com.aashik.music.ui.designsystem.IconButton
+import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -31,9 +31,12 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.model.domain.DomainAlbum
 import com.aashik.music.model.domain.DomainPlaylist
+import androidx.compose.ui.graphics.SolidColor
 import com.aashik.music.ui.mobile.glass.MobileGlassBadgePill
 import com.aashik.music.ui.mobile.glass.MobileGlassCard
 import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
+
+private val ChartCardShape = RoundedCornerShape(14.dp)
 
 /**
  * 1:1 Mobile New & Charts Screen matching designScreen/mobile/New.png.
@@ -309,9 +312,9 @@ private fun DailyTop100Row(
                 Box(
                     modifier = Modifier
                         .size(155.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Brush.linearGradient(gradientColors))
-                        .mobileLiquidGlass(RoundedCornerShape(14.dp))
+                        .clip(ChartCardShape)
+                        .background(SolidColor(gradientColors.first()))
+                        .mobileLiquidGlass(ChartCardShape)
                         .padding(14.dp),
                     contentAlignment = Alignment.BottomStart
                 ) {
@@ -476,9 +479,9 @@ private fun CityChartsRow(
                 Box(
                     modifier = Modifier
                         .size(150.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Brush.linearGradient(colors.map { it.copy(alpha = 0.85f) }))
-                        .mobileLiquidGlass(RoundedCornerShape(14.dp))
+                        .clip(ChartCardShape)
+                        .background(SolidColor(colors.first().copy(alpha = 0.85f)))
+                        .mobileLiquidGlass(ChartCardShape)
                         .padding(14.dp),
                     contentAlignment = Alignment.BottomStart
                 ) {

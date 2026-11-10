@@ -1,7 +1,7 @@
 package com.aashik.music.ui.car
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.aashik.music.ui.designsystem.MaterialTheme
+import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

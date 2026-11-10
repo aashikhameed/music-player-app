@@ -6,10 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
+import com.aashik.music.ui.designsystem.MaterialTheme
+import com.aashik.music.ui.designsystem.Slider
+import com.aashik.music.ui.designsystem.SliderDefaults
+import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier

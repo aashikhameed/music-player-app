@@ -10,7 +10,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +59,7 @@ fun Modifier.mobileLiquidGlass(
         .clip(shape)
         .background(tintColor, shape)
         .background(specularReflection, shape)
-        .border(BorderStroke(1.2.dp, specularRim), shape)
+        .border(1.2.dp, specularRim, shape)
 }
 
 /**

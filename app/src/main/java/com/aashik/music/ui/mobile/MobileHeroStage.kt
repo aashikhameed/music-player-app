@@ -30,10 +30,10 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import com.aashik.music.ui.designsystem.CircularProgressIndicator
+import com.aashik.music.ui.designsystem.Icon
+import com.aashik.music.ui.designsystem.IconButton
+import com.aashik.music.ui.designsystem.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

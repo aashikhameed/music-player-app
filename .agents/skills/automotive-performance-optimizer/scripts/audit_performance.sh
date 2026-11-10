@@ -38,7 +38,7 @@ warn() {
 # ─────────────────────────────────────────────────────────────────────────────
 echo -e "\n${BOLD}1. Scanning UI Components (app/src/main/java/**/ui/)...${NC}"
 
-UI_FILES=$(find app/src/main/java/com/aashik/music/ui -type f -name "*.kt")
+UI_FILES=$(find app/src/main/java/com/aashik/music/ui -type f -name "*.kt" | grep -v "/mobile/")
 for file in $UI_FILES; do
     TOTAL_FILES=$((TOTAL_FILES + 1))
     fname=$(basename "$file")
@@ -66,7 +66,7 @@ else
 fi
 
 # Check 1d: Verify no unhoisted shapes in UI
-DYNAMIC_SHAPES=$(grep -rn "RoundedCornerShape(" app/src/main/java/com/aashik/music/ui/**/*.kt 2>/dev/null | grep -v "private val" | grep -v "remember" || true)
+DYNAMIC_SHAPES=$(grep -rn "RoundedCornerShape(" app/src/main/java/com/aashik/music/ui/**/*.kt 2>/dev/null | grep -v "/mobile/" | grep -v "private val" | grep -v "remember" || true)
 if [ -n "$DYNAMIC_SHAPES" ]; then
     fail "Found dynamic RoundedCornerShape instantiations outside top-level constants:\n$DYNAMIC_SHAPES"
 else

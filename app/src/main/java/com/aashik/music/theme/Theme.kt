@@ -1,11 +1,11 @@
 package com.aashik.music.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
-import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import com.aashik.music.ui.designsystem.MaterialTheme
+import com.aashik.music.ui.designsystem.Shapes
+import com.aashik.music.ui.designsystem.Typography
+import com.aashik.music.ui.designsystem.darkColorScheme
+import com.aashik.music.ui.designsystem.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color

@@ -8,8 +8,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.aashik.music.ui.designsystem.Icon
+import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment

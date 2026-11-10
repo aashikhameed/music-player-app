@@ -11,8 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Radio
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.aashik.music.ui.designsystem.Icon
+import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,9 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.SolidColor
 import com.aashik.music.ui.mobile.glass.MobileGlassBadgePill
 import com.aashik.music.ui.mobile.glass.MobileGlassCard
 import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
+
+private val RadioCardShape = RoundedCornerShape(14.dp)
 
 data class RadioStation(
     val name: String,
@@ -205,9 +208,9 @@ fun MobileRadioScreen(
                         Box(
                             modifier = Modifier
                                 .size(170.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Brush.linearGradient(station.colors))
-                                .mobileLiquidGlass(RoundedCornerShape(14.dp))
+                                .clip(RadioCardShape)
+                                .background(SolidColor(station.colors.first()))
+                                .mobileLiquidGlass(RadioCardShape)
                                 .padding(14.dp),
                             contentAlignment = Alignment.BottomStart
                         ) {
