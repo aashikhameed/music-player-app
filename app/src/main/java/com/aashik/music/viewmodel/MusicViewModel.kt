@@ -1933,8 +1933,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                         _currentSong.value = resolved
                         activePlaylist = activePlaylist.map { if (it.id == song.id) resolved else it }
                         _songs.value = _songs.value.map { if (it.id == song.id) resolved else it }
+                        if (resolved.title != song.title || resolved.artist != song.artist) {
+                            fetchLyricsForSong(resolved)
+                        }
                         if (!musicPlayer.isAudioSilencedForVideo()) {
-                            musicPlayer.play(resolved, isAutoCrossfade)
+                            if (resolved.isDirectPlayable()) {
+                                musicPlayer.play(resolved, isAutoCrossfade)
+                            } else {
+                                playNextSong(isAutoCrossfade = isAutoCrossfade)
+                            }
                         }
                     }
                 }

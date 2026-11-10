@@ -41,8 +41,9 @@ object OnlineStreamRepository {
     private val radioCandidatePool = ConcurrentLinkedQueue<YouTubeVideoResolver.YouTubeRadioTrack>()
     private val sessionPlayedTitles = ConcurrentHashMap.newKeySet<String>()
 
-    // Direct audio streaming URL cache (maps clean title::artist to direct audio URL)
+    // Direct audio streaming URL and resolved Song cache
     private val streamUrlCache = ConcurrentHashMap<String, String>()
+    private val resolvedSongCache = ConcurrentHashMap<String, Song>()
 
     @Volatile
     var activeStationId: String? = null
@@ -80,70 +81,125 @@ object OnlineStreamRepository {
     private val YT_SHORT_REGEX = Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""")
     private val YT_EMBED_REGEX = Regex("""embed/([a-zA-Z0-9_-]{11})""")
 
-    fun normalisedTitle(raw: String): String = raw.lowercase(java.util.Locale.ROOT)
-        .substringBefore(" | ")
+    fun cleanTitleForMatching(raw: String): String = raw
+        .replace(AUDIO_EXT_REGEX, "")
+        .replace(CLEAN_FROM_REGEX, "")
+        .replace(CLEAN_REPRISE_REGEX, "")
+        .replace(CLEAN_OFFICIAL_REGEX, "")
+        .replace(BRACKET_REGEX, "")
+        .replace(FEAT_REGEX, "")
         .replace(NOISE_REGEX, " ")
         .replace(PUNCT_REGEX, " ")
         .replace(SPACES_REGEX, " ")
         .trim()
+        .lowercase(java.util.Locale.ROOT)
+
+    fun normalisedTitle(raw: String): String = cleanTitleForMatching(raw)
 
     fun artistSet(raw: String): Set<String> = raw.lowercase(java.util.Locale.ROOT)
         .replace(TOPIC_REGEX, " ")
-        .split(",", "&", "·", "•", ";", " feat", " ft.", " ft ", " x ", " with ")
+        .split(",", "&", "·", "•", ";", " feat.", " feat ", " ft.", " ft ", " x ", " with ", " and ")
         .map { it.replace(PUNCT_REGEX, " ").replace(SPACES_REGEX, " ").trim() }
-        .filter { it.isNotEmpty() }
+        .filter { it.isNotEmpty() && it != "unknown" && it != "various artists" }
         .toSet()
 
-    fun isSameRecording(aTitle: String, aArtist: String, bTitle: String, bArtist: String): Boolean {
-        val normA = normalisedTitle(aTitle)
-        val normB = normalisedTitle(bTitle)
-        if (normA.isNotEmpty() && normA == normB) {
-            val left = artistSet(aArtist)
-            val right = artistSet(bArtist)
-            return left.isEmpty() || right.isEmpty() || left.any { it in right }
+    fun isAccurateMatch(
+        expectedTitle: String,
+        expectedArtist: String,
+        candidateTitle: String,
+        candidateArtist: String
+    ): Boolean {
+        val t1 = cleanTitleForMatching(expectedTitle)
+        val t2 = cleanTitleForMatching(candidateTitle)
+        if (t1.isEmpty() || t2.isEmpty()) return false
+
+        // 1. Check title equivalence or strong prefix/containment
+        val titlesMatch = (t1 == t2) ||
+                (t1.length >= 6 && t2.length >= 6 && (t1.startsWith(t2) || t2.startsWith(t1)))
+
+        if (!titlesMatch) {
+            val words1 = t1.split(" ").filter { it.length > 2 }
+            val words2 = t2.split(" ").filter { it.length > 2 }
+            val commonWords = words1.count { it in words2 }
+            val threshold = maxOf(2, (minOf(words1.size, words2.size) * 0.75).toInt())
+            if (words1.size < 2 || words2.size < 2 || commonWords < threshold) {
+                return false
+            }
         }
-        return false
+
+        // 2. Check artist matching
+        val a1 = artistSet(expectedArtist)
+        val a2 = artistSet(candidateArtist)
+
+        if (a1.isNotEmpty() && a2.isNotEmpty()) {
+            val hasCommonArtist = a1.any { left ->
+                a2.any { right ->
+                    left == right || (left.length >= 4 && right.length >= 4 && (left.contains(right) || right.contains(left)))
+                }
+            }
+            return hasCommonArtist
+        }
+
+        // If artist is unknown or missing on either side, only accept if title is sufficiently specific (>= 8 chars)
+        return t1.length >= 8 && t1 == t2
+    }
+
+    fun isSameRecording(aTitle: String, aArtist: String, bTitle: String, bArtist: String): Boolean {
+        return isAccurateMatch(aTitle, aArtist, bTitle, bArtist)
     }
 
     suspend fun resolvePlayableSong(song: Song): Song = withContext(Dispatchers.IO) {
         if (song.isDirectPlayable()) return@withContext song
 
-        val cleanTitle = song.title
-            .replace(AUDIO_EXT_REGEX, "")
-            .replace('_', ' ')
-            .replace(CLEAN_FROM_REGEX, "")
-            .replace(CLEAN_REPRISE_REGEX, "")
-            .replace(CLEAN_OFFICIAL_REGEX, "")
-            .replace(BRACKET_REGEX, "")
-            .trim()
+        val cleanTitle = cleanTitleForMatching(song.title)
         val cleanArtist = song.artist
             .replace(FEAT_REGEX, "")
             .replace(BRACKET_REGEX, "")
             .trim()
 
-        val cacheKey = "${cleanTitle.lowercase()}::${cleanArtist.lowercase()}"
+        val cacheKey = "${cleanTitle}::${cleanArtist.lowercase()}"
+        resolvedSongCache[cacheKey]?.let { cached ->
+            return@withContext cached
+        }
         streamUrlCache[cacheKey]?.let { cachedUrl ->
             return@withContext song.copy(path = cachedUrl)
         }
 
-        var matches = searchSongs("$cleanTitle $cleanArtist".trim(), limit = 3)
-        if (matches.isEmpty() && cleanTitle.isNotBlank()) {
-            matches = searchSongs(cleanTitle, limit = 3)
+        val primaryArtist = artistSet(cleanArtist).firstOrNull() ?: cleanArtist
+        val searchQueries = mutableListOf<String>()
+        if (cleanArtist.isNotBlank() && cleanArtist != "<unknown>") {
+            searchQueries.add("$cleanTitle $cleanArtist".trim())
+            if (primaryArtist.isNotBlank() && !primaryArtist.equals(cleanArtist, ignoreCase = true)) {
+                searchQueries.add("$cleanTitle $primaryArtist".trim())
+            }
+        }
+        searchQueries.add(cleanTitle)
+
+        for (query in searchQueries) {
+            val matches = searchSongs(query, limit = 5)
+            val best = matches.firstOrNull { candidate ->
+                candidate.isDirectPlayable() && isAccurateMatch(song.title, song.artist, candidate.title, candidate.artist)
+            }
+            if (best != null) {
+                streamUrlCache[cacheKey] = best.path
+                val art = if (!best.artworkUrl.isNullOrBlank()) best.artworkUrl else song.artworkUrl
+                if (!art.isNullOrBlank()) {
+                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(best.path, art)
+                }
+                val resolvedSong = song.copy(
+                    title = if (best.title.isNotBlank()) best.title else song.title,
+                    artist = if (best.artist.isNotBlank()) best.artist else song.artist,
+                    album = if (best.album.isNotBlank() && best.album != "<unknown>") best.album else song.album,
+                    path = best.path,
+                    duration = if (best.duration > 0) best.duration else song.duration,
+                    artworkUrl = art
+                )
+                resolvedSongCache[cacheKey] = resolvedSong
+                return@withContext resolvedSong
+            }
         }
 
-        val best = matches.firstOrNull()
-        if (best != null && best.isDirectPlayable()) {
-            streamUrlCache[cacheKey] = best.path
-            val art = best.artworkUrl
-            if (!art.isNullOrBlank()) {
-                com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(best.path, art)
-            }
-            return@withContext song.copy(
-                path = best.path,
-                duration = if (song.duration > 0) song.duration else best.duration,
-                artworkUrl = if (!song.artworkUrl.isNullOrBlank()) song.artworkUrl else best.artworkUrl
-            )
-        }
+        // Strictly do not attach any mismatched stream URL if no authentic match was found
         song
     }
 
@@ -500,113 +556,57 @@ object OnlineStreamRepository {
                 if (seedSong.artist.contains("•") && artistPrefix.isNotBlank()) artistPrefix else null
             }
 
-        // Step 1: RDAMVM YouTube Music Radio (primary — fetches 50 fresh non-repeating tracks)
-        val ytVideoId: String? = when {
-            seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_yt_")
-            seedSong.path.contains("youtube.com/watch?v=") ->
-                seedSong.path.substringAfter("v=").substringBefore("&").takeIf { it.length == 11 }
-            else -> null
-        } ?: try {
-            YouTubeVideoResolver.resolveVideoId(seedSong.title, seedSong.artist)
-        } catch (_: Exception) { null }
-
-        if (!ytVideoId.isNullOrBlank()) {
-            try {
-                val radioTracks = YouTubeVideoResolver.fetchRadioQueue(ytVideoId)
-                // Stash overflow in pool for subsequent fetchNextRadioBatch calls
-                radioCandidatePool.clear()
-
-                for (track in radioTracks) {
-                    val normTitle = normalisedTitle(track.title)
-                    if (normTitle.isBlank()) continue
-                    if (isSameRecording(seedSong.title, seedSong.artist, track.title, track.artist)) continue
-                    if (sessionPlayedTitles.contains(normTitle)) continue
-
-                    val artists = artistSet(track.artist)
-                    val key = artists.minOrNull()
-                    if (key != null) {
-                        val cap = if (artists.any { it in seedArtists }) 4 else 2
-                        val played = perArtist[key] ?: 0
-                        if (played >= cap) continue
-                    }
-
-                    if (filtered.size < limit) {
-                        val artUrl = track.thumbnailUrl ?: ""
-                        val unplayableSong = Song(
-                            id = "online_yt_${track.videoId}",
-                            title = track.title,
-                            artist = track.artist,
-                            album = track.album,
-                            path = "https://www.youtube.com/watch?v=${track.videoId}",
-                            duration = track.durationMs,
-                            artworkUrl = artUrl
-                        )
-                        val playableSong = resolvePlayableSong(unplayableSong)
-                        if (playableSong.isDirectPlayable()) {
-                            filtered.add(playableSong)
-                            sessionPlayedTitles.add(normTitle)
-                            if (key != null) perArtist[key] = (perArtist[key] ?: 0) + 1
-                            if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, artUrl)
-                            if (genre != null) {
-                                registerSongGenre(playableSong.id, genre)
-                                registerSongGenre(playableSong.path, genre)
-                            }
-                        } else {
-                            radioCandidatePool.offer(track)
-                        }
-                    } else {
-                        radioCandidatePool.offer(track)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "RDAMVM radio fetch failed for $ytVideoId: ${e.message}")
-            }
-        }
-
-        // Step 2: Resolve JioSaavn PID for WebRadio fallback
+        // Step 1: Resolve JioSaavn PID for authentic WebRadio
         var pid = when {
             seedSong.id.startsWith("online_") && !seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_")
             else -> ""
         }
 
-        // If local track, downloaded track, or PID not found, query search to find matching online track ID
-        if (pid.isBlank() && filtered.size < limit) {
-            val cleanTitle = seedSong.title
-                .replace(AUDIO_EXT_REGEX, "")
-                .replace('_', ' ')
-                .replace(GREEDY_BRACKET_REGEX, "")
+        if (pid.isBlank()) {
+            val cleanTitle = cleanTitleForMatching(seedSong.title)
+            val cleanArtist = seedSong.artist
+                .replace(FEAT_REGEX, "")
+                .replace(BRACKET_REGEX, "")
                 .trim()
-            val cleanArtist = if (!seedSong.artist.contains("•") && !seedSong.artist.contains("<unknown>")) {
-                seedSong.artist.trim()
-            } else ""
-            val searchQuery = "$cleanTitle $cleanArtist ${genre.orEmpty()}".trim()
+            val searchQuery = "$cleanTitle $cleanArtist".trim()
             if (searchQuery.isNotBlank()) {
-                val matches = searchSongs(searchQuery, limit = 3)
-                val bestMatch = matches.firstOrNull()
+                val matches = searchSongs(searchQuery, limit = 5)
+                val bestMatch = matches.firstOrNull { candidate ->
+                    candidate.isDirectPlayable() && isAccurateMatch(seedSong.title, seedSong.artist, candidate.title, candidate.artist)
+                }
                 if (bestMatch != null) {
                     pid = bestMatch.id.removePrefix("online_")
                 }
             }
         }
 
-        // Step 3: JioSaavn WebRadio Engine as fallback when RDAMVM returned insufficient tracks
-        if (filtered.size < limit && pid.isNotBlank()) {
-            val stationId = createRadioStation(pid)
-            if (stationId != null) {
-                val stationSongs = fetchStationSongs(stationId, limit = limit + 4, targetGenre = genre)
-                for (parsed in stationSongs) {
-                    val normTitle = parsed.title.lowercase().trim()
-                    if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle)) {
-                        seenIds.add(parsed.id)
-                        seenTitles.add(normTitle)
-                        filtered.add(parsed)
-                        if (filtered.size >= limit) break
+        // Step 2: Native JioSaavn WebRadio Engine (Primary — 100% matched direct stream, title, artist, art)
+        if (pid.isNotBlank()) {
+            try {
+                val stationId = createRadioStation(pid)
+                if (stationId != null) {
+                    val stationSongs = fetchStationSongs(stationId, limit = limit + 4, targetGenre = genre)
+                    for (parsed in stationSongs) {
+                        val normTitle = normalisedTitle(parsed.title)
+                        if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle) && !sessionPlayedTitles.contains(normTitle)) {
+                            seenIds.add(parsed.id)
+                            seenTitles.add(normTitle)
+                            sessionPlayedTitles.add(normTitle)
+                            if (genre != null) {
+                                registerSongGenre(parsed.id, genre)
+                                registerSongGenre(parsed.path, genre)
+                            }
+                            filtered.add(parsed)
+                            if (filtered.size >= limit) break
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "Native radio station failed: ${e.message}")
             }
         }
 
-        // Step 3: Fallback to reco.getreco if station yielded insufficient tracks
+        // Step 3: Algorithmic Recommendations Fallback (reco.getreco)
         if (filtered.size < limit && pid.isNotBlank()) {
             var connection: HttpURLConnection? = null
             try {
@@ -638,10 +638,11 @@ object OnlineStreamRepository {
                         for (i in 0 until recoArray.length()) {
                             val item = recoArray.optJSONObject(i) ?: continue
                             val parsed = parseSongItem(item) ?: continue
-                            val normTitle = parsed.title.lowercase().trim()
-                            if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle)) {
+                            val normTitle = normalisedTitle(parsed.title)
+                            if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle) && !sessionPlayedTitles.contains(normTitle)) {
                                 seenIds.add(parsed.id)
                                 seenTitles.add(normTitle)
+                                sessionPlayedTitles.add(normTitle)
                                 if (genre != null) {
                                     registerSongGenre(parsed.id, genre)
                                     registerSongGenre(parsed.path, genre)
@@ -656,6 +657,71 @@ object OnlineStreamRepository {
                 Log.w(TAG, "reco.getreco query failed: ${e.message}")
             } finally {
                 connection?.disconnect()
+            }
+        }
+
+        // Step 4: RDAMVM YouTube Music Radio (for YouTube tracks or when JioSaavn returned insufficient tracks)
+        if (filtered.size < limit) {
+            val ytVideoId: String? = when {
+                seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_yt_")
+                seedSong.path.contains("youtube.com/watch?v=") ->
+                    seedSong.path.substringAfter("v=").substringBefore("&").takeIf { it.length == 11 }
+                else -> null
+            } ?: try {
+                YouTubeVideoResolver.resolveVideoId(seedSong.title, seedSong.artist)
+            } catch (_: Exception) { null }
+
+            if (!ytVideoId.isNullOrBlank()) {
+                try {
+                    val radioTracks = YouTubeVideoResolver.fetchRadioQueue(ytVideoId)
+                    radioCandidatePool.clear()
+
+                    for (track in radioTracks) {
+                        val normTitle = normalisedTitle(track.title)
+                        if (normTitle.isBlank()) continue
+                        if (isSameRecording(seedSong.title, seedSong.artist, track.title, track.artist)) continue
+                        if (sessionPlayedTitles.contains(normTitle) || seenTitles.contains(normTitle)) continue
+
+                        val artists = artistSet(track.artist)
+                        val key = artists.minOrNull()
+                        if (key != null) {
+                            val cap = if (artists.any { it in seedArtists }) 4 else 2
+                            val played = perArtist[key] ?: 0
+                            if (played >= cap) continue
+                        }
+
+                        if (filtered.size < limit) {
+                            val artUrl = track.thumbnailUrl ?: ""
+                            val unplayableSong = Song(
+                                id = "online_yt_${track.videoId}",
+                                title = track.title,
+                                artist = track.artist,
+                                album = track.album,
+                                path = "https://www.youtube.com/watch?v=${track.videoId}",
+                                duration = track.durationMs,
+                                artworkUrl = artUrl
+                            )
+                            val playableSong = resolvePlayableSong(unplayableSong)
+                            if (playableSong.isDirectPlayable()) {
+                                filtered.add(playableSong)
+                                seenTitles.add(normTitle)
+                                sessionPlayedTitles.add(normTitle)
+                                if (key != null) perArtist[key] = (perArtist[key] ?: 0) + 1
+                                if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, artUrl)
+                                if (genre != null) {
+                                    registerSongGenre(playableSong.id, genre)
+                                    registerSongGenre(playableSong.path, genre)
+                                }
+                            } else {
+                                radioCandidatePool.offer(track)
+                            }
+                        } else {
+                            radioCandidatePool.offer(track)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "RDAMVM radio fetch failed for $ytVideoId: ${e.message}")
+                }
             }
         }
 

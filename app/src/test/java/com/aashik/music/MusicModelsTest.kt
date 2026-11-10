@@ -921,4 +921,34 @@ class MusicModelsTest {
         assertEquals(25200L, ttmlLines[1].timeMs)
         assertEquals("Second line", ttmlLines[1].text)
     }
+
+    @Test
+    fun testRadioTrackStreamMatchingAndDiscrimination() {
+        val repo = com.aashik.music.service.OnlineStreamRepository
+
+        // 1. Exact match with same artist
+        assertTrue(repo.isAccurateMatch("Faded", "Alan Walker", "Faded", "Alan Walker"))
+
+        // 2. YouTube official video noise in title
+        assertTrue(repo.isAccurateMatch("Faded (Official Music Video) [4K]", "Alan Walker", "Faded", "Alan Walker"))
+
+        // 3. Featured artist notation variations
+        assertTrue(repo.isAccurateMatch("Let Me Love You", "DJ Snake feat. Justin Bieber", "Let Me Love You", "DJ Snake, Justin Bieber"))
+
+        // 4. Band collaborations
+        assertTrue(repo.isAccurateMatch("Something Just Like This", "The Chainsmokers", "Something Just Like This", "The Chainsmokers & Coldplay"))
+
+        // 5. CRITICAL: Same title, completely different artist (e.g. English pop vs Bollywood)
+        // Must NEVER match, preventing wrong audio playing under another song's info & lyrics!
+        assertFalse(repo.isAccurateMatch("Stay", "The Kid LAROI, Justin Bieber", "Stay", "Mohit Chauhan"))
+
+        // 6. CRITICAL: Same title, different EDM artist
+        assertFalse(repo.isAccurateMatch("Alone", "Marshmello", "Alone", "Alan Walker"))
+
+        // 7. CRITICAL: Completely different song returned by fuzzy keyword search
+        assertFalse(repo.isAccurateMatch("Night Changes", "One Direction", "Raat Akeli Hai", "Asha Bhosle"))
+
+        // 8. CRITICAL: Generic single-word title with different artist
+        assertFalse(repo.isAccurateMatch("Hero", "Enrique Iglesias", "Hero", "A.R. Rahman"))
+    }
 }
