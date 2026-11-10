@@ -46,3 +46,4 @@ Every screen screenshot from `designScreen/mobile/` has been thoroughly audited,
 ### 2.3 Strict Zero-Red Design Language
 - Under no circumstances may red be used for buttons, scrubbers, hearts, or badges.
 - All active states, selected highlights, and primary actions are rendered in **Ice-Cyan (`#00E5FF`)** or **Pure Titanium White (`#FFFFFF`)** over **Obsidian Dark Canvas (`#0D0F12`)**.
+

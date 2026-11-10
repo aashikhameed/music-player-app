@@ -1,70 +1,50 @@
-# Mobile Album View Specification (`Album.png`)
+# Mobile Album View: Current vs. Target Design & Migration Plan
 
 > **File Reference**: `designScreen/mobile/Album.png`  
-> **Target Viewport Baseline**: iPhone 393pt × 852pt  
-> **Theme**: Obsidian Canvas `#0D0F12`, Liquid Glass Surface Elements, Zero Red.
+> **Target Viewport**: Mobile Portrait (393pt × 852pt)  
+> **Target Style**: Obsidian Dark Canvas (`#0D0F12`), Liquid Glass Action Pills, Zero Red.
 
 ---
 
-## 1. Screen Architecture & Overview
-The Album View provides deep listening immersion for a selected record. It features a collapsible parallax hero artwork header, metadata badge row, editorial album review expandable section, action button grid (Play, Shuffle, Download, Favorite, Share), full indexed tracklist with explicit badges and duration, and album copyright footer details.
+## 1. Current App Screen vs. Screenshot Comparison
+
+| Area / Feature | Current Implementation (`app/ui/MusicListScreen.kt` - Album mode) | Screenshot Target (`designScreen/mobile/Album.png`) | Variance & Gap Analysis |
+| :--- | :--- | :--- | :--- |
+| **Header Presentation** | Compact horizontal bar with basic album name and artist string. | **Collapsible Parallax Hero Header**: Centered `240×240pt` artwork (`r=14pt`), `24sp Bold` title, artist link in Cyan (`#00E5FF`), and `Pop • 2019 • Dolby Atmos • Lossless` format badge row. | **Major Gap**: Replace basic header with rich hero artwork presentation and format badges. |
+| **Editorial Review** | Not present in current codebase. | Expandable album blurb: `"Let's start with that speech..."` with `MORE` inline button to expand full editorial description. | **Major Gap**: Add editorial review expandable card below header. |
+| **Action Buttons** | Floating action buttons or generic menu items. | **Primary Action Row**: Solid White `▶ Play` capsule (`160×44pt`, `r=22pt`) and Frosted Glass `🔀 Shuffle` capsule (`160×44pt`, `r=22pt`), followed by secondary circular icon pills (`Download`, `Favorite`, `Share`). | **Major Gap**: Add dual Play / Shuffle pill buttons and secondary icon actions. |
+| **Tracklist Rows** | Generic song item row (`SongCard.kt`, `68dp` height with embedded thumbnail). | **Numbered Track Rows (`56pt` height, NO thumbnails)**: Column 1: Index number (`1`, `2`, `3` in `14sp SemiBold`). Column 2: Track title + explicit `[E]` badge + featured artist. Column 3: Duration (`3:42`). Column 4: `•••` options. | **Major Gap**: Switch album tracks to clean numbered index rows without redundant thumbnails. |
+| **Album Footer** | Not present. | Release date (`August 23, 2019`), track & duration count (`18 tracks, 1 hour 1 minute`), copyright notice, and `Apple Digital Master` badge logo. | **Gap**: Add album metadata footer at bottom of tracklist. |
 
 ---
 
-## 2. Layout Structure & Detailed Geometry
+## 2. Step-by-Step Migration Plan to Match Screenshot
 
-### 2.1 Navigation Top Bar
-- **Height**: `44pt` (below status bar `44pt`).
-- **Left**: Back Chevron `‹` (`24pt`, White).
-- **Center**: Title appears on scroll collapse (`16sp Bold`, White, alpha animated from `0.0` to `1.0`).
-- **Right**: More Options `•••` pill button + Favorite Star `★`.
+```mermaid
+flowchart TD
+    Step1["Step 1: Album Hero Header\nBuild 240x240pt centered artwork with title, cyan artist link, and Lossless/Dolby badges"] --> Step2["Step 2: Editorial Review Expandable Box\nAdd album review snippet with MORE toggle"]
+    Step2 --> Step3["Step 3: Play & Shuffle Pill Buttons\nImplement solid white Play (160x44pt) and frosted glass Shuffle (160x44pt) capsules"]
+    Step3 --> Step4["Step 4: Clean Numbered Tracklist\nBuild indexed tracklist (56pt rows) with track numbers, titles, explicit tags, and durations"]
+    Step4 --> Step5["Step 5: Album Metadata Footer\nRender release date, track/runtime summary, copyright, and Apple Digital Master badge"]
+```
 
-### 2.2 Hero Album Header
-- **Container**: Centered vertical stack (`Padding: 16pt horizontal, 12pt bottom`).
-- **Album Artwork**:
-  - Dimensions: `240pt × 240pt` square card.
-  - Corner radius: `r=14pt`.
-  - Ambient Shadow: `elevation = 20pt`, blur `28pt`, `rgba(0,0,0,0.45)`.
-  - Border: `1dp rgba(255, 255, 255, 0.12)`.
-- **Album Title**: `The Life Of A Showgirl` (`24sp Bold`, Titanium White, center aligned).
-- **Artist Name**: `Taylor Swift` (`16sp SemiBold`, Ice-Cyan `#00E5FF`, center aligned).
-- **Metadata Badges Row**:
-  - `Pop • 2019 • Dolby Atmos • Lossless`.
-  - Badges: Pill containers `r=4pt`, background `rgba(255, 255, 255, 0.08)`, font `10sp Bold`, color `Slate #94A3B8`.
-
-### 2.3 Editorial Review Expandable Box
-- **Container**: Margin horizontal `16pt`, margin vertical `8pt`.
-- **Text**: `"Let's start with that speech. In September 2022, as Taylor Swift accepted Songwriter-Artist of the Decade..."` (`13.5sp Regular`, Slate `#94A3B8`, max 3 lines collapsed).
-- **Trailing Action**: `MORE` button (`13.5sp Bold`, Ice-Cyan `#00E5FF`). Tapping expands full text.
-
-### 2.4 Action Button Bar
-- **Flex Row (`Height: 46pt, Padding: 16pt horizontal`)**:
-  - **Play Button (Primary)**:
-    - Width: `160pt`, Height: `44pt`, `r=22pt`.
-    - Fill: Pure Titanium White `#FFFFFF`.
-    - Content: Solid black play icon `▶` + `Play` (`15sp Bold`, Obsidian `#0D0F12`).
-  - **Shuffle Button**:
-    - Width: `160pt`, Height: `44pt`, `r=22pt`.
-    - Fill: Translucent Glass `rgba(255, 255, 255, 0.10)`.
-    - Content: White shuffle icon `🔀` + `Shuffle` (`15sp SemiBold`, White).
-  - **Secondary Actions (Icon Pills)**:
-    - Download `⬇`, Favorite `♡`, Share `↗`, More `•••` (`36pt × 36pt` circular glass buttons).
-
-### 2.5 Indexed Tracklist Section
-- **Track Row (`Height: 56pt, Padding: 16pt horizontal`)**:
-  - Hover / Selected Background: `rgba(255, 255, 255, 0.06)` or Cyan glass `rgba(0, 229, 255, 0.10)`.
-  - Column 1: Track Index number (`1`, `2`, `3`... `14sp SemiBold`, Slate `#64748B`, width `28pt`).
-  - Column 2: Track Details (Column):
-    - Title: `The Fate Of Ophelia` (`15sp Medium`, White).
-    - Explicit Tag `[E]`: `16pt × 13pt` pill (`r=2pt`, background `rgba(255, 255, 255, 0.20)`, font `9sp Bold`).
-    - Subtitle / Featured Artist: `feat. Sabrina Carpenter` (`12sp Regular`, Slate `#94A3B8`).
-  - Column 3: Duration (`3:42`, `12sp Regular`, Slate `#64748B`).
-  - Column 4: Context Menu `•••` (`20pt`, Slate `#64748B`).
-  - Divider: `0.8dp rgba(255, 255, 255, 0.06)` inset `44pt` from left.
-
-### 2.6 Album Footer Information
-- **Release Details Box (`Padding: 24pt horizontal, 32pt top/bottom`)**:
-  - Date: `August 23, 2019` (`13sp Medium`, Slate `#94A3B8`).
-  - Stats: `18 tracks, 1 hour 1 minute` (`13sp Regular`, Slate `#64748B`).
-  - Copyright: `© 2019 Taylor Swift` (`11sp Regular`, Slate `#64748B`).
-  - Format Badge: `Apple Digital Master` badge logo.
+### Detailed Implementation Steps:
+1. **Hero Header & Artwork**:
+   - Create `AlbumHeroHeader(album, artist, year, genre, artwork)`:
+   - Box size `240.dp × 240.dp`, corner radius `RoundedCornerShape(14.dp)`.
+   - Title: `Text(album.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)`.
+   - Artist: `Text(album.artist, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF00E5FF))`.
+   - Badges Row: `Row { Text("Pop • 2019 • Dolby Atmos • Lossless", color = Color(0xFF94A3B8), fontSize = 11.sp) }`.
+2. **Editorial Review**:
+   - Create `AlbumEditorialReview(text = album.reviewText)` with `maxLines = 3` and clickable `MORE` cyan text.
+3. **Action Button Row**:
+   - `Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp))`:
+     - Play Button: `Button(colors = ButtonDefaults.buttonColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp))` with black text and play icon.
+     - Shuffle Button: Glass button with white text and shuffle icon.
+4. **Numbered Tracklist**:
+   - Create `AlbumTrackRow(index: Int, song: Song, onPlay: () -> Unit)`:
+     - Index text width `28.dp`, color `Color(0xFF64748B)`.
+     - Title stacked over featured artist.
+     - Duration and options `•••`.
+5. **Album Footer**:
+   - Append release summary at bottom of `LazyColumn`.

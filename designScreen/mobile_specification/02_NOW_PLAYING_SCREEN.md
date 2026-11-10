@@ -1,89 +1,52 @@
-# Mobile Now Playing & Audio Route Specification (`Now Playing.png`)
+# Mobile Now Playing: Current vs. Target Design & Migration Plan
 
 > **File Reference**: `designScreen/mobile/Now Playing.png`  
-> **Target Viewport Baseline**: iPhone 393pt × 852pt  
-> **Theme**: Obsidian Canvas `#0D0F12`, Fluid Mesh Gradient Canvas, Zero Red.
+> **Target Viewport**: Mobile Portrait (393pt × 852pt)  
+> **Target Style**: Obsidian Dark Canvas (`#0D0F12`), Fluid Mesh Canvas, Zero Red.
 
 ---
 
-## 1. Screen Architecture & Overview
-The Now Playing experience on mobile consists of a full-screen modal takeover with multiple contextual states:
-1. **Hero Player View**: Dominant album art card, audio route indicator, track metadata, timeline scrubber, transport controls, and lower action cluster.
-2. **Audio Route Picker (AirPlay / Device Selector)**: Floating glass bottom sheet showing available playback outputs (AirPods Max, iPhone Speaker, MacBook Pro).
-3. **Song Credits & Lyrics View**: Time-synced floating lyrics or detailed production credits (Performing Artists, Vocals, Instruments, Composition).
-4. **Playing Next Queue Sheet**: Draggable up-next queue drawer with song reordering handles and clear queue actions.
+## 1. Current App Screen vs. Screenshot Comparison
+
+| Area / Feature | Current Implementation (`app/ui/DriveModeScreen.kt`, `MobileHeroStage.kt`) | Screenshot Target (`designScreen/mobile/Now Playing.png`) | Variance & Gap Analysis |
+| :--- | :--- | :--- | :--- |
+| **Presentation Mode** | Full-screen activity or view with automotive HUD action bar at top. | **Modal Sheet Takeover** with grab handle `Rectangle 73` (`44×5pt`, `r=2.5pt`) at top center. Pulling down minimizes to mini-player. | **Major Gap**: Transition from fixed HUD screen to swipeable modal sheet takeover with dismiss handle. |
+| **Top Audio Route Pill** | Automotive action buttons (Back, Video, Favorite, Download, Radio, Settings) filling top row. | Centered pill button: `iPhone > AirPods Max` (`32pt` height, `r=16pt`) showing active route and opening AirPlay sheet. | **Major Gap**: Replace automotive action row with centered audio route pill. |
+| **Hero Artwork** | Responsive artwork with vinyl groove disc and floating corner buttons (favorite bottom-left, download bottom-right). | **Clean `335×335pt` Artwork Card** (`r=20pt`) with ambient colored drop shadow and scale animation (`0.85x` paused, `1.0x` playing). Corner buttons removed. | **Major Gap**: Remove floating corner overlays from artwork; move favorite and options into a dedicated row below artwork. |
+| **Metadata & Quality** | Song title and `$artist • $album` subtitle in simple column. | **Track Row with Lossless Badge**: Left: Title (`22sp Bold`) + Artist (`16sp Medium`) + format badge (`LOSSLESS • ALAC 24-bit/48kHz`). Right: Favorite heart + `•••` options pill. | **Major Gap**: Add audio quality pill (`LOSSLESS`) and right-aligned favorite/options buttons. |
+| **Scrubber** | Standard slider with automotive touch target. | Sleek `6pt` scrubber line (`r=3pt`) with Ice-Cyan `#00E5FF` played track, white circular knob, and `-6:10` remaining time format. | **Gap**: Update scrubber geometry, colors, and countdown timestamp formatting. |
+| **Transport Controls** | Horizontal row: Shuffle, Prev (52dp), Play/Pause (64dp), Next (52dp), Repeat. | Transport row: Shuffle, Prev (`28pt`), **Elevated `64pt` Cyan Play Button** (`#00E5FF` circle with black icon), Next (`28pt`), Repeat. | **Gap**: Play button must use solid Ice-Cyan fill with black icon and ambient glow. |
+| **Bottom Utility Strip** | Time display or automotive stats. | **Floating 3-Action Strip**: Lyrics icon `💬` (Left), Connected Device Pill (Center), Up Next Queue icon `☰` (Right). | **Major Gap**: Add bottom utility strip to trigger lyrics sheet, route selector, and queue drawer. |
+| **Drawers & Sheets** | Right-side drawer for queue (`QueueDrawer.kt`). | 1. **AirPlay Device Selector Sheet** (AirPods Max, iPhone Speaker, MacBook Pro)<br>2. **Playing Next Queue Sheet** with drag reordering<br>3. **Song Credits Sheet** (Performing Artists, Instruments, Composition). | **Major Gap**: Build dedicated modal sheets for AirPlay output selection, credits, and draggable queue. |
 
 ---
 
-## 2. Layout Structure & Detailed Geometry
+## 2. Step-by-Step Migration Plan to Match Screenshot
 
-### 2.1 Top Bar & Modal Dismiss Handle
-- **Dismiss Handle (Rectangle 73)**: Width `44pt`, Height `5pt`, `r=2.5pt`, Color `rgba(255, 255, 255, 0.35)`, centered `10pt` from top.
-- **Top Audio Route Pill**:
-  - Container: Centered capsule pill (`Height: 32pt, r=16pt`).
-  - Background: `rgba(255, 255, 255, 0.08)`, Border `1dp rgba(255, 255, 255, 0.12)`.
-  - Icon: Headphones / AirPlay icon (`14pt`).
-  - Text: `iPhone > AirPods Max` (`12sp Medium`, White).
-  - Interaction: Tapping opens the Audio Route Output Sheet.
+```mermaid
+flowchart TD
+    Step1["Step 1: Modal Takeover Architecture\nConvert DriveModeScreen into swipeable modal takeover with top grab handle Rectangle 73"] --> Step2["Step 2: Top Route Indicator\nAdd centered capsule pill displaying 'iPhone > AirPods Max'"]
+    Step2 --> Step3["Step 3: Clean Hero Artwork Stage\nRender 335x335pt card (r=20pt) with ambient shadow and smooth pause scale (0.85x)"]
+    Step3 --> Step4["Step 4: Metadata Row with Lossless Pill\nLeft-align Title & Artist with Lossless badge; place Favorite Heart and Options on right"]
+    Step4 --> Step5["Step 5: Scrubber & Cyan Play Button\nUpdate 6pt scrubber in cyan and 64pt circular cyan play button (#00E5FF) with black icon"]
+    Step5 --> Step6["Step 6: Lower Utility Row & Sheets\nBuild lyrics toggle, queue sheet, and AirPlay device selector drawer"]
+```
 
-### 2.2 Hero Artwork Card
-- **Dimensions**: Square `335pt × 335pt` (or `fillMaxWidth() - 48pt`).
-- **Corner Radius**: `r=20pt`.
-- **Drop Shadow**: Soft ambient colored glow matching artwork (`elevation = 24pt`, blur `36pt`, opacity `0.40`).
-- **Border**: `1dp rgba(255, 255, 255, 0.12)`.
-- **Artwork State**: Smooth scale effect (`0.85x` when paused, `1.0x` when actively playing).
-
-### 2.3 Track Metadata & Action Cluster
-- **Horizontal Flex Row (`Height: 64pt, Padding: 24pt horizontal`)**:
-  - Left Column (Track Info):
-    - Track Title: `The Fate Of Ophelia` (`22sp Bold`, White, max 1 line, ellipsis).
-    - Artist: `Taylor Swift` (`16sp Medium`, Slate `#94A3B8`).
-    - Format Pill: `Lossless • Apple ALAC 24-bit/48kHz` (`10sp SemiBold`, Ice-Cyan `#00E5FF`).
-  - Right Cluster:
-    - Favorite Heart button (`22pt`, Ice-Cyan `#00E5FF` when active, else Slate `#94A3B8`).
-    - More Options `•••` button (`22pt`, Glass circle `32pt × 32pt`).
-
-### 2.4 Timeline Scrubber Track
-- **Geometry**: Width `fillMaxWidth() - 48pt`, Height `6pt`, `r=3pt`.
-- **Played Track**: Solid Ice-Cyan `#00E5FF`.
-- **Unplayed Track**: `rgba(255, 255, 255, 0.18)`.
-- **Scrubber Knob**: White circle `16pt × 16pt`, subtle drop shadow.
-- **Timestamp Labels Row (`Height: 20pt, Margin top: 6pt`)**:
-  - Elapsed: `0:03` (Left, `12sp Regular`, Slate `#64748B`).
-  - Remaining: `-6:10` (Right, `12sp Regular`, Slate `#64748B`).
-
-### 2.5 Transport Controls
-- **Flex Row (`Height: 72pt, Padding horizontal: 24pt`)**:
-  - Shuffle Button (`🔀`): `20pt`, Slate `#94A3B8` (Cyan when active).
-  - Previous Track (`⏮`): `28pt`, Solid Titanium White `#FFFFFF`.
-  - **Center Play/Pause Button**:
-    - Circle: `64pt × 64pt`, `r=32pt`.
-    - Fill: Solid Ice-Cyan `#00E5FF`.
-    - Icon: Solid obsidian black `#0D0F12` play triangle / pause bars (`24pt`).
-    - Glow: Ambient blur `16pt` cyan glow.
-  - Next Track (`⏭`): `28pt`, Solid Titanium White `#FFFFFF`.
-  - Repeat Button (`🔁`): `20pt`, Slate `#94A3B8` (Cyan when active).
-
-### 2.6 Volume Slider & Lower Bottom Cluster
-- **Volume Slider**: Width `fillMaxWidth() - 48pt`, height `4pt`, flanked by low/high speaker icons.
-- **Lower Action Pill Bar (`Height: 48pt`)**:
-  - Lyrics Trigger (`💬`): Highlights cyan when lyrics sheet is open.
-  - Audio Route Output Pill: Centered button showing active connected device.
-  - Up Next Queue Trigger (`☰`): Highlights cyan when queue drawer is open.
-
----
-
-## 3. Modal Overlays & Drawers
-
-### 3.1 Audio Route Selector (AirPlay Drawer)
-- Glass Card: `fillMaxWidth() - 32pt`, corner radius `r=24pt`, backdrop blur `30pt`.
-- Device List Items (`Height: 52pt` each):
-  - Device 1: `AirPods Max` (Selected checkmark, Cyan `#00E5FF`).
-  - Device 2: `iPhone Speaker` (`15sp Regular`, White).
-  - Device 3: `John's MacBook Pro` (`15sp Regular`, White).
-
-### 3.2 Playing Next Queue Drawer
-- **Header**: `Playing Next` (`17sp Bold`), Clear button (`14sp Medium`, Slate `#94A3B8`).
-- **Track Rows (`Height: 56pt` each)**:
-  - Drag Handle: 3-bar icon `☰` on right edge.
-  - Track Title (`14sp SemiBold`, White), Artist (`12sp Regular`, Slate `#94A3B8`).
+### Detailed Implementation Steps:
+1. **Modal Sheet Container**:
+   - Wrap in `Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0D0F12)))`.
+   - Add top dismiss handle `Box(modifier = Modifier.width(44.dp).height(5.dp).clip(RoundedCornerShape(2.5.dp)).background(Color.White.copy(alpha = 0.35f)))`.
+2. **Audio Route Pill**:
+   - Implement `AudioRoutePill(activeDevice = "AirPods Max", onClick = { showRouteSheet = true })`.
+3. **Hero Artwork**:
+   - Remove floating download/favorite buttons from the artwork corners.
+   - Animate scale: `val scale by animateFloatAsState(if (isPlaying) 1f else 0.86f)`.
+4. **Metadata & Quality Badge**:
+   - Layout title (`22.sp Bold`, White) and artist (`16.sp Medium`, Slate `#94A3B8`).
+   - Add badge `Text("LOSSLESS • ALAC 24-bit/48kHz", color = Color(0xFF00E5FF), fontSize = 10.sp, fontWeight = FontWeight.Bold)`.
+   - Right: Favorite heart icon and options `•••`.
+5. **Transport Cluster**:
+   - Set Play/Pause circle size to `64.dp`, background `Color(0xFF00E5FF)`, icon color `Color(0xFF0D0F12)`.
+6. **Sheets & Drawers**:
+   - Build `AirPlayRouteSheet` listing audio endpoints with battery percentages.
+   - Build `PlayingNextSheet` with draggable queue rows and clear queue trigger.

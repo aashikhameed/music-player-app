@@ -1,74 +1,53 @@
-# Mobile Home Screen Specification (`Home.png`)
+# Mobile Home Screen: Current vs. Target Design & Migration Plan
 
 > **File Reference**: `designScreen/mobile/Home.png`  
-> **Target Viewport Baseline**: iPhone 393pt × 852pt (3x retina: 1179 × 2556px)  
-> **Theme**: Obsidian Dark Canvas (`#0D0F12`), Liquid Glass Overlays, Zero Red.
+> **Target Viewport**: Mobile Portrait (393pt × 852pt)  
+> **Target Style**: Obsidian Dark Canvas (`#0D0F12`), Liquid Glass Overlays (`kyant.gitbook.io/backdrop`), Zero Red.
 
 ---
 
-## 1. Screen Architecture & Overview
-The Home Screen serves as the primary personalized discovery hub for mobile users. It features dynamic featured hero cards, personalized mood playlists, horizontal carousels for "Top Picks for You", "Recently Played", and "Hits in Spatial Audio", floating above an ambient liquid glass background with the sticky mini-player dock and tab bar at the bottom.
+## 1. Current App Screen vs. Screenshot Comparison
+
+| Area / Feature | Current Implementation (`app/ui/MusicListScreen.kt`, `MediaLibraryContent.kt`) | Screenshot Target (`designScreen/mobile/Home.png`) | Variance & Gap Analysis |
+| :--- | :--- | :--- | :--- |
+| **Canvas & Theme** | Flat solid surface (`#090C12`), automotive high-contrast dark theme without backdrop shaders. | Dynamic liquid mesh background with animated organic vector blobs behind frosted acrylic panes. | **Major Gap**: Requires liquid backdrop container with subtle morphing ambient mesh. |
+| **Top Navigation** | Standard `CommonTopBar` with search input and automotive filter chip buttons. | Large `Home` title (`34sp Bold`, White) with circular profile avatar pill (`36×36pt`, `JS`). Search is its own tab. | **Major Gap**: Replace search bar at top of Home with Large Title header and user avatar. Move search into bottom navigation tab. |
+| **Hero Card** | No featured hero banner; library starts directly with category tabs. | Large `Mood for You: Relax` hero card (`345×220pt`, `r=18pt`) with bottom-to-top gradient scrim, cyan eyebrow badge (`FEATURED PLAYLIST`), and featured artist blurb. | **Major Gap**: Add swipeable hero banner carousel at the top of Home. |
+| **Sections & Feeds** | Vertical song list / table with alphabet fast-scroller. | Modular horizontal carousels: <br>1. **"Top Picks for you"** (`150×210pt` cards, `r=10pt`)<br>2. **"Recently Played"** (2-row horizontal grid of `150×150pt` cards)<br>3. **"Hits in Spatial Audio"** | **Major Gap**: Switch from flat vertical list to horizontal snapping carousels and multi-row album grids. |
+| **Mini-Player Dock** | Full-width bottom bar (`AndroidAutoBottomBar`) docked to screen bottom edge with micro-scrubber. | **Floating Pill Capsule Dock** (`361×56pt`, `r=28pt`) floating `10pt` above navigation bar, with `40×40pt` artwork (`r=6pt`), title, artist, cyan play button, and next track. | **Major Gap**: Detach bar from edge; convert to elevated floating capsule with liquid glass backdrop blur. |
+| **Bottom Navigation Bar** | Standard Material 3 `NavigationBar` (80dp height) docked to bottom edge. | **Floating Glass Capsule Navigation Bar** (`361×54pt`, `r=27pt`) floating `16pt` above home indicator with 5 tabs: `Home`, `New`, `Radio`, `Library`, `Search`. | **Major Gap**: Implement floating glass capsule bottom navigation with 5 Apple Music tabs. |
 
 ---
 
-## 2. Layout Structure & Geometry (Top to Bottom)
+## 2. Step-by-Step Migration Plan to Match Screenshot
 
-### 2.1 Top System Status & Navigation Bar
-- **Status Bar**:
-  - Height: `44pt` (Dynamic Island / Notch clearance).
-  - Time: `9:41` (Left aligned, `15sp SemiBold`, White).
-  - Cellular, Wi-Fi, Battery indicators: Right aligned (`16pt` margin).
-- **Navigation Header (`Height: 52pt`)**:
-  - Left Title: `Home` (`34sp Bold`, Titanium White `#FFFFFF`).
-  - Right Action: User Profile Pill / Account Avatar (`36pt × 36pt` circular glass button with border `1dp rgba(255, 255, 255, 0.15)`).
+```mermaid
+flowchart TD
+    Step1["Step 1: Container & Root Background\nWrap screen in LiquidBackdropContainer with dark obsidian canvas (#0D0F12)"] --> Step2["Step 2: Top Navigation Header\nReplace CommonTopBar with Large Title 'Home' (34sp Bold) and User Profile Button"]
+    Step2 --> Step3["Step 3: Featured Hero Banner Carousel\nImplement swipeable 345x220pt hero card with gradient scrim and cyan badges"]
+    Step3 --> Step4["Step 4: Horizontal Content Sections\nBuild 'Top Picks for you' carousel and 'Recently Played' 2-row horizontal grid"]
+    Step4 --> Step5["Step 5: Floating Mini-Player Capsule Dock\nFloat 361x56pt capsule (r=28pt) 10pt above navigation bar with cyan play button"]
+    Step5 --> Step6["Step 6: Floating Glass Navigation Bar\nFloat 361x54pt pill (r=27pt) with 5 tabs (Home, New, Radio, Library, Search)"]
+```
 
-### 2.2 Featured Hero Carousel ("Mood for You" / Top Pick)
-- **Container**: Horizontal snap carousel (`fillMaxWidth()`, item width `345pt`, height `220pt`).
-- **Margins**: `16pt` horizontal, `12pt` top spacing below large title.
-- **Card Styling**:
-  - Corner radius: `r=18pt`.
-  - Background: Full-bleed artwork with bottom-to-top scrim gradient (`rgba(0,0,0,0.85)` at bottom to `transparent` at 45% height).
-  - Top Badge: `FEATURED PLAYLIST` (`11sp Bold`, Tracking `1sp`, Ice-Cyan `#00E5FF`).
-  - Hero Title: `Mood for You: Relax` (`24sp Bold`, White).
-  - Subtitle: `Featuring Taylor Swift, Billie Eilish, Sabrina Carpenter` (`13sp Regular`, Slate `#94A3B8`).
-
-### 2.3 Section 1: "Top Picks for you"
-- **Header Row (`Height: 40pt`)**:
-  - Section Title: `Top Picks for you` (`20sp Bold`, White).
-  - Accessory Chevron: `›` (`18sp SemiBold`, Slate `#64748B`).
-- **Horizontal Scroll Carousel**:
-  - Item Dimensions: Width `150pt`, Height `210pt`.
-  - Item Gap: `14pt`, Content Padding: `16pt` start/end.
-  - Artwork Box: `150pt × 150pt` square, corner radius `r=10pt`, subtle drop shadow.
-  - Album Title: `Speak Now (Taylor's Version)` (`14sp SemiBold`, White, max 1 line, ellipsis).
-  - Artist / Type: `Taylor Swift • 2023` (`12sp Regular`, Slate `#94A3B8`).
-
-### 2.4 Section 2: "Recently Played"
-- **Header Row (`Height: 40pt`)**:
-  - Section Title: `Recently Played` (`20sp Bold`, White).
-  - Trailing Action: `›` chevron.
-- **2-Row Horizontal Scroll Grid**:
-  - Two rows of tracks / albums scrolling horizontally.
-  - Card Dimensions: `150pt × 150pt`.
-  - Sample Items: `The Fate Of Ophelia`, `Hits in Spatial Audio`, `1989 (Taylor's Version)`.
-
-### 2.5 Sticky Floating Mini-Player Dock
-- **Dimensions**: Width `fillMaxWidth() - 32pt` (e.g. `361pt`), Height `56pt`, Margin bottom `10pt` above tab bar.
-- **Corner Radius**: `r=28pt` (Complete floating pill).
-- **Glass Effect**: Liquid glass backdrop blur (`30pt`), fill `rgba(20, 22, 26, 0.85)`, border `1dp rgba(255, 255, 255, 0.15)`.
-- **Content Row**:
-  - Thumbnail: `40pt × 40pt`, `r=6pt`, left margin `8pt`.
-  - Title: `The Fate Of Ophelia` (`13.5sp Bold`, White).
-  - Artist: `Taylor Swift` (`11.5sp Regular`, Slate `#94A3B8`).
-  - Right Controls: Play/Pause button (`32pt` circle, Cyan `#00E5FF`) + Next Track (`⏭`, White).
-
-### 2.6 Bottom Floating Glass Navigation Bar
-- **Dimensions**: Width `fillMaxWidth() - 32pt`, Height `54pt`, Bottom margin `16pt` (above home indicator).
-- **Shape**: Rounded capsule `r=27pt`.
-- **Glass Fill**: Translucent frosted glass `rgba(18, 20, 24, 0.88)` with specular top hairline rim.
-- **Tabs (5 items)**:
-  1. `Home` (Active: Ice-Cyan `#00E5FF`, filled icon, `10sp SemiBold`).
-  2. `New` (Inactive: Slate `#94A3B8`, outlined icon, `10sp Regular`).
-  3. `Radio` (Inactive: Slate `#94A3B8`).
-  4. `Library` (Inactive: Slate `#94A3B8`).
-  5. `Search` (Inactive: Slate `#94A3B8`).
+### Detailed Implementation Steps:
+1. **Container & Background**:
+   - Wrap the screen in `DesktopLiquidContainer` / `MobileLiquidContainer`.
+   - Apply base obsidian color `Color(0xFF0D0F12)` with animated ambient cyan/indigo gradients.
+2. **Top Navigation Header**:
+   - Remove search input from the top of the Home screen.
+   - Render `Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))` with `Text("Home", style = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color.White))` and circular profile button.
+3. **Hero Featured Banner**:
+   - Create composable `FeaturedHeroBanner(item, onClick)`.
+   - Card dimensions: `width = 345.dp`, `height = 220.dp`, shape `RoundedCornerShape(18.dp)`.
+   - Include cyan badge `Text("FEATURED PLAYLIST", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)`.
+4. **Content Sections**:
+   - Build reusable `SectionHeader(title = "Top Picks for you", onSeeAll = { ... })`.
+   - Build `LazyRow` carousels for albums and playlists with `150.dp × 150.dp` thumbnails (`r=10.dp`).
+5. **Floating Mini-Player Capsule**:
+   - Anchor `MobileGlassMiniPlayer` `10.dp` above the bottom bar.
+   - Geometry: `height = 56.dp`, shape `RoundedCornerShape(28.dp)`, liquid glass backdrop blur `30.dp`.
+   - Add Ice-Cyan play/pause button (`32.dp` circle) and next track button.
+6. **Floating Bottom Navigation Bar**:
+   - Implement `MobileGlassBottomNavBar` with 5 items: `Home`, `New`, `Radio`, `Library`, `Search`.
+   - Active tab tinted Ice-Cyan `#00E5FF`, inactive tabs Slate `#94A3B8`.
