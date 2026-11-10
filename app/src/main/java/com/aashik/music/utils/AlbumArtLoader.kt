@@ -11,7 +11,9 @@ private fun isDirectImageUrl(url: String): Boolean {
 
 fun loadAlbumArt(path: String, artworkUrl: String? = null): Bitmap? {
     if (path.startsWith("http://") || path.startsWith("https://")) {
-        val artUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path) ?: if (isDirectImageUrl(path)) path else null
+        val artUrl = com.aashik.music.cache.AlbumArtCache.getStreamArtwork(path)
+            ?: artworkUrl?.takeIf { it.isNotBlank() }
+            ?: if (isDirectImageUrl(path)) path else null
         return if (artUrl != null) loadRemoteBitmap(artUrl, targetSize = 64) else null
     }
     var retriever: MediaMetadataRetriever? = null

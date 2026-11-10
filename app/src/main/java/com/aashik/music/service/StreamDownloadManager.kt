@@ -500,10 +500,21 @@ object StreamDownloadManager {
         downloadScope.launch {
             _downloadStates.update { it + (song.id to DownloadStatus.Downloading(0.01f)) }
 
+            val songToDownload = if (song.isStream() && !song.isDirectPlayable()) {
+                val resolved = OnlineStreamRepository.resolvePlayableSong(song)
+                if (!resolved.isDirectPlayable()) {
+                    _downloadStates.update { it + (song.id to DownloadStatus.Failed("Song cannot be downloaded")) }
+                    return@launch
+                }
+                resolved
+            } else {
+                song
+            }
+
             val illegalChars = Regex("""[\\\\/:*?"<>|\r\n\t]""")
-            val cleanTitle = song.title.replace(illegalChars, " ").replace(Regex("""\s+"""), " ").trim().take(60)
-            val cleanArtist = song.artist.replace(illegalChars, " ").replace(Regex("""\s+"""), " ").trim().take(40)
-            val ext = if (song.path.contains(".mp3", ignoreCase = true)) "mp3" else "m4a"
+            val cleanTitle = songToDownload.title.replace(illegalChars, " ").replace(Regex("""\s+"""), " ").trim().take(60)
+            val cleanArtist = songToDownload.artist.replace(illegalChars, " ").replace(Regex("""\s+"""), " ").trim().take(40)
+            val ext = if (songToDownload.path.contains(".mp3", ignoreCase = true)) "mp3" else "m4a"
             val fileName = if (cleanArtist.isNotBlank() && cleanArtist != "Unknown Artist" && cleanArtist != "<unknown>") {
                 "$cleanTitle - $cleanArtist.$ext"
             } else {
@@ -517,11 +528,11 @@ object StreamDownloadManager {
             val activeDir = getDownloadsDir(context)
             val existingCheck = File(activeDir, fileName)
             if (!forceRedownload && existingCheck.exists() && existingCheck.length() > 20_000L) {
-                val localSong = createLocalSong(song, existingCheck)
+                val localSong = createLocalSong(songToDownload, existingCheck)
                 songDao.insert(localSong)
-                persistDownloadedRecord(context, song, existingCheck.absolutePath)
+                persistDownloadedRecord(context, songToDownload, existingCheck.absolutePath)
                 _downloadStates.update {
-                    it + (song.id to DownloadStatus.Downloaded) + (localSong.id to DownloadStatus.Downloaded)
+                    it + (song.id to DownloadStatus.Downloaded) + (songToDownload.id to DownloadStatus.Downloaded) + (localSong.id to DownloadStatus.Downloaded)
                 }
                 withContext(Dispatchers.Main) { onSongDownloaded(localSong) }
                 return@launch
@@ -536,7 +547,7 @@ object StreamDownloadManager {
 
             try {
                 if (stageFile.exists()) stageFile.delete()
-                val conn = openConnectionWithRedirects(song.path)
+                val conn = openConnectionWithRedirects(songToDownload.path)
                 val totalBytes = conn.contentLengthLong.coerceAtLeast(1L)
                 var downloadedBytes = 0L
                 var lastProgressReportMs = System.currentTimeMillis()
@@ -555,7 +566,7 @@ object StreamDownloadManager {
                             if (progress - lastReportedProgress >= 0.05f || (now - lastProgressReportMs >= 250 && progress > lastReportedProgress)) {
                                 lastReportedProgress = progress
                                 lastProgressReportMs = now
-                                _downloadStates.update { it + (song.id to DownloadStatus.Downloading(progress)) }
+                                _downloadStates.update { it + (song.id to DownloadStatus.Downloading(progress)) + (songToDownload.id to DownloadStatus.Downloading(progress)) }
                             }
                         }
                         output.flush()
@@ -568,7 +579,7 @@ object StreamDownloadManager {
                 }
 
                 // Pre-embed ID3 / MP4 container metadata and album art inside private cache where POSIX write is 100% permitted
-                saveArtworkAndMetadataForDownload(context, song, stageFile, ext)
+                saveArtworkAndMetadataForDownload(context, songToDownload, stageFile, ext)
                 stageSuccess = true
             } catch (e: Exception) {
                 Log.w(TAG, "Staged download or tagging failed: ${e.message}")
@@ -588,7 +599,7 @@ object StreamDownloadManager {
                         targetFile = publishFileToMediaStore(
                             context = context,
                             sourceFile = stageFile,
-                            song = song,
+                            song = songToDownload,
                             fileName = fileName,
                             ext = ext,
                             subDir = subDirName
@@ -628,7 +639,7 @@ object StreamDownloadManager {
 
             val savedFile = targetFile
             if (savedFile != null && savedFile.exists() && savedFile.length() > 20_000L) {
-                val artBmp = AlbumArtCache.get(song.path) ?: AlbumArtCache.get(stageFile.absolutePath)
+                val artBmp = AlbumArtCache.get(songToDownload.path) ?: AlbumArtCache.get(song.path) ?: AlbumArtCache.get(stageFile.absolutePath)
                 if (artBmp != null) {
                     AlbumArtCache.saveCustomArt(context, savedFile.absolutePath, artBmp)
                     try {
@@ -641,9 +652,9 @@ object StreamDownloadManager {
                         }
                     } catch (_: Exception) {}
                 }
-                val localSong = createLocalSong(song, savedFile)
+                val localSong = createLocalSong(songToDownload, savedFile)
                 songDao.insert(localSong)
-                persistDownloadedRecord(context, song, savedFile.absolutePath)
+                persistDownloadedRecord(context, songToDownload, savedFile.absolutePath)
 
                 // Notify Android MediaStore of new audio file in public storage
                 try {
@@ -656,7 +667,7 @@ object StreamDownloadManager {
                 } catch (_: Exception) {}
 
                 _downloadStates.update {
-                    it + (song.id to DownloadStatus.Downloaded) + (localSong.id to DownloadStatus.Downloaded)
+                    it + (song.id to DownloadStatus.Downloaded) + (songToDownload.id to DownloadStatus.Downloaded) + (localSong.id to DownloadStatus.Downloaded)
                 }
 
                 withContext(Dispatchers.Main) {
@@ -666,14 +677,16 @@ object StreamDownloadManager {
                 val errorMsg = lastError ?: "Download failed: storage unavailable"
                 Log.e(TAG, "Download failed for ${song.title}: $errorMsg")
                 _downloadStates.update {
-                    it + (song.id to DownloadStatus.Failed(errorMsg))
+                    it + (song.id to DownloadStatus.Failed(errorMsg)) + (songToDownload.id to DownloadStatus.Failed(errorMsg))
                 }
             }
         }
     }
 
     private fun saveArtworkAndMetadataForDownload(context: Context, song: Song, savedFile: File, ext: String) {
-        val artUrl = song.artworkUrl?.takeIf { it.isNotBlank() } ?: AlbumArtCache.getStreamArtwork(song.path)
+        val artUrl = song.artworkUrl?.takeIf { it.isNotBlank() }
+            ?: AlbumArtCache.getStreamArtwork(song.path)
+            ?: AlbumArtCache.getStreamArtwork(song.id)
         var artBytes: ByteArray? = null
 
         if (!artUrl.isNullOrBlank()) {

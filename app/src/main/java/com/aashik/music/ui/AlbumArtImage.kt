@@ -74,7 +74,7 @@ fun AlbumArtImage(
         AlbumArtCache.registerStreamArtwork(path, artworkUrl, context)
     }
 
-    var bitmap by remember(path, isHighRes) {
+    var bitmap by remember(path, artworkUrl, isHighRes) {
         mutableStateOf<Bitmap?>(
             if (isHighRes) AlbumArtCache.getHighRes(path) ?: AlbumArtCache.get(path)
             else AlbumArtCache.get(path)

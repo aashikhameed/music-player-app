@@ -1279,7 +1279,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun downloadSong(song: Song, force: Boolean = false) {
         val app = getApplication<Application>()
-        StreamDownloadManager.downloadSong(app, song, songDao, forceRedownload = force) { downloadedSong ->
+        val target = if (_currentSong.value?.id == song.id) (_currentSong.value ?: song) else song
+        StreamDownloadManager.downloadSong(app, target, songDao, forceRedownload = force) { downloadedSong ->
             viewModelScope.launch(Dispatchers.Main) {
                 if (originalSongs.none { it.id == downloadedSong.id }) {
                     originalSongs = (originalSongs + downloadedSong).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
@@ -1999,8 +2000,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     _isRadioLoading.value = false
                     if (_currentSong.value?.id == song.id) {
                         _currentSong.value = resolved
+                        _navigatingTrack.value = _navigatingTrack.value.copy(song = resolved)
                         activePlaylist = activePlaylist.map { if (it.id == song.id) resolved else it }
                         _songs.value = _songs.value.map { if (it.id == song.id) resolved else it }
+                        _userQueue.value = _userQueue.value.map { if (it.id == song.id) resolved else it }
+                        musicPlayer.userQueue = _userQueue.value
+                        MusicController.play(resolved)
                         if (resolved.title != song.title || resolved.artist != song.artist) {
                             fetchLyricsForSong(resolved)
                         }

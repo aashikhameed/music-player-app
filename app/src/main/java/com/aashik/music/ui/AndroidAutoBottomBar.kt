@@ -160,7 +160,7 @@ fun AndroidAutoBottomBar(
                         },
                         label = "DockArtworkTransition"
                     ) { track ->
-                        val song = track.song
+                        val song = if (currentSong?.id == track.song?.id) (currentSong ?: track.song) else (track.song ?: currentSong)
                         if (song != null) {
                             AlbumArtImage(
                                 path         = song.path,
@@ -230,7 +230,7 @@ fun AndroidAutoBottomBar(
                             label = "DockMetadataTransition",
                             modifier = Modifier.weight(1f, fill = false)
                         ) { track ->
-                            val song = track.song
+                            val song = if (currentSong?.id == track.song?.id) (currentSong ?: track.song) else (track.song ?: currentSong)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)

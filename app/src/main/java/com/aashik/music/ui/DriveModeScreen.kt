@@ -701,7 +701,7 @@ fun DriveModeScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 24.dp, vertical = 2.dp)
                             ) { track ->
-                                val song = track.song ?: currentSong
+                                val song = if (currentSong?.id == track.song?.id) (currentSong ?: track.song) else (track.song ?: currentSong)
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier.fillMaxWidth()
@@ -849,7 +849,7 @@ fun DriveModeScreen(
                                         },
                                         label = "DriveHudArtworkTransition"
                                     ) { track ->
-                                        val song = track.song
+                                        val song = if (currentSong?.id == track.song?.id) (currentSong ?: track.song) else (track.song ?: currentSong)
                                         if (song != null) {
                                             AlbumArtImage(
                                                 path = song.path,
@@ -944,7 +944,7 @@ fun DriveModeScreen(
                                                 label = "DriveHudTypographyTransition",
                                                 modifier = Modifier.fillMaxWidth()
                                             ) { track ->
-                                                val song = track.song
+                                                val song = if (currentSong?.id == track.song?.id) (currentSong ?: track.song) else (track.song ?: currentSong)
                                                 Column(
                                                     horizontalAlignment = Alignment.Start,
                                                     verticalArrangement = Arrangement.Center

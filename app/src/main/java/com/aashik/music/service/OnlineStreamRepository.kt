@@ -185,6 +185,8 @@ object OnlineStreamRepository {
                 val art = if (!best.artworkUrl.isNullOrBlank()) best.artworkUrl else song.artworkUrl
                 if (!art.isNullOrBlank()) {
                     com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(best.path, art)
+                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.path, art)
+                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.id, art)
                 }
                 val resolvedSong = song.copy(
                     title = if (best.title.isNotBlank()) best.title else song.title,
@@ -514,7 +516,12 @@ object OnlineStreamRepository {
                 if (playableSong.isDirectPlayable()) {
                     sessionPlayedTitles.add(normTitle)
                     if (key != null) perArtist[key] = (perArtist[key] ?: 0) + 1
-                    if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, artUrl)
+                    val finalArt = playableSong.artworkUrl?.takeIf { it.isNotBlank() } ?: artUrl
+                    if (!finalArt.isNullOrBlank()) {
+                        com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, finalArt)
+                        com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(unplayableSong.path, finalArt)
+                        com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(unplayableSong.id, finalArt)
+                    }
                     if (genre != null) {
                         registerSongGenre(playableSong.id, genre)
                         registerSongGenre(playableSong.path, genre)
@@ -707,7 +714,12 @@ object OnlineStreamRepository {
                                 seenTitles.add(normTitle)
                                 sessionPlayedTitles.add(normTitle)
                                 if (key != null) perArtist[key] = (perArtist[key] ?: 0) + 1
-                                if (artUrl.isNotBlank()) com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, artUrl)
+                                val finalArt = playableSong.artworkUrl?.takeIf { it.isNotBlank() } ?: artUrl
+                                if (!finalArt.isNullOrBlank()) {
+                                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, finalArt)
+                                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(unplayableSong.path, finalArt)
+                                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(unplayableSong.id, finalArt)
+                                }
                                 if (genre != null) {
                                     registerSongGenre(playableSong.id, genre)
                                     registerSongGenre(playableSong.path, genre)

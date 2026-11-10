@@ -165,7 +165,7 @@ fun MobileHeroStage(
                     },
                     label = "MobileHeroArtTransition"
                 ) { navState ->
-                    val song = navState.song ?: currentSong
+                    val song = if (currentSong?.id == navState.song?.id) (currentSong ?: navState.song) else (navState.song ?: currentSong)
                     if (song != null) {
                         AlbumArtImage(
                             path = song.path,
