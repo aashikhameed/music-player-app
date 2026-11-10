@@ -426,6 +426,19 @@ fun DesktopMainView() {
                                     }
                                 )
                             }
+
+                            else -> {
+                                DesktopLibraryTable(
+                                    songs = filteredSongs,
+                                    currentSong = currentSong,
+                                    favoriteIds = favoriteIds.toSet(),
+                                    onToggleFavorite = { song ->
+                                        if (favoriteIds.contains(song.id)) favoriteIds.remove(song.id)
+                                        else favoriteIds.add(song.id)
+                                    },
+                                    onPlaySong = { s, q -> playSong(s, q) }
+                                )
+                            }
                         }
                     }
                 }
