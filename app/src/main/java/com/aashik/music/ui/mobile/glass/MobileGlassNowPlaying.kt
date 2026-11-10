@@ -369,3 +369,4 @@ private fun formatTimeMs(ms: Long): String {
     val seconds = totalSeconds % 60
     return String.format("%d:%02d", minutes, seconds)
 }
+
