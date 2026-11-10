@@ -2,12 +2,17 @@ package com.aashik.music.desktop.ui
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Cancel
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,6 +20,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,20 +42,35 @@ import java.io.File
 fun DesktopMainView() {
     val scope = rememberCoroutineScope()
 
-    var currentScreen by remember { mutableStateOf(DesktopScreen.LIBRARY) }
+    var currentScreen by remember { mutableStateOf(DesktopScreen.NOW_PLAYING) }
+    var screenHistory by remember { mutableStateOf(listOf(DesktopScreen.NOW_PLAYING)) }
+
     var songs by remember { mutableStateOf<List<DesktopSong>>(emptyList()) }
     var queue by remember { mutableStateOf<List<DesktopSong>>(emptyList()) }
     var currentSong by remember { mutableStateOf<DesktopSong?>(null) }
     var lyrics by remember { mutableStateOf<List<DesktopLyricLine>>(emptyList()) }
     val favoriteIds = remember { mutableStateListOf<String>() }
+    val favoriteCategoryIds = remember { mutableStateListOf<String>() }
+    val favoriteStationIds = remember { mutableStateListOf<String>() }
 
     var isQueueOpen by remember { mutableStateOf(false) }
     var isSearchOpen by remember { mutableStateOf(false) }
     var isShuffleOn by remember { mutableStateOf(false) }
     var isRepeatOn by remember { mutableStateOf(false) }
+
+    var isRadioMode by remember { mutableStateOf(false) }
+    var radioSeed by remember { mutableStateOf<DesktopSong?>(null) }
     var isRadioLoading by remember { mutableStateOf(false) }
 
     var searchQuery by remember { mutableStateOf("") }
+
+    // Helper: switch screen and track navigation history
+    fun navigateTo(screen: DesktopScreen) {
+        if (currentScreen != screen) {
+            screenHistory = screenHistory + screen
+            currentScreen = screen
+        }
+    }
 
     // Play track helper
     fun playSong(song: DesktopSong, newQueue: List<DesktopSong>? = null) {
@@ -61,15 +84,52 @@ fun DesktopMainView() {
         }
     }
 
+    // Refill radio queue when running low
+    fun checkAndRefillRadioQueue() {
+        if (!isRadioMode) return
+        val seed = radioSeed ?: currentSong ?: return
+        scope.launch {
+            val more = DesktopOnlineRepository.fetchRadioQueue(seed, limit = 15)
+            val existingIds = queue.map { it.id }.toSet()
+            val newItems = more.filter { it.id != currentSong?.id && !existingIds.contains(it.id) }
+            if (newItems.isNotEmpty()) {
+                queue = queue + newItems
+            }
+        }
+    }
+
     // Play next track
     fun playNext() {
         if (queue.isNotEmpty()) {
             val next = if (isShuffleOn) queue.random() else queue.first()
             queue = queue.filter { it.id != next.id }
             playSong(next)
+            if (isRadioMode && queue.size < 3) {
+                checkAndRefillRadioQueue()
+            }
         } else if (isRepeatOn && currentSong != null) {
             DesktopAudioPlayer.seekTo(0L)
             DesktopAudioPlayer.resume()
+        } else if (isRadioMode) {
+            checkAndRefillRadioQueue()
+        }
+    }
+
+    // Start Continuous Algorithmic Radio for any song
+    fun startRadioForSong(seed: DesktopSong) {
+        isRadioMode = true
+        radioSeed = seed
+        isRadioLoading = true
+        scope.launch {
+            val rQueue = DesktopOnlineRepository.fetchRadioQueue(seed, limit = 20)
+            isRadioLoading = false
+            if (rQueue.isNotEmpty()) {
+                if (currentSong?.id == seed.id) {
+                    queue = rQueue
+                } else {
+                    playSong(seed, rQueue)
+                }
+            }
         }
     }
 
@@ -107,75 +167,155 @@ fun DesktopMainView() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF090C12))
+            .background(AppleMusicBg)
     ) {
-        // ─── DESKTOP UPPER BODY: SIDEBAR + MAIN CONTENT + RIGHT DRAWER ────────
+        // ─── UPPER BODY: SIDEBAR + MAIN CONTENT + RIGHT DRAWER ─────────────
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            // 1. Fixed Left Navigation Sidebar
+            // 1. Apple Music Left Navigation Sidebar
             DesktopSidebar(
                 currentScreen = currentScreen,
-                onSelectScreen = { currentScreen = it },
+                onSelectScreen = { navigateTo(it) },
                 songCount = songs.size,
                 favoriteCount = favoriteIds.size,
                 folderCount = folderCount
             )
 
-            // 2. Main Content Stage
+            // 2. Main Content Canvas
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .background(Color(0xFF0C0E14))
+                    .background(AppleMusicBg)
             ) {
-                // Desktop Header (Search Bar + Clock)
+                // Apple Music Header Bar (Navigation Arrows + Search Box + System Clock)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(52.dp)
                         .padding(horizontal = 24.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Search Field
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search title, artist, album...", fontSize = 13.sp, color = Color(0xFF64748B)) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(20.dp),
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Search, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(18.dp))
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                if (searchQuery.isNotBlank()) {
-                                    scope.launch {
-                                        val results = DesktopOnlineRepository.searchSongs(searchQuery)
-                                        if (results.isNotEmpty()) {
-                                            songs = results
-                                            currentScreen = DesktopScreen.LIBRARY
-                                        }
+                    // Left: macOS Navigation History Arrows
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(AppleMusicSurface)
+                                .clickable {
+                                    if (screenHistory.size > 1) {
+                                        val prev = screenHistory[screenHistory.size - 2]
+                                        screenHistory = screenHistory.dropLast(1)
+                                        currentScreen = prev
                                     }
-                                }
-                            }
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFF141822),
-                            unfocusedContainerColor = Color(0xFF141822),
-                            focusedBorderColor = Color(0xFF00E5FF),
-                            unfocusedBorderColor = Color(0xFF222938),
-                            focusedTextColor = Color(0xFFF1F5F9),
-                            unfocusedTextColor = Color(0xFFF1F5F9)
-                        ),
-                        modifier = Modifier.width(320.dp).height(42.dp)
-                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronLeft,
+                                contentDescription = "Back",
+                                tint = if (screenHistory.size > 1) AppleMusicTextPrimary else AppleMusicTextTertiary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
 
-                    // Desktop System Time
-                    DesktopClock(textColor = Color(0xFF94A3B8))
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(AppleMusicSurface),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronRight,
+                                contentDescription = "Forward",
+                                tint = AppleMusicTextTertiary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Center: Apple Music Search Input (TEXT 100% VISIBLE WITH EXPLICIT STYLING)
+                    Box(
+                        modifier = Modifier
+                            .width(340.dp)
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(AppleMusicCard)
+                            .border(1.dp, AppleMusicBorderSubtle, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = null,
+                                tint = AppleMusicTextTertiary,
+                                modifier = Modifier.size(16.dp)
+                            )
+
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Search in library or explore...",
+                                        fontSize = 13.sp,
+                                        color = AppleMusicTextTertiary
+                                    )
+                                }
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    singleLine = true,
+                                    textStyle = TextStyle(
+                                        color = AppleMusicTextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Normal
+                                    ),
+                                    cursorBrush = SolidColor(AppleMusicRed),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardActions = KeyboardActions(
+                                        onSearch = {
+                                            if (searchQuery.isNotBlank()) {
+                                                scope.launch {
+                                                    val results = DesktopOnlineRepository.searchSongs(searchQuery)
+                                                    if (results.isNotEmpty()) {
+                                                        songs = results
+                                                        currentScreen = DesktopScreen.LIBRARY
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            if (searchQuery.isNotEmpty()) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Cancel,
+                                    contentDescription = "Clear",
+                                    tint = AppleMusicTextTertiary,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { searchQuery = "" }
+                                )
+                            }
+                        }
+                    }
+
+                    // Right: Apple Music System Clock
+                    DesktopClock(textColor = AppleMusicTextSecondary)
                 }
 
-                Divider(color = Color(0xFF1A2230), thickness = 0.8.dp)
+                Divider(color = AppleMusicBorderSubtle, thickness = 0.8.dp)
 
                 // Screen Switching
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -211,22 +351,38 @@ fun DesktopMainView() {
                                         else favoriteIds.add(it.id)
                                     }
                                 },
+                                isRadioMode = isRadioMode,
                                 isRadioLoading = isRadioLoading,
                                 onStartRadio = {
                                     val seed = currentSong
                                     if (seed != null) {
-                                        isRadioLoading = true
-                                        scope.launch {
-                                            val rQueue = DesktopOnlineRepository.fetchRadioQueue(seed)
-                                            queue = rQueue
-                                            isRadioLoading = false
-                                        }
+                                        startRadioForSong(seed)
                                     }
                                 },
-                                onPlayNextSong = { next ->
-                                    queue = queue.filter { it.id != next.id }
-                                    playSong(next)
-                                }
+                                onExitRadio = {
+                                    isRadioMode = false
+                                    radioSeed = null
+                                },
+                                onPlaySong = { s -> playSong(s) },
+                                onRemoveFromQueue = { target ->
+                                    queue = queue.filter { it.id != target.id }
+                                },
+                                onClearQueue = {
+                                    queue = emptyList()
+                                },
+                                onPrevious = {
+                                    val pos = DesktopAudioPlayer.currentPositionMs.value
+                                    if (pos > 3000L) {
+                                        DesktopAudioPlayer.seekTo(0L)
+                                    } else {
+                                        DesktopAudioPlayer.seekTo(0L)
+                                    }
+                                },
+                                onNext = { playNext() },
+                                isShuffleOn = isShuffleOn,
+                                onToggleShuffle = { isShuffleOn = !isShuffleOn },
+                                isRepeatOn = isRepeatOn,
+                                onToggleRepeat = { isRepeatOn = !isRepeatOn }
                             )
                         }
                         DesktopScreen.FOLDERS -> {
@@ -248,14 +404,34 @@ fun DesktopMainView() {
                         DesktopScreen.EXPLORE -> {
                             DesktopExploreView(
                                 currentSong = currentSong,
-                                onPlaySong = { s, q -> playSong(s, q) }
+                                favoriteCategoryIds = favoriteCategoryIds.toSet(),
+                                onToggleCategoryFavorite = { id ->
+                                    if (favoriteCategoryIds.contains(id)) favoriteCategoryIds.remove(id)
+                                    else favoriteCategoryIds.add(id)
+                                },
+                                favoriteStationIds = favoriteStationIds.toSet(),
+                                onToggleStationFavorite = { id ->
+                                    if (favoriteStationIds.contains(id)) favoriteStationIds.remove(id)
+                                    else favoriteStationIds.add(id)
+                                },
+                                onPlaySong = { s, q -> playSong(s, q) },
+                                onStartRadioForSong = { seed -> startRadioForSong(seed) }
                             )
                         }
                         DesktopScreen.EQUALIZER -> {
                             DesktopEqualizerView()
                         }
                         DesktopScreen.SETTINGS -> {
-                            DesktopSettingsView()
+                            DesktopSettingsView(
+                                onStorageDirChanged = { newDir ->
+                                    scope.launch {
+                                        val rescanned = DesktopLocalScanner.scanLocalMusic(newDir)
+                                        if (rescanned.isNotEmpty()) {
+                                            songs = rescanned
+                                        }
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -278,40 +454,42 @@ fun DesktopMainView() {
             }
         }
 
-        // ─── PERSISTENT BOTTOM PLAYER DOCK (SPOTIFY / APPLE MUSIC STYLE) ──────
-        Divider(color = Color(0xFF1C2433), thickness = 1.dp)
-        DesktopBottomPlayer(
-            currentSong = currentSong,
-            isFavorite = currentSong?.let { favoriteIds.contains(it.id) } == true,
-            onToggleFavorite = {
-                currentSong?.let {
-                    if (favoriteIds.contains(it.id)) favoriteIds.remove(it.id)
-                    else favoriteIds.add(it.id)
+        // ─── APPLE MUSIC BOTTOM PLAYER DOCK (ONLY ON NON-NOW_PLAYING SCREENS) ─
+        if (currentScreen != DesktopScreen.NOW_PLAYING) {
+            Divider(color = AppleMusicBorderSubtle, thickness = 1.dp)
+            DesktopBottomPlayer(
+                currentSong = currentSong,
+                isFavorite = currentSong?.let { favoriteIds.contains(it.id) } == true,
+                onToggleFavorite = {
+                    currentSong?.let {
+                        if (favoriteIds.contains(it.id)) favoriteIds.remove(it.id)
+                        else favoriteIds.add(it.id)
+                    }
+                },
+                onPrevious = {
+                    val pos = DesktopAudioPlayer.currentPositionMs.value
+                    if (pos > 3000L) {
+                        DesktopAudioPlayer.seekTo(0L)
+                    } else {
+                        DesktopAudioPlayer.seekTo(0L)
+                    }
+                },
+                onNext = { playNext() },
+                isShuffleOn = isShuffleOn,
+                onToggleShuffle = { isShuffleOn = !isShuffleOn },
+                isRepeatOn = isRepeatOn,
+                onToggleRepeat = { isRepeatOn = !isRepeatOn },
+                isQueueOpen = isQueueOpen,
+                onToggleQueue = { isQueueOpen = !isQueueOpen },
+                isLyricsOpen = false,
+                onToggleLyrics = {
+                    currentScreen = DesktopScreen.NOW_PLAYING
+                },
+                onOpenNowPlaying = {
+                    currentScreen = DesktopScreen.NOW_PLAYING
                 }
-            },
-            onPrevious = {
-                val pos = DesktopAudioPlayer.currentPositionMs.value
-                if (pos > 3000L) {
-                    DesktopAudioPlayer.seekTo(0L)
-                } else {
-                    DesktopAudioPlayer.seekTo(0L)
-                }
-            },
-            onNext = { playNext() },
-            isShuffleOn = isShuffleOn,
-            onToggleShuffle = { isShuffleOn = !isShuffleOn },
-            isRepeatOn = isRepeatOn,
-            onToggleRepeat = { isRepeatOn = !isRepeatOn },
-            isQueueOpen = isQueueOpen,
-            onToggleQueue = { isQueueOpen = !isQueueOpen },
-            isLyricsOpen = currentScreen == DesktopScreen.NOW_PLAYING,
-            onToggleLyrics = {
-                currentScreen = if (currentScreen == DesktopScreen.NOW_PLAYING) DesktopScreen.LIBRARY else DesktopScreen.NOW_PLAYING
-            },
-            onOpenNowPlaying = {
-                currentScreen = if (currentScreen == DesktopScreen.NOW_PLAYING) DesktopScreen.LIBRARY else DesktopScreen.NOW_PLAYING
-            }
-        )
+            )
+        }
 
         // Modal Search Overlay if needed
         if (isSearchOpen) {

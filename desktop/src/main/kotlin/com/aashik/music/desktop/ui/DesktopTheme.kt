@@ -7,34 +7,52 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-val DesktopBg = Color(0xFF0B0D13)
-val DesktopSurface = Color(0xFF131720)
-val DesktopSurfaceVariant = Color(0xFF1A202C)
-val DesktopBorder = Color(0xFF252D3D)
-val DesktopPrimary = Color(0xFF00E5FF)
-val DesktopSecondary = Color(0xFF7C4DFF)
-val DesktopTextPrimary = Color(0xFFF1F5F9)
-val DesktopTextSecondary = Color(0xFF94A3B8)
-val DesktopCardShape = RoundedCornerShape(16.dp)
-val DesktopArtShape = RoundedCornerShape(20.dp)
-val DesktopPillShape = RoundedCornerShape(24.dp)
+// Apple Music macOS Design Tokens
+val AppleMusicRed = Color(0xFFFA2D48)
+val AppleMusicRedLight = Color(0xFFFF3B56)
+val AppleMusicPink = Color(0xFFFF2D55)
 
-private val DesktopDarkScheme = darkColorScheme(
-    primary = DesktopPrimary,
-    secondary = DesktopSecondary,
-    background = DesktopBg,
-    surface = DesktopSurface,
-    surfaceVariant = DesktopSurfaceVariant,
-    onPrimary = Color.Black,
-    onBackground = DesktopTextPrimary,
-    onSurface = DesktopTextPrimary
+val AppleMusicBg = Color(0xFF141416)
+val AppleMusicSidebar = Color(0xFF1B1B1F)
+val AppleMusicSurface = Color(0xFF222226)
+val AppleMusicSurfaceVariant = Color(0xFF28282D)
+val AppleMusicCard = Color(0xFF26262B)
+val AppleMusicBorder = Color(0xFF333339)
+val AppleMusicBorderSubtle = Color(0xFF2A2A30)
+
+val AppleMusicTextPrimary = Color(0xFFFFFFFF)
+val AppleMusicTextSecondary = Color(0xFF98989D)
+val AppleMusicTextTertiary = Color(0xFF636366)
+
+// Backwards compatibility tokens
+val DesktopBg = AppleMusicBg
+val DesktopSurface = AppleMusicSurface
+val DesktopSurfaceVariant = AppleMusicSurfaceVariant
+val DesktopBorder = AppleMusicBorder
+val DesktopPrimary = AppleMusicRed
+val DesktopSecondary = AppleMusicPink
+val DesktopTextPrimary = AppleMusicTextPrimary
+val DesktopTextSecondary = AppleMusicTextSecondary
+
+val DesktopCardShape = RoundedCornerShape(12.dp)
+val DesktopArtShape = RoundedCornerShape(14.dp)
+val DesktopPillShape = RoundedCornerShape(20.dp)
+
+private val AppleMusicDarkScheme = darkColorScheme(
+    primary = AppleMusicRed,
+    secondary = AppleMusicPink,
+    background = AppleMusicBg,
+    surface = AppleMusicSurface,
+    surfaceVariant = AppleMusicSurfaceVariant,
+    onPrimary = Color.White,
+    onBackground = AppleMusicTextPrimary,
+    onSurface = AppleMusicTextPrimary
 )
 
 @Composable
 fun DesktopTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = DesktopDarkScheme,
+        colorScheme = AppleMusicDarkScheme,
         content = content
     )
 }
-

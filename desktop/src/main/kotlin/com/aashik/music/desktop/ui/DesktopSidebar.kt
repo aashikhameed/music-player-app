@@ -29,7 +29,7 @@ enum class DesktopScreen {
     SETTINGS
 }
 
-private val NavItemShape = RoundedCornerShape(8.dp)
+private val AppleNavItemShape = RoundedCornerShape(6.dp)
 
 @Composable
 fun DesktopSidebar(
@@ -42,14 +42,14 @@ fun DesktopSidebar(
 ) {
     Column(
         modifier = modifier
-            .width(230.dp)
+            .width(220.dp)
             .fillMaxHeight()
-            .background(Color(0xFF0F1218))
-            .padding(horizontal = 12.dp, vertical = 16.dp),
+            .background(AppleMusicSidebar)
+            .padding(horizontal = 10.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // App Branding
+            // Apple Music Logo / Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -59,88 +59,88 @@ fun DesktopSidebar(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(30.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF00E5FF).copy(alpha = 0.15f)),
+                        .background(AppleMusicRed),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.GraphicEq,
                         contentDescription = null,
-                        tint = Color(0xFF00E5FF),
+                        tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
                 }
                 Column {
                     Text(
-                        text = "Music Player",
+                        text = "Apple Music",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFF1F5F9)
+                        color = AppleMusicTextPrimary
                     )
                     Text(
-                        text = "Desktop Edition",
+                        text = "macOS Edition",
                         fontSize = 11.sp,
-                        color = Color(0xFF94A3B8)
+                        color = AppleMusicTextSecondary
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // SECTION: PLAYBACK & LIBRARY
-            SidebarSectionHeader(title = "LIBRARY")
-            SidebarNavItem(
+            // SECTION: APPLE MUSIC
+            AppleSidebarSectionHeader(title = "APPLE MUSIC")
+            AppleSidebarNavItem(
                 label = "Now Playing",
-                icon = Icons.Rounded.PlayCircleOutline,
+                icon = Icons.Rounded.PlayCircle,
                 isSelected = currentScreen == DesktopScreen.NOW_PLAYING,
                 onClick = { onSelectScreen(DesktopScreen.NOW_PLAYING) }
             )
-            SidebarNavItem(
-                label = "All Songs",
-                icon = Icons.Rounded.MusicNote,
-                badge = if (songCount > 0) "$songCount" else null,
-                isSelected = currentScreen == DesktopScreen.LIBRARY,
-                onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
-            )
-            SidebarNavItem(
-                label = "Folders",
-                icon = Icons.Rounded.FolderOpen,
-                badge = if (folderCount > 0) "$folderCount" else null,
-                isSelected = currentScreen == DesktopScreen.FOLDERS,
-                onClick = { onSelectScreen(DesktopScreen.FOLDERS) }
-            )
-            SidebarNavItem(
-                label = "Favorites",
-                icon = Icons.Rounded.FavoriteBorder,
-                badge = if (favoriteCount > 0) "$favoriteCount" else null,
-                isSelected = currentScreen == DesktopScreen.FAVORITES,
-                onClick = { onSelectScreen(DesktopScreen.FAVORITES) }
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // SECTION: DISCOVER
-            SidebarSectionHeader(title = "DISCOVER")
-            SidebarNavItem(
-                label = "Radio & Explore",
+            AppleSidebarNavItem(
+                label = "Radio & Browse",
                 icon = Icons.Rounded.Podcasts,
                 isSelected = currentScreen == DesktopScreen.EXPLORE,
                 onClick = { onSelectScreen(DesktopScreen.EXPLORE) }
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // SECTION: AUDIO & TOOLS
-            SidebarSectionHeader(title = "TOOLS")
-            SidebarNavItem(
-                label = "10-Band Equalizer",
+            // SECTION: LIBRARY
+            AppleSidebarSectionHeader(title = "LIBRARY")
+            AppleSidebarNavItem(
+                label = "Songs",
+                icon = Icons.Rounded.MusicNote,
+                isSelected = currentScreen == DesktopScreen.LIBRARY,
+                badge = if (songCount > 0) "$songCount" else null,
+                onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
+            )
+            AppleSidebarNavItem(
+                label = "Folders",
+                icon = Icons.Rounded.Folder,
+                isSelected = currentScreen == DesktopScreen.FOLDERS,
+                badge = if (folderCount > 0) "$folderCount" else null,
+                onClick = { onSelectScreen(DesktopScreen.FOLDERS) }
+            )
+            AppleSidebarNavItem(
+                label = "Favorites",
+                icon = Icons.Rounded.Favorite,
+                isSelected = currentScreen == DesktopScreen.FAVORITES,
+                badge = if (favoriteCount > 0) "$favoriteCount" else null,
+                onClick = { onSelectScreen(DesktopScreen.FAVORITES) }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // SECTION: TOOLS
+            AppleSidebarSectionHeader(title = "SETTINGS & TOOLS")
+            AppleSidebarNavItem(
+                label = "Equalizer",
                 icon = Icons.Rounded.Tune,
                 isSelected = currentScreen == DesktopScreen.EQUALIZER,
                 onClick = { onSelectScreen(DesktopScreen.EQUALIZER) }
             )
-            SidebarNavItem(
-                label = "Settings",
+            AppleSidebarNavItem(
+                label = "Preferences",
                 icon = Icons.Rounded.Settings,
                 isSelected = currentScreen == DesktopScreen.SETTINGS,
                 onClick = { onSelectScreen(DesktopScreen.SETTINGS) }
@@ -153,49 +153,49 @@ fun DesktopSidebar(
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
         ) {
-            Divider(color = Color(0xFF1E2638), thickness = 0.8.dp)
+            Divider(color = AppleMusicBorderSubtle, thickness = 0.8.dp)
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "macOS v0.3.2",
+                text = "Apple Silicon Native",
                 fontSize = 11.sp,
-                color = Color(0xFF64748B)
+                fontWeight = FontWeight.Medium,
+                color = AppleMusicTextTertiary
             )
         }
     }
 }
 
 @Composable
-private fun SidebarSectionHeader(title: String) {
+private fun AppleSidebarSectionHeader(title: String) {
     Text(
         text = title,
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF64748B),
-        letterSpacing = 0.8.sp,
+        color = AppleMusicTextTertiary,
         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
     )
 }
 
 @Composable
-private fun SidebarNavItem(
+private fun AppleSidebarNavItem(
     label: String,
     icon: ImageVector,
     isSelected: Boolean,
-    onClick: () -> Unit,
-    badge: String? = null
+    badge: String? = null,
+    onClick: () -> Unit
 ) {
-    val bg = if (isSelected) Color(0xFF00E5FF).copy(alpha = 0.12f) else Color.Transparent
-    val tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFF94A3B8)
-    val textColor = if (isSelected) Color(0xFFF1F5F9) else Color(0xFFCBD5E1)
-    val weight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+    val bg = if (isSelected) AppleMusicCard else Color.Transparent
+    val tint = if (isSelected) AppleMusicRed else AppleMusicTextSecondary
+    val textStyle = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(NavItemShape)
+            .height(34.dp)
+            .clip(AppleNavItemShape)
             .background(bg)
             .clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -205,25 +205,25 @@ private fun SidebarNavItem(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = null,
+                contentDescription = label,
                 tint = tint,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(17.dp)
             )
             Text(
                 text = label,
                 fontSize = 13.sp,
-                fontWeight = weight,
-                color = textColor
+                fontWeight = textStyle,
+                color = if (isSelected) AppleMusicTextPrimary else AppleMusicTextSecondary
             )
         }
+
         if (badge != null) {
             Text(
                 text = badge,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF64748B)
+                color = AppleMusicTextTertiary
             )
         }
     }
 }
-

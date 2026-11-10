@@ -20,8 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.desktop.audio.DesktopAudioPlayer
 import com.aashik.music.desktop.model.DesktopSong
 
-private val ThumbnailShape = RoundedCornerShape(8.dp)
-private val FavoriteRed = Color(0xFFFF4081)
+private val ThumbnailShape = RoundedCornerShape(6.dp)
 
 @Composable
 fun DesktopBottomPlayer(
@@ -58,9 +57,9 @@ fun DesktopBottomPlayer(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(82.dp)
-            .background(Color(0xFF121620))
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .height(78.dp)
+            .background(AppleMusicSidebar)
+            .padding(horizontal = 20.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -74,23 +73,23 @@ fun DesktopBottomPlayer(
         ) {
             DesktopArtwork(
                 url = currentSong?.artworkUrl,
-                size = 52.dp,
+                size = 48.dp,
                 shape = ThumbnailShape
             )
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = currentSong?.title ?: "No Song Playing",
+                    text = currentSong?.title ?: "Not Playing",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFF1F5F9),
+                    color = AppleMusicTextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = currentSong?.artist ?: "Unknown Artist",
-                    fontSize = 11.sp,
-                    color = Color(0xFF94A3B8),
+                    fontSize = 11.5.sp,
+                    color = AppleMusicTextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -98,18 +97,18 @@ fun DesktopBottomPlayer(
 
             IconButton(
                 onClick = onToggleFavorite,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(34.dp)
             ) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     contentDescription = "Favorite",
-                    tint = if (isFavorite) FavoriteRed else Color(0xFF64748B),
-                    modifier = Modifier.size(18.dp)
+                    tint = if (isFavorite) AppleMusicRed else AppleMusicTextTertiary,
+                    modifier = Modifier.size(17.dp)
                 )
             }
         }
 
-        // ─── CENTER: Controls & Scrubber ──────────────────────────────────
+        // ─── CENTER: Controls & Apple Music Scrubber ───────────────────────
         Column(
             modifier = Modifier.weight(1f).padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -118,14 +117,14 @@ fun DesktopBottomPlayer(
             // Transport buttons
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 // Shuffle
                 IconButton(onClick = onToggleShuffle, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Rounded.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (isShuffleOn) Color(0xFF00E5FF) else Color(0xFF64748B),
+                        tint = if (isShuffleOn) AppleMusicRed else AppleMusicTextTertiary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -135,7 +134,7 @@ fun DesktopBottomPlayer(
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = "Previous",
-                        tint = Color(0xFFCBD5E1),
+                        tint = AppleMusicTextPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -143,17 +142,17 @@ fun DesktopBottomPlayer(
                 // Play / Pause Circle
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(Color(0xFF00E5FF), shape = CircleShape)
+                        .size(38.dp)
                         .clip(CircleShape)
+                        .background(AppleMusicRed)
                         .clickable { DesktopAudioPlayer.togglePlayPause() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         contentDescription = "Play/Pause",
-                        tint = Color.Black,
-                        modifier = Modifier.size(24.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -162,7 +161,7 @@ fun DesktopBottomPlayer(
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
                         contentDescription = "Next",
-                        tint = Color(0xFFCBD5E1),
+                        tint = AppleMusicTextPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -172,23 +171,23 @@ fun DesktopBottomPlayer(
                     Icon(
                         imageVector = Icons.Rounded.Repeat,
                         contentDescription = "Repeat",
-                        tint = if (isRepeatOn) Color(0xFF00E5FF) else Color(0xFF64748B),
+                        tint = if (isRepeatOn) AppleMusicRed else AppleMusicTextTertiary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
 
             if (durationMs > 0L) {
-                // Scrubbing Seekbar
+                // Apple Music Scrubbing Slider
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(20.dp),
+                    modifier = Modifier.fillMaxWidth().height(18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = formatMs(if (isDraggingSeek) (dragProgress * durationMs).toLong() else positionMs),
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B),
+                        color = AppleMusicTextTertiary,
                         modifier = Modifier.width(32.dp)
                     )
 
@@ -203,9 +202,9 @@ fun DesktopBottomPlayer(
                             isDraggingSeek = false
                         },
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF00E5FF),
-                            activeTrackColor = Color(0xFF00E5FF),
-                            inactiveTrackColor = Color(0xFF252D3D)
+                            thumbColor = Color.White,
+                            activeTrackColor = AppleMusicRed,
+                            inactiveTrackColor = AppleMusicSurfaceVariant
                         ),
                         modifier = Modifier.weight(1f)
                     )
@@ -213,29 +212,29 @@ fun DesktopBottomPlayer(
                     Text(
                         text = formatMs(durationMs),
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B),
+                        color = AppleMusicTextTertiary,
                         modifier = Modifier.width(32.dp)
                     )
                 }
             } else if (currentSong != null) {
                 // Live Stream Indicator
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(20.dp),
+                    modifier = Modifier.fillMaxWidth().height(18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFF00E676).copy(alpha = 0.15f))
+                            .background(Color(0xFF30D158).copy(alpha = 0.15f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF00E676)))
-                            Text("LIVE BROADCAST STREAM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
+                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF30D158)))
+                            Text("LIVE BROADCAST", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF30D158))
                         }
                     }
                 }
@@ -249,57 +248,55 @@ fun DesktopBottomPlayer(
             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
         ) {
             // Lyrics Toggle
-            IconButton(onClick = onToggleLyrics, modifier = Modifier.size(34.dp)) {
+            IconButton(
+                onClick = onToggleLyrics,
+                modifier = Modifier.size(34.dp)
+            ) {
                 Icon(
-                    imageVector = Icons.Rounded.Subtitles,
+                    imageVector = Icons.Rounded.FormatQuote,
                     contentDescription = "Lyrics",
-                    tint = if (isLyricsOpen) Color(0xFF00E5FF) else Color(0xFF94A3B8),
+                    tint = if (isLyricsOpen) AppleMusicRed else AppleMusicTextTertiary,
                     modifier = Modifier.size(18.dp)
                 )
             }
 
-            // Queue Toggle
-            IconButton(onClick = onToggleQueue, modifier = Modifier.size(34.dp)) {
+            // Up Next Queue Toggle
+            IconButton(
+                onClick = onToggleQueue,
+                modifier = Modifier.size(34.dp)
+            ) {
                 Icon(
                     imageVector = Icons.Rounded.QueueMusic,
                     contentDescription = "Queue",
-                    tint = if (isQueueOpen) Color(0xFF00E5FF) else Color(0xFF94A3B8),
+                    tint = if (isQueueOpen) AppleMusicRed else AppleMusicTextTertiary,
                     modifier = Modifier.size(18.dp)
                 )
             }
 
-            // Volume Mute/Icon + Slider
+            // Volume Slider
             Row(
+                modifier = Modifier.width(110.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
                     imageVector = if (volume > 0.05f) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
                     contentDescription = "Volume",
-                    tint = Color(0xFF94A3B8),
+                    tint = AppleMusicTextTertiary,
                     modifier = Modifier
-                        .size(18.dp)
+                        .size(16.dp)
                         .clickable { DesktopAudioPlayer.setVolume(if (volume > 0.05f) 0f else 0.85f) }
                 )
+
                 Slider(
                     value = volume,
                     onValueChange = { DesktopAudioPlayer.setVolume(it) },
-                    modifier = Modifier.width(76.dp),
                     colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFF00E5FF),
-                        activeTrackColor = Color(0xFF00E5FF),
-                        inactiveTrackColor = Color(0xFF252D3D)
-                    )
-                )
-            }
-
-            // Fullscreen HUD Shortcut
-            IconButton(onClick = onOpenNowPlaying, modifier = Modifier.size(34.dp)) {
-                Icon(
-                    imageVector = Icons.Rounded.Fullscreen,
-                    contentDescription = "Now Playing HUD",
-                    tint = Color(0xFF94A3B8),
-                    modifier = Modifier.size(20.dp)
+                        thumbColor = Color.White,
+                        activeTrackColor = AppleMusicTextSecondary,
+                        inactiveTrackColor = AppleMusicSurfaceVariant
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -312,4 +309,3 @@ private fun formatMs(ms: Long): String {
     val s = totalSec % 60
     return String.format("%d:%02d", m, s)
 }
-
