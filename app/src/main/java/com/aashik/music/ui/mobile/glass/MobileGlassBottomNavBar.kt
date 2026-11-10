@@ -52,8 +52,8 @@ fun MobileGlassBottomNavBar(
             )
             .mobileLiquidGlass(
                 shape = capsuleShape,
-                tintColor = Color(0xFF121418).copy(alpha = 0.88f),
-                borderColor = Color.White.copy(alpha = 0.16f)
+                tintColor = Color(0xFF10141A).copy(alpha = 0.58f),
+                borderColor = Color.White.copy(alpha = 0.28f)
             )
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center

@@ -53,8 +53,8 @@ fun MobileGlassMiniPlayer(
             )
             .mobileLiquidGlass(
                 shape = capsuleShape,
-                tintColor = Color(0xFF14161A).copy(alpha = 0.88f),
-                borderColor = Color.White.copy(alpha = 0.16f)
+                tintColor = Color(0xFF10141A).copy(alpha = 0.60f),
+                borderColor = Color.White.copy(alpha = 0.28f)
             )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },

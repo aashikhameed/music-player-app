@@ -23,19 +23,43 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.ui.graphics.Brush
+
 /**
  * Reusable Mobile Liquid Glass modifier.
- * Applies a translucent frosted acrylic surface with specular rim border.
+ * Applies a translucent frosted acrylic surface with specular reflection ramp and rim highlight.
  */
 fun Modifier.mobileLiquidGlass(
     shape: Shape,
-    tintColor: Color = Color.White.copy(alpha = 0.08f),
-    borderColor: Color = Color.White.copy(alpha = 0.14f)
+    tintColor: Color = Color(0xFF141A22).copy(alpha = 0.55f),
+    borderColor: Color = Color.White.copy(alpha = 0.22f)
 ): Modifier {
+    val specularReflection = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = 0.16f),
+            Color.White.copy(alpha = 0.04f),
+            Color(0xFF00E5FF).copy(alpha = 0.06f)
+        )
+    )
+    val specularRim = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = 0.40f),
+            borderColor,
+            Color(0xFF00E5FF).copy(alpha = 0.25f)
+        )
+    )
+
     return this
+        .shadow(
+            elevation = 12.dp,
+            shape = shape,
+            ambientColor = Color.Black.copy(alpha = 0.45f),
+            spotColor = Color(0xFF00E5FF).copy(alpha = 0.18f)
+        )
         .clip(shape)
         .background(tintColor, shape)
-        .border(BorderStroke(1.dp, borderColor), shape)
+        .background(specularReflection, shape)
+        .border(BorderStroke(1.2.dp, specularRim), shape)
 }
 
 /**

@@ -115,6 +115,25 @@ fun MobileLiquidContainer(
                     radius = r3,
                     center = Offset(x3, y3)
                 )
+
+                // Blob 4: Bottom Floating Glass Backlight Wave (Ice-Cyan & Deep Ocean)
+                // Shines directly behind the floating mini-player and bottom navigation bar
+                val x4 = w * (0.50f + 0.28f * sin(time * 0.7f + 2.5f))
+                val y4 = h * (0.90f + 0.08f * cos(time * 0.7f))
+                val r4 = (w.coerceAtLeast(h)) * 0.55f
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.42f),
+                            secondaryColor.copy(alpha = 0.25f),
+                            Color.Transparent
+                        ),
+                        center = Offset(x4, y4),
+                        radius = r4
+                    ),
+                    radius = r4,
+                    center = Offset(x4, y4)
+                )
             }
 
             content()
