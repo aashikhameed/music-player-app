@@ -246,16 +246,9 @@ fun DesktopMainView() {
                             )
                         }
                         DesktopScreen.EXPLORE -> {
-                            DesktopExploreGrid(
-                                onSearchCategory = { category ->
-                                    scope.launch {
-                                        val results = DesktopOnlineRepository.searchSongs(category, limit = 30)
-                                        if (results.isNotEmpty()) {
-                                            songs = results
-                                            currentScreen = DesktopScreen.LIBRARY
-                                        }
-                                    }
-                                }
+                            DesktopExploreView(
+                                currentSong = currentSong,
+                                onPlaySong = { s, q -> playSong(s, q) }
                             )
                         }
                         DesktopScreen.EQUALIZER -> {

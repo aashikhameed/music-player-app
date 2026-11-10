@@ -25,7 +25,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import com.aashik.music.desktop.audio.DesktopAudioPlayer
+import com.aashik.music.desktop.model.DesktopRadioCategory
+import com.aashik.music.desktop.model.DesktopRadioData
+import com.aashik.music.desktop.model.DesktopRadioStation
+import com.aashik.music.desktop.service.DesktopOnlineRepository
+import kotlinx.coroutines.launch
 import com.aashik.music.desktop.model.DesktopSong
 import com.aashik.music.desktop.service.DesktopLyricLine
 import com.aashik.music.desktop.ui.components.DesktopActionBar
@@ -325,51 +332,344 @@ fun DesktopFolderBrowser(
     }
 }
 
-// ─── 4. RADIO & EXPLORE GRID ────────────────────────────────────────────────
+// ─── 4. RADIO & EXPLORE VIEW ────────────────────────────────────────────────
 @Composable
-fun DesktopExploreGrid(
-    onSearchCategory: (String) -> Unit,
+fun DesktopExploreView(
+    currentSong: DesktopSong?,
+    onPlaySong: (DesktopSong, List<DesktopSong>?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val genres = listOf(
-        "Top Hits 2024" to Color(0xFF00E5FF),
-        "Pop" to Color(0xFFFF4081),
-        "Rock" to Color(0xFFFF6D00),
-        "Acoustic & Chill" to Color(0xFF00E676),
-        "EDM & Dance" to Color(0xFF7C4DFF),
-        "Classical" to Color(0xFFFFD600),
-        "Lo-Fi Beats" to Color(0xFF00B0FF),
-        "Workout & Energy" to Color(0xFFFF1744),
-        "Bollywood Hits" to Color(0xFFFF9100),
-        "Tamil Top 50" to Color(0xFF00C853)
-    )
+    val scope = rememberCoroutineScope()
+    var selectedCategory by remember { mutableStateOf<DesktopRadioCategory?>(null) }
+    var categorySongs by remember { mutableStateOf<List<DesktopSong>>(emptyList()) }
+    var isLoadingCategory by remember { mutableStateOf(false) }
 
-    Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
-        Text("Radio & Music Discovery", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF1F5F9), modifier = Modifier.padding(bottom = 16.dp))
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(200.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+    val isPlaying by DesktopAudioPlayer.isPlaying.collectAsState()
+    val stations = remember { DesktopRadioData.CURATED_STATIONS }
+    val moodCategories = remember { DesktopRadioData.MOOD_CATEGORIES }
+    val genreCategories = remember { DesktopRadioData.GENRE_CATEGORIES }
+
+    if (selectedCategory == null) {
+        LazyColumn(
+            modifier = modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            items(genres) { (title, accent) ->
-                Box(
-                    modifier = Modifier
-                        .height(110.dp)
-                        .clip(CardShape)
-                        .background(accent.copy(alpha = 0.16f))
-                        .border(1.dp, accent.copy(alpha = 0.35f), CardShape)
-                        .clickable { onSearchCategory(title) }
-                        .padding(16.dp),
-                    contentAlignment = Alignment.BottomStart
+            // Header: Title and "Surprise Me" button
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFF1F5F9)
-                    )
+                    Column {
+                        Text(
+                            text = "Radio & Music Discovery",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF1F5F9)
+                        )
+                        Text(
+                            text = "Stream curated global stations, moods, and genre sleeves",
+                            fontSize = 13.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+
+                    // Surprise Me Button
+                    Button(
+                        onClick = {
+                            val randomStation = stations.random()
+                            val song = randomStation.toSong()
+                            val playlist = stations.map { it.toSong() }
+                            onPlaySong(song, playlist)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF).copy(alpha = 0.15f)),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Rounded.Shuffle, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                            Text("Surprise Me", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E5FF))
+                        }
+                    }
                 }
             }
+
+            // Section 1: Live Broadcast Radio Stations
+            item {
+                Text(
+                    text = "Live Radio Stations & Community Streams",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFF1F5F9),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(stations) { station ->
+                        val isStationPlaying = isPlaying && currentSong?.path == station.streamUrl
+                        DesktopRadioStationCard(
+                            station = station,
+                            isPlaying = isStationPlaying,
+                            onPlay = {
+                                val song = station.toSong()
+                                val playlist = stations.map { it.toSong() }
+                                onPlaySong(song, playlist)
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Section 2: Moods & Moments
+            item {
+                Text(
+                    text = "Moods & Moments",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFF1F5F9),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(moodCategories) { category ->
+                        DesktopMoodCategoryCard(
+                            category = category,
+                            onClick = {
+                                selectedCategory = category
+                                isLoadingCategory = true
+                                scope.launch {
+                                    val results = DesktopOnlineRepository.searchSongs("${category.title} Hits", limit = 20)
+                                    categorySongs = results
+                                    isLoadingCategory = false
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Section 3: Genres & Styles
+            item {
+                Text(
+                    text = "All Genres & Styles",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFF1F5F9),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(genreCategories) { category ->
+                        DesktopMoodCategoryCard(
+                            category = category,
+                            onClick = {
+                                selectedCategory = category
+                                isLoadingCategory = true
+                                scope.launch {
+                                    val results = DesktopOnlineRepository.searchSongs("${category.title} Hits", limit = 20)
+                                    categorySongs = results
+                                    isLoadingCategory = false
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        // Category Detail View
+        val category = selectedCategory!!
+        val relatedStations = remember(category) {
+            stations.filter { it.categoryId == category.id }
+        }
+
+        Column(modifier = modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
+            // Category Header with Back Button
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                IconButton(onClick = { selectedCategory = null }) {
+                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = Color(0xFF00E5FF))
+                }
+                DesktopArtwork(url = category.imageUrl, size = 52.dp, shape = RoundedCornerShape(10.dp))
+                Column {
+                    Text(category.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF1F5F9))
+                    Text("Curated category stream & playlist", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                }
+            }
+
+            if (isLoadingCategory) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF00E5FF), strokeWidth = 2.5.dp)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // Shelf 1: Live Stations in this category (if any)
+                    if (relatedStations.isNotEmpty()) {
+                        item {
+                            Text("Live Radio Stations", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF1F5F9), modifier = Modifier.padding(bottom = 8.dp))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                items(relatedStations) { st ->
+                                    val isStPlaying = isPlaying && currentSong?.path == st.streamUrl
+                                    DesktopRadioStationCard(
+                                        station = st,
+                                        isPlaying = isStPlaying,
+                                        onPlay = {
+                                            val song = st.toSong()
+                                            onPlaySong(song, relatedStations.map { it.toSong() })
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Shelf 2: Songs
+                    item {
+                        Text("Category Songs & Playlists", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF1F5F9), modifier = Modifier.padding(bottom = 8.dp))
+                    }
+
+                    itemsIndexed(categorySongs) { idx, song ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(TableRowShape)
+                                .background(Color(0xFF141822))
+                                .clickable {
+                                    onPlaySong(song, categorySongs.filter { it.id != song.id })
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text("${idx + 1}", fontSize = 12.sp, color = Color(0xFF64748B), modifier = Modifier.width(24.dp))
+                            DesktopArtwork(url = song.artworkUrl, size = 40.dp, shape = RoundedCornerShape(6.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(song.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF1F5F9), maxLines = 1)
+                                Text(song.artist, fontSize = 11.sp, color = Color(0xFF94A3B8), maxLines = 1)
+                            }
+                            if (song.duration > 0) {
+                                Text(formatMs(song.duration), fontSize = 12.sp, color = Color(0xFF64748B))
+                            }
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Play", tint = Color(0xFF00E5FF), modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DesktopRadioStationCard(
+    station: DesktopRadioStation,
+    isPlaying: Boolean,
+    onPlay: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(220.dp)
+            .height(130.dp)
+            .clickable { onPlay() },
+        shape = CardShape,
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF161B26))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                DesktopArtwork(url = station.imageUrl, size = 36.dp, shape = RoundedCornerShape(8.dp))
+                // Live Badge or Equalizer
+                if (isPlaying) {
+                    DesktopEqualizer(isPlaying = true, barColor = Color(0xFF00E676))
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF00E676).copy(alpha = 0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("LIVE", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF00E676))
+                    }
+                }
+            }
+
+            Column {
+                Text(station.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF1F5F9), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(station.description, fontSize = 11.sp, color = Color(0xFF94A3B8), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(station.genre, fontSize = 10.sp, color = Color(0xFF64748B))
+                Text(station.bitrate, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF00E5FF))
+            }
+        }
+    }
+}
+
+@Composable
+fun DesktopMoodCategoryCard(
+    category: DesktopRadioCategory,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(180.dp)
+            .height(120.dp)
+            .clickable { onClick() },
+        shape = CardShape,
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF141824))
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            DesktopArtwork(
+                url = category.imageUrl,
+                size = 180.dp,
+                shape = CardShape,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+            )
+            Text(
+                text = category.title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
+            )
         }
     }
 }
@@ -484,3 +784,4 @@ private fun formatMs(ms: Long): String {
     val s = totalSec % 60
     return String.format("%d:%02d", m, s)
 }
+

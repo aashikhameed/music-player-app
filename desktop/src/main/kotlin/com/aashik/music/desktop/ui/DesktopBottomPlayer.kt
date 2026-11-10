@@ -178,43 +178,67 @@ fun DesktopBottomPlayer(
                 }
             }
 
-            // Scrubbing Seekbar
-            Row(
-                modifier = Modifier.fillMaxWidth().height(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = formatMs(if (isDraggingSeek) (dragProgress * durationMs).toLong() else positionMs),
-                    fontSize = 11.sp,
-                    color = Color(0xFF64748B),
-                    modifier = Modifier.width(32.dp)
-                )
+            if (durationMs > 0L) {
+                // Scrubbing Seekbar
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = formatMs(if (isDraggingSeek) (dragProgress * durationMs).toLong() else positionMs),
+                        fontSize = 11.sp,
+                        color = Color(0xFF64748B),
+                        modifier = Modifier.width(32.dp)
+                    )
 
-                Slider(
-                    value = progress,
-                    onValueChange = {
-                        isDraggingSeek = true
-                        dragProgress = it
-                    },
-                    onValueChangeFinished = {
-                        DesktopAudioPlayer.seekTo((dragProgress * durationMs).toLong())
-                        isDraggingSeek = false
-                    },
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color(0xFF00E5FF),
-                        activeTrackColor = Color(0xFF00E5FF),
-                        inactiveTrackColor = Color(0xFF252D3D)
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
+                    Slider(
+                        value = progress,
+                        onValueChange = {
+                            isDraggingSeek = true
+                            dragProgress = it
+                        },
+                        onValueChangeFinished = {
+                            DesktopAudioPlayer.seekTo((dragProgress * durationMs).toLong())
+                            isDraggingSeek = false
+                        },
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF00E5FF),
+                            activeTrackColor = Color(0xFF00E5FF),
+                            inactiveTrackColor = Color(0xFF252D3D)
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
 
-                Text(
-                    text = formatMs(durationMs),
-                    fontSize = 11.sp,
-                    color = Color(0xFF64748B),
-                    modifier = Modifier.width(32.dp)
-                )
+                    Text(
+                        text = formatMs(durationMs),
+                        fontSize = 11.sp,
+                        color = Color(0xFF64748B),
+                        modifier = Modifier.width(32.dp)
+                    )
+                }
+            } else if (currentSong != null) {
+                // Live Stream Indicator
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF00E676).copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF00E676)))
+                            Text("LIVE BROADCAST STREAM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00E676))
+                        }
+                    }
+                }
             }
         }
 
@@ -288,3 +312,4 @@ private fun formatMs(ms: Long): String {
     val s = totalSec % 60
     return String.format("%d:%02d", m, s)
 }
+
