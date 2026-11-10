@@ -15,8 +15,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.setBackgroundDrawable(null) // Eliminates root window overdraw
         hideSystemBars()
+        handleLaunchIntent(intent)
         setContent {
             MusicApp()
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleLaunchIntent(intent)
+    }
+
+    private fun handleLaunchIntent(intent: android.content.Intent?) {
+        if (intent?.getBooleanExtra("open_player", false) == true) {
+            com.aashik.music.service.NotificationPlaybackService.instance?.viewModel?.openDriveMode()
         }
     }
 

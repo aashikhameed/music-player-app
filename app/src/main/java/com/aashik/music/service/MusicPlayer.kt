@@ -73,6 +73,15 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     private var playlist: List<Song> = emptyList()
     private var currentIndex: Int = -1
 
+    @Volatile
+    var userQueue: List<Song> = emptyList()
+
+    @Volatile
+    var activeRadioStationName: String? = null
+
+    fun getPlaylist(): List<Song> = playlist
+    fun getCurrentIndex(): Int = currentIndex
+
     // ── Crossfade State (default 3 seconds) ──
     private var crossfadeSeconds: Int = 3
     private var isTransitioning = false
@@ -285,6 +294,18 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun playNext(isAutoCrossfade: Boolean = false) {
+        if (userQueue.isNotEmpty()) {
+            val nextSong = userQueue.first()
+            userQueue = userQueue.drop(1)
+            val idx = playlist.indexOfFirst { it.id == nextSong.id }
+            if (idx != -1) {
+                currentIndex = idx
+                _currentIndexFlow.value = idx
+            }
+            play(nextSong, isAutoCrossfade)
+            com.aashik.music.controller.MusicController.play(nextSong)
+            return
+        }
         if (playlist.isEmpty()) return
         val curId = _currentSongFlow.value?.id
         val idx = if (curId != null) playlist.indexOfFirst { it.id == curId } else currentIndex

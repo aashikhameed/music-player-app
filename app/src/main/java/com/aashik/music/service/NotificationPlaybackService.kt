@@ -100,6 +100,16 @@ class NotificationPlaybackService : Service() {
 
     fun setViewModel(vm: MusicViewModel) {
         this.viewModel = vm
+        val liveSong = musicPlayer.currentSongFlow.value
+        if (liveSong != null) {
+            vm.syncFromActivePlayer(
+                currentSong = liveSong,
+                isPlaying = musicPlayer.isPlayingFlow.value,
+                playlist = musicPlayer.getPlaylist(),
+                userQueue = musicPlayer.userQueue,
+                activeRadioStation = musicPlayer.activeRadioStationName
+            )
+        }
     }
 
     private fun observePlayerState() {
@@ -354,7 +364,10 @@ class NotificationPlaybackService : Service() {
     }
 
     private fun openAppIntent(): PendingIntent {
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("open_player", true)
+        }
         return PendingIntent.getActivity(
             this, 0, launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

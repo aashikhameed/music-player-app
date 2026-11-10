@@ -58,16 +58,16 @@ enum class LibraryTab {
 private const val TAG = "MusicViewModel"
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
-    private val _isPlaying = MutableStateFlow(false)
+    private val musicPlayer = MusicPlayer.getInstance(application)
+    private val _isPlaying = MutableStateFlow(musicPlayer.isPlayingFlow.value)
     val isPlaying: StateFlow<Boolean> = _isPlaying
 
     private val _songs = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = _songs.asStateFlow()
 
-    private val _currentSong = MutableStateFlow<Song?>(null)
+    private val _currentSong = MutableStateFlow<Song?>(musicPlayer.currentSongFlow.value)
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
 
-    private val musicPlayer = MusicPlayer.getInstance(application)
     private val songDao = MusicDatabase.getDatabase(application).songDao()
 
     private val _isLoading = MutableStateFlow(false)
@@ -83,7 +83,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val scrollToIndex: StateFlow<Int?> = _scrollToIndex
 
     private var originalSongs: List<Song> = emptyList()
-    private var activePlaylist: List<Song> = emptyList()
+    private var activePlaylist: List<Song> = musicPlayer.getPlaylist()
     private var activeShuffledSongs: MutableList<Song> = mutableListOf()
     private var shuffledSongs: MutableList<Song> = mutableListOf()
     private val _isShuffleOn = MutableStateFlow(true)
@@ -345,7 +345,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         isBuffering || isRadio
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    private val _activeRadioStationName = MutableStateFlow<String?>(null)
+    private val _activeRadioStationName = MutableStateFlow<String?>(musicPlayer.activeRadioStationName)
     val activeRadioStationName: StateFlow<String?> = _activeRadioStationName.asStateFlow()
 
     private var onlineSearchJob: Job? = null
@@ -385,7 +385,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val fader: StateFlow<Float> = _fader.asStateFlow()
 
     // ── Play Queue & "Play Next" State ──
-    private val _userQueue = MutableStateFlow<List<Song>>(emptyList())
+    private val _userQueue = MutableStateFlow<List<Song>>(musicPlayer.userQueue)
     val userQueue: StateFlow<List<Song>> = _userQueue.asStateFlow()
 
     private val _isQueueOpen = MutableStateFlow(false)
@@ -439,6 +439,39 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     init {
         _isShuffleOn.value = (_playbackMode.value == PlaybackMode.SHUFFLE)
         com.aashik.music.service.LyricsRepository.init(application.applicationContext)
+
+        // ── Restore live background playback session if actively playing ──
+        val liveSong = musicPlayer.currentSongFlow.value
+        if (liveSong != null) {
+            _currentSong.value = liveSong
+            _navigatingTrack.value = NavigatingTrack(song = liveSong, direction = 1, transitionId = ++transitionSeq)
+            if (musicPlayer.isPlayingFlow.value) {
+                _isPlaying.value = true
+                _isDriveModeOpen.value = true
+            }
+        }
+        if (musicPlayer.userQueue.isNotEmpty()) {
+            _userQueue.value = musicPlayer.userQueue
+        }
+        if (musicPlayer.getPlaylist().isNotEmpty()) {
+            activePlaylist = musicPlayer.getPlaylist()
+        }
+        if (musicPlayer.activeRadioStationName != null) {
+            _activeRadioStationName.value = musicPlayer.activeRadioStationName
+        }
+
+        // Keep musicPlayer's persistent session cache in sync
+        viewModelScope.launch {
+            _userQueue.collect { q ->
+                musicPlayer.userQueue = q
+            }
+        }
+        viewModelScope.launch {
+            _activeRadioStationName.collect { name ->
+                musicPlayer.activeRadioStationName = name
+            }
+        }
+
         viewModelScope.launch {
             themePref.isDarkMode.collect {
                 _isDarkTheme.value = it
@@ -491,10 +524,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
-            val saved = songDao.getLastPlayed()
-            if (saved != null) {
-                _currentSong.value = saved
-                _navigatingTrack.value = NavigatingTrack(song = saved, direction = 1, transitionId = ++transitionSeq)
+            if (musicPlayer.currentSongFlow.value == null && _currentSong.value == null) {
+                val saved = songDao.getLastPlayed()
+                if (saved != null && _currentSong.value == null && musicPlayer.currentSongFlow.value == null) {
+                    _currentSong.value = saved
+                    _navigatingTrack.value = NavigatingTrack(song = saved, direction = 1, transitionId = ++transitionSeq)
+                }
             }
             loadSongs()
         }
@@ -764,10 +799,34 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _isEqualizerOpen.value = !_isEqualizerOpen.value
     }
 
+    fun syncFromActivePlayer(
+        currentSong: Song,
+        isPlaying: Boolean,
+        playlist: List<Song>,
+        userQueue: List<Song>,
+        activeRadioStation: String?
+    ) {
+        _currentSong.value = currentSong
+        _isPlaying.value = isPlaying
+        if (playlist.isNotEmpty()) {
+            activePlaylist = playlist
+        }
+        if (userQueue.isNotEmpty()) {
+            _userQueue.value = userQueue
+        }
+        if (activeRadioStation != null) {
+            _activeRadioStationName.value = activeRadioStation
+        }
+        _navigatingTrack.value = NavigatingTrack(song = currentSong, direction = 1, transitionId = ++transitionSeq)
+        if (isPlaying) {
+            _isDriveModeOpen.value = true
+        }
+    }
+
     fun getNextSong(): Song? {
         val queued = _userQueue.value.firstOrNull()
         if (queued != null) return queued
-        val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
+        val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else musicPlayer.getPlaylist().ifEmpty { _songs.value.ifEmpty { originalSongs } }
         val list = if (_isShuffleOn.value) {
             if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist
         } else {
@@ -788,7 +847,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         if (userQ.isNotEmpty()) {
             return userQ.take(limit)
         }
-        val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
+        val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else musicPlayer.getPlaylist().ifEmpty { _songs.value.ifEmpty { originalSongs } }
         val list = if (_isShuffleOn.value) {
             if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist
         } else {
@@ -2446,6 +2505,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        musicPlayer.onCompletion = null
         sleepTimerJob?.cancel()
         try {
             usbReceiver?.let { getApplication<Application>().unregisterReceiver(it) }

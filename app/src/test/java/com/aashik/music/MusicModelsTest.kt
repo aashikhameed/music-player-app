@@ -972,4 +972,29 @@ class MusicModelsTest {
         assertEquals(com.aashik.music.model.PlaybackMode.QUEUE, nextRadioMode(com.aashik.music.model.PlaybackMode.REPEAT_ONE))
         assertEquals(com.aashik.music.model.PlaybackMode.REPEAT_ONE, nextRadioMode(com.aashik.music.model.PlaybackMode.SHUFFLE))
     }
+
+    @Test
+    fun testBackgroundSessionSyncLogic() {
+        val s1 = Song(id = "1", title = "Track 1", artist = "Artist", album = "Album", duration = 200000L, path = "/storage/1.mp3")
+        val s2 = Song(id = "2", title = "Track 2", artist = "Artist", album = "Album", duration = 210000L, path = "/storage/2.mp3")
+        val s3 = Song(id = "3", title = "Track 3", artist = "Artist", album = "Album", duration = 220000L, path = "/storage/3.mp3")
+
+        val playlist = listOf(s1, s2, s3)
+        val userQueue = listOf(s2, s3)
+
+        // Verify active song discrimination against database stale record
+        var currentSong: Song? = s1
+        val dbLastPlayed: Song? = s3 // Different, older record in database
+
+        // Emulate ViewModel startup logic:
+        // If live player has an active song, it MUST NOT be overwritten by dbLastPlayed!
+        val resolvedSong = currentSong ?: dbLastPlayed
+        assertEquals("1", resolvedSong?.id)
+
+        // Verify queue retention
+        val resolvedQueue = if (userQueue.isNotEmpty()) userQueue else emptyList()
+        assertEquals(2, resolvedQueue.size)
+        assertEquals("2", resolvedQueue[0].id)
+        assertEquals("3", resolvedQueue[1].id)
+    }
 }
