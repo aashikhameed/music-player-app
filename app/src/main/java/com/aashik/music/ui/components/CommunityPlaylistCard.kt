@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
@@ -78,6 +79,7 @@ private val CircleBackButtonShape = CircleShape
 private val CircleAvatarShape = CircleShape
 private val MoreCardShape = RoundedCornerShape(12.dp)
 private val MoreIconContainerShape = RoundedCornerShape(8.dp)
+private val FocusBorderWidth = 1.8.dp
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -91,9 +93,15 @@ fun CommunityPlaylistCard(
     item: com.aashik.music.service.ExploreShelfItem,
     onClick: () -> Unit
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .width(140.dp)
+            .onFocusChanged { isFocused = it.isFocused }
+            .then(
+                if (isFocused) Modifier.border(FocusBorderWidth, MaterialTheme.colorScheme.primary, ShelfCardContainerShape)
+                else Modifier
+            )
             .clip(ShelfCardContainerShape)
             .clickable(onClick = onClick)
     ) {

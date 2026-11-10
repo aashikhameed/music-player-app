@@ -21,9 +21,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -37,6 +42,7 @@ import com.aashik.music.theme.AppGradients
 private val FolderCardShape = RoundedCornerShape(12.dp)
 private val FolderIconShape = RoundedCornerShape(8.dp)
 private val CountPillShape = RoundedCornerShape(8.dp)
+private val FocusBorderWidth = 1.8.dp
 
 private val DarkFolderBg = Color(0xFF261D10)
 private val LightFolderBg = Color(0xFFFEF3C7)
@@ -55,15 +61,20 @@ fun FolderCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardGradient = AppGradients.card(isActive = false)
-    val borderBrush = AppGradients.border(isActive = false)
+    var isFocused by remember { mutableStateOf(false) }
+    val cardGradient = AppGradients.card(isActive = isFocused)
+    val borderBrush = AppGradients.border(isActive = isFocused)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(76.dp) // Matched with SongCard height, tuned for 1280×720 @ 160dpi
+            .onFocusChanged { isFocused = it.isFocused }
+            .then(
+                if (isFocused) Modifier.border(FocusBorderWidth, MaterialTheme.colorScheme.primary, FolderCardShape)
+                else Modifier.border(width = 1.dp, brush = borderBrush, shape = FolderCardShape)
+            )
             .background(brush = cardGradient, shape = FolderCardShape)
-            .border(width = 1.dp, brush = borderBrush, shape = FolderCardShape)
             .clip(FolderCardShape)
             .clickable(onClick = onClick)
     ) {

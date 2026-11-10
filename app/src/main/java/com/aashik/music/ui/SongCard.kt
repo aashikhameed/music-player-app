@@ -3,6 +3,7 @@ package com.aashik.music.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,9 +26,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -42,12 +48,14 @@ import com.aashik.music.ui.components.LiveAnimatedEqualizer
 
 private val SongCardShape = RoundedCornerShape(12.dp)
 private val SongArtShape = RoundedCornerShape(8.dp)
+private val FocusBorderWidth = 1.8.dp
 
 /**
  * Modern flat song item row matching automotive glanceable UI:
  * - 52dp square album artwork with 8dp rounded corners
  * - Bold title (15sp) and muted artist (13sp)
  * - Right row: active checkmark indicator (when playing), formatted duration (M:SS), and 3-dots more menu
+ * - Full Android TV remote D-Pad focus border & highlight support
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -58,21 +66,27 @@ fun SongCard(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
     cardWidth: Dp? = null,
-    showOptions: Boolean = true,
+    @Suppress("UNUSED_PARAMETER") showOptions: Boolean = true,
     @Suppress("UNUSED_PARAMETER") isFavorite: Boolean = false,
     @Suppress("UNUSED_PARAMETER") onFavoriteClick: (() -> Unit)? = null
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     val widthModifier = if (cardWidth != null) Modifier.width(cardWidth) else Modifier.fillMaxWidth()
-    val rowBackground = if (isPlaying) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
-    } else {
-        Color.Transparent
+    val rowBackground = when {
+        isFocused -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        isPlaying -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
+        else -> Color.Transparent
     }
 
     Box(
         modifier = modifier
             .then(widthModifier)
             .height(68.dp)
+            .onFocusChanged { isFocused = it.isFocused }
+            .then(
+                if (isFocused) Modifier.border(FocusBorderWidth, MaterialTheme.colorScheme.primary, SongCardShape)
+                else Modifier
+            )
             .background(color = rowBackground, shape = SongCardShape)
             .clip(SongCardShape)
             .combinedClickable(

@@ -7,12 +7,13 @@
 
 ## 1. Overview & Target Display Profiles
 
-This document specifies the exact, frozen user interface architecture and screen layouts of the Music Player application across both supported target form factors:
+This document specifies the exact, frozen user interface architecture and screen layouts of the Music Player application across all supported target form factors:
 
-| Form Factor | Orientation | Resolution / Density | Touch Target Standard |
+| Form Factor | Orientation | Resolution / Density | Touch Target & Navigation Standard |
 | :--- | :--- | :--- | :--- |
-| **Car (Automotive Headunit)** | Landscape (`Configuration.ORIENTATION_LANDSCAPE`) | 1280 × 720 px @ 160 dpi (mdpi) | Minimum 56dp for primary touch targets |
+| **Car (Automotive Headunit)** | Landscape (`Configuration.ORIENTATION_LANDSCAPE`) | 1280 × 720 px @ 160 dpi (mdpi) | Minimum 56dp for glanceable automotive touch targets |
 | **Mobile Device** | Portrait (`Configuration.ORIENTATION_PORTRAIT`) | Standard Android Phones (360–412dp width) | Minimum 48dp touch targets |
+| **Android TV / Google TV** | Landscape (Leanback Launcher) | 1080p / 4K 16:9 Display | Full 10-foot D-Pad remote navigation & high-contrast focus rings |
 
 ---
 

@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
@@ -78,6 +79,7 @@ private val CircleBackButtonShape = CircleShape
 private val CircleAvatarShape = CircleShape
 private val MoreCardShape = RoundedCornerShape(12.dp)
 private val MoreIconContainerShape = RoundedCornerShape(8.dp)
+private val FocusBorderWidth = 1.8.dp
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -95,13 +97,13 @@ fun CategorySongRowCard(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val cardBg = if (isPlaying) {
-        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.18f else 0.12f)
-    } else if (isDark) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+    val cardBg = when {
+        isFocused -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        isPlaying -> MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.18f else 0.12f)
+        isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
     }
 
     Surface(
@@ -109,6 +111,11 @@ fun CategorySongRowCard(
         color = cardBg,
         modifier = modifier
             .fillMaxWidth()
+            .onFocusChanged { isFocused = it.isFocused }
+            .then(
+                if (isFocused) Modifier.border(FocusBorderWidth, MaterialTheme.colorScheme.primary, RadioCardShape)
+                else Modifier
+            )
             .combinedClickable(
                 onClick = onPlayClick,
                 onLongClick = onLongPress

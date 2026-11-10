@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
@@ -78,6 +79,7 @@ private val CircleBackButtonShape = CircleShape
 private val CircleAvatarShape = CircleShape
 private val MoreCardShape = RoundedCornerShape(12.dp)
 private val MoreIconContainerShape = RoundedCornerShape(8.dp)
+private val FocusBorderWidth = 1.8.dp
 
 private val ThemeSunColor = Color(0xFFFFD54F)
 private val ThemeMoonColor = Color(0xFF7986CB)
@@ -89,6 +91,7 @@ private val FavoriteHeartRed = Color(0xFFFF5252)
 /**
  * Community Radio Station Card Component.
  * Optimized for Mali GPU with solid color styling and zero dynamic shape allocations.
+ * Full Android TV remote D-Pad focus border & highlight support.
  */
 @Composable
 fun RadioStationCard(
@@ -100,20 +103,26 @@ fun RadioStationCard(
     onStartRadioClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val cardBg = if (isPlaying) {
-        MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.18f else 0.12f)
-    } else if (isDark) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+    val cardBg = when {
+        isFocused -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+        isPlaying -> MaterialTheme.colorScheme.primary.copy(alpha = if (isDark) 0.18f else 0.12f)
+        isDark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
     }
 
     Surface(
         onClick = onPlayClick,
         shape = RadioCardShape,
         color = cardBg,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { isFocused = it.isFocused }
+            .then(
+                if (isFocused) Modifier.border(FocusBorderWidth, MaterialTheme.colorScheme.primary, RadioCardShape)
+                else Modifier
+            )
     ) {
         Row(
             modifier = Modifier
