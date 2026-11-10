@@ -951,4 +951,25 @@ class MusicModelsTest {
         // 8. CRITICAL: Generic single-word title with different artist
         assertFalse(repo.isAccurateMatch("Hero", "Enrique Iglesias", "Hero", "A.R. Rahman"))
     }
+
+    @Test
+    fun testPlaybackModeAndRadioQueueToggleLogic() {
+        // Normal 3-way cycle
+        assertEquals(com.aashik.music.model.PlaybackMode.QUEUE, com.aashik.music.model.PlaybackMode.SHUFFLE.next())
+        assertEquals(com.aashik.music.model.PlaybackMode.REPEAT_ONE, com.aashik.music.model.PlaybackMode.QUEUE.next())
+        assertEquals(com.aashik.music.model.PlaybackMode.SHUFFLE, com.aashik.music.model.PlaybackMode.REPEAT_ONE.next())
+
+        // Radio queue toggle logic: strictly between Straight (QUEUE) and Repeat (REPEAT_ONE)
+        fun nextRadioMode(current: com.aashik.music.model.PlaybackMode): com.aashik.music.model.PlaybackMode {
+            return if (current == com.aashik.music.model.PlaybackMode.REPEAT_ONE) {
+                com.aashik.music.model.PlaybackMode.QUEUE
+            } else {
+                com.aashik.music.model.PlaybackMode.REPEAT_ONE
+            }
+        }
+
+        assertEquals(com.aashik.music.model.PlaybackMode.REPEAT_ONE, nextRadioMode(com.aashik.music.model.PlaybackMode.QUEUE))
+        assertEquals(com.aashik.music.model.PlaybackMode.QUEUE, nextRadioMode(com.aashik.music.model.PlaybackMode.REPEAT_ONE))
+        assertEquals(com.aashik.music.model.PlaybackMode.REPEAT_ONE, nextRadioMode(com.aashik.music.model.PlaybackMode.SHUFFLE))
+    }
 }

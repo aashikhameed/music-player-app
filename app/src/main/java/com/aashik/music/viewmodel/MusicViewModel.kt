@@ -1046,6 +1046,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playRadioStation(station: RadioStation) {
+        if (_playbackMode.value == PlaybackMode.SHUFFLE) {
+            _playbackMode.value = PlaybackMode.QUEUE
+            _isShuffleOn.value = false
+            appPrefs.edit().putString("playback_mode", PlaybackMode.QUEUE.name).apply()
+        }
         val stationSong = station.toSong()
         val stationSongs = _radioStations.value.map { it.toSong() }
         OnlineStreamRepository.registerSongGenre(stationSong.id, station.genre)
@@ -1094,6 +1099,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startRadioForSong(seedSong: Song) {
+        if (_playbackMode.value == PlaybackMode.SHUFFLE) {
+            _playbackMode.value = PlaybackMode.QUEUE
+            _isShuffleOn.value = false
+            appPrefs.edit().putString("playback_mode", PlaybackMode.QUEUE.name).apply()
+        }
         radioJob?.cancel()
         radioJob = viewModelScope.launch {
             _isRadioLoading.value = true
@@ -1136,15 +1146,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 val upcomingTracks = fullQueue.filter { it.id != seedSong.id }
                 _userQueue.value = upcomingTracks
 
-                if (_isShuffleOn.value) {
-                    val others = fullQueue.filter { it.id != seedSong.id }.shuffled()
-                    activeShuffledSongs = (listOf(seedSong) + others).toMutableList()
-                    shuffledSongs = activeShuffledSongs
-                } else {
-                    activeShuffledSongs = mutableListOf()
-                }
-
-                val queue = if (_isShuffleOn.value) activeShuffledSongs else activePlaylist
+                activeShuffledSongs = mutableListOf()
+                val queue = activePlaylist
                 val startIndex = queue.indexOfFirst { it.id == seedSong.id }.coerceAtLeast(0)
                 musicPlayer.setPlaylist(queue, startIndex)
 
@@ -1863,6 +1866,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             else -> originalSongs
         }
         val isNewPlaylist = targetList != activePlaylist
+        if (playlist != null && isNewPlaylist && !_isRadioLoading.value && _activeRadioStationName.value != null) {
+            val isStationSong = _radioStations.value.any { it.streamUrl == song.path }
+            if (!isStationSong) {
+                _activeRadioStationName.value = null
+            }
+        }
         activePlaylist = targetList
 
         // Synchronize and advance user queue based on played song
@@ -2067,17 +2076,32 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         cyclePlaybackMode()
     }
 
+    fun isRadioQueueActive(): Boolean = _activeRadioStationName.value != null || _isRadioLoading.value
+
     fun cyclePlaybackMode() {
-        val nextMode = _playbackMode.value.next()
+        val nextMode = if (isRadioQueueActive()) {
+            if (_playbackMode.value == PlaybackMode.REPEAT_ONE) {
+                PlaybackMode.QUEUE
+            } else {
+                PlaybackMode.REPEAT_ONE
+            }
+        } else {
+            _playbackMode.value.next()
+        }
         setPlaybackMode(nextMode)
     }
 
     fun setPlaybackMode(mode: PlaybackMode) {
-        _playbackMode.value = mode
-        appPrefs.edit().putString("playback_mode", mode.name).apply()
+        val effectiveMode = if (isRadioQueueActive() && mode == PlaybackMode.SHUFFLE) {
+            PlaybackMode.QUEUE
+        } else {
+            mode
+        }
+        _playbackMode.value = effectiveMode
+        appPrefs.edit().putString("playback_mode", effectiveMode.name).apply()
 
         if (_currentSong.value?.isStream() == true) {
-            when (mode) {
+            when (effectiveMode) {
                 PlaybackMode.SHUFFLE -> {
                     _isShuffleOn.value = true
                     musicPlayer.setRepeatMode(0)
@@ -2099,7 +2123,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         val baseList = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
 
-        when (mode) {
+        when (effectiveMode) {
             PlaybackMode.SHUFFLE -> {
                 _isShuffleOn.value = true
                 musicPlayer.setRepeatMode(0)

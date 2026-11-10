@@ -127,12 +127,21 @@ The primary in-cabin driver infotainment and mobile music stage designed for zer
     - Primary transport deck: Repeat, Shuffle, Prev (52dp), Play/Pause (64dp elevated button), Next (52dp).
 
 #### B. Mobile Portrait Stage (Phone Display)
-- **`MobileDriveHudStage`**:
+- **`MobileHeroStage` & `MobilePlayerActionBar`**:
   - Vertically stacked hierarchy:
-    1. Top: Unified `DriveHudActionBar` (responsive wrapping for narrower phone width).
-    2. Center-Top: 130 × 130 dp Album Art / Video Player viewport.
-    3. Center-Bottom: Track metadata, lyrics toggle, and Up Next card.
-    4. Bottom: Large automotive transport controls and linear scrubber.
+    1. Top: Top App Bar with back navigation, track title, and options.
+    2. Center Stage (`MobileHeroStage`): Responsive high-contrast Album Art viewport with integrated action surfaces:
+       - Floating Favorite (Heart) button anchored in bottom-left corner with precomputed shape.
+       - Floating Offline Download button anchored in bottom-right corner with live progress ring.
+       - Both floating corner actions smoothly fade out when lyrics are expanded or video mode is active.
+       - Expanding synchronized lyrics replaces the artwork stage without shifting surrounding layouts.
+    3. Action Bar (`MobilePlayerActionBar`):
+       - Four balanced, 44dp Material 3 action buttons:
+         - **Playback Mode / Shuffle**: When queue is from radio, shuffle is excluded and toggles strictly between Straight (sequential) and Repeat One. For normal playlists, cycles Shuffle -> Straight -> Repeat One.
+         - **Playback Queue**: Positioned directly to the right of Shuffle/Mode; opens the full playback queue drawer overlay.
+         - **Radio Station**: Positioned to the right of Queue; initiates instant algorithmic radio for the active song.
+         - **Synchronized Lyrics**: Positioned on the right; toggles the full lyrics display.
+    4. Bottom Transport Deck: Scrubbing seekbar with time counters, and standard automotive transport controls.
 
 ---
 

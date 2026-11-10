@@ -1,7 +1,6 @@
 package com.aashik.music.ui.mobile
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -12,12 +11,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Podcasts
+import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,31 +37,29 @@ private val ActionButtonCircle = CircleShape
 
 /**
  * Mobile Portrait Action Bar (Strict Material 3 Standard).
- * Layout: [Favorite] [Download]  ...  [Shuffle] [Lyrics] [Radio]
+ * Layout: [Playback Mode / Shuffle]  [Queue]  [Radio]  [Lyrics]
+ * - Heart & Download are anchored inside the Hero Album Art.
+ * - Queue button and Radio button are placed directly to the right of the Shuffle/Playback Mode button.
+ * - When queue is from radio, shuffle is removed, toggling strictly between straight and repeat.
  * All buttons adhere to Material 3 container & on-container tokens with standard touch targets.
  */
 @Composable
 fun MobilePlayerActionBar(
     viewModel: MusicViewModel,
     currentSong: Song?,
-    isFavorite: Boolean,
+    @Suppress("UNUSED_PARAMETER") isFavorite: Boolean = false,
     isLyricsExpanded: Boolean,
-    @Suppress("UNUSED_PARAMETER") isRadioActive: Boolean = false,
-    @Suppress("UNUSED_PARAMETER") isRadioLoading: Boolean = false,
-    currentDownloadStatus: DownloadStatus,
+    isRadioActive: Boolean = false,
+    isRadioLoading: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") currentDownloadStatus: DownloadStatus = DownloadStatus.Idle,
     @Suppress("UNUSED_PARAMETER") controlInactiveColor: Color = Color.Unspecified,
     @Suppress("UNUSED_PARAMETER") isNightDimmerActive: Boolean = false,
     @Suppress("UNUSED_PARAMETER") isDark: Boolean = true,
     onToggleLyrics: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isStream = currentSong?.isStream() == true
-    val isDownloadedSong = currentSong?.let {
-        viewModel.isSongDownloaded(it.id) || it.id.startsWith("download_") || it.path.contains("MusicPlayer")
-    } == true
-    val isStreamDownloadable = (isStream && (currentSong?.duration ?: 0) > 0) || isDownloadedSong
-    val isDownloaded = currentDownloadStatus is DownloadStatus.Downloaded || isDownloadedSong
-    val isDownloading = currentDownloadStatus is DownloadStatus.Downloading
+    val playbackMode by viewModel.playbackMode.collectAsState()
+    val isQueueOpen by viewModel.isQueueOpen.collectAsState()
 
     val surfaceContainer = MaterialTheme.colorScheme.surfaceContainerHigh
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
@@ -76,151 +70,130 @@ fun MobilePlayerActionBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // ── Left Side: Favorite + Download ──
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // 1. Playback Mode Toggle:
+        // When radio is active, shuffle is excluded; toggles between Straight (Repeat off) and Repeat Current Song.
+        // When normal, cycles Shuffle -> Straight -> Repeat Current Song.
+        IconButton(
+            onClick = { viewModel.cyclePlaybackMode() },
+            modifier = Modifier.size(44.dp)
         ) {
-            // Favorite Button (Material 3 Error/ErrorContainer)
-            IconButton(
-                onClick = { currentSong?.path?.let { viewModel.toggleFavorite(it) } },
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = if (isFavorite) MaterialTheme.colorScheme.errorContainer
-                                   else surfaceContainer,
-                            shape = ActionButtonCircle
-                        )
-                        .clip(ActionButtonCircle),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.error else onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
+            val (modeIcon, modeDesc, isModeActive) = when {
+                isRadioActive -> {
+                    if (playbackMode == PlaybackMode.REPEAT_ONE) {
+                        Triple(Icons.Rounded.RepeatOne, "Repeat Current Song", true)
+                    } else {
+                        Triple(Icons.Rounded.Repeat, "Straight (Sequential)", false)
+                    }
                 }
+                playbackMode == PlaybackMode.SHUFFLE -> Triple(Icons.Rounded.Shuffle, "Shuffle", true)
+                playbackMode == PlaybackMode.REPEAT_ONE -> Triple(Icons.Rounded.RepeatOne, "Repeat Current Song", true)
+                else -> Triple(Icons.Rounded.Repeat, "Straight (Sequential)", false)
             }
 
-            // Download Button (only for downloadable streams)
-            if (isStreamDownloadable) {
-                IconButton(
-                    onClick = {
-                        currentSong?.let {
-                            if (isDownloaded) {
-                                viewModel.deleteDownload(it)
-                            } else {
-                                viewModel.downloadSong(it)
-                            }
-                        }
-                    },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    val downloadBg = when {
-                        isDownloaded -> MaterialTheme.colorScheme.tertiaryContainer
-                        isDownloading -> primaryContainer
-                        else -> surfaceContainer
-                    }
-                    val downloadTint = when {
-                        isDownloaded -> MaterialTheme.colorScheme.onTertiaryContainer
-                        isDownloading -> primaryColor
-                        else -> onSurfaceVariant
-                    }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        color = if (isModeActive) primaryContainer else surfaceContainer,
+                        shape = ActionButtonCircle
+                    )
+                    .clip(ActionButtonCircle),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = modeIcon,
+                    contentDescription = modeDesc,
+                    tint = if (isModeActive) onPrimaryContainer else onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(color = downloadBg, shape = ActionButtonCircle)
-                            .clip(ActionButtonCircle),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isDownloading) {
-                            val progress = (currentDownloadStatus as? DownloadStatus.Downloading)?.progress ?: 0f
-                            CircularProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.dp,
-                                color = primaryColor
-                            )
-                        } else {
-                            Icon(
-                                imageVector = if (isDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
-                                contentDescription = if (isDownloaded) "Saved Offline" else "Download Track",
-                                tint = downloadTint,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
+        // 2. Playback Queue Drawer Button (Placed directly to the right of Shuffle/Mode)
+        IconButton(
+            onClick = { viewModel.toggleQueue() },
+            modifier = Modifier.size(44.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        color = if (isQueueOpen) primaryContainer else surfaceContainer,
+                        shape = ActionButtonCircle
+                    )
+                    .clip(ActionButtonCircle),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                    contentDescription = "Playback Queue",
+                    tint = if (isQueueOpen) onPrimaryContainer else onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // 3. Radio Button (Placed to the right of Queue)
+        IconButton(
+            onClick = {
+                currentSong?.let {
+                    viewModel.startRadioForSong(it)
+                }
+            },
+            modifier = Modifier.size(44.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        color = if (isRadioActive) primaryContainer else surfaceContainer,
+                        shape = ActionButtonCircle
+                    )
+                    .clip(ActionButtonCircle),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isRadioLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp,
+                        color = primaryColor
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.Podcasts,
+                        contentDescription = if (isRadioActive) "Radio Active" else "Start Radio Station",
+                        tint = if (isRadioActive) onPrimaryContainer else onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }
 
-        // ── Right Side: Playback Mode (Shuffle / Queue / Repeat One) + Lyrics Toggle + Radio ──
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // 4. Lyrics Toggle Button
+        IconButton(
+            onClick = { onToggleLyrics(!isLyricsExpanded) },
+            modifier = Modifier.size(44.dp)
         ) {
-            // Playback Mode Toggle: Shuffle, Queue, Repeat Current Song
-            val playbackMode by viewModel.playbackMode.collectAsState()
-            IconButton(
-                onClick = { viewModel.cyclePlaybackMode() },
-                modifier = Modifier.size(44.dp)
-            ) {
-                val (modeIcon, modeDesc, isModeActive) = when (playbackMode) {
-                    PlaybackMode.SHUFFLE -> Triple(Icons.Rounded.Shuffle, "Shuffle", true)
-                    PlaybackMode.QUEUE -> Triple(Icons.AutoMirrored.Rounded.QueueMusic, "Sequential Queue", false)
-                    PlaybackMode.REPEAT_ONE -> Triple(Icons.Rounded.RepeatOne, "Repeat Current Song", true)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = if (isModeActive) primaryContainer else surfaceContainer,
-                            shape = ActionButtonCircle
-                        )
-                        .clip(ActionButtonCircle),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = modeIcon,
-                        contentDescription = modeDesc,
-                        tint = if (isModeActive) onPrimaryContainer else onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        color = if (isLyricsExpanded) primaryContainer else surfaceContainer,
+                        shape = ActionButtonCircle
                     )
-                }
-            }
-
-            // Lyrics Toggle Button
-            IconButton(
-                onClick = { onToggleLyrics(!isLyricsExpanded) },
-                modifier = Modifier.size(44.dp)
+                    .clip(ActionButtonCircle),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = if (isLyricsExpanded) primaryContainer else surfaceContainer,
-                            shape = ActionButtonCircle
-                        )
-                        .clip(ActionButtonCircle),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Lyrics,
-                        contentDescription = if (isLyricsExpanded) "Hide Lyrics" else "Show Lyrics",
-                        tint = if (isLyricsExpanded) onPrimaryContainer else onSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Rounded.Lyrics,
+                    contentDescription = if (isLyricsExpanded) "Hide Lyrics" else "Show Lyrics",
+                    tint = if (isLyricsExpanded) onPrimaryContainer else onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
     }
