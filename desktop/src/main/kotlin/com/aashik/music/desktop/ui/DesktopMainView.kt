@@ -1,19 +1,15 @@
 package com.aashik.music.desktop.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -23,8 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,28 +28,29 @@ import com.aashik.music.desktop.service.DesktopLocalScanner
 import com.aashik.music.desktop.service.DesktopLyricLine
 import com.aashik.music.desktop.service.DesktopLyricsRepository
 import com.aashik.music.desktop.service.DesktopOnlineRepository
+import com.aashik.music.desktop.ui.components.*
 import kotlinx.coroutines.launch
 
-enum class DesktopTab {
-    HUD, SEARCH, LOCAL, QUEUE
-}
+private val BigArtworkShape = RoundedCornerShape(20.dp)
+private val MinimizedArtworkShape = RoundedCornerShape(12.dp)
+private val BottomMusicCardShape = RoundedCornerShape(16.dp)
 
 @Composable
 fun DesktopMainView() {
     val scope = rememberCoroutineScope()
 
-    var currentTab by remember { mutableStateOf(DesktopTab.HUD) }
-    var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<DesktopSong>>(emptyList()) }
-    var localSongs by remember { mutableStateOf<List<DesktopSong>>(emptyList()) }
     var queue by remember { mutableStateOf<List<DesktopSong>>(emptyList()) }
     var currentSong by remember { mutableStateOf<DesktopSong?>(null) }
     var lyrics by remember { mutableStateOf<List<DesktopLyricLine>>(emptyList()) }
-    var isSearching by remember { mutableStateOf(false) }
+    var isQueueOpen by remember { mutableStateOf(false) }
+    var isSearchOpen by remember { mutableStateOf(false) }
+    var isLyricsExpanded by remember { mutableStateOf(false) }
+    var isFavorite by remember { mutableStateOf(false) }
+    var isRadioLoading by remember { mutableStateOf(false) }
+    var isRadioActive by remember { mutableStateOf(false) }
 
     val isPlaying by DesktopAudioPlayer.isPlaying.collectAsState()
     val currentPositionMs by DesktopAudioPlayer.currentPositionMs.collectAsState()
-    val durationMs by DesktopAudioPlayer.durationMs.collectAsState()
     val volume by DesktopAudioPlayer.volume.collectAsState()
 
     // Play a song helper
@@ -79,521 +74,356 @@ fun DesktopMainView() {
         }
     }
 
-    // Connect end of track
+    // Connect end-of-track auto transition
     LaunchedEffect(Unit) {
         DesktopAudioPlayer.setOnTrackFinished {
             playNext()
         }
     }
 
-    // Initial local scan and featured songs
+    // Initial load: scan local music or pre-load trending
     LaunchedEffect(Unit) {
-        localSongs = DesktopLocalScanner.scanLocalMusic()
-        if (localSongs.isNotEmpty() && currentSong == null) {
-            currentSong = localSongs.first()
-            queue = localSongs.drop(1)
+        val local = DesktopLocalScanner.scanLocalMusic()
+        if (local.isNotEmpty()) {
+            currentSong = local.first()
+            queue = local.drop(1)
+        } else {
+            val hits = DesktopOnlineRepository.searchSongs("Top Hits 2024", limit = 15)
+            if (hits.isNotEmpty()) {
+                currentSong = hits.first()
+                queue = hits.drop(1)
+            }
         }
-        // Prefetch popular search
-        if (searchResults.isEmpty()) {
-            searchResults = DesktopOnlineRepository.searchSongs("Top Hits 2024", limit = 15)
+        currentSong?.let {
+            lyrics = DesktopLyricsRepository.fetchLyrics(it)
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DesktopBg)
+            .background(Color(0xFF090C12))
     ) {
-        // ─── TOP BAR ────────────────────────────────────────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(68.dp)
-                .background(DesktopSurface)
-                .padding(horizontal = 24.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Logo & App Name
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(DesktopPrimary.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.GraphicEq,
-                        contentDescription = null,
-                        tint = DesktopPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Text(
-                    text = "Music Player",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = DesktopTextPrimary
-                )
-            }
-
-            // Navigation Tabs
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                DesktopNavPill(
-                    label = "Player HUD",
-                    icon = Icons.Rounded.Speed,
-                    selected = currentTab == DesktopTab.HUD,
-                    onClick = { currentTab = DesktopTab.HUD }
-                )
-                DesktopNavPill(
-                    label = "Search & Explore",
-                    icon = Icons.Rounded.TravelExplore,
-                    selected = currentTab == DesktopTab.SEARCH,
-                    onClick = { currentTab = DesktopTab.SEARCH }
-                )
-                DesktopNavPill(
-                    label = "Local Library (${localSongs.size})",
-                    icon = Icons.Rounded.FolderSpecial,
-                    selected = currentTab == DesktopTab.LOCAL,
-                    onClick = { currentTab = DesktopTab.LOCAL }
-                )
-                DesktopNavPill(
-                    label = "Queue (${queue.size})",
-                    icon = Icons.Rounded.QueueMusic,
-                    selected = currentTab == DesktopTab.QUEUE,
-                    onClick = { currentTab = DesktopTab.QUEUE }
-                )
-            }
-
-            // Search input & Volume
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Search Field
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search songs, artists...", fontSize = 13.sp, color = DesktopTextSecondary) },
-                    singleLine = true,
-                    shape = DesktopPillShape,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = null,
-                            tint = DesktopTextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    trailingIcon = {
-                        if (isSearching) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = DesktopPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(
-                        onSearch = {
-                            if (searchQuery.isNotBlank()) {
-                                isSearching = true
-                                currentTab = DesktopTab.SEARCH
-                                scope.launch {
-                                    searchResults = DesktopOnlineRepository.searchSongs(searchQuery)
-                                    isSearching = false
-                                }
-                            }
-                        }
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = DesktopSurfaceVariant,
-                        unfocusedContainerColor = DesktopSurfaceVariant,
-                        focusedBorderColor = DesktopPrimary,
-                        unfocusedBorderColor = DesktopBorder,
-                        focusedTextColor = DesktopTextPrimary,
-                        unfocusedTextColor = DesktopTextPrimary
-                    ),
-                    modifier = Modifier.width(260.dp).height(44.dp)
-                )
-
-                // Volume slider
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = if (volume > 0.05f) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
-                        contentDescription = null,
-                        tint = DesktopTextSecondary,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable { DesktopAudioPlayer.setVolume(if (volume > 0.05f) 0f else 0.8f) }
-                    )
-                    Slider(
-                        value = volume,
-                        onValueChange = { DesktopAudioPlayer.setVolume(it) },
-                        modifier = Modifier.width(90.dp),
-                        colors = SliderDefaults.colors(
-                            thumbColor = DesktopPrimary,
-                            activeTrackColor = DesktopPrimary,
-                            inactiveTrackColor = DesktopBorder
-                        )
-                    )
-                }
-            }
-        }
-
-        // ─── BODY (SPLIT VIEW) ──────────────────────────────────────────────
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 24.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // LEFT PANEL: Large Player HUD
-            Card(
+            // ─── TOP STATUS ROW ──────────────────────────────────────────────
+            Row(
                 modifier = Modifier
-                    .weight(0.48f)
-                    .fillMaxHeight(),
-                shape = DesktopCardShape,
-                colors = CardDefaults.cardColors(containerColor = DesktopSurface)
+                    .fillMaxWidth()
+                    .height(44.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                // Digital Automotive Clock
+                DesktopClock(textColor = Color(0xFFF1F5F9))
+
+                // Center Title & Equalizer
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Artwork
-                    DesktopArtwork(
-                        url = currentSong?.artworkUrl,
-                        size = 280.dp,
-                        shape = DesktopArtShape,
-                        modifier = Modifier
-                            .border(1.dp, DesktopBorder, DesktopArtShape)
+                    DesktopEqualizer(
+                        isPlaying = isPlaying,
+                        barColor = Color(0xFF00E5FF)
                     )
+                    Text(
+                        text = "Automotive HUD • Desktop Edition",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
 
-                    // Track Typography
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(top = 16.dp)
+                // Search & Volume Controls
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Search Button
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .background(Color(0xFF131922), shape = CircleShape)
+                            .clip(CircleShape)
+                            .clickable { isSearchOpen = true },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = currentSong?.title ?: "Select a Track",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DesktopTextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = currentSong?.artist ?: "Unknown Artist",
-                            fontSize = 15.sp,
-                            color = DesktopTextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
-                    // Seeker Slider
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
-                    ) {
-                        val progress = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
-                        Slider(
-                            value = progress,
-                            onValueChange = { frac ->
-                                val target = (frac * durationMs).toLong()
-                                DesktopAudioPlayer.seekTo(target)
-                            },
-                            colors = SliderDefaults.colors(
-                                thumbColor = DesktopPrimary,
-                                activeTrackColor = DesktopPrimary,
-                                inactiveTrackColor = DesktopBorder
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = formatMs(currentPositionMs), fontSize = 12.sp, color = DesktopTextSecondary)
-                            Text(text = formatMs(durationMs), fontSize = 12.sp, color = DesktopTextSecondary)
-                        }
-                    }
-
-                    // Playback Controls
+                    // Volume
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // Radio generator button
-                        IconButton(
-                            onClick = {
-                                val seed = currentSong
-                                if (seed != null) {
-                                    scope.launch {
-                                        val radio = DesktopOnlineRepository.fetchRadioQueue(seed)
-                                        queue = radio
+                        Icon(
+                            imageVector = if (volume > 0.05f) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable { DesktopAudioPlayer.setVolume(if (volume > 0.05f) 0f else 0.85f) }
+                        )
+                        Slider(
+                            value = volume,
+                            onValueChange = { DesktopAudioPlayer.setVolume(it) },
+                            modifier = Modifier.width(90.dp),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF00E5FF),
+                                activeTrackColor = Color(0xFF00E5FF),
+                                inactiveTrackColor = Color(0xFF252F42)
+                            )
+                        )
+                    }
+                }
+            }
+
+            // ─── MAIN INFOTAINMENT STAGE (SPLIT VIEW) ────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                val artworkSize by animateDpAsState(
+                    targetValue = if (isLyricsExpanded) 0.dp else 170.dp,
+                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                    label = "ArtworkSize"
+                )
+
+                // Left: 160-170dp Album Artwork with smooth slide transition
+                if (artworkSize > 0.dp) {
+                    Box(
+                        modifier = Modifier
+                            .size(artworkSize)
+                            .background(Color(0xFF131720), shape = BigArtworkShape)
+                            .clip(BigArtworkShape)
+                            .border(1.dp, Color(0xFF252F42), BigArtworkShape)
+                    ) {
+                        AnimatedContent(
+                            targetState = currentSong,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(260)) togetherWith fadeOut(animationSpec = tween(200))
+                            },
+                            label = "ArtworkTransition"
+                        ) { song ->
+                            DesktopArtwork(
+                                url = song?.artworkUrl,
+                                size = artworkSize,
+                                shape = BigArtworkShape,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(28.dp))
+                }
+
+                // Content Area: Song Info OR Full Synced Lyrics
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    AnimatedContent(
+                        targetState = isLyricsExpanded,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(240)) togetherWith fadeOut(animationSpec = tween(180))
+                        },
+                        label = "LyricsExpandTransition"
+                    ) { expanded ->
+                        if (expanded) {
+                            DesktopExpandedLyrics(
+                                lyrics = lyrics,
+                                currentPositionMs = currentPositionMs,
+                                onSeek = { DesktopAudioPlayer.seekTo(it) },
+                                onClose = { isLyricsExpanded = false },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(BigArtworkShape)
+                                    .background(Color(0xFF131720))
+                                    .border(1.dp, Color(0xFF252F42), BigArtworkShape)
+                            )
+                        } else {
+                            // Song Title, Artist, and Interactive Single-Line Lyric Ticker
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Track Title
+                                Text(
+                                    text = currentSong?.title ?: "Select a Track",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFFF1F5F9),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                // Artist • Album
+                                Text(
+                                    text = "${currentSong?.artist ?: "Unknown Artist"} • ${currentSong?.album ?: "Unknown Album"}",
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF94A3B8),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Interactive Single-Line Lyric Ticker
+                                val activeLine = lyrics.lastOrNull { it.timeMs <= currentPositionMs }
+                                if (activeLine != null) {
+                                    Row(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFF1A222F))
+                                            .clickable { isLyricsExpanded = true }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Subtitles,
+                                            contentDescription = null,
+                                            tint = Color(0xFF00E5FF),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = activeLine.text,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF00E5FF),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
                                 }
                             }
-                        ) {
-                            Icon(Icons.Rounded.Radio, contentDescription = "Radio", tint = DesktopPrimary)
-                        }
-
-                        // Play / Pause Circle Button
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .background(DesktopPrimary)
-                                .clickable {
-                                    if (currentSong != null) {
-                                        DesktopAudioPlayer.togglePlayPause()
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                contentDescription = null,
-                                tint = Color.Black,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
-
-                        // Next Track Button
-                        IconButton(
-                            onClick = { playNext() },
-                            enabled = queue.isNotEmpty()
-                        ) {
-                            Icon(
-                                Icons.Rounded.SkipNext,
-                                contentDescription = "Next",
-                                tint = if (queue.isNotEmpty()) DesktopTextPrimary else DesktopTextSecondary.copy(alpha = 0.4f)
-                            )
                         }
                     }
                 }
             }
 
-            // RIGHT PANEL: Dynamic View (Lyrics / Search / Local / Queue)
-            Card(
-                modifier = Modifier
-                    .weight(0.52f)
-                    .fillMaxHeight(),
-                shape = DesktopCardShape,
-                colors = CardDefaults.cardColors(containerColor = DesktopSurface)
+            // ─── ACTION BAR (DriveHudActionBar) ──────────────────────────────
+            AnimatedVisibility(
+                visible = !isLyricsExpanded,
+                enter = fadeIn(animationSpec = tween(220)),
+                exit = fadeOut(animationSpec = tween(180))
             ) {
-                Box(
+                DesktopActionBar(
+                    currentSong = currentSong,
+                    upcomingSongs = queue,
+                    isQueueOpen = isQueueOpen,
+                    onToggleQueue = { isQueueOpen = !isQueueOpen },
+                    isFavorite = isFavorite,
+                    onToggleFavorite = { isFavorite = !isFavorite },
+                    isRadioActive = isRadioActive,
+                    isRadioLoading = isRadioLoading,
+                    onStartRadio = {
+                        val seed = currentSong
+                        if (seed != null) {
+                            isRadioLoading = true
+                            isRadioActive = true
+                            scope.launch {
+                                val radioQueue = DesktopOnlineRepository.fetchRadioQueue(seed)
+                                queue = radioQueue
+                                isRadioLoading = false
+                            }
+                        }
+                    },
+                    onPlayNextSong = { next ->
+                        queue = queue.filter { it.id != next.id }
+                        playSong(next)
+                    },
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(20.dp)
-                ) {
-                    when (currentTab) {
-                        DesktopTab.HUD -> {
-                            // Synced Lyrics View
-                            DesktopLyricsView(
-                                lyrics = lyrics,
-                                currentPositionMs = currentPositionMs,
-                                onLineClicked = { ms -> DesktopAudioPlayer.seekTo(ms) }
-                            )
-                        }
-                        DesktopTab.SEARCH -> {
-                            // Search Results
-                            DesktopSongListView(
-                                title = if (searchQuery.isBlank()) "Recommended & Trending" else "Results for '$searchQuery'",
-                                songs = searchResults,
-                                onSongClicked = { song -> playSong(song, searchResults.filter { it.id != song.id }) }
-                            )
-                        }
-                        DesktopTab.LOCAL -> {
-                            // Local Songs
-                            DesktopSongListView(
-                                title = "Local Music Library (~/Music)",
-                                songs = localSongs,
-                                onSongClicked = { song -> playSong(song, localSongs.filter { it.id != song.id }) }
-                            )
-                        }
-                        DesktopTab.QUEUE -> {
-                            // Queue View
-                            DesktopSongListView(
-                                title = "Up Next (${queue.size} songs)",
-                                songs = queue,
-                                onSongClicked = { song ->
-                                    val idx = queue.indexOfFirst { it.id == song.id }
-                                    if (idx != -1) {
-                                        val newQ = queue.drop(idx + 1)
-                                        playSong(song, newQ)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                )
             }
-        }
-    }
-}
 
-@Composable
-fun DesktopNavPill(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val bg by animateColorAsState(if (selected) DesktopPrimary.copy(alpha = 0.18f) else Color.Transparent)
-    val tint by animateColorAsState(if (selected) DesktopPrimary else DesktopTextSecondary)
-
-    Row(
-        modifier = Modifier
-            .clip(DesktopPillShape)
-            .background(bg)
-            .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
-        Text(text = label, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, color = tint)
-    }
-}
-
-@Composable
-fun DesktopLyricsView(
-    lyrics: List<DesktopLyricLine>,
-    currentPositionMs: Long,
-    onLineClicked: (Long) -> Unit
-) {
-    if (lyrics.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Rounded.Subtitles, contentDescription = null, tint = DesktopTextSecondary.copy(alpha = 0.4f), modifier = Modifier.size(48.dp))
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("No synchronized lyrics found for this song", color = DesktopTextSecondary, fontSize = 14.sp)
-            }
-        }
-        return
-    }
-
-    val activeIndex = lyrics.indexOfLast { it.timeMs <= currentPositionMs }.coerceAtLeast(0)
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(activeIndex) {
-        if (activeIndex >= 0 && activeIndex < lyrics.size) {
-            listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
-        }
-    }
-
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        itemsIndexed(lyrics) { index, line ->
-            val isActive = index == activeIndex
-            val color = if (isActive) DesktopPrimary else DesktopTextSecondary.copy(alpha = 0.65f)
-            val fontSize = if (isActive) 18.sp else 15.sp
-            val fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
-
-            Text(
-                text = line.text,
-                fontSize = fontSize,
-                fontWeight = fontWeight,
-                color = color,
+            // ─── BOTTOM INFOTAINMENT MUSIC CARD ──────────────────────────────
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onLineClicked(line.timeMs) }
-                    .padding(vertical = 4.dp)
+                    .background(color = Color(0xFF131720), shape = BottomMusicCardShape)
+                    .border(width = 0.8.dp, color = Color(0xFF252F42), shape = BottomMusicCardShape)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left 50%: Seeker Bar Container
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        DesktopSeekBar(modifier = Modifier.fillMaxWidth())
+                    }
+
+                    // Right 50%: Playback Buttons Container
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        DesktopPlaybackControls(
+                            onPrevious = {
+                                val currentPos = currentPositionMs
+                                if (currentPos > 3000L) {
+                                    DesktopAudioPlayer.seekTo(0L)
+                                } else {
+                                    // Restart or play previous
+                                    DesktopAudioPlayer.seekTo(0L)
+                                }
+                            },
+                            onNext = { playNext() }
+                        )
+                    }
+                }
+            }
+        }
+
+        // ─── SLIDE-IN QUEUE DRAWER OVERLAY ──────────────────────────────────
+        AnimatedVisibility(
+            visible = isQueueOpen,
+            enter = slideInHorizontally(initialOffsetX = { fullWidth -> fullWidth }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { fullWidth -> fullWidth }) + fadeOut(),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            DesktopQueueDrawer(
+                queue = queue,
+                onPlayTrack = { song, index ->
+                    val newQueue = queue.drop(index + 1)
+                    playSong(song, newQueue)
+                },
+                onClose = { isQueueOpen = false }
+            )
+        }
+
+        // ─── SEARCH DIALOG OVERLAY ──────────────────────────────────────────
+        if (isSearchOpen) {
+            DesktopSearchDialog(
+                onPlaySong = { song ->
+                    playSong(song)
+                },
+                onClose = { isSearchOpen = false }
             )
         }
     }
-}
-
-@Composable
-fun DesktopSongListView(
-    title: String,
-    songs: List<DesktopSong>,
-    onSongClicked: (DesktopSong) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = title,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-            color = DesktopTextPrimary,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-        if (songs.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No songs available", color = DesktopTextSecondary, fontSize = 14.sp)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(songs) { song ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(DesktopCardShape)
-                            .background(DesktopSurfaceVariant)
-                            .clickable { onSongClicked(song) }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        DesktopArtwork(url = song.artworkUrl, size = 44.dp, shape = DesktopCardShape)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = song.title,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                                color = DesktopTextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = song.artist,
-                                fontSize = 12.sp,
-                                color = DesktopTextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        if (song.duration > 0) {
-                            Text(
-                                text = formatMs(song.duration),
-                                fontSize = 12.sp,
-                                color = DesktopTextSecondary
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun formatMs(ms: Long): String {
-    val totalSec = (ms / 1000L).coerceAtLeast(0L)
-    val m = totalSec / 60
-    val s = totalSec % 60
-    return String.format("%d:%02d", m, s)
 }

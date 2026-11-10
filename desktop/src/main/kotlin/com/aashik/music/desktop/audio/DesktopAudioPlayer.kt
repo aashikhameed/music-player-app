@@ -129,3 +129,4 @@ object DesktopAudioPlayer {
         mediaPlayer?.volume = clamped.toDouble()
     }
 }
+

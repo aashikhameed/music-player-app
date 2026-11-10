@@ -45,3 +45,4 @@ object DesktopLocalScanner {
         foundSongs.sortedBy { it.title }
     }
 }
+
