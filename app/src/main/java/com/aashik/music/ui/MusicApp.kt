@@ -105,10 +105,19 @@ fun MusicApp() {
         }
     }
 
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isCarLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     CarMusicTheme(
         isDarkMode = isDarkMode
     ) {
-        MusicListScreen(viewModel)
+        if (isCarLandscape) {
+            // Automotive Headunit: 100% FROZEN LEGACY LAYOUT PRESERVED
+            MusicListScreen(viewModel)
+        } else {
+            // Mobile Portrait: 1:1 Apple Music Liquid Glass Redesign
+            com.aashik.music.ui.mobile.screens.MobileAppleMusicApp(viewModel)
+        }
         AppUpdateDialog(viewModel = viewModel)
     }
 }
