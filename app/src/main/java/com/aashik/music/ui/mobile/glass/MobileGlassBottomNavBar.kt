@@ -16,8 +16,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
 
 enum class MobileNavTab(val title: String, val icon: ImageVector) {
     HOME("Home", Icons.Rounded.Home),
@@ -30,26 +35,38 @@ enum class MobileNavTab(val title: String, val icon: ImageVector) {
 /**
  * Mobile Floating Glass Bottom Navigation Bar (361×54pt, r=27pt).
  * Floats 16dp above the home indicator with 5 Apple Music tabs.
+ * Supports Kyant0/AndroidLiquidGlass backdrop sampling on Android 12+ / 13+
+ * with 100% crash-free fallback on Android 9 (API 28).
  */
 @Composable
 fun MobileGlassBottomNavBar(
     selectedTab: MobileNavTab,
     onTabSelected: (MobileNavTab) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backdrop: Backdrop? = null
 ) {
     val capsuleShape = RoundedCornerShape(27.dp)
+    val density = LocalDensity.current
+
+    val backdropModifier = if (backdrop != null) {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { capsuleShape },
+            effects = {
+                with(density) {
+                    blur(24.dp.toPx())
+                    lens(16.dp.toPx(), 20.dp.toPx(), chromaticAberration = true)
+                }
+            }
+        )
+    } else Modifier
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .height(54.dp)
-            .shadow(
-                elevation = 16.dp,
-                shape = capsuleShape,
-                ambientColor = Color.Black.copy(alpha = 0.40f),
-                spotColor = Color.Black.copy(alpha = 0.50f)
-            )
+            .then(backdropModifier)
             .mobileLiquidGlass(
                 shape = capsuleShape,
                 tintColor = Color(0xFF10141A).copy(alpha = 0.58f),

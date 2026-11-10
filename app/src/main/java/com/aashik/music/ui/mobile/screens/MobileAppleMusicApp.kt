@@ -19,6 +19,8 @@ import com.aashik.music.model.domain.DomainArtist
 import com.aashik.music.model.domain.DomainPlaylist
 import com.aashik.music.ui.mobile.glass.*
 import com.aashik.music.viewmodel.MusicViewModel
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 sealed interface MobileDetailDestination {
     data class Album(val album: DomainAlbum) : MobileDetailDestination
@@ -52,6 +54,9 @@ fun MobileAppleMusicApp(
     var isNowPlayingExpanded by remember { mutableStateOf(false) }
     var showAudioRouteSheet by remember { mutableStateOf(false) }
 
+    // Kyant0/AndroidLiquidGlass backdrop layer recorder
+    val backdrop = rememberLayerBackdrop()
+
     // System Back Handler
     BackHandler(enabled = isNowPlayingExpanded || showAudioRouteSheet || activeDetail != null) {
         when {
@@ -63,10 +68,11 @@ fun MobileAppleMusicApp(
 
     MobileLiquidContainer(modifier = modifier) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // ─── MAIN CONTENT HOST / DETAIL NAVIGATION ─────────────────────────
+            // ─── MAIN CONTENT HOST / DETAIL NAVIGATION (Captured by Backdrop) ─
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .layerBackdrop(backdrop)
                     .systemBarsPadding()
             ) {
                 if (activeDetail != null) {
@@ -204,6 +210,7 @@ fun MobileAppleMusicApp(
                     currentSong = currentSong,
                     isPlaying = isPlaying,
                     albumArt = null,
+                    backdrop = backdrop,
                     onPlayPause = { viewModel.togglePlayPause() },
                     onNext = { viewModel.playNextSong() },
                     onOpenNowPlaying = { isNowPlayingExpanded = true }
@@ -221,6 +228,7 @@ fun MobileAppleMusicApp(
             ) {
                 MobileGlassBottomNavBar(
                     selectedTab = selectedTab,
+                    backdrop = backdrop,
                     onTabSelected = {
                         activeDetail = null // Return to root tab view
                         selectedTab = it

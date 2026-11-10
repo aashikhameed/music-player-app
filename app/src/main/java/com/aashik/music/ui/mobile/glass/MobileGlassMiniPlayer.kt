@@ -20,13 +20,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
 
 /**
  * Mobile Floating Mini-Player Capsule Dock (361×56pt, r=28pt).
  * Floats 10dp above the mobile navigation bar with liquid glass styling.
+ * Supports Kyant0/AndroidLiquidGlass backdrop sampling with Android 9 safety.
  */
 @Composable
 fun MobileGlassMiniPlayer(
@@ -36,21 +42,31 @@ fun MobileGlassMiniPlayer(
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onOpenNowPlaying: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backdrop: Backdrop? = null
 ) {
     val capsuleShape = RoundedCornerShape(28.dp)
+    val density = LocalDensity.current
+
+    val backdropModifier = if (backdrop != null) {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { capsuleShape },
+            effects = {
+                with(density) {
+                    blur(24.dp.toPx())
+                    lens(16.dp.toPx(), 20.dp.toPx(), chromaticAberration = true)
+                }
+            }
+        )
+    } else Modifier
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .height(56.dp)
-            .shadow(
-                elevation = 20.dp,
-                shape = capsuleShape,
-                ambientColor = Color.Black.copy(alpha = 0.45f),
-                spotColor = Color.Black.copy(alpha = 0.55f)
-            )
+            .then(backdropModifier)
             .mobileLiquidGlass(
                 shape = capsuleShape,
                 tintColor = Color(0xFF10141A).copy(alpha = 0.60f),

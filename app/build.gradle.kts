@@ -67,6 +67,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+        freeCompilerArgs += listOf("-Xskip-metadata-version-check")
     }
 
     buildFeatures {
@@ -106,6 +107,12 @@ dependencies {
 
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.animation:animation-core")
+    implementation("io.github.kyant0:backdrop:1.0.6") {
+        exclude(group = "androidx.compose.foundation")
+        exclude(group = "androidx.compose.ui")
+        exclude(group = "androidx.compose.animation")
+        exclude(group = "androidx.compose.runtime")
+    }
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
     implementation("androidx.compose.material:material-icons-extended")
