@@ -204,8 +204,9 @@ fun DesktopMainView() {
                         Box(
                             modifier = Modifier
                                 .size(30.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(DarkSurface)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GlassSurface)
+                                .border(GlassBorderSubtle, RoundedCornerShape(8.dp))
                                 .clickable {
                                     if (screenHistory.size > 1) {
                                         val prev = screenHistory[screenHistory.size - 2]
@@ -226,8 +227,9 @@ fun DesktopMainView() {
                         Box(
                             modifier = Modifier
                                 .size(30.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(DarkSurface),
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GlassSurface)
+                                .border(GlassBorderSubtle, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -239,14 +241,14 @@ fun DesktopMainView() {
                         }
                     }
 
-                    // Center: Dark Apple Search Input (TEXT 100% VISIBLE WITH EXPLICIT STYLING)
+                    // Center: Apple Music Search Input with Liquid Glass Specular Edge
                     Box(
                         modifier = Modifier
-                            .width(340.dp)
+                            .width(380.dp)
                             .height(34.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(DarkCard)
-                            .border(1.dp, DarkBorderSubtle, RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(GlassSurfaceVariant)
+                            .border(GlassBorderSpecular, RoundedCornerShape(10.dp))
                             .padding(horizontal = 10.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {

@@ -2,6 +2,7 @@ package com.aashik.music.desktop.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -25,31 +26,236 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.RandomAccessFile
+import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 
+/**
+ * Universal High-Performance Desktop Artwork Loader & Cacher.
+ * Supports:
+ *  1. Remote HTTP/HTTPS images (with browser User-Agent headers to bypass CDN blocks).
+ *  2. Local image files (.jpg, .png, .webp).
+ *  3. Local audio files (.m4a, .mp4, .mp3, .flac) via embedded metadata extraction (covr atom & ID3 APIC frame).
+ */
 object DesktopImageCache {
     private val memory = ConcurrentHashMap<String, ImageBitmap>()
 
-    suspend fun load(url: String): ImageBitmap? = withContext(Dispatchers.IO) {
+    suspend fun load(rawUrl: String): ImageBitmap? = withContext(Dispatchers.IO) {
+        val url = rawUrl.trim()
         if (url.isBlank()) return@withContext null
         memory[url]?.let { return@withContext it }
+
         try {
-            val conn = URL(url).openConnection()
-            conn.connectTimeout = 4000
-            conn.readTimeout = 5000
-            val buf = conn.getInputStream().use { ImageIO.read(it) }
-            if (buf != null) {
-                val bmp = buf.toComposeImageBitmap()
+            val bmp = if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
+                loadHttpImage(url)
+            } else {
+                loadLocalImageOrAudioArt(url)
+            }
+            if (bmp != null) {
                 memory[url] = bmp
                 return@withContext bmp
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            // Silently fall through to null on corrupt or missing art
+        }
         null
+    }
+
+    private fun loadHttpImage(urlString: String): ImageBitmap? {
+        val conn = (URL(urlString).openConnection() as? HttpURLConnection) ?: return null
+        conn.connectTimeout = 5000
+        conn.readTimeout = 7000
+        conn.instanceFollowRedirects = true
+        conn.setRequestProperty(
+            "User-Agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        )
+        conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+        conn.setRequestProperty("Referer", "https://www.jiosaavn.com/")
+        conn.connect()
+
+        if (conn.responseCode in 200..299) {
+            conn.inputStream.use { stream ->
+                val buf = ImageIO.read(stream)
+                if (buf != null) {
+                    return buf.toComposeImageBitmap()
+                }
+            }
+        }
+        return null
+    }
+
+    private fun loadLocalImageOrAudioArt(pathOrUri: String): ImageBitmap? {
+        val cleanPath = when {
+            pathOrUri.startsWith("file://") -> pathOrUri.substring(7)
+            pathOrUri.startsWith("file:") -> pathOrUri.substring(5)
+            else -> pathOrUri
+        }
+        val file = File(cleanPath)
+        if (!file.exists() || !file.isFile) return null
+
+        val ext = file.extension.lowercase()
+        // 1. Direct Image Files
+        if (ext in listOf("jpg", "jpeg", "png", "webp", "bmp", "gif")) {
+            val buf = ImageIO.read(file) ?: return null
+            return buf.toComposeImageBitmap()
+        }
+
+        // 2. Embedded Audio Artwork (.m4a, .mp4, .mp3, .flac)
+        val rawArtBytes = extractEmbeddedArtworkBytes(file)
+        if (rawArtBytes != null && rawArtBytes.isNotEmpty()) {
+            val buf = ByteArrayInputStream(rawArtBytes).use { ImageIO.read(it) }
+            if (buf != null) {
+                return buf.toComposeImageBitmap()
+            }
+        }
+        return null
+    }
+
+    /**
+     * Extracts embedded JPEG or PNG image bytes from M4A (covr atom) or MP3 (ID3v2 APIC).
+     */
+    fun extractEmbeddedArtworkBytes(file: File): ByteArray? {
+        val ext = file.extension.lowercase()
+        return try {
+            when (ext) {
+                "m4a", "mp4", "aac" -> extractM4ACovr(file)
+                "mp3" -> extractMp3Apic(file)
+                else -> {
+                    scanFileForImage(file, maxBytesToScan = 3 * 1024 * 1024)
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun extractM4ACovr(file: File): ByteArray? {
+        RandomAccessFile(file, "r").use { raf ->
+            val length = raf.length()
+            val scanLimit = minOf(length, 12L * 1024 * 1024).toInt()
+            val buffer = ByteArray(scanLimit)
+            raf.readFully(buffer)
+
+            val covrIndex = indexOf(buffer, "covr".toByteArray())
+            if (covrIndex != -1) {
+                val jpgStart = indexOf(buffer, byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()), covrIndex)
+                if (jpgStart != -1 && jpgStart - covrIndex < 250) {
+                    val jpgEnd = indexOf(buffer, byteArrayOf(0xFF.toByte(), 0xD9.toByte()), jpgStart)
+                    if (jpgEnd != -1) {
+                        val size = jpgEnd + 2 - jpgStart
+                        if (size in 500..10_000_000) {
+                            return buffer.copyOfRange(jpgStart, jpgEnd + 2)
+                        }
+                    }
+                }
+                val pngMagic = byteArrayOf(0x89.toByte(), 0x50.toByte(), 0x4E.toByte(), 0x47.toByte(), 0x0D.toByte(), 0x0A.toByte(), 0x1A.toByte(), 0x0A.toByte())
+                val pngStart = indexOf(buffer, pngMagic, covrIndex)
+                if (pngStart != -1 && pngStart - covrIndex < 250) {
+                    val iendMagic = "IEND".toByteArray()
+                    val pngEnd = indexOf(buffer, iendMagic, pngStart)
+                    if (pngEnd != -1) {
+                        val size = pngEnd + 8 - pngStart
+                        if (size in 500..10_000_000) {
+                            return buffer.copyOfRange(pngStart, pngEnd + 8)
+                        }
+                    }
+                }
+            }
+
+            if (length > scanLimit) {
+                val tailSize = minOf(length - scanLimit, 2L * 1024 * 1024).toInt()
+                val tailBuf = ByteArray(tailSize)
+                raf.seek(length - tailSize)
+                raf.readFully(tailBuf)
+                val tailCovr = indexOf(tailBuf, "covr".toByteArray())
+                if (tailCovr != -1) {
+                    val jpgStart = indexOf(tailBuf, byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()), tailCovr)
+                    if (jpgStart != -1) {
+                        val jpgEnd = indexOf(tailBuf, byteArrayOf(0xFF.toByte(), 0xD9.toByte()), jpgStart)
+                        if (jpgEnd != -1) {
+                            return tailBuf.copyOfRange(jpgStart, jpgEnd + 2)
+                        }
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    private fun extractMp3Apic(file: File): ByteArray? {
+        RandomAccessFile(file, "r").use { raf ->
+            val scanLimit = minOf(raf.length(), 4L * 1024 * 1024).toInt()
+            val buffer = ByteArray(scanLimit)
+            raf.readFully(buffer)
+
+            val apicIndex = indexOf(buffer, "APIC".toByteArray())
+            if (apicIndex != -1) {
+                val jpgStart = indexOf(buffer, byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()), apicIndex)
+                if (jpgStart != -1 && jpgStart - apicIndex < 400) {
+                    val jpgEnd = indexOf(buffer, byteArrayOf(0xFF.toByte(), 0xD9.toByte()), jpgStart)
+                    if (jpgEnd != -1) {
+                        return buffer.copyOfRange(jpgStart, jpgEnd + 2)
+                    }
+                }
+                val pngMagic = byteArrayOf(0x89.toByte(), 0x50.toByte(), 0x4E.toByte(), 0x47.toByte())
+                val pngStart = indexOf(buffer, pngMagic, apicIndex)
+                if (pngStart != -1 && pngStart - apicIndex < 400) {
+                    val pngEnd = indexOf(buffer, "IEND".toByteArray(), pngStart)
+                    if (pngEnd != -1) {
+                        return buffer.copyOfRange(pngStart, pngEnd + 8)
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    private fun scanFileForImage(file: File, maxBytesToScan: Int): ByteArray? {
+        RandomAccessFile(file, "r").use { raf ->
+            val scanLimit = minOf(raf.length(), maxBytesToScan.toLong()).toInt()
+            val buffer = ByteArray(scanLimit)
+            raf.readFully(buffer)
+
+            val jpgStart = indexOf(buffer, byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()), 0)
+            if (jpgStart != -1) {
+                val jpgEnd = indexOf(buffer, byteArrayOf(0xFF.toByte(), 0xD9.toByte()), jpgStart)
+                if (jpgEnd != -1 && (jpgEnd + 2 - jpgStart) in 1000..5_000_000) {
+                    return buffer.copyOfRange(jpgStart, jpgEnd + 2)
+                }
+            }
+        }
+        return null
+    }
+
+    private fun indexOf(source: ByteArray, target: ByteArray, fromIndex: Int = 0): Int {
+        if (target.isEmpty() || fromIndex < 0 || fromIndex >= source.size) return -1
+        val max = source.size - target.size
+        for (i in fromIndex..max) {
+            var found = true
+            for (j in target.indices) {
+                if (source[i + j] != target[j]) {
+                    found = false
+                    break
+                }
+            }
+            if (found) return i
+        }
+        return -1
     }
 }
 
+/**
+ * Apple Music Liquid Glass Artwork Frame.
+ * Features:
+ * - Asynchronous artwork loading with in-memory caching.
+ * - Specular liquid glass border and subtle dark background.
+ * - Graceful fallback to dark slate musical note icon.
+ */
 @Composable
 fun DesktopArtwork(
     url: String?,
@@ -71,7 +277,8 @@ fun DesktopArtwork(
         modifier = modifier
             .size(size)
             .clip(shape)
-            .background(DesktopSurfaceVariant),
+            .background(DarkSurfaceVariant)
+            .border(GlassBorderSubtle, shape),
         contentAlignment = Alignment.Center
     ) {
         val bmp = bitmap
@@ -86,10 +293,9 @@ fun DesktopArtwork(
             Icon(
                 imageVector = Icons.Rounded.MusicNote,
                 contentDescription = null,
-                tint = DesktopPrimary.copy(alpha = 0.6f),
+                tint = DarkAccent.copy(alpha = 0.5f),
                 modifier = Modifier.size(size / 3)
             )
         }
     }
 }
-

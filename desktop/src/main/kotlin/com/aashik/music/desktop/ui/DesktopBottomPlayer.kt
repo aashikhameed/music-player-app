@@ -1,6 +1,7 @@
 package com.aashik.music.desktop.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -12,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -20,8 +22,17 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.desktop.audio.DesktopAudioPlayer
 import com.aashik.music.desktop.model.DesktopSong
 
-private val ThumbnailShape = RoundedCornerShape(6.dp)
+private val PlayerCapsuleShape = RoundedCornerShape(30.dp)
+private val MiniArtShape = RoundedCornerShape(8.dp)
 
+/**
+ * Apple Music Floating Liquid Glass Capsule Mini-Player Dock.
+ * Matches 1:1 with designScreen/tablet/Album.png and Home.png:
+ * - Floating translucent acrylic dock with specular highlight reflection.
+ * - Left: High-tactile transport controls (Shuffle, Previous, Play/Pause, Next, Repeat).
+ * - Center: Song Thumbnail, Title, Artist, Lossless/Live status, and Scrubber.
+ * - Right: Contextual tools (Lyrics toggle, Queue toggle, Volume slider, Mute).
+ */
 @Composable
 fun DesktopBottomPlayer(
     currentSong: DesktopSong?,
@@ -54,258 +65,267 @@ fun DesktopBottomPlayer(
         if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
     }
 
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(78.dp)
-            .background(DarkSidebar)
-            .padding(horizontal = 20.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
-        // ─── LEFT: Current Track Info & Favorite ──────────────────────────
-        Row(
+        Surface(
+            shape = PlayerCapsuleShape,
+            color = GlassDock,
+            border = GlassBorderSpecular,
             modifier = Modifier
-                .width(280.dp)
-                .clickable { onOpenNowPlaying() },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxWidth()
+                .height(66.dp)
+                .shadow(
+                    elevation = 20.dp,
+                    shape = PlayerCapsuleShape,
+                    ambientColor = Color.Black.copy(alpha = 0.5f),
+                    spotColor = Color.Black.copy(alpha = 0.6f)
+                )
         ) {
-            DesktopArtwork(
-                url = currentSong?.artworkUrl,
-                size = 48.dp,
-                shape = ThumbnailShape
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = currentSong?.title ?: "Not Playing",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = DarkTextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = currentSong?.artist ?: "Unknown Artist",
-                    fontSize = 11.5.sp,
-                    color = DarkTextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            IconButton(
-                onClick = onToggleFavorite,
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFavorite) DarkFavorite else DarkTextTertiary,
-                    modifier = Modifier.size(17.dp)
-                )
-            }
-        }
-
-        // ─── CENTER: Controls & Scrubber ──────────────────────────────────
-        Column(
-            modifier = Modifier.weight(1f).padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Transport buttons
             Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Shuffle
-                IconButton(onClick = onToggleShuffle, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = Icons.Rounded.Shuffle,
-                        contentDescription = "Shuffle",
-                        tint = if (isShuffleOn) DarkAccent else DarkTextTertiary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-
-                // Previous
-                IconButton(onClick = onPrevious, modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        imageVector = Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous",
-                        tint = DarkTextPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                // Play / Pause Circle
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(DarkAccent)
-                        .clickable { DesktopAudioPlayer.togglePlayPause() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        tint = Color(0xFF0C0E14),
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                // Next
-                IconButton(onClick = onNext, modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = "Next",
-                        tint = DarkTextPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                // Repeat
-                IconButton(onClick = onToggleRepeat, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = Icons.Rounded.Repeat,
-                        contentDescription = "Repeat",
-                        tint = if (isRepeatOn) DarkAccent else DarkTextTertiary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            if (durationMs > 0L) {
-                // Scrubbing Slider
+                // ─── LEFT: TRANSPORT CONTROLS ─────────────────────────────────────
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(18.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = formatMs(if (isDraggingSeek) (dragProgress * durationMs).toLong() else positionMs),
-                        fontSize = 11.sp,
-                        color = DarkTextTertiary,
-                        modifier = Modifier.width(32.dp)
-                    )
+                    // Shuffle
+                    IconButton(
+                        onClick = onToggleShuffle,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint = if (isShuffleOn) DarkAccent else DarkTextTertiary,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
 
-                    Slider(
-                        value = progress,
-                        onValueChange = {
-                            isDraggingSeek = true
-                            dragProgress = it
-                        },
-                        onValueChangeFinished = {
-                            DesktopAudioPlayer.seekTo((dragProgress * durationMs).toLong())
-                            isDraggingSeek = false
-                        },
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = DarkAccent,
-                            inactiveTrackColor = DarkSurfaceVariant
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
+                    // Previous
+                    IconButton(
+                        onClick = onPrevious,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous",
+                            tint = DarkTextPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
 
-                    Text(
-                        text = formatMs(durationMs),
-                        fontSize = 11.sp,
-                        color = DarkTextTertiary,
-                        modifier = Modifier.width(32.dp)
-                    )
-                }
-            } else if (currentSong != null) {
-                // Live Stream Indicator
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
+                    // Play / Pause Circle (Apple Music pure solid white / accent hero pill)
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(DarkPlayingGreen.copy(alpha = 0.15f))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .clickable { DesktopAudioPlayer.togglePlayPause() },
+                        contentAlignment = Alignment.Center
                     ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = Color(0xFF0A0D14),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // Next
+                    IconButton(
+                        onClick = onNext,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipNext,
+                            contentDescription = "Next",
+                            tint = DarkTextPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // Repeat
+                    IconButton(
+                        onClick = onToggleRepeat,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Repeat,
+                            contentDescription = "Repeat",
+                            tint = if (isRepeatOn) DarkAccent else DarkTextTertiary,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
+
+                // ─── CENTER: TRACK INFO & SCRUBBER ─────────────────────────────────
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onOpenNowPlaying() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    DesktopArtwork(
+                        url = currentSong?.artworkUrl,
+                        size = 44.dp,
+                        shape = MiniArtShape
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(DarkPlayingGreen))
-                            Text("LIVE BROADCAST", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = DarkPlayingGreen)
+                            Text(
+                                text = currentSong?.title ?: "Not Playing",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DarkTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (durationMs <= 0L && currentSong != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(DarkPlayingGreen.copy(alpha = 0.2f))
+                                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                                ) {
+                                    Text("LIVE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = DarkPlayingGreen)
+                                }
+                            }
                         }
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = currentSong?.artist ?: "Select a song or radio station",
+                            fontSize = 11.5.sp,
+                            color = DarkTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        // Subtle progress indicator under track metadata
+                        if (durationMs > 0L) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            LinearProgressIndicator(
+                                progress = progress,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.5.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = DarkAccent,
+                                trackColor = DarkSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Favorite Button (Ice Cyan, NEVER red)
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = if (isFavorite) DarkFavorite else DarkTextTertiary,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
+
+                // ─── RIGHT: UTILITIES (LYRICS, QUEUE, VOLUME) ───────────────────────
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Lyrics Toggle Pill
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(if (isLyricsOpen) DarkAccent.copy(alpha = 0.18f) else Color.Transparent)
+                            .border(
+                                width = 1.dp,
+                                color = if (isLyricsOpen) DarkAccent.copy(alpha = 0.6f) else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable { onToggleLyrics() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.FormatQuote,
+                            contentDescription = "Lyrics",
+                            tint = if (isLyricsOpen) DarkAccent else DarkTextSecondary,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+
+                    // Up Next Queue Toggle Pill
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(if (isQueueOpen) DarkAccent.copy(alpha = 0.18f) else Color.Transparent)
+                            .border(
+                                width = 1.dp,
+                                color = if (isQueueOpen) DarkAccent.copy(alpha = 0.6f) else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable { onToggleQueue() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.QueueMusic,
+                            contentDescription = "Queue",
+                            tint = if (isQueueOpen) DarkAccent else DarkTextSecondary,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+
+                    // Volume Control
+                    Row(
+                        modifier = Modifier.width(115.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (volume > 0.05f) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
+                            contentDescription = "Volume",
+                            tint = DarkTextSecondary,
+                            modifier = Modifier
+                                .size(17.dp)
+                                .clickable { DesktopAudioPlayer.setVolume(if (volume > 0.05f) 0f else 0.85f) }
+                        )
+
+                        Slider(
+                            value = volume,
+                            onValueChange = { DesktopAudioPlayer.setVolume(it) },
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = DarkTextPrimary,
+                                inactiveTrackColor = DarkSurfaceVariant
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
         }
-
-        // ─── RIGHT: Utility & Output (Lyrics, Queue, Volume) ──────────────
-        Row(
-            modifier = Modifier.width(280.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
-        ) {
-            // Lyrics Toggle
-            IconButton(
-                onClick = onToggleLyrics,
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.FormatQuote,
-                    contentDescription = "Lyrics",
-                    tint = if (isLyricsOpen) DarkAccent else DarkTextTertiary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Up Next Queue Toggle
-            IconButton(
-                onClick = onToggleQueue,
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.QueueMusic,
-                    contentDescription = "Queue",
-                    tint = if (isQueueOpen) DarkAccent else DarkTextTertiary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Volume Slider
-            Row(
-                modifier = Modifier.width(110.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = if (volume > 0.05f) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
-                    contentDescription = "Volume",
-                    tint = DarkTextTertiary,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clickable { DesktopAudioPlayer.setVolume(if (volume > 0.05f) 0f else 0.85f) }
-                )
-
-                Slider(
-                    value = volume,
-                    onValueChange = { DesktopAudioPlayer.setVolume(it) },
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = DarkTextSecondary,
-                        inactiveTrackColor = DarkSurfaceVariant
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
     }
-}
-
-private fun formatMs(ms: Long): String {
-    val totalSec = (ms / 1000L).coerceAtLeast(0L)
-    val m = totalSec / 60
-    val s = totalSec % 60
-    return String.format("%d:%02d", m, s)
 }

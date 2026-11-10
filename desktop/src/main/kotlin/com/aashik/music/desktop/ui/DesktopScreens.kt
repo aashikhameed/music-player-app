@@ -310,13 +310,13 @@ fun DesktopNowPlayingStage(
                     }
                 }
 
-                // Apple Music Large 280×280dp Framed Artwork
+                // Apple Music Large 280×280dp Framed Artwork with Liquid Glass Specular Border
                 Box(
                     modifier = Modifier
                         .size(280.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(DarkSurface)
-                        .border(1.dp, DarkBorder, RoundedCornerShape(16.dp)),
+                        .background(GlassCard)
+                        .border(GlassBorderSpecular, RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     DesktopArtwork(
@@ -583,8 +583,8 @@ fun DesktopNowPlayingStage(
         Card(
             modifier = Modifier.weight(1f).fillMaxHeight(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkSidebar),
-            border = BorderStroke(1.dp, DarkBorder)
+            colors = CardDefaults.cardColors(containerColor = GlassCard),
+            border = GlassBorderSpecular
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(18.dp)) {
                 // Segmented Tab Switcher: [ Lyrics ] | [ Playing Next ]
@@ -596,7 +596,8 @@ fun DesktopNowPlayingStage(
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(DarkSurface)
+                            .background(GlassSurface)
+                            .border(GlassBorderSubtle, RoundedCornerShape(8.dp))
                             .padding(3.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -604,7 +605,12 @@ fun DesktopNowPlayingStage(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (activeTab == 0) DarkCard else Color.Transparent)
+                                .background(if (activeTab == 0) DarkAccent.copy(alpha = 0.16f) else Color.Transparent)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (activeTab == 0) DarkAccent.copy(alpha = 0.35f) else Color.Transparent,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
                                 .clickable { activeTab = 0 }
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
@@ -631,7 +637,12 @@ fun DesktopNowPlayingStage(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (activeTab == 1) DarkCard else Color.Transparent)
+                                .background(if (activeTab == 1) DarkAccent.copy(alpha = 0.16f) else Color.Transparent)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (activeTab == 1) DarkAccent.copy(alpha = 0.35f) else Color.Transparent,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
                                 .clickable { activeTab = 1 }
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
@@ -719,7 +730,8 @@ fun DesktopNowPlayingStage(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clip(TableRowShape)
-                                                .background(DarkSurface)
+                                                .background(GlassSurface)
+                                                .border(GlassBorderSubtle, TableRowShape)
                                                 .clickable { onPlaySong(song) }
                                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
@@ -804,7 +816,8 @@ fun DesktopNowPlayingStage(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(TableRowShape)
-                                        .background(DarkSurface)
+                                        .background(GlassSurface)
+                                        .border(GlassBorderSubtle, TableRowShape)
                                         .clickable { onPlaySong(song) }
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1278,7 +1291,7 @@ fun DesktopMobileMoodGenreCard(
         onClick = onClick,
         shape = CardShape,
         color = cardBg,
-        border = BorderStroke(1.dp, DarkBorderSubtle),
+        border = GlassBorderSpecular,
         modifier = modifier
             .fillMaxWidth()
             .height(86.dp)
@@ -1374,13 +1387,13 @@ fun DesktopMobileRadioStationCard(
     onStartRadioClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardBg = if (isPlaying) DarkAccent.copy(alpha = 0.14f) else DarkSurface
+    val cardBg = if (isPlaying) DarkAccent.copy(alpha = 0.16f) else GlassSurface
 
     Surface(
         onClick = onPlayClick,
         shape = CardShape,
         color = cardBg,
-        border = BorderStroke(1.dp, if (isPlaying) DarkAccent.copy(alpha = 0.5f) else DarkBorder),
+        border = if (isPlaying) GlassBorderActive else GlassBorderSpecular,
         modifier = modifier
             .fillMaxWidth()
             .height(76.dp)
@@ -1533,8 +1546,8 @@ fun DesktopEqualizerView(modifier: Modifier = Modifier) {
         Card(
             modifier = Modifier.fillMaxWidth().height(260.dp),
             shape = CardShape,
-            colors = CardDefaults.cardColors(containerColor = DarkSurface),
-            border = BorderStroke(1.dp, DarkBorder)
+            colors = CardDefaults.cardColors(containerColor = GlassSurface),
+            border = GlassBorderSpecular
         ) {
             Row(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
@@ -1583,8 +1596,8 @@ fun DesktopSettingsView(
         // Offline Storage Directory & Folder Picker
         Card(
             shape = CardShape,
-            colors = CardDefaults.cardColors(containerColor = DarkSurface),
-            border = BorderStroke(1.dp, DarkBorder),
+            colors = CardDefaults.cardColors(containerColor = GlassSurface),
+            border = GlassBorderSpecular,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

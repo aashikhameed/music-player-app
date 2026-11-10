@@ -33,7 +33,7 @@ fun DesktopQueueDrawer(
     onPlayTrack: (DesktopSong, Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    backgroundColor: Color = Color(0xFF131720),
+    backgroundColor: Color = Color(0xF210131B),
     primaryColor: Color = Color(0xFF00E5FF),
     textColor: Color = Color(0xFFF1F5F9),
     secondaryColor: Color = Color(0xFF94A3B8)
@@ -43,7 +43,7 @@ fun DesktopQueueDrawer(
             .width(360.dp)
             .fillMaxHeight()
             .background(backgroundColor)
-            .border(width = 1.dp, color = Color(0xFF252F42))
+            .border(width = 1.dp, color = Color(0x28FFFFFF))
             .padding(16.dp)
     ) {
         // Drawer Header

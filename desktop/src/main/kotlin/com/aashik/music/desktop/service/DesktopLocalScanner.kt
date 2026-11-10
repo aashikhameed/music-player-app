@@ -79,10 +79,12 @@ object DesktopLocalScanner {
                             val title = parts?.getOrNull(0)?.trim() ?: cleanName
                             val artist = parts?.getOrNull(1)?.trim() ?: "Local Artist"
 
-                            // Companion artwork (.jpg or .png with same base name or folder.jpg)
+                            // Companion artwork (.jpg or .png with same base name or folder.jpg) or fallback to embedded file artwork
                             val companionArt = File(file.parentFile, "${file.nameWithoutExtension}.jpg").takeIf { it.exists() }
                                 ?: File(file.parentFile, "cover.jpg").takeIf { it.exists() }
                                 ?: File(file.parentFile, "folder.jpg").takeIf { it.exists() }
+
+                            val artworkPath = companionArt?.toURI()?.toString() ?: file.absolutePath
 
                             foundSongs.add(
                                 DesktopSong(
@@ -92,7 +94,7 @@ object DesktopLocalScanner {
                                     album = file.parentFile?.name ?: "Local Music",
                                     duration = 0L,
                                     path = file.absolutePath,
-                                    artworkUrl = companionArt?.toURI()?.toString()
+                                    artworkUrl = artworkPath
                                 )
                             )
                         }
