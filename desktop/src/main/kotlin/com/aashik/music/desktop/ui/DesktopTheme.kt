@@ -7,52 +7,53 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-// Apple Music macOS Design Tokens
-val AppleMusicRed = Color(0xFFFA2D48)
-val AppleMusicRedLight = Color(0xFFFF3B56)
-val AppleMusicPink = Color(0xFFFF2D55)
+// Pure Dark Apple Desktop Tokens (Never red, only elegant dark slate / obsidian & ice cyan)
+val DarkAccent = Color(0xFF00E5FF)       // Crisp Ice Cyan
+val DarkAccentSubtle = Color(0xFF00B4D8)
+val DarkBg = Color(0xFF0C0E14)           // Deep Obsidian Canvas
+val DarkSidebar = Color(0xFF12151E)      // Charcoal Sidebar
+val DarkSurface = Color(0xFF171B26)      // Surface Card
+val DarkSurfaceVariant = Color(0xFF1E2332)
+val DarkCard = Color(0xFF1B202D)
+val DarkBorder = Color(0xFF262D3D)
+val DarkBorderSubtle = Color(0xFF1F2533)
 
-val AppleMusicBg = Color(0xFF141416)
-val AppleMusicSidebar = Color(0xFF1B1B1F)
-val AppleMusicSurface = Color(0xFF222226)
-val AppleMusicSurfaceVariant = Color(0xFF28282D)
-val AppleMusicCard = Color(0xFF26262B)
-val AppleMusicBorder = Color(0xFF333339)
-val AppleMusicBorderSubtle = Color(0xFF2A2A30)
+val DarkTextPrimary = Color(0xFFF8FAFC)  // Pure White
+val DarkTextSecondary = Color(0xFF94A3B8)// Slate Gray
+val DarkTextTertiary = Color(0xFF64748B) // Dimmed Slate
 
-val AppleMusicTextPrimary = Color(0xFFFFFFFF)
-val AppleMusicTextSecondary = Color(0xFF98989D)
-val AppleMusicTextTertiary = Color(0xFF636366)
+val DarkFavorite = Color(0xFF00E5FF)     // Favorite Accent (Ice Cyan, NEVER red)
+val DarkPlayingGreen = Color(0xFF00E676) // On Air / Live Green
 
-// Backwards compatibility tokens
-val DesktopBg = AppleMusicBg
-val DesktopSurface = AppleMusicSurface
-val DesktopSurfaceVariant = AppleMusicSurfaceVariant
-val DesktopBorder = AppleMusicBorder
-val DesktopPrimary = AppleMusicRed
-val DesktopSecondary = AppleMusicPink
-val DesktopTextPrimary = AppleMusicTextPrimary
-val DesktopTextSecondary = AppleMusicTextSecondary
+// Semantic tokens
+val DesktopBg = DarkBg
+val DesktopSurface = DarkSurface
+val DesktopSurfaceVariant = DarkSurfaceVariant
+val DesktopBorder = DarkBorder
+val DesktopPrimary = DarkAccent
+val DesktopSecondary = DarkAccentSubtle
+val DesktopTextPrimary = DarkTextPrimary
+val DesktopTextSecondary = DarkTextSecondary
 
 val DesktopCardShape = RoundedCornerShape(12.dp)
 val DesktopArtShape = RoundedCornerShape(14.dp)
 val DesktopPillShape = RoundedCornerShape(20.dp)
 
-private val AppleMusicDarkScheme = darkColorScheme(
-    primary = AppleMusicRed,
-    secondary = AppleMusicPink,
-    background = AppleMusicBg,
-    surface = AppleMusicSurface,
-    surfaceVariant = AppleMusicSurfaceVariant,
-    onPrimary = Color.White,
-    onBackground = AppleMusicTextPrimary,
-    onSurface = AppleMusicTextPrimary
+private val DarkColorScheme = darkColorScheme(
+    primary = DarkAccent,
+    secondary = DarkAccentSubtle,
+    background = DarkBg,
+    surface = DarkSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onPrimary = Color.Black,
+    onBackground = DarkTextPrimary,
+    onSurface = DarkTextPrimary
 )
 
 @Composable
 fun DesktopTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = AppleMusicDarkScheme,
+        colorScheme = DarkColorScheme,
         content = content
     )
 }

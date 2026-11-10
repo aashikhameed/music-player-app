@@ -167,11 +167,11 @@ fun DesktopMainView() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppleMusicBg)
+            .background(DarkBg)
     ) {
         // ─── UPPER BODY: SIDEBAR + MAIN CONTENT + RIGHT DRAWER ─────────────
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            // 1. Apple Music Left Navigation Sidebar
+            // 1. Dark Left Navigation Sidebar
             DesktopSidebar(
                 currentScreen = currentScreen,
                 onSelectScreen = { navigateTo(it) },
@@ -185,9 +185,9 @@ fun DesktopMainView() {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .background(AppleMusicBg)
+                    .background(DarkBg)
             ) {
-                // Apple Music Header Bar (Navigation Arrows + Search Box + System Clock)
+                // Header Bar (Navigation Arrows + Search Box + System Clock)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -205,7 +205,7 @@ fun DesktopMainView() {
                             modifier = Modifier
                                 .size(30.dp)
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(AppleMusicSurface)
+                                .background(DarkSurface)
                                 .clickable {
                                     if (screenHistory.size > 1) {
                                         val prev = screenHistory[screenHistory.size - 2]
@@ -218,7 +218,7 @@ fun DesktopMainView() {
                             Icon(
                                 imageVector = Icons.Rounded.ChevronLeft,
                                 contentDescription = "Back",
-                                tint = if (screenHistory.size > 1) AppleMusicTextPrimary else AppleMusicTextTertiary,
+                                tint = if (screenHistory.size > 1) DarkTextPrimary else DarkTextTertiary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -227,26 +227,26 @@ fun DesktopMainView() {
                             modifier = Modifier
                                 .size(30.dp)
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(AppleMusicSurface),
+                                .background(DarkSurface),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.ChevronRight,
                                 contentDescription = "Forward",
-                                tint = AppleMusicTextTertiary,
+                                tint = DarkTextTertiary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    // Center: Apple Music Search Input (TEXT 100% VISIBLE WITH EXPLICIT STYLING)
+                    // Center: Dark Apple Search Input (TEXT 100% VISIBLE WITH EXPLICIT STYLING)
                     Box(
                         modifier = Modifier
                             .width(340.dp)
                             .height(34.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(AppleMusicCard)
-                            .border(1.dp, AppleMusicBorderSubtle, RoundedCornerShape(8.dp))
+                            .background(DarkCard)
+                            .border(1.dp, DarkBorderSubtle, RoundedCornerShape(8.dp))
                             .padding(horizontal = 10.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
@@ -258,16 +258,16 @@ fun DesktopMainView() {
                             Icon(
                                 imageVector = Icons.Rounded.Search,
                                 contentDescription = null,
-                                tint = AppleMusicTextTertiary,
+                                tint = DarkTextTertiary,
                                 modifier = Modifier.size(16.dp)
                             )
 
                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                                 if (searchQuery.isEmpty()) {
                                     Text(
-                                        text = "Search in library or explore...",
+                                        text = "Search title, artist, album...",
                                         fontSize = 13.sp,
-                                        color = AppleMusicTextTertiary
+                                        color = DarkTextTertiary
                                     )
                                 }
                                 BasicTextField(
@@ -275,11 +275,11 @@ fun DesktopMainView() {
                                     onValueChange = { searchQuery = it },
                                     singleLine = true,
                                     textStyle = TextStyle(
-                                        color = AppleMusicTextPrimary,
+                                        color = DarkTextPrimary,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Normal
                                     ),
-                                    cursorBrush = SolidColor(AppleMusicRed),
+                                    cursorBrush = SolidColor(DarkAccent),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                     keyboardActions = KeyboardActions(
                                         onSearch = {
@@ -302,7 +302,7 @@ fun DesktopMainView() {
                                 Icon(
                                     imageVector = Icons.Rounded.Cancel,
                                     contentDescription = "Clear",
-                                    tint = AppleMusicTextTertiary,
+                                    tint = DarkTextTertiary,
                                     modifier = Modifier
                                         .size(16.dp)
                                         .clickable { searchQuery = "" }
@@ -311,11 +311,11 @@ fun DesktopMainView() {
                         }
                     }
 
-                    // Right: Apple Music System Clock
-                    DesktopClock(textColor = AppleMusicTextSecondary)
+                    // Right: System Clock
+                    DesktopClock(textColor = DarkTextSecondary)
                 }
 
-                Divider(color = AppleMusicBorderSubtle, thickness = 0.8.dp)
+                Divider(color = DarkBorderSubtle, thickness = 0.8.dp)
 
                 // Screen Switching
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -454,9 +454,9 @@ fun DesktopMainView() {
             }
         }
 
-        // ─── APPLE MUSIC BOTTOM PLAYER DOCK (ONLY ON NON-NOW_PLAYING SCREENS) ─
+        // ─── BOTTOM PLAYER DOCK (ONLY ON NON-NOW_PLAYING SCREENS) ─
         if (currentScreen != DesktopScreen.NOW_PLAYING) {
-            Divider(color = AppleMusicBorderSubtle, thickness = 1.dp)
+            Divider(color = DarkBorderSubtle, thickness = 1.dp)
             DesktopBottomPlayer(
                 currentSong = currentSong,
                 isFavorite = currentSong?.let { favoriteIds.contains(it.id) } == true,

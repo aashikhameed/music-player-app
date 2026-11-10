@@ -24,11 +24,11 @@ import com.aashik.music.desktop.model.DesktopSong
 import com.aashik.music.desktop.ui.DesktopArtwork
 
 private val NextSongActionBarShape = RoundedCornerShape(12.dp)
-private val FavoriteRedColor = Color(0xFFFF4081)
+private val FavoriteCyanColor = Color(0xFF00E5FF)
 
 @Composable
 fun DesktopActionBar(
-    currentSong: DesktopSong?,
+    @Suppress("UNUSED_PARAMETER") currentSong: DesktopSong?,
     upcomingSongs: List<DesktopSong>,
     isQueueOpen: Boolean,
     onToggleQueue: () -> Unit,
@@ -72,7 +72,7 @@ fun DesktopActionBar(
             modifier = Modifier
                 .size(44.dp)
                 .background(
-                    color = if (isFavorite) FavoriteRedColor.copy(alpha = 0.22f) else actionButtonBg,
+                    color = if (isFavorite) FavoriteCyanColor.copy(alpha = 0.22f) else actionButtonBg,
                     shape = CircleShape
                 )
                 .clickable { onToggleFavorite() },
@@ -81,7 +81,7 @@ fun DesktopActionBar(
             Icon(
                 imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                 contentDescription = "Toggle Favorite",
-                tint = if (isFavorite) FavoriteRedColor else controlInactiveColor,
+                tint = if (isFavorite) FavoriteCyanColor else controlInactiveColor,
                 modifier = Modifier.size(20.dp)
             )
         }

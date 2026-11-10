@@ -8,9 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -40,8 +38,26 @@ import com.aashik.music.desktop.utils.DesktopFolderPicker
 import kotlinx.coroutines.launch
 import java.io.File
 
-private val AppleTableRowShape = RoundedCornerShape(6.dp)
-private val AppleCardShape = RoundedCornerShape(12.dp)
+private val TableRowShape = RoundedCornerShape(6.dp)
+private val CardShape = RoundedCornerShape(14.dp)
+private val PillBadgeShape = RoundedCornerShape(4.dp)
+
+// Curated dark genre card background palette (Subtle, elegant dark tones, never red)
+private val DarkGenreCardPalette = listOf(
+    Color(0xFF1E2838), // Deep Slate Navy
+    Color(0xFF1B2A2E), // Deep Teal Charcoal
+    Color(0xFF221F33), // Deep Indigo Dusk
+    Color(0xFF1B2D26), // Deep Pine Emerald
+    Color(0xFF262232), // Deep Charcoal Violet
+    Color(0xFF2E271C), // Deep Amber Umber
+    Color(0xFF232B35), // Dark Steel Blue
+    Color(0xFF1D2633)  // Midnight Blue
+)
+
+private fun getDarkGenreColor(id: String): Color {
+    val idx = (id.hashCode() and 0x7FFFFFFF) % DarkGenreCardPalette.size
+    return DarkGenreCardPalette[idx]
+}
 
 // ─── 1. ALL SONGS (APPLE MUSIC 1:1 DATA TABLE) ──────────────────────────────
 @Composable
@@ -63,22 +79,22 @@ fun DesktopLibraryTable(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("#", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextSecondary, modifier = Modifier.width(36.dp))
-            Text("TITLE", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextSecondary, modifier = Modifier.weight(0.42f))
-            Text("ARTIST", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextSecondary, modifier = Modifier.weight(0.28f))
-            Text("ALBUM", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextSecondary, modifier = Modifier.weight(0.20f))
-            Text("TIME", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextSecondary, modifier = Modifier.width(54.dp))
+            Text("#", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkTextSecondary, modifier = Modifier.width(36.dp))
+            Text("TITLE", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkTextSecondary, modifier = Modifier.weight(0.42f))
+            Text("ARTIST", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkTextSecondary, modifier = Modifier.weight(0.28f))
+            Text("ALBUM", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkTextSecondary, modifier = Modifier.weight(0.20f))
+            Text("TIME", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkTextSecondary, modifier = Modifier.width(54.dp))
             Spacer(modifier = Modifier.width(36.dp))
         }
 
-        Divider(color = AppleMusicBorderSubtle, thickness = 0.8.dp)
+        Divider(color = DarkBorderSubtle, thickness = 0.8.dp)
         Spacer(modifier = Modifier.height(4.dp))
 
         if (songs.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = AppleMusicTextTertiary, modifier = Modifier.size(44.dp))
-                    Text("No songs found in library", color = AppleMusicTextSecondary, fontSize = 14.sp)
+                    Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = DarkTextTertiary, modifier = Modifier.size(44.dp))
+                    Text("No songs found in library", color = DarkTextSecondary, fontSize = 14.sp)
                 }
             }
         } else {
@@ -89,12 +105,12 @@ fun DesktopLibraryTable(
                 itemsIndexed(songs) { index, song ->
                     val isCurrent = song.id == currentSong?.id
                     val isFav = favoriteIds.contains(song.id)
-                    val rowBg = if (isCurrent) AppleMusicSurfaceVariant else Color.Transparent
+                    val rowBg = if (isCurrent) DarkSurfaceVariant else Color.Transparent
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(AppleTableRowShape)
+                            .clip(TableRowShape)
                             .background(rowBg)
                             .clickable {
                                 onPlaySong(song, songs.filter { it.id != song.id })
@@ -105,12 +121,12 @@ fun DesktopLibraryTable(
                         // Track index / Audio wave icon
                         Box(modifier = Modifier.width(36.dp), contentAlignment = Alignment.CenterStart) {
                             if (isCurrent && isPlaying) {
-                                Icon(Icons.Rounded.GraphicEq, contentDescription = null, tint = AppleMusicRed, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.GraphicEq, contentDescription = null, tint = DarkAccent, modifier = Modifier.size(16.dp))
                             } else {
                                 Text(
                                     text = "${index + 1}",
                                     fontSize = 12.sp,
-                                    color = if (isCurrent) AppleMusicRed else AppleMusicTextTertiary
+                                    color = if (isCurrent) DarkAccent else DarkTextTertiary
                                 )
                             }
                         }
@@ -130,7 +146,7 @@ fun DesktopLibraryTable(
                                 text = song.title,
                                 fontSize = 13.sp,
                                 fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isCurrent) AppleMusicRed else AppleMusicTextPrimary,
+                                color = if (isCurrent) DarkAccent else DarkTextPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -140,7 +156,7 @@ fun DesktopLibraryTable(
                         Text(
                             text = song.artist,
                             fontSize = 13.sp,
-                            color = AppleMusicTextSecondary,
+                            color = DarkTextSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(0.28f)
@@ -150,7 +166,7 @@ fun DesktopLibraryTable(
                         Text(
                             text = song.album,
                             fontSize = 13.sp,
-                            color = AppleMusicTextTertiary,
+                            color = DarkTextTertiary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(0.20f)
@@ -160,7 +176,7 @@ fun DesktopLibraryTable(
                         Text(
                             text = if (song.duration > 0) formatMs(song.duration) else "Live",
                             fontSize = 12.sp,
-                            color = AppleMusicTextTertiary,
+                            color = DarkTextTertiary,
                             modifier = Modifier.width(54.dp)
                         )
 
@@ -172,7 +188,7 @@ fun DesktopLibraryTable(
                             Icon(
                                 imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                 contentDescription = "Favorite",
-                                tint = if (isFav) AppleMusicRed else AppleMusicTextTertiary,
+                                tint = if (isFav) DarkFavorite else DarkTextTertiary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -234,7 +250,7 @@ fun DesktopNowPlayingStage(
             .padding(horizontal = 32.dp, vertical = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(36.dp)
     ) {
-        // ─── LEFT: APPLE MUSIC LARGE ARTWORK & TRANSPORT CONTROLS ───────────
+        // ─── LEFT: LARGE ARTWORK & INTEGRATED CONTROLS ───────────────────────
         Column(
             modifier = Modifier
                 .width(440.dp)
@@ -254,8 +270,8 @@ fun DesktopNowPlayingStage(
                             .fillMaxWidth()
                             .padding(bottom = 12.dp)
                             .clip(RoundedCornerShape(20.dp))
-                            .background(AppleMusicRed.copy(alpha = 0.12f))
-                            .border(1.dp, AppleMusicRed.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                            .background(DarkAccent.copy(alpha = 0.12f))
+                            .border(1.dp, DarkAccent.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                             .padding(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Row(
@@ -270,21 +286,21 @@ fun DesktopNowPlayingStage(
                                 Icon(
                                     imageVector = Icons.Rounded.Podcasts,
                                     contentDescription = null,
-                                    tint = AppleMusicRed,
+                                    tint = DarkAccent,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Apple Music Continuous Radio",
+                                    text = "Continuous Radio Station",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = AppleMusicRed
+                                    color = DarkAccent
                                 )
                             }
                             Text(
                                 text = "Exit",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = AppleMusicTextSecondary,
+                                color = DarkTextSecondary,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .clickable { onExitRadio() }
@@ -299,8 +315,8 @@ fun DesktopNowPlayingStage(
                     modifier = Modifier
                         .size(280.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(AppleMusicSurface)
-                        .border(1.dp, AppleMusicBorder, RoundedCornerShape(16.dp)),
+                        .background(DarkSurface)
+                        .border(1.dp, DarkBorder, RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     DesktopArtwork(
@@ -317,7 +333,7 @@ fun DesktopNowPlayingStage(
                     text = currentSong?.title ?: "Not Playing",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AppleMusicTextPrimary,
+                    color = DarkTextPrimary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -327,25 +343,25 @@ fun DesktopNowPlayingStage(
                 Text(
                     text = "${currentSong?.artist ?: "Unknown Artist"} — ${currentSong?.album ?: "Unknown Album"}",
                     fontSize = 14.sp,
-                    color = AppleMusicTextSecondary,
+                    color = DarkTextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Apple Lossless / Live Audio Pill
+                // Lossless / Live Audio Pill
                 if (durationMs <= 0L && currentSong != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF30D158).copy(alpha = 0.15f))
+                            .background(DarkPlayingGreen.copy(alpha = 0.15f))
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF30D158)))
-                        Text("LIVE BROADCAST", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF30D158))
+                        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(DarkPlayingGreen))
+                        Text("LIVE BROADCAST", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = DarkPlayingGreen)
                     }
                 } else if (currentSong != null) {
                     Row(
@@ -353,17 +369,17 @@ fun DesktopNowPlayingStage(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(AppleMusicSurfaceVariant)
+                            .background(DarkSurfaceVariant)
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Text("LOSSLESS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextSecondary)
-                        Text("•", fontSize = 10.sp, color = AppleMusicTextTertiary)
-                        Text("Apple ALAC 24-bit/48kHz", fontSize = 10.sp, color = AppleMusicTextSecondary)
+                        Text("LOSSLESS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = DarkTextSecondary)
+                        Text("•", fontSize = 10.sp, color = DarkTextTertiary)
+                        Text("Apple ALAC 24-bit/48kHz", fontSize = 10.sp, color = DarkTextSecondary)
                     }
                 }
             }
 
-            // Lower Info Stack: Apple Music Scrubber, Transport Deck & Quick Actions
+            // Lower Info Stack: Scrubber, Transport Deck & Quick Actions
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -378,7 +394,7 @@ fun DesktopNowPlayingStage(
                         Text(
                             text = formatMs(if (isDraggingSeek) (dragProgress * durationMs).toLong() else positionMs),
                             fontSize = 11.5.sp,
-                            color = AppleMusicTextTertiary,
+                            color = DarkTextTertiary,
                             modifier = Modifier.width(36.dp)
                         )
 
@@ -394,8 +410,8 @@ fun DesktopNowPlayingStage(
                             },
                             colors = SliderDefaults.colors(
                                 thumbColor = Color.White,
-                                activeTrackColor = AppleMusicRed,
-                                inactiveTrackColor = AppleMusicSurfaceVariant
+                                activeTrackColor = DarkAccent,
+                                inactiveTrackColor = DarkSurfaceVariant
                             ),
                             modifier = Modifier.weight(1f)
                         )
@@ -403,7 +419,7 @@ fun DesktopNowPlayingStage(
                         Text(
                             text = formatMs(durationMs),
                             fontSize = 11.5.sp,
-                            color = AppleMusicTextTertiary,
+                            color = DarkTextTertiary,
                             modifier = Modifier.width(36.dp)
                         )
                     }
@@ -423,7 +439,7 @@ fun DesktopNowPlayingStage(
                         Icon(
                             imageVector = Icons.Rounded.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = if (isShuffleOn) AppleMusicRed else AppleMusicTextTertiary,
+                            tint = if (isShuffleOn) DarkAccent else DarkTextTertiary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -433,24 +449,24 @@ fun DesktopNowPlayingStage(
                         Icon(
                             imageVector = Icons.Rounded.SkipPrevious,
                             contentDescription = "Previous",
-                            tint = AppleMusicTextPrimary,
+                            tint = DarkTextPrimary,
                             modifier = Modifier.size(28.dp)
                         )
                     }
 
-                    // Play / Pause Circle (Apple Music Vibrant Red)
+                    // Play / Pause Circle
                     Box(
                         modifier = Modifier
                             .size(54.dp)
                             .clip(CircleShape)
-                            .background(AppleMusicRed)
+                            .background(DarkAccent)
                             .clickable { DesktopAudioPlayer.togglePlayPause() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = "Play/Pause",
-                            tint = Color.White,
+                            tint = Color(0xFF0C0E14),
                             modifier = Modifier.size(30.dp)
                         )
                     }
@@ -460,7 +476,7 @@ fun DesktopNowPlayingStage(
                         Icon(
                             imageVector = Icons.Rounded.SkipNext,
                             contentDescription = "Next",
-                            tint = AppleMusicTextPrimary,
+                            tint = DarkTextPrimary,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -470,7 +486,7 @@ fun DesktopNowPlayingStage(
                         Icon(
                             imageVector = Icons.Rounded.Repeat,
                             contentDescription = "Repeat",
-                            tint = if (isRepeatOn) AppleMusicRed else AppleMusicTextTertiary,
+                            tint = if (isRepeatOn) DarkAccent else DarkTextTertiary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -491,7 +507,7 @@ fun DesktopNowPlayingStage(
                         Icon(
                             imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                             contentDescription = "Favorite",
-                            tint = if (isFavorite) AppleMusicRed else AppleMusicTextTertiary,
+                            tint = if (isFavorite) DarkFavorite else DarkTextTertiary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -500,7 +516,7 @@ fun DesktopNowPlayingStage(
                     Button(
                         onClick = onStartRadio,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isRadioMode) AppleMusicRed.copy(alpha = 0.22f) else AppleMusicSurfaceVariant
+                            containerColor = if (isRadioMode) DarkAccent.copy(alpha = 0.22f) else DarkSurfaceVariant
                         ),
                         shape = RoundedCornerShape(20.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
@@ -513,21 +529,21 @@ fun DesktopNowPlayingStage(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(14.dp),
                                     strokeWidth = 2.dp,
-                                    color = AppleMusicRed
+                                    color = DarkAccent
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Rounded.Podcasts,
                                     contentDescription = null,
-                                    tint = if (isRadioMode) AppleMusicRed else AppleMusicTextSecondary,
+                                    tint = if (isRadioMode) DarkAccent else DarkTextSecondary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
                             Text(
-                                text = if (isRadioMode) "Radio Active" else "Create Station",
+                                text = if (isRadioMode) "Radio Active" else "Start Radio",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isRadioMode) AppleMusicRed else AppleMusicTextPrimary
+                                color = if (isRadioMode) DarkAccent else DarkTextPrimary
                             )
                         }
                     }
@@ -541,7 +557,7 @@ fun DesktopNowPlayingStage(
                         Icon(
                             imageVector = if (volume > 0.05f) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
                             contentDescription = "Volume",
-                            tint = AppleMusicTextTertiary,
+                            tint = DarkTextTertiary,
                             modifier = Modifier
                                 .size(18.dp)
                                 .clickable {
@@ -553,8 +569,8 @@ fun DesktopNowPlayingStage(
                             onValueChange = { DesktopAudioPlayer.setVolume(it) },
                             colors = SliderDefaults.colors(
                                 thumbColor = Color.White,
-                                activeTrackColor = AppleMusicRed,
-                                inactiveTrackColor = AppleMusicSurfaceVariant
+                                activeTrackColor = DarkAccent,
+                                inactiveTrackColor = DarkSurfaceVariant
                             ),
                             modifier = Modifier.weight(1f)
                         )
@@ -567,11 +583,11 @@ fun DesktopNowPlayingStage(
         Card(
             modifier = Modifier.weight(1f).fillMaxHeight(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = AppleMusicSidebar),
-            border = BorderStroke(1.dp, AppleMusicBorder)
+            colors = CardDefaults.cardColors(containerColor = DarkSidebar),
+            border = BorderStroke(1.dp, DarkBorder)
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(18.dp)) {
-                // Apple Music Segmented Tab Switcher: [ Lyrics ] | [ Playing Next ]
+                // Segmented Tab Switcher: [ Lyrics ] | [ Playing Next ]
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -580,7 +596,7 @@ fun DesktopNowPlayingStage(
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(AppleMusicSurface)
+                            .background(DarkSurface)
                             .padding(3.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -588,7 +604,7 @@ fun DesktopNowPlayingStage(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (activeTab == 0) AppleMusicCard else Color.Transparent)
+                                .background(if (activeTab == 0) DarkCard else Color.Transparent)
                                 .clickable { activeTab = 0 }
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
@@ -599,14 +615,14 @@ fun DesktopNowPlayingStage(
                                 Icon(
                                     imageVector = Icons.Rounded.FormatQuote,
                                     contentDescription = null,
-                                    tint = if (activeTab == 0) AppleMusicRed else AppleMusicTextSecondary,
+                                    tint = if (activeTab == 0) DarkAccent else DarkTextSecondary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = "Lyrics",
                                     fontSize = 12.sp,
                                     fontWeight = if (activeTab == 0) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (activeTab == 0) AppleMusicTextPrimary else AppleMusicTextSecondary
+                                    color = if (activeTab == 0) DarkTextPrimary else DarkTextSecondary
                                 )
                             }
                         }
@@ -615,7 +631,7 @@ fun DesktopNowPlayingStage(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (activeTab == 1) AppleMusicCard else Color.Transparent)
+                                .background(if (activeTab == 1) DarkCard else Color.Transparent)
                                 .clickable { activeTab = 1 }
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
@@ -626,14 +642,14 @@ fun DesktopNowPlayingStage(
                                 Icon(
                                     imageVector = Icons.Rounded.QueueMusic,
                                     contentDescription = null,
-                                    tint = if (activeTab == 1) AppleMusicRed else AppleMusicTextSecondary,
+                                    tint = if (activeTab == 1) DarkAccent else DarkTextSecondary,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = "Playing Next (${queue.size})",
                                     fontSize = 12.sp,
                                     fontWeight = if (activeTab == 1) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (activeTab == 1) AppleMusicTextPrimary else AppleMusicTextSecondary
+                                    color = if (activeTab == 1) DarkTextPrimary else DarkTextSecondary
                                 )
                             }
                         }
@@ -644,12 +660,12 @@ fun DesktopNowPlayingStage(
                             onClick = onClearQueue,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text("Clear", fontSize = 12.sp, color = AppleMusicRed)
+                            Text("Clear", fontSize = 12.sp, color = DarkAccent)
                         }
                     }
                 }
 
-                Divider(color = AppleMusicBorderSubtle, thickness = 0.8.dp)
+                Divider(color = DarkBorderSubtle, thickness = 0.8.dp)
 
                 // Tab 0: Synchronized Lyrics
                 if (activeTab == 0) {
@@ -664,7 +680,7 @@ fun DesktopNowPlayingStage(
                             Icon(
                                 imageVector = Icons.Rounded.SubtitlesOff,
                                 contentDescription = null,
-                                tint = AppleMusicTextTertiary,
+                                tint = DarkTextTertiary,
                                 modifier = Modifier.size(46.dp)
                             )
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -672,22 +688,22 @@ fun DesktopNowPlayingStage(
                                     text = "No lyrics available for this song",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = AppleMusicTextPrimary
+                                    color = DarkTextPrimary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "Showing Playing Next queue instead",
                                     fontSize = 12.sp,
-                                    color = AppleMusicTextTertiary
+                                    color = DarkTextTertiary
                                 )
                             }
 
                             Button(
                                 onClick = { activeTab = 1 },
-                                colors = ButtonDefaults.buttonColors(containerColor = AppleMusicSurfaceVariant),
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
                                 shape = RoundedCornerShape(20.dp)
                             ) {
-                                Text("View Playing Next (${queue.size})", fontSize = 12.sp, color = AppleMusicRed)
+                                Text("View Playing Next (${queue.size})", fontSize = 12.sp, color = DarkAccent)
                             }
 
                             Spacer(modifier = Modifier.height(6.dp))
@@ -702,20 +718,20 @@ fun DesktopNowPlayingStage(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clip(AppleTableRowShape)
-                                                .background(AppleMusicSurface)
+                                                .clip(TableRowShape)
+                                                .background(DarkSurface)
                                                 .clickable { onPlaySong(song) }
                                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            Text("${idx + 1}", fontSize = 12.sp, color = AppleMusicTextTertiary, modifier = Modifier.width(20.dp))
+                                            Text("${idx + 1}", fontSize = 12.sp, color = DarkTextTertiary, modifier = Modifier.width(20.dp))
                                             DesktopArtwork(url = song.artworkUrl, size = 36.dp, shape = RoundedCornerShape(6.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(song.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextPrimary, maxLines = 1)
-                                                Text(song.artist, fontSize = 11.sp, color = AppleMusicTextSecondary, maxLines = 1)
+                                                Text(song.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DarkTextPrimary, maxLines = 1)
+                                                Text(song.artist, fontSize = 11.sp, color = DarkTextSecondary, maxLines = 1)
                                             }
-                                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Play", tint = AppleMusicRed, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Play", tint = DarkAccent, modifier = Modifier.size(18.dp))
                                         }
                                     }
                                 }
@@ -745,7 +761,7 @@ fun DesktopNowPlayingStage(
                                     text = line.text,
                                     fontSize = if (isActive) 22.sp else 16.sp,
                                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isActive) AppleMusicTextPrimary else AppleMusicTextTertiary,
+                                    color = if (isActive) DarkTextPrimary else DarkTextTertiary,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { DesktopAudioPlayer.seekTo(line.timeMs) }
@@ -764,15 +780,15 @@ fun DesktopNowPlayingStage(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(Icons.Rounded.QueueMusic, contentDescription = null, tint = AppleMusicTextTertiary, modifier = Modifier.size(46.dp))
-                                Text("Playing Next queue is empty", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextPrimary)
-                                Text("Create station to dynamically fill upcoming recommendations", fontSize = 12.sp, color = AppleMusicTextTertiary)
+                                Icon(Icons.Rounded.QueueMusic, contentDescription = null, tint = DarkTextTertiary, modifier = Modifier.size(46.dp))
+                                Text("Playing Next queue is empty", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DarkTextPrimary)
+                                Text("Start Radio to dynamically fill upcoming recommendations", fontSize = 12.sp, color = DarkTextTertiary)
                                 Button(
                                     onClick = onStartRadio,
-                                    colors = ButtonDefaults.buttonColors(containerColor = AppleMusicRed),
+                                    colors = ButtonDefaults.buttonColors(containerColor = DarkAccent),
                                     shape = RoundedCornerShape(20.dp)
                                 ) {
-                                    Text("Start Radio Station", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text("Start Radio Station", fontSize = 12.sp, color = Color(0xFF0C0E14), fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -787,14 +803,14 @@ fun DesktopNowPlayingStage(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(AppleTableRowShape)
-                                        .background(AppleMusicSurface)
+                                        .clip(TableRowShape)
+                                        .background(DarkSurface)
                                         .clickable { onPlaySong(song) }
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Text("${idx + 1}", fontSize = 12.sp, color = AppleMusicTextTertiary, modifier = Modifier.width(24.dp))
+                                    Text("${idx + 1}", fontSize = 12.sp, color = DarkTextTertiary, modifier = Modifier.width(24.dp))
                                     DesktopArtwork(
                                         url = song.artworkUrl,
                                         size = 38.dp,
@@ -805,20 +821,20 @@ fun DesktopNowPlayingStage(
                                             text = song.title,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = AppleMusicTextPrimary,
+                                            color = DarkTextPrimary,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
                                             text = song.artist,
                                             fontSize = 11.sp,
-                                            color = AppleMusicTextSecondary,
+                                            color = DarkTextSecondary,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                     if (song.duration > 0) {
-                                        Text(formatMs(song.duration), fontSize = 11.sp, color = AppleMusicTextTertiary)
+                                        Text(formatMs(song.duration), fontSize = 11.sp, color = DarkTextTertiary)
                                     }
                                     IconButton(
                                         onClick = { onRemoveFromQueue(song) },
@@ -827,7 +843,7 @@ fun DesktopNowPlayingStage(
                                         Icon(
                                             imageVector = Icons.Rounded.Close,
                                             contentDescription = "Remove",
-                                            tint = AppleMusicTextTertiary,
+                                            tint = DarkTextTertiary,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -855,7 +871,7 @@ fun DesktopFolderBrowser(
 
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
         if (selectedFolder == null) {
-            Text("Music Folders", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextPrimary, modifier = Modifier.padding(bottom = 16.dp))
+            Text("Music Folders", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkTextPrimary, modifier = Modifier.padding(bottom = 16.dp))
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(220.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -867,9 +883,9 @@ fun DesktopFolderBrowser(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(AppleCardShape)
-                            .background(AppleMusicSurface)
-                            .border(1.dp, AppleMusicBorder, AppleCardShape)
+                            .clip(CardShape)
+                            .background(DarkSurface)
+                            .border(1.dp, DarkBorder, CardShape)
                             .clickable { selectedFolder = folderPath }
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -879,14 +895,14 @@ fun DesktopFolderBrowser(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(AppleMusicRed.copy(alpha = 0.12f)),
+                                .background(DarkAccent.copy(alpha = 0.12f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Rounded.Folder, contentDescription = null, tint = AppleMusicRed, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Rounded.Folder, contentDescription = null, tint = DarkAccent, modifier = Modifier.size(24.dp))
                         }
                         Column {
-                            Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("$count songs", fontSize = 12.sp, color = AppleMusicTextSecondary)
+                            Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = DarkTextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("$count songs", fontSize = 12.sp, color = DarkTextSecondary)
                         }
                     }
                 }
@@ -899,10 +915,10 @@ fun DesktopFolderBrowser(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 IconButton(onClick = { selectedFolder = null }) {
-                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = AppleMusicRed)
+                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = DarkAccent)
                 }
-                Text(File(selectedFolder!!).name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextPrimary)
-                Text("(${folderSongs.size} tracks)", fontSize = 13.sp, color = AppleMusicTextSecondary)
+                Text(File(selectedFolder!!).name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkTextPrimary)
+                Text("(${folderSongs.size} tracks)", fontSize = 13.sp, color = DarkTextSecondary)
             }
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -910,19 +926,19 @@ fun DesktopFolderBrowser(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(AppleTableRowShape)
-                            .background(AppleMusicSurface)
+                            .clip(TableRowShape)
+                            .background(DarkSurface)
                             .clickable { onPlaySong(song, folderSongs.filter { it.id != song.id }) }
                             .padding(horizontal = 14.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("${idx + 1}", fontSize = 12.sp, color = AppleMusicTextTertiary, modifier = Modifier.width(28.dp))
+                        Text("${idx + 1}", fontSize = 12.sp, color = DarkTextTertiary, modifier = Modifier.width(28.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(song.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextPrimary, maxLines = 1)
-                            Text(song.artist, fontSize = 11.sp, color = AppleMusicTextSecondary, maxLines = 1)
+                            Text(song.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DarkTextPrimary, maxLines = 1)
+                            Text(song.artist, fontSize = 11.sp, color = DarkTextSecondary, maxLines = 1)
                         }
-                        Text(formatMs(song.duration), fontSize = 12.sp, color = AppleMusicTextTertiary)
+                        Text(formatMs(song.duration), fontSize = 12.sp, color = DarkTextTertiary)
                     }
                 }
             }
@@ -930,7 +946,7 @@ fun DesktopFolderBrowser(
     }
 }
 
-// ─── 4. RADIO & EXPLORE VIEW (APPLE MUSIC RADIO & BROWSE HUB) ───────────────
+// ─── 4. RADIO & EXPLORE VIEW (EXACT MOBILE / LANDSCAPE GRID PARITY) ──────────
 @Composable
 fun DesktopExploreView(
     currentSong: DesktopSong?,
@@ -949,157 +965,187 @@ fun DesktopExploreView(
 
     val isPlaying by DesktopAudioPlayer.isPlaying.collectAsState()
     val stations = remember { DesktopRadioData.CURATED_STATIONS }
-    val moodCategories = remember { DesktopRadioData.MOOD_CATEGORIES }
-    val genreCategories = remember { DesktopRadioData.GENRE_CATEGORIES }
+    val categories = remember { DesktopRadioData.CATEGORIES }
+
+    val favStations = remember(stations, favoriteStationIds) {
+        stations.filter { favoriteStationIds.contains(it.id) }
+    }
+    val favCategories = remember(categories, favoriteCategoryIds) {
+        categories.filter { favoriteCategoryIds.contains(it.id) }
+    }
 
     if (selectedCategory == null) {
-        LazyColumn(
-            modifier = modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+        // EXACT MOBILE/LANDSCAPE GRID LAYOUT (RadioExploreContent.kt PARITY)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
+            modifier = modifier.fillMaxSize()
         ) {
-            // Header
-            item {
+            // ── Section 1: Favorites Pinned at Top (if any) ──
+            if (favStations.isNotEmpty() || favCategories.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Favorite Genres & Streams",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = DarkTextPrimary
+                        )
+                        Text(
+                            text = "${favStations.size + favCategories.size} saved",
+                            fontSize = 12.sp,
+                            color = DarkAccent
+                        )
+                    }
+                }
+
+                items(favCategories) { cat ->
+                    val count = stations.count { it.categoryId == cat.id }
+                    DesktopMobileMoodGenreCard(
+                        category = cat,
+                        stationCount = count,
+                        isFavorite = true,
+                        onFavoriteClick = { onToggleCategoryFavorite(cat.id) },
+                        onClick = {
+                            selectedCategory = cat
+                            isLoadingCategory = true
+                            scope.launch {
+                                val results = DesktopOnlineRepository.searchSongs("${cat.title} Top Songs", limit = 25)
+                                categorySongs = results
+                                isLoadingCategory = false
+                            }
+                        }
+                    )
+                }
+
+                items(favStations) { st ->
+                    val isStPlaying = isPlaying && currentSong?.path == st.streamUrl
+                    DesktopMobileRadioStationCard(
+                        station = st,
+                        isPlaying = isStPlaying,
+                        isFavorite = true,
+                        onPlayClick = {
+                            val song = st.toSong()
+                            val playlist = stations.map { it.toSong() }
+                            onPlaySong(song, playlist)
+                        },
+                        onFavoriteClick = { onToggleStationFavorite(st.id) },
+                        onStartRadioClick = { onStartRadioForSong(st.toSong()) }
+                    )
+                }
+            }
+
+            // ── Section 2: Header with "Surprise Me" Button ──
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(top = if (favStations.isNotEmpty() || favCategories.isNotEmpty()) 12.dp else 4.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
                         Text(
-                            text = "Radio & Browse",
-                            fontSize = 24.sp,
+                            text = "All Genres & Styles",
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = AppleMusicTextPrimary
+                            color = DarkTextPrimary
                         )
                         Text(
-                            text = "Tune in to curated global radio broadcasts, moods, and endless algorithmic music sleeves",
-                            fontSize = 13.sp,
-                            color = AppleMusicTextSecondary
+                            text = "Stream curated global stations, moods, and infinite algorithmic radio sleeves",
+                            fontSize = 12.sp,
+                            color = DarkTextSecondary
                         )
                     }
 
-                    // Surprise Me
-                    Button(
+                    // Surprise Me Button
+                    Surface(
                         onClick = {
                             val randomStation = stations.random()
                             val song = randomStation.toSong()
                             val playlist = stations.map { it.toSong() }
                             onPlaySong(song, playlist)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = AppleMusicRed),
                         shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        color = DarkAccent.copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, DarkAccent.copy(alpha = 0.35f)),
+                        modifier = Modifier.height(34.dp)
                     ) {
                         Row(
+                            modifier = Modifier.padding(horizontal = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(Icons.Rounded.Shuffle, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Text("Surprise Me", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Icon(Icons.Rounded.Shuffle, contentDescription = null, tint = DarkAccent, modifier = Modifier.size(15.dp))
+                            Text("Surprise Me", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DarkAccent)
                         }
                     }
                 }
             }
 
-            // Section 1: Live Broadcast Radio Stations
-            item {
+            // ── Section 3: Live Broadcast Radio Stations Grid ──
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
-                    text = "Live Radio Stations & Broadcasts",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppleMusicTextPrimary,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                    text = "Live Radio Stations & Community Streams",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DarkTextSecondary,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                 )
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(stations) { station ->
-                        val isStationPlaying = isPlaying && currentSong?.path == station.streamUrl
-                        DesktopRadioStationCard(
-                            station = station,
-                            isPlaying = isStationPlaying,
-                            isFavorite = favoriteStationIds.contains(station.id),
-                            onToggleFavorite = { onToggleStationFavorite(station.id) },
-                            onPlay = {
-                                val song = station.toSong()
-                                val playlist = stations.map { it.toSong() }
-                                onPlaySong(song, playlist)
-                            }
-                        )
-                    }
-                }
             }
 
-            // Section 2: Moods & Activities
-            item {
-                Text(
-                    text = "Moods & Activities",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppleMusicTextPrimary,
-                    modifier = Modifier.padding(bottom = 12.dp)
+            items(stations) { station ->
+                val isStationPlaying = isPlaying && currentSong?.path == station.streamUrl
+                DesktopMobileRadioStationCard(
+                    station = station,
+                    isPlaying = isStationPlaying,
+                    isFavorite = favoriteStationIds.contains(station.id),
+                    onPlayClick = {
+                        val song = station.toSong()
+                        val playlist = stations.map { it.toSong() }
+                        onPlaySong(song, playlist)
+                    },
+                    onFavoriteClick = { onToggleStationFavorite(station.id) },
+                    onStartRadioClick = { onStartRadioForSong(station.toSong()) }
                 )
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(moodCategories) { category ->
-                        DesktopMoodCategoryCard(
-                            category = category,
-                            isFavorite = favoriteCategoryIds.contains(category.id),
-                            onToggleFavorite = { onToggleCategoryFavorite(category.id) },
-                            onClick = {
-                                selectedCategory = category
-                                isLoadingCategory = true
-                                scope.launch {
-                                    val results = DesktopOnlineRepository.searchSongs("${category.title} Top Songs", limit = 25)
-                                    categorySongs = results
-                                    isLoadingCategory = false
-                                }
-                            }
-                        )
-                    }
-                }
             }
 
-            // Section 3: Browse by Genre
-            item {
+            // ── Section 4: All Genres & Moods Grid ──
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
-                    text = "Browse by Genre",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppleMusicTextPrimary,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                    text = "Mood & Genre Sleeves",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DarkTextSecondary,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 2.dp)
                 )
+            }
 
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(genreCategories) { category ->
-                        DesktopMoodCategoryCard(
-                            category = category,
-                            isFavorite = favoriteCategoryIds.contains(category.id),
-                            onToggleFavorite = { onToggleCategoryFavorite(category.id) },
-                            onClick = {
-                                selectedCategory = category
-                                isLoadingCategory = true
-                                scope.launch {
-                                    val results = DesktopOnlineRepository.searchSongs("${category.title} Hits", limit = 25)
-                                    categorySongs = results
-                                    isLoadingCategory = false
-                                }
-                            }
-                        )
+            items(categories) { category ->
+                val count = stations.count { it.categoryId == category.id }
+                DesktopMobileMoodGenreCard(
+                    category = category,
+                    stationCount = count,
+                    isFavorite = favoriteCategoryIds.contains(category.id),
+                    onFavoriteClick = { onToggleCategoryFavorite(category.id) },
+                    onClick = {
+                        selectedCategory = category
+                        isLoadingCategory = true
+                        scope.launch {
+                            val results = DesktopOnlineRepository.searchSongs("${category.title} Top Songs", limit = 25)
+                            categorySongs = results
+                            isLoadingCategory = false
+                        }
                     }
-                }
+                )
             }
         }
     } else {
-        // Category Detail View
+        // Category Detail View (GenreDetailScreen Parity)
         val category = selectedCategory!!
         val relatedStations = remember(category) {
             stations.filter { it.categoryId == category.id }
@@ -1113,12 +1159,12 @@ fun DesktopExploreView(
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 IconButton(onClick = { selectedCategory = null }) {
-                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = AppleMusicRed)
+                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = DarkAccent)
                 }
                 DesktopArtwork(url = category.imageUrl, size = 56.dp, shape = RoundedCornerShape(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(category.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextPrimary)
-                    Text("Curated station sleeve • ${categorySongs.size} tracks", fontSize = 12.sp, color = AppleMusicTextSecondary)
+                    Text(category.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkTextPrimary)
+                    Text("Curated station sleeve • ${categorySongs.size} tracks", fontSize = 12.sp, color = DarkTextSecondary)
                 }
 
                 // Play All Button
@@ -1128,12 +1174,12 @@ fun DesktopExploreView(
                             val first = categorySongs.first()
                             onPlaySong(first, categorySongs.drop(1))
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = AppleMusicRed),
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkAccent),
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Text("Play All", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = null, tint = Color(0xFF0C0E14), modifier = Modifier.size(16.dp))
+                            Text("Play All", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0C0E14))
                         }
                     }
                 }
@@ -1141,7 +1187,7 @@ fun DesktopExploreView(
 
             if (isLoadingCategory) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AppleMusicRed, strokeWidth = 2.5.dp)
+                    CircularProgressIndicator(color = DarkAccent, strokeWidth = 2.5.dp)
                 }
             } else {
                 LazyColumn(
@@ -1151,19 +1197,21 @@ fun DesktopExploreView(
                     // Shelf 1: Live Stations in this category (if any)
                     if (relatedStations.isNotEmpty()) {
                         item {
-                            Text("Live Radio Stations", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
+                            Text("Live Radio Stations", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DarkTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 items(relatedStations) { st ->
                                     val isStPlaying = isPlaying && currentSong?.path == st.streamUrl
-                                    DesktopRadioStationCard(
+                                    DesktopMobileRadioStationCard(
                                         station = st,
                                         isPlaying = isStPlaying,
                                         isFavorite = favoriteStationIds.contains(st.id),
-                                        onToggleFavorite = { onToggleStationFavorite(st.id) },
-                                        onPlay = {
+                                        onPlayClick = {
                                             val song = st.toSong()
                                             onPlaySong(song, relatedStations.map { it.toSong() })
-                                        }
+                                        },
+                                        onFavoriteClick = { onToggleStationFavorite(st.id) },
+                                        onStartRadioClick = { onStartRadioForSong(st.toSong()) },
+                                        modifier = Modifier.width(280.dp)
                                     )
                                 }
                             }
@@ -1172,15 +1220,15 @@ fun DesktopExploreView(
 
                     // Shelf 2: Songs
                     item {
-                        Text("Category Songs & Algorithmic Playlist", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
+                        Text("Category Songs & Algorithmic Playlist", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DarkTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
                     }
 
                     itemsIndexed(categorySongs) { idx, song ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(AppleTableRowShape)
-                                .background(AppleMusicSurface)
+                                .clip(TableRowShape)
+                                .background(DarkSurface)
                                 .clickable {
                                     onPlaySong(song, categorySongs.filter { it.id != song.id })
                                 }
@@ -1188,20 +1236,20 @@ fun DesktopExploreView(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("${idx + 1}", fontSize = 12.sp, color = AppleMusicTextTertiary, modifier = Modifier.width(24.dp))
+                            Text("${idx + 1}", fontSize = 12.sp, color = DarkTextTertiary, modifier = Modifier.width(24.dp))
                             DesktopArtwork(url = song.artworkUrl, size = 40.dp, shape = RoundedCornerShape(6.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(song.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicTextPrimary, maxLines = 1)
-                                Text(song.artist, fontSize = 11.sp, color = AppleMusicTextSecondary, maxLines = 1)
+                                Text(song.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = DarkTextPrimary, maxLines = 1)
+                                Text(song.artist, fontSize = 11.sp, color = DarkTextSecondary, maxLines = 1)
                             }
                             if (song.duration > 0) {
-                                Text(formatMs(song.duration), fontSize = 12.sp, color = AppleMusicTextTertiary)
+                                Text(formatMs(song.duration), fontSize = 12.sp, color = DarkTextTertiary)
                             }
                             IconButton(
                                 onClick = { onStartRadioForSong(song) },
                                 modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Rounded.Podcasts, contentDescription = "Radio", tint = AppleMusicRed, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Podcasts, contentDescription = "Radio", tint = DarkAccent, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -1211,153 +1259,230 @@ fun DesktopExploreView(
     }
 }
 
+/**
+ * Mobile/Landscape MoodGenreCard Port:
+ * Wide card (height 86dp), corner artwork on bottom-right, title & live count badge on left, heart on top-right.
+ */
 @Composable
-fun DesktopRadioStationCard(
-    station: DesktopRadioStation,
-    isPlaying: Boolean,
-    isFavorite: Boolean = false,
-    onToggleFavorite: () -> Unit = {},
-    onPlay: () -> Unit,
+fun DesktopMobileMoodGenreCard(
+    category: DesktopRadioCategory,
+    stationCount: Int,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val artUrl = station.imageUrl.ifBlank {
-        DesktopRadioData.CATEGORIES.firstOrNull { it.id == station.categoryId }?.imageUrl ?: ""
-    }
+    val cardBg = remember(category.id) { getDarkGenreColor(category.id) }
 
-    Card(
+    Surface(
+        onClick = onClick,
+        shape = CardShape,
+        color = cardBg,
+        border = BorderStroke(1.dp, DarkBorderSubtle),
         modifier = modifier
-            .width(200.dp)
-            .height(200.dp)
-            .clickable { onPlay() },
-        shape = AppleCardShape,
-        colors = CardDefaults.cardColors(containerColor = AppleMusicSurface),
-        border = BorderStroke(1.dp, if (isPlaying) AppleMusicRed else AppleMusicBorder)
+            .fillMaxWidth()
+            .height(86.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Box {
-                    DesktopArtwork(url = artUrl, size = 68.dp, shape = RoundedCornerShape(10.dp))
-                    if (isPlaying) {
-                        Box(
-                            modifier = Modifier
-                                .size(68.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color.Black.copy(alpha = 0.4f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Rounded.GraphicEq, contentDescription = null, tint = AppleMusicRed, modifier = Modifier.size(24.dp))
-                        }
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Thumbnail Cover Art in bottom-right corner
+            if (category.imageUrl.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 8.dp)
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(8.dp))
                 ) {
-                    IconButton(
-                        onClick = onToggleFavorite,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Favorite Station",
-                            tint = if (isFavorite) AppleMusicRed else AppleMusicTextTertiary,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
+                    DesktopArtwork(
+                        url = category.imageUrl,
+                        size = 46.dp,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                }
+            }
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(if (isPlaying) Color(0xFF30D158).copy(alpha = 0.2f) else AppleMusicSurfaceVariant)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+            // Category Title + Live Badge / Subtitle on the left
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxHeight()
+                    .padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 56.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = category.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (stationCount > 0) {
+                    Surface(
+                        shape = PillBadgeShape,
+                        color = Color.Black.copy(alpha = 0.45f)
                     ) {
                         Text(
-                            text = if (isPlaying) "PLAYING" else "LIVE",
-                            fontSize = 9.sp,
+                            text = "$stationCount live",
+                            fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isPlaying) Color(0xFF30D158) else AppleMusicTextSecondary
+                            color = DarkAccent,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
+                } else {
+                    Text(
+                        text = "Radio & Streams",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
                 }
             }
 
-            Column {
-                Text(station.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(station.description, fontSize = 11.sp, color = AppleMusicTextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            // Favorite Icon Button in top-right corner
+            IconButton(
+                onClick = onFavoriteClick,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 2.dp, end = 2.dp)
+                    .size(34.dp)
             ) {
-                Text(station.genre, fontSize = 10.sp, color = AppleMusicTextTertiary)
-                Text(station.bitrate, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = AppleMusicRed)
+                Icon(
+                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) DarkFavorite else Color.White.copy(alpha = 0.65f),
+                    modifier = Modifier.size(17.dp)
+                )
             }
         }
     }
 }
 
+/**
+ * Mobile/Landscape RadioStationCard Port:
+ * Wide card (height 76dp), 46dp radio box, station name + ● ON AIR badge, genre • bitrate, Start Radio & Favorite buttons.
+ */
 @Composable
-fun DesktopMoodCategoryCard(
-    category: DesktopRadioCategory,
-    isFavorite: Boolean = false,
-    onToggleFavorite: () -> Unit = {},
-    onClick: () -> Unit,
+fun DesktopMobileRadioStationCard(
+    station: DesktopRadioStation,
+    isPlaying: Boolean,
+    isFavorite: Boolean,
+    onPlayClick: () -> Unit,
+    onFavoriteClick: () -> Unit,
+    onStartRadioClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val cardBg = if (isPlaying) DarkAccent.copy(alpha = 0.14f) else DarkSurface
+
+    Surface(
+        onClick = onPlayClick,
+        shape = CardShape,
+        color = cardBg,
+        border = BorderStroke(1.dp, if (isPlaying) DarkAccent.copy(alpha = 0.5f) else DarkBorder),
         modifier = modifier
-            .width(180.dp)
-            .height(120.dp)
-            .clickable { onClick() },
-        shape = AppleCardShape,
-        colors = CardDefaults.cardColors(containerColor = AppleMusicSurface),
-        border = BorderStroke(1.dp, AppleMusicBorder)
+            .fillMaxWidth()
+            .height(76.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            DesktopArtwork(
-                url = category.imageUrl,
-                size = 180.dp,
-                shape = AppleCardShape,
-                modifier = Modifier.fillMaxSize()
-            )
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Radio Artwork / Icon box
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f))
-            )
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isPlaying) DarkAccent.copy(alpha = 0.25f) else DarkSurfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (station.imageUrl.isNotBlank()) {
+                    DesktopArtwork(url = station.imageUrl, size = 46.dp, shape = RoundedCornerShape(8.dp))
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.Radio,
+                        contentDescription = null,
+                        tint = if (isPlaying) DarkAccent else DarkTextSecondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = station.name,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isPlaying) DarkAccent else DarkTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = PillBadgeShape,
+                        color = if (isPlaying) DarkPlayingGreen.copy(alpha = 0.2f) else DarkSurfaceVariant
+                    ) {
+                        Text(
+                            text = if (isPlaying) "● ON AIR" else "LIVE",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isPlaying) DarkPlayingGreen else DarkTextTertiary,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = station.genre,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = DarkAccent.copy(alpha = 0.9f)
+                    )
+                    Text(
+                        text = " • ${station.bitrate} • ${station.country}",
+                        fontSize = 11.sp,
+                        color = DarkTextTertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Start Radio Button
             IconButton(
-                onClick = onToggleFavorite,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(28.dp)
+                onClick = onStartRadioClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Podcasts,
+                    contentDescription = "Start Radio",
+                    tint = DarkAccent,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Favorite Button
+            IconButton(
+                onClick = onFavoriteClick,
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "Favorite Category",
-                    tint = if (isFavorite) AppleMusicRed else Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(16.dp)
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) DarkFavorite else DarkTextTertiary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            Text(
-                text = category.title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(12.dp)
-            )
         }
     }
 }
@@ -1371,20 +1496,20 @@ fun DesktopEqualizerView(modifier: Modifier = Modifier) {
     var activePreset by remember { mutableStateOf("Flat") }
 
     Column(modifier = modifier.fillMaxSize().padding(28.dp)) {
-        Text("Equalizer", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextPrimary)
-        Text("Acoustic DSP frequency adjustment", fontSize = 13.sp, color = AppleMusicTextSecondary, modifier = Modifier.padding(top = 2.dp, bottom = 20.dp))
+        Text("Equalizer", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = DarkTextPrimary)
+        Text("Acoustic DSP frequency adjustment", fontSize = 13.sp, color = DarkTextSecondary, modifier = Modifier.padding(top = 2.dp, bottom = 20.dp))
 
         // Preset Pills
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 24.dp)) {
             presets.forEach { preset ->
                 val isSel = activePreset == preset
-                val bg = if (isSel) AppleMusicRed else AppleMusicSurface
-                val tint = if (isSel) Color.White else AppleMusicTextSecondary
+                val bg = if (isSel) DarkAccent else DarkSurface
+                val tint = if (isSel) Color(0xFF0C0E14) else DarkTextSecondary
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(bg)
-                        .border(1.dp, if (isSel) AppleMusicRed else AppleMusicBorder, RoundedCornerShape(16.dp))
+                        .border(1.dp, if (isSel) DarkAccent else DarkBorder, RoundedCornerShape(16.dp))
                         .clickable {
                             activePreset = preset
                             when (preset) {
@@ -1407,9 +1532,9 @@ fun DesktopEqualizerView(modifier: Modifier = Modifier) {
         // Sliders Deck
         Card(
             modifier = Modifier.fillMaxWidth().height(260.dp),
-            shape = AppleCardShape,
-            colors = CardDefaults.cardColors(containerColor = AppleMusicSurface),
-            border = BorderStroke(1.dp, AppleMusicBorder)
+            shape = CardShape,
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            border = BorderStroke(1.dp, DarkBorder)
         ) {
             Row(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
@@ -1422,20 +1547,20 @@ fun DesktopEqualizerView(modifier: Modifier = Modifier) {
                         verticalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxHeight()
                     ) {
-                        Text("+12dB", fontSize = 10.sp, color = AppleMusicTextTertiary)
+                        Text("+12dB", fontSize = 10.sp, color = DarkTextTertiary)
                         Slider(
                             value = bandLevels[idx],
                             onValueChange = { bandLevels[idx] = it },
                             valueRange = -12f..12f,
                             colors = SliderDefaults.colors(
                                 thumbColor = Color.White,
-                                activeTrackColor = AppleMusicRed,
-                                inactiveTrackColor = AppleMusicSurfaceVariant
+                                activeTrackColor = DarkAccent,
+                                inactiveTrackColor = DarkSurfaceVariant
                             ),
                             modifier = Modifier.width(120.dp).padding(vertical = 4.dp)
                         )
-                        Text("-12dB", fontSize = 10.sp, color = AppleMusicTextTertiary)
-                        Text(freq, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextSecondary)
+                        Text("-12dB", fontSize = 10.sp, color = DarkTextTertiary)
+                        Text(freq, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DarkTextSecondary)
                     }
                 }
             }
@@ -1453,13 +1578,13 @@ fun DesktopSettingsView(
     var updateMessage by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Text("Preferences", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = AppleMusicTextPrimary)
+        Text("Preferences", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = DarkTextPrimary)
 
         // Offline Storage Directory & Folder Picker
         Card(
-            shape = AppleCardShape,
-            colors = CardDefaults.cardColors(containerColor = AppleMusicSurface),
-            border = BorderStroke(1.dp, AppleMusicBorder),
+            shape = CardShape,
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            border = BorderStroke(1.dp, DarkBorder),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -1469,8 +1594,8 @@ fun DesktopSettingsView(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Offline Storage Directory", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AppleMusicTextPrimary)
-                        Text("Location for downloaded audio streams and companion artwork (.jpg):", fontSize = 12.sp, color = AppleMusicTextSecondary)
+                        Text("Offline Storage Directory", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = DarkTextPrimary)
+                        Text("Location for downloaded audio streams and companion artwork (.jpg):", fontSize = 12.sp, color = DarkTextSecondary)
                     }
 
                     // Native macOS Directory Picker Button
@@ -1484,13 +1609,13 @@ fun DesktopSettingsView(
                                 updateMessage = "Storage directory updated: $picked"
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = AppleMusicRed),
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkAccent),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Text("Choose Folder...", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                            Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = Color(0xFF0C0E14), modifier = Modifier.size(16.dp))
+                            Text("Choose Folder...", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0C0E14))
                         }
                     }
                 }
@@ -1500,15 +1625,15 @@ fun DesktopSettingsView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
-                        .background(AppleMusicCard)
-                        .border(1.dp, AppleMusicBorderSubtle, RoundedCornerShape(8.dp))
+                        .background(DarkCard)
+                        .border(1.dp, DarkBorderSubtle, RoundedCornerShape(8.dp))
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Text(
                         text = storageDir,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = AppleMusicRed
+                        color = DarkAccent
                     )
                 }
 
@@ -1517,8 +1642,8 @@ fun DesktopSettingsView(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Color(0xFF30D158), modifier = Modifier.size(16.dp))
-                        Text(updateMessage!!, fontSize = 12.sp, color = Color(0xFF30D158))
+                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = DarkPlayingGreen, modifier = Modifier.size(16.dp))
+                        Text(updateMessage!!, fontSize = 12.sp, color = DarkPlayingGreen)
                     }
                 }
             }
@@ -1526,24 +1651,24 @@ fun DesktopSettingsView(
 
         // Audio Engine Diagnostics Card
         Card(
-            shape = AppleCardShape,
-            colors = CardDefaults.cardColors(containerColor = AppleMusicSurface),
-            border = BorderStroke(1.dp, AppleMusicBorder),
+            shape = CardShape,
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            border = BorderStroke(1.dp, DarkBorder),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Audio Engine Diagnostics", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AppleMusicTextPrimary)
+                Text("Audio Engine Diagnostics", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = DarkTextPrimary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Backend:", fontSize = 12.sp, color = AppleMusicTextTertiary)
-                    Text("Apple AVFoundation (macOS Native Media Framework)", fontSize = 12.sp, color = AppleMusicTextPrimary)
+                    Text("Backend:", fontSize = 12.sp, color = DarkTextTertiary)
+                    Text("Apple AVFoundation (macOS Native Media Framework)", fontSize = 12.sp, color = DarkTextPrimary)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Hardware Acceleration:", fontSize = 12.sp, color = AppleMusicTextTertiary)
-                    Text("Apple Silicon ARM64 NEON Vector DSP Enabled", fontSize = 12.sp, color = Color(0xFF30D158))
+                    Text("Hardware Acceleration:", fontSize = 12.sp, color = DarkTextTertiary)
+                    Text("Apple Silicon ARM64 NEON Vector DSP Enabled", fontSize = 12.sp, color = DarkPlayingGreen)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Stream Formats:", fontSize = 12.sp, color = AppleMusicTextTertiary)
-                    Text("AAC 256k, ALAC Lossless, MP3 320k, Live Shoutcast / Icecast", fontSize = 12.sp, color = AppleMusicTextSecondary)
+                    Text("Stream Formats:", fontSize = 12.sp, color = DarkTextTertiary)
+                    Text("AAC 256k, ALAC Lossless, MP3 320k, Live Shoutcast / Icecast", fontSize = 12.sp, color = DarkTextSecondary)
                 }
             }
         }
