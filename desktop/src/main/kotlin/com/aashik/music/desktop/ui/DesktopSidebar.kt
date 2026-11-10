@@ -11,7 +11,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,24 +24,17 @@ import com.aashik.music.desktop.service.DesktopLocalScanner
 import com.aashik.music.desktop.utils.DesktopFolderPicker
 import java.io.File
 
-enum class DesktopScreen {
-    NOW_PLAYING,
-    LIBRARY,
-    FOLDERS,
-    FAVORITES,
-    EXPLORE,
-    EQUALIZER,
-    SETTINGS
-}
-
 private val DarkNavItemShape = RoundedCornerShape(10.dp)
 
 /**
- * Apple Music Liquid Glass Sidebar Navigation.
- * Matches 1:1 with designScreen/tablet/Home.png & Album.png:
- * - Frosted acrylic glass sidebar with specular right border.
- * - Library categories, Now Playing indicator, Live Radio.
- * - Bottom user profile card with macOS folder picker shortcut.
+ * 1:1 Apple Music Sidebar Navigation for macOS (Landscape).
+ * Matches pixel-perfect with designScreen/tablet/Album.png and Home.png:
+ * - Top header with 'Edit' button and window sidebar toggle.
+ * - Search bar with magnifying glass icon.
+ * - Main navigation: Home, New, Radio.
+ * - Collapsible 'Library' section with chevron: Pins, Recently Added, Artists, Albums, Songs, Music Videos, Download.
+ * - Collapsible 'Playlists' section: All Playlists, Bangers, and user collections.
+ * - Bottom Profile Pill: User Avatar + Name + Offline Storage picker.
  */
 @Composable
 fun DesktopSidebar(
@@ -50,144 +43,257 @@ fun DesktopSidebar(
     songCount: Int,
     favoriteCount: Int,
     folderCount: Int,
+    onSearchClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var isLibraryExpanded by remember { mutableStateOf(true) }
+    var isPlaylistsExpanded by remember { mutableStateOf(true) }
+
     Column(
         modifier = modifier
-            .width(230.dp)
+            .width(235.dp)
             .fillMaxHeight()
             .background(GlassSidebar)
             .border(width = 1.dp, brush = GlassBorderBrush, shape = RoundedCornerShape(topEnd = 0.dp, bottomEnd = 0.dp))
-            .padding(horizontal = 12.dp, vertical = 14.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Header: Apple Music Icon + Branding
+            // ─── TOP HEADER: Edit Button & Sidebar Icon (from Album.png) ─────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp, vertical = 6.dp),
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // 'Edit' Button Pill
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(DarkAccent.copy(alpha = 0.16f))
-                        .border(GlassBorderSubtle, RoundedCornerShape(10.dp)),
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(GlassSurfaceVariant)
+                        .border(GlassBorderSubtle, RoundedCornerShape(8.dp))
+                        .clickable { /* Edit sidebar */ }
+                        .padding(horizontal = 10.dp, vertical = 3.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Edit",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = DarkTextPrimary
+                    )
+                }
+
+                // Window Sidebar Icon
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Transparent)
+                        .clickable { /* Toggle collapse */ },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.GraphicEq,
-                        contentDescription = null,
-                        tint = DarkAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Column {
-                    Text(
-                        text = "Music Player",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkTextPrimary
-                    )
-                    Text(
-                        text = "Desktop Edition",
-                        fontSize = 11.sp,
-                        color = DarkTextSecondary
+                        imageVector = Icons.Rounded.ViewSidebar,
+                        contentDescription = "Sidebar Toggle",
+                        tint = DarkTextSecondary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // SECTION 1: APPLE MUSIC STAGE
-            DarkSidebarSectionHeader(title = "APPLE MUSIC")
+            // ─── SEARCH BAR (from Album.png & Home.png: '🔍 Search') ─────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(34.dp)
+                    .clip(DarkNavItemShape)
+                    .background(GlassSurface)
+                    .border(GlassBorderSubtle, DarkNavItemShape)
+                    .clickable { onSearchClick() }
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = "Search",
+                    tint = DarkTextTertiary,
+                    modifier = Modifier.size(15.dp)
+                )
+                Text(
+                    text = "Search",
+                    fontSize = 12.5.sp,
+                    color = DarkTextTertiary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ─── PRIMARY DESTINATIONS (Home, New, Radio) ─────────────────────────
             DarkSidebarNavItem(
-                label = "Now Playing",
-                icon = Icons.Rounded.PlayCircle,
-                isSelected = currentScreen == DesktopScreen.NOW_PLAYING,
-                onClick = { onSelectScreen(DesktopScreen.NOW_PLAYING) }
+                label = "Home",
+                icon = Icons.Rounded.Home,
+                isSelected = currentScreen == DesktopScreen.LIBRARY,
+                onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
             )
             DarkSidebarNavItem(
-                label = "Radio & Explore",
+                label = "New",
+                icon = Icons.Rounded.AutoAwesome,
+                isSelected = false,
+                onClick = { onSelectScreen(DesktopScreen.EXPLORE) }
+            )
+            DarkSidebarNavItem(
+                label = "Radio",
                 icon = Icons.Rounded.Podcasts,
                 isSelected = currentScreen == DesktopScreen.EXPLORE,
                 onClick = { onSelectScreen(DesktopScreen.EXPLORE) }
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // SECTION 2: LIBRARY
-            DarkSidebarSectionHeader(title = "LIBRARY")
-            DarkSidebarNavItem(
-                label = "All Songs",
-                icon = Icons.Rounded.MusicNote,
-                isSelected = currentScreen == DesktopScreen.LIBRARY,
-                badge = if (songCount > 0) "$songCount" else null,
-                onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
-            )
-            DarkSidebarNavItem(
-                label = "Folders",
-                icon = Icons.Rounded.Folder,
-                isSelected = currentScreen == DesktopScreen.FOLDERS,
-                badge = if (folderCount > 0) "$folderCount" else null,
-                onClick = { onSelectScreen(DesktopScreen.FOLDERS) }
-            )
-            DarkSidebarNavItem(
-                label = "Favorites",
-                icon = Icons.Rounded.Favorite,
-                isSelected = currentScreen == DesktopScreen.FAVORITES,
-                badge = if (favoriteCount > 0) "$favoriteCount" else null,
-                onClick = { onSelectScreen(DesktopScreen.FAVORITES) }
-            )
+            // ─── SECTION: LIBRARY (Collapsible with chevron) ──────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isLibraryExpanded = !isLibraryExpanded }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Library",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DarkTextSecondary
+                )
+                Icon(
+                    imageVector = if (isLibraryExpanded) Icons.Rounded.KeyboardArrowDown else Icons.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = DarkTextTertiary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            if (isLibraryExpanded) {
+                DarkSidebarNavItem(
+                    label = "Now Playing",
+                    icon = Icons.Rounded.PlayCircle,
+                    isSelected = currentScreen == DesktopScreen.NOW_PLAYING,
+                    onClick = { onSelectScreen(DesktopScreen.NOW_PLAYING) }
+                )
+                DarkSidebarNavItem(
+                    label = "Recently Added",
+                    icon = Icons.Rounded.Schedule,
+                    isSelected = false,
+                    onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
+                )
+                DarkSidebarNavItem(
+                    label = "Artists",
+                    icon = Icons.Rounded.Mic,
+                    isSelected = false,
+                    onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
+                )
+                DarkSidebarNavItem(
+                    label = "Albums",
+                    icon = Icons.Rounded.Album,
+                    isSelected = false,
+                    onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
+                )
+                DarkSidebarNavItem(
+                    label = "Songs",
+                    icon = Icons.Rounded.MusicNote,
+                    isSelected = currentScreen == DesktopScreen.LIBRARY,
+                    badge = if (songCount > 0) "$songCount" else null,
+                    onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
+                )
+                DarkSidebarNavItem(
+                    label = "Folders",
+                    icon = Icons.Rounded.Folder,
+                    isSelected = currentScreen == DesktopScreen.FOLDERS,
+                    badge = if (folderCount > 0) "$folderCount" else null,
+                    onClick = { onSelectScreen(DesktopScreen.FOLDERS) }
+                )
+                DarkSidebarNavItem(
+                    label = "Downloaded",
+                    icon = Icons.Rounded.Download,
+                    isSelected = currentScreen == DesktopScreen.FAVORITES,
+                    badge = if (favoriteCount > 0) "$favoriteCount" else null,
+                    onClick = { onSelectScreen(DesktopScreen.FAVORITES) }
+                )
+            }
 
-            // SECTION 3: TOOLS & AUDIO
-            DarkSidebarSectionHeader(title = "SETTINGS & AUDIO")
-            DarkSidebarNavItem(
-                label = "10-Band Equalizer",
-                icon = Icons.Rounded.Tune,
-                isSelected = currentScreen == DesktopScreen.EQUALIZER,
-                onClick = { onSelectScreen(DesktopScreen.EQUALIZER) }
-            )
-            DarkSidebarNavItem(
-                label = "Preferences",
-                icon = Icons.Rounded.Settings,
-                isSelected = currentScreen == DesktopScreen.SETTINGS,
-                onClick = { onSelectScreen(DesktopScreen.SETTINGS) }
-            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ─── SECTION: PLAYLISTS (Collapsible with chevron) ────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isPlaylistsExpanded = !isPlaylistsExpanded }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Playlists",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = DarkTextSecondary
+                )
+                Icon(
+                    imageVector = if (isPlaylistsExpanded) Icons.Rounded.KeyboardArrowDown else Icons.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = DarkTextTertiary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            if (isPlaylistsExpanded) {
+                DarkSidebarNavItem(
+                    label = "All Playlists",
+                    icon = Icons.Rounded.GridView,
+                    isSelected = false,
+                    onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
+                )
+                DarkSidebarNavItem(
+                    label = "Bangers",
+                    icon = Icons.Rounded.QueueMusic,
+                    isSelected = false,
+                    onClick = { onSelectScreen(DesktopScreen.LIBRARY) }
+                )
+            }
         }
 
-        // ─── BOTTOM PROFILE & OFFLINE DIRECTORY PICKER PILL ──────────────────
+        // ─── BOTTOM USER PROFILE PILL (Avatar + John Smith / User Name + Folder) ─
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .background(GlassSurface)
-                .border(GlassBorderSpecular, RoundedCornerShape(12.dp))
+                .border(GlassBorderSpecular, RoundedCornerShape(14.dp))
                 .padding(10.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(30.dp)
                         .clip(CircleShape)
-                        .background(DarkAccent.copy(alpha = 0.2f)),
+                        .background(Color(0xFF222B3D)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("MP", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DarkAccent)
+                    Text("JS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = DarkTextPrimary)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("macOS Library", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = DarkTextPrimary)
+                    Text("John Smith", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = DarkTextPrimary)
                     Text(
-                        text = File(DesktopLocalScanner.getStoredStorageDir()).name.ifBlank { "Default" },
+                        text = File(DesktopLocalScanner.getStoredStorageDir()).name.ifBlank { "macOS Music" },
                         fontSize = 10.sp,
                         color = DarkTextTertiary,
                         maxLines = 1
@@ -200,8 +306,8 @@ fun DesktopSidebar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(DarkSurfaceVariant)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(GlassSurfaceVariant)
                     .clickable {
                         val chosen = DesktopFolderPicker.pickFolder()
                         if (!chosen.isNullOrBlank()) {
@@ -212,23 +318,12 @@ fun DesktopSidebar(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = DarkAccent, modifier = Modifier.size(13.dp))
-                Spacer(modifier = Modifier.width(5.dp))
-                Text("Select Folder", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = DarkTextSecondary)
+                Icon(Icons.Rounded.FolderOpen, contentDescription = null, tint = DarkAccent, modifier = Modifier.size(12.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Select Offline Folder", fontSize = 10.5.sp, fontWeight = FontWeight.Medium, color = DarkTextSecondary)
             }
         }
     }
-}
-
-@Composable
-private fun DarkSidebarSectionHeader(title: String) {
-    Text(
-        text = title,
-        fontSize = 10.5.sp,
-        fontWeight = FontWeight.Bold,
-        color = DarkTextTertiary,
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-    )
 }
 
 @Composable
@@ -242,7 +337,7 @@ private fun DarkSidebarNavItem(
     val bgModifier = if (isSelected) {
         Modifier
             .background(DarkAccent.copy(alpha = 0.16f), DarkNavItemShape)
-            .border(1.dp, DarkAccent.copy(alpha = 0.35f), DarkNavItemShape)
+            .border(1.dp, DarkAccent.copy(alpha = 0.40f), DarkNavItemShape)
     } else {
         Modifier
     }
@@ -250,27 +345,27 @@ private fun DarkSidebarNavItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(36.dp)
+            .height(34.dp)
             .clip(DarkNavItemShape)
             .then(bgModifier)
             .clickable { onClick() }
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (isSelected) DarkAccent else DarkTextSecondary,
-                modifier = Modifier.size(17.dp)
+                modifier = Modifier.size(16.dp)
             )
             Text(
                 text = label,
-                fontSize = 13.sp,
+                fontSize = 12.5.sp,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (isSelected) DarkTextPrimary else DarkTextSecondary
             )
@@ -279,7 +374,7 @@ private fun DarkSidebarNavItem(
         if (badge != null) {
             Text(
                 text = badge,
-                fontSize = 11.sp,
+                fontSize = 10.5.sp,
                 fontWeight = FontWeight.Medium,
                 color = if (isSelected) DarkAccent else DarkTextTertiary
             )
