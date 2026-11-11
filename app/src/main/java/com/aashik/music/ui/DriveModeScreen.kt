@@ -237,7 +237,7 @@ fun DriveModeScreen(
     val currentVideoId by viewModel.currentVideoId.collectAsState()
     val currentSpeedKmh by viewModel.currentSpeedKmh.collectAsState()
     val isSpeedLockActive = currentSpeedKmh > 1.0f
-    val isVideoActive = playVideoForStreams && !isSpeedLockActive && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
+    val isVideoActive = playVideoForStreams && !isSpeedLockActive && (!currentVideoId.isNullOrBlank() || currentSong?.isVideo() == true)
     var areControlsVisible by remember { mutableStateOf(true) }
     var lastInteractionTimestamp by remember { mutableLongStateOf(0L) }
     var isLyricsExpanded by rememberSaveable { mutableStateOf(false) }
@@ -312,7 +312,7 @@ fun DriveModeScreen(
         // ── Full-Screen Edge-to-Edge Video ──
         if (isVideoActive) {
             VideoPlayerView(
-                videoId = currentVideoId ?: currentSong?.getYouTubeVideoId(),
+                videoId = currentVideoId ?: currentSong?.getVideoStreamId(),
                 videoUrl = if (currentSong?.isLocalVideo() == true) currentSong?.path else null,
                 viewModel = viewModel,
                 onTap = {

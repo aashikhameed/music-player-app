@@ -10,7 +10,7 @@
 
 | Area / Feature | Current Implementation (`app/ui/components/CommunityPlaylistCard.kt` / basic lists) | Screenshot Target (`designScreen/mobile/Playlist.png`) | Variance & Gap Analysis |
 | :--- | :--- | :--- | :--- |
-| **Playlist Artwork** | Basic 4-album grid thumbnail or generic folder icon. | **Rich Curated Mosaic / Editorial Artwork Card (`240×240pt`, `r=14pt`)** with drop shadow, title `Taylor Swift Essentials` / `Hits in Spatial Audio`, creator tag `Apple Music Pop` in Cyan, and last update date (`Updated 2d ago`). | **Major Gap**: Replace basic thumbnail with large centered editorial artwork header and metadata summary. |
+| **Playlist Artwork** | Basic 4-album grid thumbnail or generic folder icon. | **Rich Curated Mosaic / Editorial Artwork Card (`240×240pt`, `r=14pt`)** with drop shadow, title `Taylor Swift Essentials` / `Hits in Spatial Audio`, creator tag `Curated Pop` in Cyan, and last update date (`Updated 2d ago`). | **Major Gap**: Replace basic thumbnail with large centered editorial artwork header and metadata summary. |
 | **Editorial Description** | Plain text or absent. | **Expandable Editorial Card**: Blurb discussing curated track highlights, Dolby Atmos spatial audio mixing, and `MORE` cyan trigger. | **Major Gap**: Add editorial description expandable section. |
 | **Action Buttons** | Generic list actions. | **Dual Action Capsules**: Solid White `▶ Play` (`160×44pt`, `r=22pt`) and Frosted Glass `🔀 Shuffle` (`160×44pt`, `r=22pt`). | **Major Gap**: Add dual Play / Shuffle pill buttons. |
 | **Tracklist Presentation** | Generic song row. | **Curated Playlist Rows (`58pt` height)**: `42×42pt` album thumbnails (`r=6pt`), track title (`15sp Medium`), artist name, and options button `•••`. Supports drag reordering `☰`. | **Gap**: Update row geometry and thumbnail sizes to match playlist specification. |
@@ -33,7 +33,7 @@ flowchart TD
    - Create `PlaylistHeroHeader(playlist)`:
    - Box `240.dp × 240.dp`, `RoundedCornerShape(14.dp)`.
    - Title: `Text(playlist.name, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)`.
-   - Curator: `Text("Apple Music Pop", color = Color(0xFF00E5FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)`.
+   - Curator: `Text("Curated Pop", color = Color(0xFF00E5FF), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)`.
    - Update Date: `Text("Updated 2d ago • 72 songs, 4 hours 32 minutes", color = Color(0xFF94A3B8), fontSize = 12.sp)`.
 2. **Editorial Description**:
    - Create `PlaylistEditorialBox(description = playlist.description)`.

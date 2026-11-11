@@ -203,7 +203,7 @@ fun DesktopGlassSidebar(
 
                     Column {
                         Text("John Smith", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Apple Music", color = Color(0xFF64748B), fontSize = 10.5.sp)
+                        Text("Subscriber", color = Color(0xFF64748B), fontSize = 10.5.sp)
                     }
                 }
             }

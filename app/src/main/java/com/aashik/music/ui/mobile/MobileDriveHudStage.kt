@@ -71,7 +71,7 @@ fun MobileDriveHudStage(
     val currentVideoId by viewModel.currentVideoId.collectAsState()
     val currentSpeedKmh by viewModel.currentSpeedKmh.collectAsState()
     val isSpeedLockActive = currentSpeedKmh > 1.0f
-    val isVideoActive = playVideoForStreams && !isSpeedLockActive && (!currentVideoId.isNullOrBlank() || currentSong?.isYouTube() == true || currentSong?.isLocalVideo() == true)
+    val isVideoActive = playVideoForStreams && !isSpeedLockActive && (!currentVideoId.isNullOrBlank() || currentSong?.isVideo() == true)
 
     Column(
         modifier = modifier,

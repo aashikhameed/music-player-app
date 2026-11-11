@@ -108,7 +108,7 @@ This matrix specifies **every UI element across Mobile & Tablet/Desktop** that r
    - Refracts underlying genre cards during scrolling.
 2. **Segmented Catalog Filter Pill**:
    - Capsule `Height: 32pt`, `r=16pt`.
-   - Houses `Apple Music` and `Library`.
+   - Houses `Online` and `Library`.
    - Active segment: Cyan glass `rgba(0, 229, 255, 0.22)` with cyan border.
 3. **Recently Searched Dismiss Pills**:
    - Dismiss `✕` buttons: `24×24pt` circular glass pills (`r=12pt`).

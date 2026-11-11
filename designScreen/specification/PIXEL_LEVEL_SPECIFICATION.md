@@ -1,6 +1,6 @@
-# Apple Music macOS & Tablet Landscape: Pixel-Level Design Specification
+# Fluid Glass macOS & Tablet Landscape: Pixel-Level Design Specification
 
-> **Source Baseline**: Apple Music iPad/Tablet Landscape (`1194dp × 834dp` target canvas)  
+> **Source Baseline**: Modern iPad/Tablet Landscape (`1194dp × 834dp` target canvas)  
 > **Source Nodes Analyzed**:  
 > - `694:4694` (`Album.sidebar.dark - iPad`)  
 > - `671:2310` (`Home.dark.horizontal - iPad`)  
@@ -71,7 +71,7 @@ Following the [Backdrop specification](https://kyant.gitbook.io/backdrop):
 - **Bottom User Profile Capsule (`Width: 248dp, Height: 48dp, r=24dp`)**:
   - Anchored at bottom with `14dp` padding.
   - Avatar: `32dp × 32dp` circular pill (`r=16dp`), initial letters `JS`.
-  - Labels: `John Smith` (`13sp SemiBold`) and `Apple Music` (`10.5sp Regular`, `TextTertiary`).
+  - Labels: `John Smith` (`13sp SemiBold`) and `Subscriber` (`10.5sp Regular`, `TextTertiary`).
 
 ---
 

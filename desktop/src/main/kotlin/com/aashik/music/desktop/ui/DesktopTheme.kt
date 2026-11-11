@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.cos
 import kotlin.math.sin
 
-// ─── APPLE MUSIC PURE DARK PALETTE (STRICTLY ZERO RED, ELEGANT SLATE & ICE CYAN) ───
-val DarkAccent = Color(0xFF00E5FF)       // Crisp Apple Ice Cyan
+// ─── OBSIDIAN FLUID PURE DARK PALETTE (STRICTLY ZERO RED, ELEGANT SLATE & ICE CYAN) ───
+val DarkAccent = Color(0xFF00E5FF)       // Crisp Ice Cyan
 val DarkAccentSubtle = Color(0xFF00B4D8)
 val DarkBg = Color(0xFF07090E)           // Deep Obsidian Canvas
 val DarkSidebar = Color(0xFF0E121A)      // Translucent Charcoal Glass
@@ -41,7 +41,7 @@ val DarkTextTertiary = Color(0xFF64748B) // Dimmed Slate
 val DarkFavorite = Color(0xFF00E5FF)     // Favorite Accent (Ice Cyan, NEVER red)
 val DarkPlayingGreen = Color(0xFF00E676) // On Air / Live Green
 
-// ─── APPLE MACOS LIQUID GLASS DESIGN TOKENS ─────────────────────────────────
+// ─── FLUID LIQUID GLASS DESIGN TOKENS ─────────────────────────────────
 val GlassBgCanvas = Color(0xFF07090E)
 val GlassSurface = Color(0xCC141824)       // 80% opacity dark glass
 val GlassSurfaceVariant = Color(0x991B2232)// 60% opacity frosted glass
@@ -62,7 +62,7 @@ val GlassBorderSubtle = BorderStroke(1.dp, Color(0x1FFFFFFF))
 val GlassBorderSpecular = BorderStroke(1.dp, GlassBorderBrush)
 val GlassBorderActive = BorderStroke(1.dp, DarkAccent.copy(alpha = 0.65f))
 
-// Standard Apple macOS shapes
+// Standard desktop macOS shapes
 val DesktopCardShape = RoundedCornerShape(16.dp)
 val DesktopArtShape = RoundedCornerShape(16.dp)
 val DesktopPillShape = RoundedCornerShape(24.dp)

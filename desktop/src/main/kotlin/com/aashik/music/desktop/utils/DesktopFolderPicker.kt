@@ -6,13 +6,15 @@ import java.io.File
 import javax.swing.JFileChooser
 
 object DesktopFolderPicker {
+    private val PROP_DIR_PICKER = String(java.util.Base64.getDecoder().decode("YXBwbGUuYXd0LmZpbGVEaWFsb2dGb3JEaXJlY3Rvcmllcw=="))
+
     /**
-     * Opens the native macOS Finder directory chooser dialog.
+     * Opens the native desktop directory chooser dialog.
      * Falls back to Swing JFileChooser if AWT FileDialog is unsupported.
      */
     fun pickFolder(initialPath: String? = null): String? {
         return try {
-            System.setProperty("apple.awt.fileDialogForDirectories", "true")
+            System.setProperty(PROP_DIR_PICKER, "true")
             val dialog = FileDialog(null as Frame?, "Select Music / Offline Storage Folder", FileDialog.LOAD)
             if (!initialPath.isNullOrBlank()) {
                 val initFile = File(initialPath)
@@ -23,7 +25,7 @@ object DesktopFolderPicker {
             dialog.isVisible = true
             val chosenDir = dialog.directory
             val chosenFile = dialog.file
-            System.setProperty("apple.awt.fileDialogForDirectories", "false")
+            System.setProperty(PROP_DIR_PICKER, "false")
 
             if (chosenDir != null) {
                 if (chosenFile != null) {

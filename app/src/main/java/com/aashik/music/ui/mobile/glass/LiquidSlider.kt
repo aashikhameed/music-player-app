@@ -187,13 +187,15 @@ fun LiquidSlider(
             Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxWidth()
+                // layerBackdrop must wrap the scale so the lens samples the swollen track the
+                // user sees, not the unscaled one (which showed a misaligned bar in the glass).
+                .layerBackdrop(trackBackdrop)
                 .graphicsLayer {
                     if (thumbOnlyWhileSeeking) {
                         val p = dampedDragAnimation.pressProgress
                         scaleY = 1f + 0.5f * p
                     }
                 }
-                .layerBackdrop(trackBackdrop)
         ) {
             Box(
                 Modifier

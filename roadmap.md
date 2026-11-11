@@ -373,7 +373,7 @@ flowchart TD
 * **Mandate**: **Preserve the current Car HUD layout without structural changes.**
 * **Technical Verification**:
   * Verify Top Row: Exit button (36dp), continuous AM/PM clock (`DriveHudClock`), Night Highway Dimmer (`StealthOledBlack`), Sleep Timer badge, and live animated canvas visualizer with preset chips.
-  * Verify Center Stage: Hero 240dp album art with Apple CarPlay slide animations (`navigatingTrack`), edge-to-edge video canvas, synchronized lyrics, and full-screen blind swipe gestures.
+  * Verify Center Stage: Hero 240dp album art with automotive fluid slide animations (`navigatingTrack`), edge-to-edge video canvas, synchronized lyrics, and full-screen blind swipe gestures.
   * Verify Bottom Card: Infotainment card (`RoundedCornerShape(16.dp)`), full-width seekbar, metadata on left, and 7-button tactile deck (`Shuffle`, `Prev`, `-10s`, `56dp Play/Pause`, `+10s`, `Next`, `Folder`).
 * **Acceptance Criteria**: All existing gestures (swipe to skip, double-tap to pause) and visual transitions function with 0 regressions.
 
@@ -424,11 +424,11 @@ flowchart TD
 
 ## 11. Track 9: Video Player WebView, Lyrics Engine & Power Management
 
-### Task 9.1: VideoPlayerView YouTube JS Bridge & Error 150 Bypass
+### Task 9.1: VideoPlayerView Embedded Video JS Bridge & Restriction Bypass
 * **Target File**: [`app/src/main/java/com/aashik/music/ui/VideoPlayerView.kt`](file:///Users/aashikhameed/Documents/aashik/projects/music-player-app/app/src/main/java/com/aashik/music/ui/VideoPlayerView.kt)
 * **Technical Specification**:
   * Hardware-accelerated WebView with custom JS bridge (`AndroidVideoBridge`).
-  * Strip WebView markers from User-Agent to bypass YouTube Error 150 embed restrictions.
+  * Strip WebView markers from User-Agent to bypass playback embed restrictions.
   * Quality selection pill: 360p, 480p, 720p, 1080p.
   * Double-tap left/right on video surface seeks 10s backward/forward.
 * **Acceptance Criteria**: Embedded videos stream smoothly; auto-hides controls after 4.5s of inactivity.
@@ -541,7 +541,7 @@ flowchart TD
 | **T7.3** | Steering Wheel Controls (SWC) & Mute Handler | `MainActivity.kt`, `MusicPlayer.kt` | Android Broadcast / Input | Low | ✅ Completed |
 | **T8.1** | C++ SPSC RingBuffer & NEON Vectorization | `RingBuffer.h`, `AudioPlayer.cpp` | C++17 / ARMv8 NEON | Low | ✅ Completed |
 | **T8.2** | Equal-Power Crossfade & 120ms Micro-Fade | `AudioPlayer.cpp`, `MusicViewModel.kt` | C++17 Audio Engine | Low | ✅ Completed |
-| **T9.1** | VideoPlayerView YouTube JS Bridge & Error 150 | `VideoPlayerView.kt` | Android WebView / JS | Medium | ✅ Completed |
+| **T9.1** | VideoPlayerView Video JS Bridge & Embed Protection | `VideoPlayerView.kt` | Android WebView / JS | Medium | ✅ Completed |
 | **T9.2** | Synchronized Lyrics Auto-Scroll Engine | `LyricsRepository.kt`, `DriveModeScreen.kt` | Coroutines / Compose UI | Low | ✅ Completed |
 | **T9.3** | Sleep Timer & Battery Protection | `MusicViewModel.kt`, `NotificationPlaybackService.kt` | WakeLock / Service | Low | ✅ Completed |
 | **T10.1** | Unit Test Suite Expansion | `MusicModelsTest.kt`, `EqualizerModelTest.kt` | JUnit 4 / MockK | Low | ✅ Completed |

@@ -200,7 +200,7 @@ fun PlaybackPreferencesSection(viewModel: MusicViewModel) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Plays the music video instead of album art when a YouTube or video stream is available",
+                        text = "Plays the music video instead of album art when a video stream is available",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -10,8 +10,8 @@
 
 | Area / Feature | Current Implementation (`app/ui/components/RadioExploreContent.kt` / Online tabs) | Screenshot Target (`designScreen/mobile/New.png`) | Variance & Gap Analysis |
 | :--- | :--- | :--- | :--- |
-| **Top Navigation** | Automotive online radio / search bar. | **Large Title `New` (`34sp Bold`, White)** with circular user profile avatar. | **Major Gap**: Needs dedicated `New` exploration screen with Apple Music header structure. |
-| **Featured Editorial Banner** | Simple text banners or generic playlist cards. | **Exclusive Editorial Banner Card (`361×240pt`, `r=18pt`)**: "EXCLUSIVE PLAYLIST", "Best Songs of 2025", full editorial description blurb, and "Apple Music Pop" badge. | **Major Gap**: Implement featured editorial hero banner with dynamic gradient scrim. |
+| **Top Navigation** | Automotive online radio / search bar. | **Large Title `New` (`34sp Bold`, White)** with circular user profile avatar. | **Major Gap**: Needs dedicated `New` exploration screen with fluid header structure. |
+| **Featured Editorial Banner** | Simple text banners or generic playlist cards. | **Exclusive Editorial Banner Card (`361×240pt`, `r=18pt`)**: "EXCLUSIVE PLAYLIST", "Best Songs of 2025", full editorial description blurb, and "Curated Pop" badge. | **Major Gap**: Implement featured editorial hero banner with dynamic gradient scrim. |
 | **Daily Top 100 Charts** | Not present. | **"Daily Top 100" Carousel**: `155×215pt` cards with large typography graphics (`Top 100: Global`, `Top 100: USA`). | **Major Gap**: Build Daily Top 100 horizontal chart carousel. |
 | **Latest Songs Feed** | Single-column track list. | **Dense 4-Row Column Block (`Latest Songs`)**: 4 vertically stacked track items (`56pt` height each, total `224pt`) scrolling horizontally in chunks. | **Major Gap**: Implement 4-row vertical chunk horizontal carousel for new song drops. |
 | **City Charts** | Not present. | **"City Charts" Carousel**: `150×210pt` cards featuring `Top 25: New York City`, `Top 25: Los Angeles`. | **Major Gap**: Add City Charts carousel. |
@@ -39,7 +39,7 @@ flowchart TD
    - Blurb: `Text("The songs that brought us from reflection to release in 2025.", color = Color(0xFF94A3B8), fontSize = 13.5.sp)`.
 3. **Daily Top 100 Charts**:
    - Implement `DailyTop100Section`:
-   - `LazyRow` with `155.dp × 155.dp` artwork cards, title `Top 100: Global`, subtitle `Apple Music`.
+   - `LazyRow` with `155.dp × 155.dp` artwork cards, title `Top 100: Global`, subtitle `Curated Music`.
 4. **Latest Songs Chunk Grid**:
    - Create `LatestSongsCarousel`:
    - Group new songs into chunks of 4 items.

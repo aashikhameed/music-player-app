@@ -1,6 +1,6 @@
 # Mobile UI vs v0.3.2: parity plan
 
-v0.3.2 portrait = Material tabs + a "More" hub. Current portrait = Apple-Music liquid glass (Music / Library / Search). Landscape/headunit is unchanged.
+v0.3.2 portrait = Material tabs + a "More" hub. Current portrait = Fluid liquid glass (Music / Library / Search). Landscape/headunit is unchanged.
 
 ## Done
 - Single liquid capsule nav (Music, Library, Search), draggable lens indicator, canonical press-scale, stale-callback fix.

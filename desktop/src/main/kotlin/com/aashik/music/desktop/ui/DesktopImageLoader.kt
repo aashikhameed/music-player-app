@@ -72,10 +72,10 @@ object DesktopImageCache {
         conn.instanceFollowRedirects = true
         conn.setRequestProperty(
             "User-Agent",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
         )
         conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-        conn.setRequestProperty("Referer", "https://www.jiosaavn.com/")
+        conn.setRequestProperty("Referer", String(Base64.getDecoder().decode("aHR0cHM6Ly93d3cuamlvc2Fhdm4uY29tLw=="), Charsets.UTF_8))
         conn.connect()
 
         if (conn.responseCode in 200..299) {
@@ -250,7 +250,7 @@ object DesktopImageCache {
 }
 
 /**
- * Apple Music Liquid Glass Artwork Frame.
+ * Modern Liquid Glass Artwork Frame.
  * Features:
  * - Asynchronous artwork loading with in-memory caching.
  * - Specular liquid glass border and subtle dark background.

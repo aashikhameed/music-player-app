@@ -59,7 +59,7 @@ private fun getDarkGenreColor(id: String): Color {
     return DarkGenreCardPalette[idx]
 }
 
-// ─── 1. ALL SONGS (APPLE MUSIC 1:1 DATA TABLE) ──────────────────────────────
+// ─── 1. ALL SONGS (DATA TABLE) ──────────────────────────────
 @Composable
 fun DesktopLibraryTable(
     songs: List<DesktopSong>,
@@ -199,7 +199,7 @@ fun DesktopLibraryTable(
     }
 }
 
-// ─── 2. APPLE MUSIC 1:1 NOW PLAYING FULLSTAGE HUD ───────────────────────────
+// ─── 2. NOW PLAYING FULLSTAGE HUD ───────────────────────────
 @Composable
 fun DesktopNowPlayingStage(
     currentSong: DesktopSong?,
@@ -310,7 +310,7 @@ fun DesktopNowPlayingStage(
                     }
                 }
 
-                // Apple Music Large 280×280dp Framed Artwork with Liquid Glass Specular Border
+                // Large 280×280dp Framed Artwork with Liquid Glass Specular Border
                 Box(
                     modifier = Modifier
                         .size(280.dp)
@@ -374,7 +374,7 @@ fun DesktopNowPlayingStage(
                     ) {
                         Text("LOSSLESS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = DarkTextSecondary)
                         Text("•", fontSize = 10.sp, color = DarkTextTertiary)
-                        Text("Apple ALAC 24-bit/48kHz", fontSize = 10.sp, color = DarkTextSecondary)
+                        Text("Lossless ALAC 24-bit/48kHz", fontSize = 10.sp, color = DarkTextSecondary)
                     }
                 }
             }
@@ -579,7 +579,7 @@ fun DesktopNowPlayingStage(
             }
         }
 
-        // ─── RIGHT: APPLE MUSIC CONTEXT DECK (LYRICS / PLAYING NEXT QUEUE) ───
+        // ─── RIGHT: CONTEXT DECK (LYRICS / PLAYING NEXT QUEUE) ───
         Card(
             modifier = Modifier.weight(1f).fillMaxHeight(),
             shape = RoundedCornerShape(18.dp),
@@ -750,7 +750,7 @@ fun DesktopNowPlayingStage(
                             }
                         }
                     } else {
-                        // Apple Music iconic lyrics waterfall
+                        // Iconic lyrics waterfall
                         val activeIndex = lyrics.indexOfLast { it.timeMs <= positionMs }.coerceAtLeast(0)
                         val listState = rememberLazyListState()
 
@@ -1673,11 +1673,11 @@ fun DesktopSettingsView(
                 Text("Audio Engine Diagnostics", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = DarkTextPrimary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Backend:", fontSize = 12.sp, color = DarkTextTertiary)
-                    Text("Apple AVFoundation (macOS Native Media Framework)", fontSize = 12.sp, color = DarkTextPrimary)
+                    Text("Native CoreAudio & AVFoundation", fontSize = 12.sp, color = DarkTextPrimary)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Hardware Acceleration:", fontSize = 12.sp, color = DarkTextTertiary)
-                    Text("Apple Silicon ARM64 NEON Vector DSP Enabled", fontSize = 12.sp, color = DarkPlayingGreen)
+                    Text("ARM64 NEON Vector DSP Enabled", fontSize = 12.sp, color = DarkPlayingGreen)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Stream Formats:", fontSize = 12.sp, color = DarkTextTertiary)

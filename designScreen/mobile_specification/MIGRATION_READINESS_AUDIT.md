@@ -1,4 +1,4 @@
-# Mobile Apple Music Migration Readiness & Missing Prerequisites Audit
+# Mobile Fluid Glass Migration Readiness & Missing Prerequisites Audit
 
 > **Target Goal**: Complete 1:1 redesign of the mobile experience from scratch based on `designScreen/mobile/*.png` using Liquid Glass (`kyant.gitbook.io/backdrop`).  
 > **Status**: **Missing Essential Implementation Prerequisites Identified & Resolved Below.**
@@ -122,7 +122,7 @@ data class Artist(
 data class Playlist(
     val id: String,
     val title: String,
-    val curator: String = "Apple Music Pop",
+    val curator: String = "Curated Pop",
     val description: String = "",
     val lastUpdated: String = "Updated recently",
     val songs: List<Song> = emptyList(),
@@ -229,13 +229,13 @@ if (isCarLandscape) {
     // Automotive Headunit: 100% FROZEN LEGACY LAYOUT PRESERVED
     AutomotiveCarMusicScreen(viewModel)
 } else {
-    // Mobile Portrait: NEW 1:1 APPLE MUSIC LIQUID GLASS ARCHITECTURE
-    MobileAppleMusicApp(viewModel)
+    // Mobile Portrait: NEW 1:1 FLUID LIQUID GLASS ARCHITECTURE
+    MobileGlassMusicApp(viewModel)
 }
 ```
 This guarantees:
 1. **Zero regressions** to the automotive headunit layout.
-2. Complete freedom to implement the **1:1 Apple Music mobile redesign** in clean, decoupled files under `com.aashik.music.ui.mobile.*`.
+2. Complete freedom to implement the **1:1 fluid mobile redesign** in clean, decoupled files under `com.aashik.music.ui.mobile.*`.
 
 ---
 

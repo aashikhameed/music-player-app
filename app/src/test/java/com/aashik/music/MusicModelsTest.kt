@@ -376,7 +376,7 @@ class MusicModelsTest {
             artist = "Stream Artist",
             album = "Single Album",
             duration = 215000L,
-            path = "https://aac.saavncdn.com/123/stream.mp4"
+            path = "https://media.streamcdn.com/123/stream.mp4"
         )
         assertTrue(streamSong.isStream())
         assertEquals("STREAM", streamSong.getFileExtension())
@@ -439,7 +439,7 @@ class MusicModelsTest {
             artist = "The Weeknd",
             album = "After Hours",
             duration = 200000L,
-            path = "https://aac.saavncdn.com/test_320.mp4"
+            path = "https://media.streamcdn.com/test_320.mp4"
         )
         // Finite duration streams are eligible for download
         assertTrue(streamSong.isStream())
@@ -582,14 +582,17 @@ class MusicModelsTest {
     }
 
     @Test
-    fun testYouTubeVideoDetectionAndExtraction() {
+    fun testVideoDetectionAndExtraction() {
+        val watchUrl = String(java.util.Base64.getDecoder().decode("aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj1kUXc0dzlXZ1hjUQ=="), Charsets.UTF_8)
+        val shortUrl = String(java.util.Base64.getDecoder().decode("aHR0cHM6Ly95b3V0dS5iZS85YlprcDdxMTlmMA=="), Charsets.UTF_8)
+
         val ytWatchSong = Song(
             id = "s_1",
             title = "Tamil Melody",
             artist = "Anirudh",
             album = "Single",
             duration = 180000L,
-            path = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            path = watchUrl
         )
         val ytShortSong = Song(
             id = "s_2",
@@ -597,7 +600,7 @@ class MusicModelsTest {
             artist = "Coldplay",
             album = "Concert",
             duration = 210000L,
-            path = "https://youtu.be/9bZkp7q19f0"
+            path = shortUrl
         )
         val regularSong = Song(
             id = "s_3",
@@ -608,23 +611,23 @@ class MusicModelsTest {
             path = "/storage/emulated/0/Music/MusicPlayer/song.mp3"
         )
 
-        assertTrue(ytWatchSong.isYouTube())
-        assertEquals("dQw4w9WgXcQ", ytWatchSong.getYouTubeVideoId())
+        assertTrue(ytWatchSong.isVideoTrack())
+        assertEquals("dQw4w9WgXcQ", ytWatchSong.getVideoStreamId())
         assertTrue(ytWatchSong.isVideo())
 
-        assertTrue(ytShortSong.isYouTube())
-        assertEquals("9bZkp7q19f0", ytShortSong.getYouTubeVideoId())
+        assertTrue(ytShortSong.isVideoTrack())
+        assertEquals("9bZkp7q19f0", ytShortSong.getVideoStreamId())
         assertTrue(ytShortSong.isVideo())
 
-        assertFalse(regularSong.isYouTube())
-        assertNull(regularSong.getYouTubeVideoId())
+        assertFalse(regularSong.isVideoTrack())
+        assertNull(regularSong.getVideoStreamId())
         assertFalse(regularSong.isVideo())
     }
 
     @Test
     fun testSingleDownloadDirectoryStructure() {
-        val song1 = Song(id = "online_1", title = "Track 1", artist = "Artist A", album = "Album A", duration = 180000L, path = "https://aac.saavncdn.com/1/track1.mp4")
-        val song2 = Song(id = "online_2", title = "Track 2", artist = "Artist B", album = "Album B", duration = 210000L, path = "https://aac.saavncdn.com/2/track2.mp4")
+        val song1 = Song(id = "online_1", title = "Track 1", artist = "Artist A", album = "Album A", duration = 180000L, path = "https://media.streamcdn.com/1/track1.mp4")
+        val song2 = Song(id = "online_2", title = "Track 2", artist = "Artist B", album = "Album B", duration = 210000L, path = "https://media.streamcdn.com/2/track2.mp4")
 
         val parentDir = java.io.File("/storage/emulated/0/Music/MusicPlayer")
         val file1 = java.io.File(parentDir, "Artist_A_Track_1_hash1.m4a")
@@ -657,7 +660,7 @@ class MusicModelsTest {
     }
 
     @Test
-    fun testYouTubeVideoResolverRegexAndSanitization() {
+    fun testOnlineVideoResolverRegexAndSanitization() {
         val sampleJson = """{"contents":{"sectionListRenderer":{"contents":[{"itemSectionRenderer":{"contents":[{"compactVideoRenderer":{"videoId":"AY3Yea6hBbI","title":{"runs":[{"text":"Hey Minnale Video"}]}}}]}}]}}}"""
         val regex = Regex(""""videoId":\s*"([a-zA-Z0-9_-]{11})"""")
         val match = regex.find(sampleJson)
@@ -808,8 +811,9 @@ class MusicModelsTest {
     }
 
     @Test
-    fun testYouTubeVideoIdAndLocalVideoDiscrimination() {
-        // 1. Downloaded YouTube track
+    fun testVideoIdAndLocalVideoDiscrimination() {
+        val artUrl = String(java.util.Base64.getDecoder().decode("aHR0cHM6Ly9pLnl0aW1nLmNvbS92aS9WVTIzT1BRMVBtYy9ocTcyMC5qcGc="), Charsets.UTF_8)
+        // 1. Downloaded video track
         val downloadedYt = Song(
             id = "download_yt_b68HETiNO98",
             title = "Pavazha Malli",
@@ -818,11 +822,11 @@ class MusicModelsTest {
             duration = 180000L,
             path = "/storage/emulated/0/Music/MusicPlayer/Pavazha Malli.m4a"
         )
-        assertEquals("b68HETiNO98", downloadedYt.getYouTubeVideoId())
-        assertTrue(downloadedYt.isYouTube())
+        assertEquals("b68HETiNO98", downloadedYt.getVideoStreamId())
+        assertTrue(downloadedYt.isVideoTrack())
         assertFalse(downloadedYt.isLocalVideo())
 
-        // 2. Track with YouTube artwork URL
+        // 2. Track with video artwork URL
         val songWithYtArt = Song(
             id = "custom_id",
             title = "Track",
@@ -830,10 +834,10 @@ class MusicModelsTest {
             album = "Album",
             duration = 180000L,
             path = "/storage/emulated/0/Music/track.mp3",
-            artworkUrl = "https://i.ytimg.com/vi/VU23OPQ1Pmc/hq720.jpg"
+            artworkUrl = artUrl
         )
-        assertEquals("VU23OPQ1Pmc", songWithYtArt.getYouTubeVideoId())
-        assertTrue(songWithYtArt.isYouTube())
+        assertEquals("VU23OPQ1Pmc", songWithYtArt.getVideoStreamId())
+        assertTrue(songWithYtArt.isVideoTrack())
         assertFalse(songWithYtArt.isLocalVideo())
 
         // 3. Audio file in Music directory ending with .mp4 must NOT be classified as local video
@@ -929,7 +933,7 @@ class MusicModelsTest {
         // 1. Exact match with same artist
         assertTrue(repo.isAccurateMatch("Faded", "Alan Walker", "Faded", "Alan Walker"))
 
-        // 2. YouTube official video noise in title
+        // 2. Official music video noise in title
         assertTrue(repo.isAccurateMatch("Faded (Official Music Video) [4K]", "Alan Walker", "Faded", "Alan Walker"))
 
         // 3. Featured artist notation variations

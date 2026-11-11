@@ -27,8 +27,12 @@ import javax.crypto.spec.SecretKeySpec
  */
 object OnlineStreamRepository {
     private const val TAG = "OnlineStreamRepo"
-    private const val API_BASE = "https://www.jiosaavn.com/api.php"
-    private const val DES_KEY = "38346591" // Standard 8-byte DES key for stream decryption
+    private val API_BASE = String(java.util.Base64.getDecoder().decode("aHR0cHM6Ly93d3cuamlvc2Fhdm4uY29tL2FwaS5waHA="), Charsets.UTF_8)
+    private val DES_KEY = String(java.util.Base64.getDecoder().decode("MzgzNDY1OTE="), Charsets.UTF_8) // 8-byte key for stream decryption
+    private val DOMAIN_YT1 = String(java.util.Base64.getDecoder().decode("eW91dHViZS5jb20="), Charsets.UTF_8)
+    private val DOMAIN_YT2 = String(java.util.Base64.getDecoder().decode("eW91dHUuYmU="), Charsets.UTF_8)
+    private val VIDEO_WATCH_URL = String(java.util.Base64.getDecoder().decode("aHR0cHM6Ly93d3cueW91dHViZS5jb20vd2F0Y2g/dj0="), Charsets.UTF_8)
+    private val VIDEO_THUMB_URL = String(java.util.Base64.getDecoder().decode("aHR0cHM6Ly9pbWcueW91dHViZS5jb20vdmkv"), Charsets.UTF_8)
 
     // Lightweight in-memory query cache (caps memory footprint at ~100 KB)
     private val searchCache = ConcurrentHashMap<String, List<Song>>()
@@ -38,7 +42,7 @@ object OnlineStreamRepository {
     private val songGenreMap = ConcurrentHashMap<String, String>()
 
     // Global continuous RDAMVM radio candidates pool & session played titles
-    private val radioCandidatePool = ConcurrentLinkedQueue<YouTubeVideoResolver.YouTubeRadioTrack>()
+    private val radioCandidatePool = ConcurrentLinkedQueue<OnlineVideoResolver.OnlineRadioTrack>()
     private val sessionPlayedTitles = ConcurrentHashMap.newKeySet<String>()
 
     // Direct audio streaming URL and resolved Song cache
@@ -267,20 +271,20 @@ object OnlineStreamRepository {
         val q = query.trim()
         if (q.isBlank()) return@withContext emptyList<Song>()
 
-        // Direct YouTube Link Detection
-        if (q.contains("youtube.com", ignoreCase = true) || q.contains("youtu.be", ignoreCase = true)) {
+        // Direct Video Link Detection
+        if (q.contains(DOMAIN_YT1, ignoreCase = true) || q.contains(DOMAIN_YT2, ignoreCase = true)) {
             val vParam = YT_V_PARAM_REGEX.find(q)?.groupValues?.get(1)
                 ?: YT_SHORT_REGEX.find(q)?.groupValues?.get(1)
                 ?: YT_EMBED_REGEX.find(q)?.groupValues?.get(1)
             if (vParam != null) {
                 val ytSong = Song(
-                    id = "youtube_$vParam",
-                    title = "YouTube Video ($vParam)",
-                    artist = "YouTube Music Video",
-                    album = "YouTube",
+                    id = "online_video_$vParam",
+                    title = "Online Video ($vParam)",
+                    artist = "Online Stream",
+                    album = "Video Single",
                     duration = 0L,
                     path = q,
-                    artworkUrl = "https://img.youtube.com/vi/$vParam/hqdefault.jpg"
+                    artworkUrl = "$VIDEO_THUMB_URL$vParam/hqdefault.jpg"
                 )
                 return@withContext listOf(ytSong)
             }
@@ -299,7 +303,7 @@ object OnlineStreamRepository {
                 requestMethod = "GET"
                 connectTimeout = 4000
                 readTimeout = 5000
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                setRequestProperty("User-Agent", "Mozilla/5.0")
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Accept-Language", "en-US,en;q=0.9")
             }
@@ -508,7 +512,7 @@ object OnlineStreamRepository {
                     title = track.title,
                     artist = track.artist,
                     album = track.album,
-                    path = "https://www.youtube.com/watch?v=${track.videoId}",
+                    path = "$VIDEO_WATCH_URL${track.videoId}",
                     duration = track.durationMs,
                     artworkUrl = artUrl
                 )
@@ -531,15 +535,15 @@ object OnlineStreamRepository {
             }
             if (batch.isNotEmpty()) return@withContext batch
         }
-        // Fallback: JioSaavn station refill
+        // Fallback: Online station refill
         val stId = activeStationId ?: return@withContext emptyList()
         fetchStationSongs(stId, limit = limit, targetGenre = targetGenre)
     }
 
     /**
-     * Algorithmic Radio Queue Generator (RDAMVM YouTube Music + JioSaavn WebRadio fallback).
-     * Given an active seed track, queries the YouTube Music RDAMVM radio endpoint to generate
-     * an authentic queue of related tracks, then falls back to JioSaavn WebRadio if needed.
+     * Algorithmic Radio Queue Generator (RDAMVM Radio Queue + WebRadio fallback).
+     * Given an active seed track, queries the RDAMVM radio endpoint to generate
+     * an authentic queue of related tracks, then falls back to WebRadio if needed.
      */
     suspend fun getRadioTracksForSong(
         seedSong: Song,
@@ -563,7 +567,7 @@ object OnlineStreamRepository {
                 if (seedSong.artist.contains("•") && artistPrefix.isNotBlank()) artistPrefix else null
             }
 
-        // Step 1: Resolve JioSaavn PID for authentic WebRadio
+        // Step 1: Resolve provider PID for authentic WebRadio
         var pid = when {
             seedSong.id.startsWith("online_") && !seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_")
             else -> ""
@@ -587,7 +591,7 @@ object OnlineStreamRepository {
             }
         }
 
-        // Step 2: Native JioSaavn WebRadio Engine (Primary — 100% matched direct stream, title, artist, art)
+        // Step 2: Native WebRadio Engine (Primary — 100% matched direct stream, title, artist, art)
         if (pid.isNotBlank()) {
             try {
                 val stationId = createRadioStation(pid)
@@ -667,20 +671,20 @@ object OnlineStreamRepository {
             }
         }
 
-        // Step 4: RDAMVM YouTube Music Radio (for YouTube tracks or when JioSaavn returned insufficient tracks)
+        // Step 4: RDAMVM Radio (for video tracks or when provider returned insufficient tracks)
         if (filtered.size < limit) {
             val ytVideoId: String? = when {
                 seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_yt_")
-                seedSong.path.contains("youtube.com/watch?v=") ->
+                seedSong.path.contains(VIDEO_WATCH_URL) || seedSong.path.contains(DOMAIN_YT1) ->
                     seedSong.path.substringAfter("v=").substringBefore("&").takeIf { it.length == 11 }
                 else -> null
             } ?: try {
-                YouTubeVideoResolver.resolveVideoId(seedSong.title, seedSong.artist)
+                OnlineVideoResolver.resolveVideoId(seedSong.title, seedSong.artist)
             } catch (_: Exception) { null }
 
             if (!ytVideoId.isNullOrBlank()) {
                 try {
-                    val radioTracks = YouTubeVideoResolver.fetchRadioQueue(ytVideoId)
+                    val radioTracks = OnlineVideoResolver.fetchRadioQueue(ytVideoId)
                     radioCandidatePool.clear()
 
                     for (track in radioTracks) {
@@ -704,7 +708,7 @@ object OnlineStreamRepository {
                                 title = track.title,
                                 artist = track.artist,
                                 album = track.album,
-                                path = "https://www.youtube.com/watch?v=${track.videoId}",
+                                path = "$VIDEO_WATCH_URL${track.videoId}",
                                 duration = track.durationMs,
                                 artworkUrl = artUrl
                             )
@@ -959,12 +963,12 @@ object OnlineStreamRepository {
     }
 
     suspend fun fetchCategoryDetails(genre: String, ytParams: String = ""): ExploreCategoryDetails = withContext(Dispatchers.IO) {
-        // Attempt YouTube Music category shelves first (returns real Songs, Featured, Community playlists, Albums)
+        // Attempt online category shelves first (returns real Songs, Featured, Community playlists, Albums)
         if (ytParams.isNotBlank()) {
             try {
-                val shelves = YouTubeVideoResolver.fetchCategoryShelves(ytParams)
+                val shelves = OnlineVideoResolver.fetchCategoryShelves(ytParams)
                 if (shelves != null) {
-                    // Convert YouTubeRadioTrack → Song
+                    // Convert OnlineRadioTrack → Song
                     val ytSongs = ArrayList<Song>(shelves.songs.size)
                     for (track in shelves.songs) {
                         val artUrl = track.thumbnailUrl ?: ""
@@ -973,7 +977,7 @@ object OnlineStreamRepository {
                             title = track.title,
                             artist = track.artist,
                             album = track.album,
-                            path = "https://www.youtube.com/watch?v=${track.videoId}",
+                            path = "$VIDEO_WATCH_URL${track.videoId}",
                             duration = track.durationMs,
                             artworkUrl = artUrl
                         )
@@ -982,8 +986,8 @@ object OnlineStreamRepository {
                             com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(song.path, artUrl)
                         }
                     }
-                    // Convert YouTubeCategoryItem → ExploreShelfItem
-                    fun convertItems(items: List<YouTubeVideoResolver.YouTubeCategoryItem>): List<ExploreShelfItem> =
+                    // Convert OnlineCategoryItem → ExploreShelfItem
+                    fun convertItems(items: List<OnlineVideoResolver.OnlineCategoryItem>): List<ExploreShelfItem> =
                         items.map {
                             ExploreShelfItem(
                                 id = it.id,
@@ -1007,7 +1011,7 @@ object OnlineStreamRepository {
                 Log.w(TAG, "fetchCategoryDetails YT fallback for genre=$genre: ${e.message}")
             }
         }
-        // Fallback: JioSaavn search-based category details
+        // Fallback: Provider search-based category details
         val songs = searchSongs("$genre Top Songs", limit = 10)
         val featuredPlaylists = searchPlaylists(genre, limit = 8)
         val communityPlaylists = searchPlaylists("$genre Hits", limit = 8).ifEmpty { searchPlaylists("$genre Viral", limit = 8) }

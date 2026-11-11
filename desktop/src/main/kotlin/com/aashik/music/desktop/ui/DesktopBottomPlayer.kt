@@ -26,7 +26,7 @@ private val PlayerCapsuleShape = RoundedCornerShape(32.dp)
 private val MiniArtShape = RoundedCornerShape(8.dp)
 
 /**
- * 1:1 Apple Music Floating Liquid Glass Capsule Mini-Player Dock.
+ * Floating Liquid Glass Capsule Mini-Player Dock.
  * Matches pixel-perfect with designScreen/tablet/Album.png and Home.png:
  * - Floating translucent acrylic dock with specular highlight reflection.
  * - Left: Transport buttons (Shuffle, Previous, Play/Pause, Next, Repeat).
@@ -123,7 +123,7 @@ fun DesktopBottomPlayer(
                         )
                     }
 
-                    // Play / Pause Circle (Apple Music solid white circle with dark icon)
+                    // Play / Pause Circle (Solid white circle with dark icon)
                     Box(
                         modifier = Modifier
                             .size(36.dp)

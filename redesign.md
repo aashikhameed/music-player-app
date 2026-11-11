@@ -81,7 +81,7 @@ Every single backend service, ViewModel state flow, preference, and hardware fea
 | **F20** | **Auto-Download Listened Tracks (>60s)** | `MusicViewModel._autoDownloadStreamTracks` | Settings → Storage & Downloads toggle | Settings → Storage card toggle | ✅ **Preserved & Enhanced** |
 | **F21** | **Stream Download Manager** | `StreamDownloadManager.kt` | Radial progress on song row + Downloads view | Radial progress on HUD action bar | ✅ **Preserved & Enhanced** |
 | **F22** | **Custom Download Directory Selector** | `DownloadLocationDialog.kt` | System folder picker (`ACTION_OPEN_DOCUMENT_TREE`) | Automotive storage presets (Internal/USB/SD) | ✅ **Preserved & Enhanced** |
-| **F23** | **YouTube Video Resolver & WebView** | `YouTubeVideoResolver.kt`, `VideoPlayerView.kt` | 16:9 embedded player in Drive HUD | Full edge-to-edge video canvas in Car HUD | ✅ **Preserved & Enhanced** |
+| **F23** | **Online Video Resolver & WebView** | `OnlineVideoResolver.kt`, `VideoPlayerView.kt` | 16:9 embedded player in Drive HUD | Full edge-to-edge video canvas in Car HUD | ✅ **Preserved & Enhanced** |
 | **F24** | **Video Quality Selector (360p–1080p)** | `MusicViewModel._maxVideoQuality` | Drive HUD video settings pill | Video player quick quality chip | ✅ **Preserved & Enhanced** |
 | **F25** | **Synchronized Lyrics Engine** | `LyricsRepository.kt`, `LyricLine` | Segmented switch `[Now Playing \| Lyrics]` | Center stage expandable synchronized lyrics overlay | ✅ **Preserved & Enhanced** |
 | **F26** | **Sleep Timer & Countdown** | `MusicViewModel._sleepTimerMinutes` | 3-dot overflow menu in HUD + custom time picker | Settings tile with 15/30/45/60m quick chips | ✅ **Preserved & Enhanced** |
@@ -310,7 +310,7 @@ Every single backend service, ViewModel state flow, preference, and hardware fea
 * **Media Stage**:
   * Responsive Album Art: Dynamic square sized at `min(screenWidth * 0.70, 260.dp)` with `RoundedCornerShape(16.dp)`.
   * Ambient Tint: Pre-allocated background card with 10% flat dominant color tint (flat solid color, zero gradients).
-  * Video Viewport: When video mode is active, embeds a 16:9 hardware-accelerated WebView (`VideoPlayerView`) with YouTube IFrame API and double-tap 10-second seek gestures.
+  * Video Viewport: When video mode is active, embeds a 16:9 hardware-accelerated WebView (`VideoPlayerView`) with embedded video player API and double-tap 10-second seek gestures.
   * Swipe Gestures: Horizontal swipe across album art skips tracks (left = next, right = previous).
 * **Metadata & Synchronized Lyrics**:
   * Title at 20sp Bold Inter (`#F1F5F9`), center-aligned with auto-scrolling marquee if text overflows.
@@ -339,7 +339,7 @@ Every single backend service, ViewModel state flow, preference, and hardware fea
 │ [← Exit (36dp)] [Clock 12H AM/PM] [🌙 Night Dimmer] [⏱ Timer]  │ [Equalizer Canvas & Presets]│
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ CENTER STAGE:                                                                │
-│ • Hero 240dp Album Artwork (Apple CarPlay Slide Transitions)                 │
+│ • Hero 240dp Album Artwork (Automotive Fluid Slide Transitions)              │
 │ • Full Edge-to-Edge Video Canvas Integration (Auto-Hides Controls after 4.5s)│
 │ • Expandable Synchronized Lyrics Overlay                                     │
 │ • Full-Screen Blind Gestures: Swipe Left/Right to Skip, Double-Tap to Pause   │
@@ -372,7 +372,7 @@ Every single backend service, ViewModel state flow, preference, and hardware fea
     * Double-Tap anywhere on screen: Instantly toggles Play / Pause without looking.
     * Single-Tap: Reveals or hides video overlay controls when playing video.
   * **Edge-to-Edge Video Canvas (`VideoPlayerView`)**:
-    * Seamlessly renders YouTube or local video content edge-to-edge.
+    * Seamlessly renders online stream or local video content edge-to-edge.
     * Controls automatically dim and hide after 4.5 seconds of inactivity.
   * **Synchronized Lyrics Overlay**:
     * Tap to expand smooth 4-line auto-scrolling lyrics view with high-contrast driver-legible typography.
@@ -688,7 +688,7 @@ Every single backend service, ViewModel state flow, preference, and hardware fea
 #### 2. Detailed Component Specifications
 * **16:9 Responsive Video Viewport**:
   * Seamlessly embedded inside the Drive HUD stage.
-  * Custom User-Agent configuration bypassing YouTube Error 150.
+  * Custom User-Agent configuration bypassing video player restrictions.
   * Gesture Controls: Double-tap left side to seek -10s; double-tap right side to seek +10s.
   * Quality Selector: Compact pill (`360p`, `480p`, `720p`, `1080p`).
   * Auto-hiding control overlay with 48dp play/pause, time seekbar, and full-screen expand button.

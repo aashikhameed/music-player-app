@@ -88,8 +88,7 @@ fun MobileHeroStage(
     val isVideoActive = playVideoForStreams
             && !isSpeedLockActive
             && (!currentVideoId.isNullOrBlank()
-                || currentSong?.isYouTube() == true
-                || currentSong?.isLocalVideo() == true)
+                || currentSong?.isVideo() == true)
 
     val stageModifier = if (isLyricsExpanded) {
         modifier.fillMaxWidth()

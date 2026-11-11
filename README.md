@@ -49,7 +49,7 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 ### 🎛️ Driver-First Automotive UI & Floating Media Dock
 - **Glanceable Touch Targets**: Oversized cards and spacious dock controls strictly complying with automotive distraction guidelines.
 - **Unified Floating Media Dock**: Dual-segment floating capsule housing track metadata, codec badges, scoped real-time seekbar, and tactile playback controls.
-- **Apple CarPlay Style Visual Transitions**: Horizontal card sliding transitions for album artwork (`slideInHorizontally` / `slideOutHorizontally`) paired with vertical fade-up / fade-down typography (`slideInVertically` / `slideOutVertically` + `fadeIn` / `fadeOut`) across the HUD and bottom dock.
+- **Automotive Fluid Visual Transitions**: Horizontal card sliding transitions for album artwork (`slideInHorizontally` / `slideOutHorizontally`) paired with vertical fade-up / fade-down typography (`slideInVertically` / `slideOutVertically` + `fadeIn` / `fadeOut`) across the HUD and bottom dock.
 - **Collapsible Bottom Dock**: Toggle in Settings (hidden by default) maximizes vertical canvas for browsing songs, paired with a sleek bottom peek pill for instant dock access.
 - **Auto HUD Drive Mode**: Automatically enters full-screen Drive HUD after 20 seconds of driving inactivity (toggle in Settings, enabled by default).
 - **Hardware-Accelerated Seekbar**: Direct Canvas-rendered scrubbing bar with live time bubble tooltip; zero heavy trigonometry animation overhead.
@@ -79,13 +79,13 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 ### 🚗 Full-Screen Distraction-Free Drive Mode HUD
 - **3-Tier Cockpit Architecture**:
   - **Top Row**: 12-Hour AM/PM clock with live playback dot, sleep timer, live animated audio spectrum visualizer (tap to cycle DSP presets: Flat, Acoustic, Vocal, Bass Punch, Rock), folder switcher, and one-tap **Night Highway Dimmer Mode**.
-  - **Center Stage**: Large 180×180dp album artwork with horizontal Apple CarPlay slide transitions paired with giant driving touch targets (84dp play/pause, 68dp skip, 52dp 10s scrub).
+  - **Center Stage**: Large 180×180dp album artwork with horizontal automotive slide transitions paired with giant driving touch targets (84dp play/pause, 68dp skip, 52dp 10s scrub).
   - **Bottom Row**: Dedicated infotainment music card with edge-to-edge scrubbing seekbar, high-contrast vertical roll (fade-up/down) typography, and upcoming track peek pill.
 - **Night Highway Dimmer Mode**: One-tap distraction-free blackout mode reducing cabin glare on the windshield to pure OLED `#000000` with muted accents for night driving.
 - **Blind Gesture Navigation**: Swipe left for Next Song, swipe right for Previous Song, and double-tap anywhere to Play/Pause.
 - **Visual Swipe Feedback**: Instant directional badge overlay confirming queue navigation before automatically dismissing.
 
-### 🔀 Refined Apple CarPlay Style Crossfade & Audio Transition Engine
+### 🔀 Refined Automotive Equal-Power Crossfade & Audio Transition Engine
 - **Natural Track Completion (Equal-Power Crossfade)**: The ending song smoothly fades out while the upcoming track fades in over user-configured duration (default 3.0s) with zero gap.
 - **Instant Manual Track Skipping**: Manual Next/Previous, SWC, and swipe gestures immediately switch tracks with an ultra-clean 120ms anti-pop micro-fade, avoiding conflicting audio overlap.
 - **Configurable Durations**: Selectable crossfade lengths (0s Off, 1s, 2s, 3s, 5s, 8s — Default: 3 seconds) customizable in Settings.

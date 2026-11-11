@@ -18,10 +18,10 @@ data class DesktopSong(
         return lower.contains(".mp3") ||
                 lower.contains(".m4a") ||
                 lower.contains(".aac") ||
-                lower.contains("saavncdn.com") ||
-                lower.contains("googlevideo.com") ||
                 lower.contains(".flac") ||
-                lower.contains(".ogg")
+                lower.contains(".ogg") ||
+                lower.contains(".mp4") ||
+                lower.startsWith("http")
     }
 }
 

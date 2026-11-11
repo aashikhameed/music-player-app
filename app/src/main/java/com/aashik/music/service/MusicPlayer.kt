@@ -191,6 +191,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     override fun onPlaybackStateChanged(state: Int) {
         // C++ PlaybackState: 3 = PLAYING, 4 = PAUSED, 5 = STOPPED, 6 = COMPLETED
+        // While a stream is current, MediaPlayer owns playback. The native engine's async
+        // "stopped" callback (fired by nativeBridge.stop() when switching tracks) can arrive after
+        // the new stream has already started and would wrongly flip the UI to paused.
+        if (_currentSongFlow.value?.isStream() == true) return
         when (state) {
             3 -> _isPlayingFlow.value = true
             4, 5, 6 -> _isPlayingFlow.value = false

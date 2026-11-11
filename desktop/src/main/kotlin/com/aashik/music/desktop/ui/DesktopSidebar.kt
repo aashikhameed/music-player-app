@@ -27,7 +27,7 @@ import java.io.File
 private val DarkNavItemShape = RoundedCornerShape(10.dp)
 
 /**
- * 1:1 Apple Music Sidebar Navigation for macOS (Landscape).
+ * Fluid Sidebar Navigation for macOS (Landscape).
  * Matches pixel-perfect with designScreen/tablet/Album.png and Home.png:
  * - Top header with 'Edit' button and window sidebar toggle.
  * - Search bar with magnifying glass icon.

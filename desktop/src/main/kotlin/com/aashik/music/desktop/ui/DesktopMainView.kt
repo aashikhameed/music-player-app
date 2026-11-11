@@ -14,7 +14,7 @@ import com.aashik.music.desktop.ui.glass.*
 import kotlinx.coroutines.launch
 
 /**
- * 1:1 Apple Music macOS Native Shell (Landscape Tablet / Desktop Architecture).
+ * macOS Native Shell (Landscape Tablet / Desktop Architecture).
  * Fully wired to the centralized Backdrop Liquid Glass components under `ui.glass.*`.
  */
 @Composable

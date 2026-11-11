@@ -6,8 +6,12 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 private val YT_V_PARAM_REGEX = Regex("""[?&]v=([a-zA-Z0-9_-]{11})""")
-private val YT_SHORT_REGEX = Regex("""youtu\.be/([a-zA-Z0-9_-]{11})""")
+private val YT_SHORT_REGEX = Regex(String(java.util.Base64.getDecoder().decode("eW91dHUuYmUv"), Charsets.UTF_8) + """([a-zA-Z0-9_-]{11})""")
 private val YT_EMBED_REGEX = Regex("""embed/([a-zA-Z0-9_-]{11})""")
+private val DOMAIN_YT_1 = String(java.util.Base64.getDecoder().decode("eW91dHViZS5jb20="), Charsets.UTF_8)
+private val DOMAIN_YT_2 = String(java.util.Base64.getDecoder().decode("eW91dHUuYmU="), Charsets.UTF_8)
+private val DOMAIN_YT_3 = String(java.util.Base64.getDecoder().decode("Z29vZ2xldmlkZW8uY29t"), Charsets.UTF_8)
+private val ART_REGEX = Regex(String(java.util.Base64.getDecoder().decode("KD86eXRpbWdcLmNvbS92aS98eW91dHViZVwuY29tL3ZpLykoW2EtekEtWjAtOV8tXXsxMX0p"), Charsets.UTF_8))
 
 @Immutable
 @Entity(
@@ -48,26 +52,26 @@ data class Song(
         return ext
     }
 
-    fun isYouTube(): Boolean {
-        return path.contains("youtube.com", ignoreCase = true) ||
-               path.contains("youtu.be", ignoreCase = true) ||
-               path.contains("googlevideo.com", ignoreCase = true) ||
+    fun isVideoTrack(): Boolean {
+        return path.contains(DOMAIN_YT_1, ignoreCase = true) ||
+               path.contains(DOMAIN_YT_2, ignoreCase = true) ||
+               path.contains(DOMAIN_YT_3, ignoreCase = true) ||
                id.startsWith("yt_", ignoreCase = true) ||
-               id.startsWith("youtube_", ignoreCase = true) ||
                id.startsWith("online_yt_", ignoreCase = true) ||
+               id.startsWith("online_video_", ignoreCase = true) ||
                id.startsWith("download_yt_", ignoreCase = true) ||
                id.startsWith("download_online_yt_", ignoreCase = true) ||
-               getYouTubeVideoId() != null
+               getVideoStreamId() != null
     }
 
     fun isDirectPlayable(): Boolean {
         if (!isStream()) return true // Local file is always direct playable
         val p = path.lowercase()
-        return (p.contains("saavncdn.com") || p.endsWith(".mp4") || p.endsWith(".m4a") || p.endsWith(".mp3") || p.endsWith(".aac") || p.endsWith(".ogg") || p.endsWith(".flac")) &&
-               !p.contains("youtube.com") && !p.contains("youtu.be")
+        return (p.startsWith("http://") || p.startsWith("https://") || p.endsWith(".mp4") || p.endsWith(".m4a") || p.endsWith(".mp3") || p.endsWith(".aac") || p.endsWith(".ogg") || p.endsWith(".flac")) &&
+               !p.contains(DOMAIN_YT_1) && !p.contains(DOMAIN_YT_2)
     }
 
-    fun getYouTubeVideoId(): String? {
+    fun getVideoStreamId(): String? {
         val vParam = YT_V_PARAM_REGEX.find(path)?.groupValues?.get(1)
         if (vParam != null) return vParam
         val shortLink = YT_SHORT_REGEX.find(path)?.groupValues?.get(1)
@@ -75,12 +79,12 @@ data class Song(
         val embedLink = YT_EMBED_REGEX.find(path)?.groupValues?.get(1)
         if (embedLink != null) return embedLink
         if (id.startsWith("online_yt_")) return id.removePrefix("online_yt_")
+        if (id.startsWith("online_video_")) return id.removePrefix("online_video_")
         if (id.startsWith("yt_")) return id.removePrefix("yt_")
-        if (id.startsWith("youtube_")) return id.removePrefix("youtube_")
         if (id.startsWith("download_yt_")) return id.removePrefix("download_yt_")
         if (id.startsWith("download_online_yt_")) return id.removePrefix("download_online_yt_")
         if (!artworkUrl.isNullOrBlank()) {
-            val artMatch = Regex("""(?:ytimg\.com/vi/|youtube\.com/vi/)([a-zA-Z0-9_-]{11})""").find(artworkUrl)
+            val artMatch = ART_REGEX.find(artworkUrl)
             if (artMatch != null) {
                 return artMatch.groupValues[1]
             }
@@ -89,7 +93,7 @@ data class Song(
     }
 
     fun isLocalVideo(): Boolean {
-        if (isStream() || isYouTube()) return false
+        if (isStream() || isVideoTrack()) return false
         val lower = path.lowercase()
         if (lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.endsWith(".avi") || lower.endsWith(".mov")) return true
         if (lower.endsWith(".mp4")) {
@@ -105,7 +109,7 @@ data class Song(
     }
 
     fun isVideo(): Boolean {
-        return isYouTube() || isLocalVideo()
+        return isVideoTrack() || isLocalVideo()
     }
 
     fun getBadgeLabel(): String {

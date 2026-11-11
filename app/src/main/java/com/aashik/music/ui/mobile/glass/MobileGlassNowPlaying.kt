@@ -295,7 +295,7 @@ fun MobileGlassNowPlaying(
             )
 
             Spacer(Modifier.height(14.dp))
-            Scrubber(viewModel = viewModel, song = currentSong, c = c, backdrop = sheetBackdrop)
+            Scrubber(viewModel = viewModel, song = currentSong, c = c, backdrop = sheetBackdrop, artColor = artColor)
             TransportRow(isPlaying, onPrevious, onPlayPause, onNext, c)
             Spacer(Modifier.height(10.dp))
             BottomStrip(
@@ -480,7 +480,7 @@ private fun TitleRow(
         ModeToggleButton(viewModel, c)
         Spacer(Modifier.width(8.dp))
         RadioButton(viewModel, c)
-        if (song != null && song.isStream() && !song.isYouTubeLive()) {
+        if (song != null && song.isStream() && !song.isLiveStream()) {
             Spacer(Modifier.width(8.dp))
             DownloadButton(song, viewModel, c)
         }
@@ -530,7 +530,7 @@ private fun DownloadButton(song: Song, viewModel: MusicViewModel, c: NpColors) {
     }
 }
 
-private fun Song.isYouTubeLive(): Boolean = duration <= 0L
+private fun Song.isLiveStream(): Boolean = duration <= 0L
 
 @Composable
 private fun LyricsPane(viewModel: MusicViewModel, c: NpColors, modifier: Modifier) {
@@ -665,10 +665,24 @@ private fun QueuePane(viewModel: MusicViewModel, currentSong: Song?, c: NpColors
     }
 }
 
+/** Bright, saturated version of the cover's dominant hue for the seekbar fill; null when there is no art. */
+private fun artSeekFill(art: Color?): Color? {
+    if (art == null) return null
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(
+        android.graphics.Color.rgb((art.red * 255).toInt(), (art.green * 255).toInt(), (art.blue * 255).toInt()), hsv
+    )
+    hsv[1] = hsv[1].coerceIn(0.45f, 0.9f)
+    hsv[2] = 1f
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
 // ─── Controls ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun Scrubber(viewModel: MusicViewModel, song: Song?, c: NpColors, backdrop: com.kyant.backdrop.Backdrop) {
+private fun Scrubber(viewModel: MusicViewModel, song: Song?, c: NpColors, backdrop: com.kyant.backdrop.Backdrop, artColor: Color?) {
+    // Filled part follows the cover: its hue, lifted to a bright, vivid tint so it reads on the dark sheet.
+    val fillColor by animateColorAsState(artSeekFill(artColor) ?: c.text.copy(alpha = 0.9f), tween(450), label = "seekFill")
     // Position is read here (leaf) so the rest of the sheet doesn't recompose on every tick.
     val positionMs by viewModel.positionFlow.collectAsState()
     val durationMs by viewModel.durationFlow.collectAsState()
@@ -699,8 +713,8 @@ private fun Scrubber(viewModel: MusicViewModel, song: Song?, c: NpColors, backdr
             valueRange = 0f..1f,
             visibilityThreshold = 0.001f,
             backdrop = backdrop,
-            accentColor = c.text.copy(alpha = 0.9f),
-            trackColorOverride = c.text.copy(alpha = 0.25f),
+            accentColor = fillColor,
+            trackColorOverride = c.text.copy(alpha = 0.12f),
             trackHeight = 6.dp,
             thumbWidth = 28.dp,
             thumbHeight = 16.dp,
