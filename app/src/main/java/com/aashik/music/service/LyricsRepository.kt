@@ -31,7 +31,7 @@ data class LyricLine(
  * Adapted from BitChord's multi-source (BiniLyrics / Lrc.red TTML + LRCLIB + Sidecar) architecture.
  *
  * Features:
- *  - Multi-tier lyrics resolution: Local sidecar -> BiniLyrics / Apple Music TTML -> LRCLIB
+ *  - Multi-tier lyrics resolution: Local sidecar -> BiniLyrics / Synced TTML -> LRCLIB
  *  - Instant zero-latency caching: Memory LRU + Persistent disk cache (.lrc format)
  *  - Plain lyrics fallback: converts unsynced lyrics to timed lines when sync is unavailable
  *  - Pure standard Android HTTP (HttpURLConnection), zero external dependencies
@@ -128,7 +128,7 @@ object LyricsRepository {
         val cleanArtist = cleanArtistName(song.artist)
         val durationSec = (song.duration / 1000).toInt()
 
-        // 3. Query BiniLyrics / Apple Music TTML (Primary source - vast coverage of worldwide and Indian songs)
+        // 3. Query BiniLyrics / Synced TTML (Primary source - vast coverage of worldwide and Indian songs)
         val biniLines = fetchBiniLyrics(cleanTitle, cleanArtist, song.duration)
             ?: if (cleanArtist.isNotBlank()) fetchBiniLyrics(cleanTitle, "", song.duration) else null
 

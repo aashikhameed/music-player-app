@@ -115,8 +115,8 @@ fun MusicApp() {
             // Automotive Headunit: 100% FROZEN LEGACY LAYOUT PRESERVED
             MusicListScreen(viewModel)
         } else {
-            // Mobile Portrait: 1:1 Apple Music Liquid Glass Redesign
-            com.aashik.music.ui.mobile.screens.MobileAppleMusicApp(viewModel)
+            // Mobile Portrait: Liquid Glass UI
+            com.aashik.music.ui.mobile.screens.MobileGlassMusicApp(viewModel)
         }
         AppUpdateDialog(viewModel = viewModel)
     }

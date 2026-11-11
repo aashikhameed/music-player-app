@@ -116,7 +116,7 @@ fun MobileNewScreen(
                     val playlist = DomainPlaylist(
                         id = chartName,
                         title = chartName,
-                        curator = "Apple Music",
+                        curator = "Global Top Charts",
                         description = "The most played songs right now, updated every day.",
                         songs = songs.take(20)
                     )
@@ -154,7 +154,7 @@ fun MobileNewScreen(
                     val playlist = DomainPlaylist(
                         id = cityName,
                         title = "Top 25: $cityName",
-                        curator = "Apple Music",
+                        curator = "Global Top Charts",
                         description = "The most played tracks in $cityName this week.",
                         songs = songs.take(25)
                     )
@@ -262,7 +262,7 @@ private fun ExclusiveEditorialHeroBanner(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Apple Music Pop",
+                        text = "Global Pop Hits",
                         color = MobileTheme.textTertiary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
@@ -347,7 +347,7 @@ private fun DailyTop100Row(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "Apple Music",
+                    text = "Top Charts",
                     color = MobileTheme.textSecondary,
                     fontSize = 12.sp
                 )
@@ -514,7 +514,7 @@ private fun CityChartsRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "Apple Music",
+                    text = "Top Charts",
                     color = MobileTheme.textSecondary,
                     fontSize = 12.sp
                 )

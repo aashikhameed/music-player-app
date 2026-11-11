@@ -90,7 +90,7 @@ ResultCode AudioPlayer::playTrack(const std::string& filePath, int64_t startPosi
         // Natural end-of-track transition: use user-configured duration (default 3.0s)
         crossfadeSec = mCrossfadeDurationSec.load(std::memory_order_acquire);
     } else if (mState.load(std::memory_order_relaxed) == PlaybackState::PLAYING && startPositionMs == 0) {
-        // Manual track switch (Next/Prev / user tap): smooth micro-crossfade matching Apple CarPlay
+        // Manual track switch (Next/Prev / user tap): smooth micro-crossfade
         float cfg = mCrossfadeDurationSec.load(std::memory_order_acquire);
         crossfadeSec = (cfg > 0.0f) ? 0.5f : 0.0f;
     }

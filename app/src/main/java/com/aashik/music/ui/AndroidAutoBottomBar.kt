@@ -124,7 +124,7 @@ fun AndroidAutoBottomBar(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Album art with Apple CarPlay style slide transition
+                // Album art with automotive style slide transition
                 Box(
                     modifier = Modifier
                         .size(50.dp)

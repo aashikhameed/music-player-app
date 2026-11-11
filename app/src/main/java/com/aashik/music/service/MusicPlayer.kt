@@ -392,7 +392,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                 }
                 _positionFlow.value = pos
 
-                // Automatic Crossfade Detection (Apple CarPlay parity for streaming tracks)
+                // Automatic Crossfade Detection (Automotive parity for streaming tracks)
                 if (crossfadeSeconds > 0 && _isPlayingFlow.value && !isTransitioning) {
                     val now = System.currentTimeMillis()
                     val minPlayTime = ((crossfadeSeconds + 1) * 1000L).coerceAtLeast(3000L)
@@ -586,7 +586,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                 val fadeDurationMs = if (isAutoCrossfade && crossfadeSeconds > 0) {
                     crossfadeSeconds * 1000L
                 } else if (crossfadeSeconds > 0) {
-                    500L // Quick smooth Apple CarPlay micro-crossfade on manual skip
+                    500L // Quick smooth micro-crossfade on manual skip
                 } else {
                     60L
                 }
@@ -597,7 +597,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                         val stepDelay = fadeDurationMs / steps
                         for (i in 1..steps) {
                             val progress = i.toFloat() / steps.toFloat()
-                            // Equal-power cosine decay matching Apple CarPlay
+                            // Equal-power cosine decay
                             val vol = Math.cos(progress * Math.PI / 2.0).toFloat().coerceIn(0f, 1f)
                             try {
                                 outgoingPlayer.setVolume(vol, vol)
@@ -796,7 +796,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     val stepDelay = fadeDurationMs / steps
                     for (i in 1..steps) {
                         val progress = i.toFloat() / steps.toFloat()
-                        // Equal-power sine curve matching Apple CarPlay
+                        // Equal-power sine curve
                         val vol = Math.sin(progress * Math.PI / 2.0).toFloat().coerceIn(0f, 1f)
                         try {
                             player.setVolume(vol, vol)

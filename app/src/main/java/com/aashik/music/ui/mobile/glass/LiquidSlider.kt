@@ -70,7 +70,7 @@ fun LiquidSlider(
     thumbHeight: Dp = 24.dp,
     onValueChangeFinished: (() -> Unit)? = null,
     trackColorOverride: Color? = null,
-    /** Apple-Music scrubber: no thumb at rest; it fades in and the track swells while seeking. */
+    /** Fluid scrubber: no thumb at rest; it fades in and the track swells while seeking. */
     thumbOnlyWhileSeeking: Boolean = false
 ) {
     val activeBackdrop = backdrop ?: LocalBackdrop.current ?: rememberLayerBackdrop()

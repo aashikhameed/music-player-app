@@ -64,7 +64,7 @@ fun LiquidAlertDialog(
     modifier: Modifier = Modifier,
     backdrop: Backdrop? = null,
     confirmTint: Color = MobileTheme.accent, // Ice-Cyan
-    surfaceColor: Color = MobileTheme.panel.copy(alpha = 0.82f)
+    surfaceColor: Color = MobileTheme.panel.copy(alpha = 0.92f)
 ) {
     AnimatedVisibility(
         visible = visible,
@@ -115,12 +115,14 @@ fun LiquidAlertDialog(
 
                 Box(
                     modifier = modifier
+                        .fillMaxWidth()
                         .widthIn(max = 340.dp)
                         .padding(horizontal = 24.dp)
                         .then(backdropModifier)
-                        .padding(24.dp)
+                        .padding(horizontal = 24.dp, vertical = 20.dp)
                 ) {
                     Column(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
@@ -135,7 +137,8 @@ fun LiquidAlertDialog(
                             text = message,
                             color = MobileTheme.textSecondary,
                             fontSize = 14.sp,
-                            lineHeight = 20.sp
+                            lineHeight = 20.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -169,7 +172,7 @@ fun LiquidAlertDialog(
                             ) {
                                 Text(
                                     text = confirmButtonText,
-                                    color = MobileTheme.text,
+                                    color = Color.White,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )

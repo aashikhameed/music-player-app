@@ -60,7 +60,7 @@ private fun getContrastingCardBackground(category: RadioCategory): Color {
 }
 
 /**
- * Genre Category Card Component (Spotify / Apple Music Browse Style).
+ * Genre Category Card Component (Modern Streaming Browse Style).
  * Features rich vibrant card background, bold typography, corner cover artwork,
  * live station count badge, and quick favorite toggle.
  */

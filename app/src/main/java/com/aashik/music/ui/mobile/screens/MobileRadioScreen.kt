@@ -35,7 +35,7 @@ import com.aashik.music.viewmodel.MusicViewModel
 private val RadioTileShape = RoundedCornerShape(16.dp)
 private val RadioArtworkRightShape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
 
-// Curated vibrant Apple Music-style palette for category tiles
+// Curated vibrant modern palette for category tiles
 private val CuratedTilePalette = listOf(
     Color(0xFF880E4F), // Deep Magenta / Plum
     Color(0xFF1E293B), // Dark Slate

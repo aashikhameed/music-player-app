@@ -17,6 +17,10 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,10 +34,12 @@ import com.aashik.music.ui.components.LiveAnimatedEqualizer
 import com.aashik.music.ui.designsystem.HorizontalDivider
 import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.Text
+import com.aashik.music.ui.mobile.glass.LiquidAlertDialog
 import com.aashik.music.ui.mobile.glass.LiquidButton
 import com.aashik.music.ui.mobile.glass.LiquidGlassCard
 import com.aashik.music.ui.mobile.glass.LiquidIconButton
 import com.aashik.music.ui.mobile.glass.LiquidPrimaryButton
+import com.kyant.backdrop.Backdrop
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
 
@@ -58,12 +64,17 @@ fun MobileMusicScreen(
     onShuffleClick: () -> Unit,
     onRescanClick: () -> Unit,
     onSettingsClick: () -> Unit = {},
+    onDeleteSong: (Song) -> Unit = {},
+    backdrop: Backdrop? = null,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 150.dp) // Room for floating dock & nav bar
-    ) {
+    var songToDelete by remember { mutableStateOf<Song?>(null) }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 150.dp) // Room for floating dock & nav bar
+        ) {
         // ─── TOP LARGE TITLE & SETTINGS ICON ───────────────────────────────────
         item {
             Row(
@@ -172,7 +183,9 @@ fun MobileMusicScreen(
                 MobileSongRow(
                     song = song,
                     isCurrent = song.path == currentSong?.path,
-                    onClick = { onSongClick(song) }
+                    onClick = { onSongClick(song) },
+                    showMoreButton = false,
+                    onLongClick = { songToDelete = song }
                 )
             }
         } else {
@@ -241,6 +254,24 @@ fun MobileMusicScreen(
             }
         }
     }
+
+    // Modal Liquid Glass Alert Dialog rendered strictly on top of the list
+    LiquidAlertDialog(
+        visible = songToDelete != null,
+        onDismissRequest = { songToDelete = null },
+        title = "Delete Song",
+        message = "Are you sure you want to delete \"${songToDelete?.title ?: ""}\" from storage?",
+        confirmButtonText = "Delete",
+        confirmTint = Color(0xFFEF4444),
+        onConfirm = {
+            songToDelete?.let { onDeleteSong(it) }
+            songToDelete = null
+        },
+        dismissButtonText = "Cancel",
+        onDismissButton = { songToDelete = null },
+        backdrop = backdrop
+    )
+}
 }
 
 private fun formatDuration(durationMs: Long): String {

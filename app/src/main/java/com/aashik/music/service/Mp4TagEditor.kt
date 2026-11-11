@@ -9,7 +9,7 @@ import java.nio.ByteOrder
 
 /**
  * Pure Kotlin, zero-dependency MP4/M4A metadata and artwork tagger.
- * Follows ISO Base Media File Format (ISO/IEC 14496-12) & Apple QuickTime specs.
+ * Follows ISO Base Media File Format (ISO/IEC 14496-12) & QuickTime specs.
  *
  * Designed for low-memory automotive hardware (<250 KB heap allocation):
  * - Parses and modifies only the 'moov' atom in RAM.

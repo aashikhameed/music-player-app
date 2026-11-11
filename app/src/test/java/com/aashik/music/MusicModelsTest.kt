@@ -298,7 +298,7 @@ class MusicModelsTest {
     }
 
     @Test
-    fun testAppleCarPlayTransitionDirection() {
+    fun testAutomotiveTransitionDirection() {
         val playlist = listOf("Track 1", "Track 2", "Track 3", "Track 4")
         var currentIndex = 0
         var navDirection = 1

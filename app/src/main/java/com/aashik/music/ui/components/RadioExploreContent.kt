@@ -137,7 +137,7 @@ fun RadioExploreContent(
                     )
                 }
             } else {
-                // Genres & Styles Grid (Vibrant Spotify/Apple Music cards with cover thumbnails)
+                // Genres & Styles Grid (Vibrant streaming cards with cover thumbnails)
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns.coerceAtLeast(2)),
                     verticalArrangement = Arrangement.spacedBy(10.dp),

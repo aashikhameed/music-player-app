@@ -53,16 +53,16 @@ sealed interface MobileDetailDestination {
 
 /**
  * Mobile Root Shell for Portrait Android Devices.
- * Implements 1:1 Apple Music landscape/portrait architecture:
- * - Fluid lava-lamp animated canvas (MobileLiquidContainer)
+ * Implements modern fluid liquid glass mobile portrait architecture:
+ * - Fluid animated canvas (MobileLiquidContainer)
  * - 5-tab floating glass bottom bar (Home, New, Radio, Library, Search)
  * - Detail screen navigation stack (Album, Artist, Playlist)
  * - Floating mini-player capsule dock (361x56pt, r=28pt)
  * - Smooth spring modal presentation of MobileGlassNowPlaying
- * - AirPlay audio routing modal sheet
+ * - Audio routing modal sheet
  */
 @Composable
-fun MobileAppleMusicApp(
+fun MobileGlassMusicApp(
     viewModel: MusicViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -348,7 +348,9 @@ fun MobileAppleMusicApp(
                                 onPlayAllClick = { playAll(songs) },
                                 onShuffleClick = { shuffleAll(songs) },
                                 onRescanClick = { viewModel.loadSongs() },
-                                onSettingsClick = { activeDetail = MobileDetailDestination.Settings }
+                                onSettingsClick = { activeDetail = MobileDetailDestination.Settings },
+                                onDeleteSong = { song -> viewModel.deleteSong(song) },
+                                backdrop = backdrop
                             )
                         }
                         MobileNavTab.LIBRARY -> {

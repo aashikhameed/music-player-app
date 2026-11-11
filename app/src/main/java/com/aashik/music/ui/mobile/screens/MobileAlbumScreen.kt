@@ -56,7 +56,7 @@ fun MobileAlbumScreen(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 140.dp)
     ) {
-        // Safe area + room for the floating glass toolbar (drawn by MobileAppleMusicApp)
+        // Safe area + room for the floating glass toolbar (drawn by MobileGlassMusicApp)
         item { Spacer(Modifier.statusBarsPadding().height(MobileToolbarHeight)) }
 
         // ─── 240x240pt HERO ARTWORK CARD ───────────────────────────────────────

@@ -1,14 +1,11 @@
 package com.aashik.music.ui.mobile.screens
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -16,29 +13,34 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.ui.AlbumArtImage
 import com.aashik.music.ui.designsystem.HorizontalDivider
-import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.Text
 import com.aashik.music.ui.mobile.glass.MobileTheme
 
 /**
  * Song list row from designScreen/mobile/Playlist.png: rounded artwork, title over artist,
- * "•••" on the right and a hairline divider that starts under the text.
+ * optional "•••" on the right, long press support, and a hairline divider that starts under the text.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MobileSongRow(
     song: Song,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isCurrent: Boolean = false,
-    subtitle: String = song.artist.ifBlank { "Unknown Artist" }
+    subtitle: String = song.artist.ifBlank { "Unknown Artist" },
+    showMoreButton: Boolean = true,
+    onLongClick: (() -> Unit)? = null
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp)
-                .clickable(onClick = onClick)
-                .padding(start = 20.dp, end = 12.dp),
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                )
+                .padding(start = 20.dp, end = if (showMoreButton) 12.dp else 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AlbumArtImage(
@@ -66,7 +68,9 @@ fun MobileSongRow(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            SongMoreButton(song = song)
+            if (showMoreButton) {
+                SongMoreButton(song = song)
+            }
         }
         HorizontalDivider(
             modifier = Modifier.padding(start = 76.dp),

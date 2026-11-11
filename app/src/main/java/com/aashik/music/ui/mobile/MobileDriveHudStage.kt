@@ -107,7 +107,7 @@ fun MobileDriveHudStage(
                     label = "MobileHudArtworkSize"
                 )
 
-                // Hero Album Artwork with Apple CarPlay horizontal slide transition
+                // Hero Album Artwork with automotive horizontal slide transition
                 Box(
                     modifier = Modifier
                         .size(mobileArtworkSize)

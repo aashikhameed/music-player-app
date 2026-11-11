@@ -42,7 +42,7 @@ import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
 /**
  * 1:1 Mobile Search Screen matching designScreen/mobile/Search.png.
  * Features Large Title 'Search', Liquid Glass Capsule Search Bar,
- * Segmented scope pill ('Apple Music' / 'Library'),
+ * Segmented scope pill ('All' / 'Library'),
  * Recently Searched history tokens with 'Clear' action,
  * and 2-Column vibrant browse categories grid.
  */
@@ -147,7 +147,7 @@ fun MobileSearchScreen(
             )
         }
 
-        // ─── SEGMENTED SCOPE PILL (Apple Music / Library) ──────────────────────
+        // ─── SEGMENTED SCOPE PILL (All / Library) ─────────────────────────────
         item {
             Box(
                 modifier = Modifier

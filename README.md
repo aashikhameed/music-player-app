@@ -7,7 +7,7 @@
 [![Build & Release APK](https://img.shields.io/github/actions/workflow/status/aashikhameed/music-player-app/build.yml?branch=main&style=for-the-badge&logo=githubactions&color=4CAF50)](https://github.com/aashikhameed/music-player-app/actions)
 [![Platform](https://img.shields.io/badge/Platform-Android%20Automotive%20%7C%20API%2026%2B-0066FF?style=for-the-badge&logo=android)](https://developer.android.com/training/cars)
 [![APK Size](https://img.shields.io/badge/APK%20Size-3.5%20MB%20(ARM64)-brightgreen?style=for-the-badge&logo=android)](https://github.com/aashikhameed/music-player-app/releases/latest)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPL%20v3.0-blue.svg?style=for-the-badge)](LICENSE)
 
 <p align="center">
   <b>A lightweight, zero-latency, offline music player purpose-built for Android Automotive OS (AAOS) and aftermarket car head units.</b><br>
@@ -322,7 +322,12 @@ The following open-source projects and client architectures were studied as tech
 
 ## 📄 License
 
-Distributed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for more information.
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See [`LICENSE`](LICENSE) for the full license text.
+
+### 🏛️ Open Source Attributions
+- **[BitChord](https://github.com/kushagrasinghx/BitChord)** (Licensed under GPLv3): Core technical inspiration and logic for client-side queue orchestration, multi-tiered deduplication, and media shelf hierarchy patterns.
+- **[AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)**: Optical backdrop sampling, lens refraction, and damped spring physics.
+- **[NewPipe](https://github.com/TeamNewPipe/NewPipe)**: Architectural reference for client media service state machines.
 
 ---
 

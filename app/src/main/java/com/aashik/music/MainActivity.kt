@@ -29,7 +29,8 @@ class MainActivity : ComponentActivity() {
 
     private fun handleLaunchIntent(intent: android.content.Intent?) {
         if (intent?.getBooleanExtra("open_player", false) == true) {
-            com.aashik.music.service.NotificationPlaybackService.instance?.viewModel?.openDriveMode()
+            // Tapping playback notification opens the normal app interface, never forcing HUD / drive mode
+            com.aashik.music.service.NotificationPlaybackService.instance?.viewModel?.closeDriveMode()
         }
     }
 

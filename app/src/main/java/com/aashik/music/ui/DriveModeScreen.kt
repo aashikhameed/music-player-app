@@ -169,7 +169,7 @@ private val NightDimmerAmber = Color(0xFFFFB300)
  * Features:
  * - Top Row: Left side Time (12-Hour AM/PM Clock, Exit button, Night Highway Dimmer, Sleep Timer)
  *            Right side Live Animated Canvas Equalizer with direct Preset Chips (Flat, Acoustic, Vocal, Bass, Rock).
- * - Center Stage: Distraction-free Hero Album Artwork (240dp) with Apple CarPlay horizontal slide transitions
+ * - Center Stage: Distraction-free Hero Album Artwork (240dp) with automotive horizontal slide transitions
  *                 and blind swipe gestures (swipe left/right to skip, double-tap to pause).
  * - Bottom Row: Infotainment Music Card with full-width seekbar, Song Info (Title, Artist, Album, Favorite)
  *               on the left, and Player Controls (Shuffle, Prev, -10s, Hero Play/Pause, +10s, Next, Folder) on the right.
@@ -808,7 +808,7 @@ fun DriveModeScreen(
                                     label = "DriveHudArtworkSize"
                                 )
 
-                                // Hero Album Artwork with Apple CarPlay horizontal slide transition
+                                // Hero Album Artwork with automotive horizontal slide transition
                                 Box(
                                     modifier = Modifier
                                         .size(landscapeArtworkSize)

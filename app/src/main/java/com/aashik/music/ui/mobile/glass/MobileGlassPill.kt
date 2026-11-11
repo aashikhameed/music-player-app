@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Reusable Mobile Segmented Pill Bar (e.g. Apple Music / Library scope switcher).
+ * Reusable Mobile Segmented Pill Bar (e.g. All / Library scope switcher).
  */
 @Composable
 fun MobileGlassSegmentedPill(

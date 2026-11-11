@@ -41,11 +41,11 @@ import com.kyant.shapes.Capsule
 
 private val MiniArtShape = RoundedCornerShape(8.dp)
 
-/** Shared with the collapsed tab-bar circles so the whole dock row lines up. */
-val MiniPlayerHeight = 60.dp
+/** Shared with the collapsed tab-bar circles so the whole dock row lines up (compact 20% reduction). */
+val MiniPlayerHeight = 48.dp
 
-/** Height of the collapsed dock row (mini-player + round tab buttons), ~75% of the 64dp tab bar. */
-val CollapsedDockHeight = 48.dp
+/** Height of the collapsed dock row (mini-player + round tab buttons), reduced proportionally. */
+val CollapsedDockHeight = 38.dp
 
 /** Horizontal gutter shared by the tab bar, mini-player and collapsed buttons. */
 val DockGutter = 24.dp
@@ -72,10 +72,10 @@ fun MobileGlassMiniPlayer(
 ) {
     val adaptive = rememberAdaptiveLuminance()
     val glass = floatingGlass(elementHeight = height)
-    // Artwork is 70% of the capsule height and inset equally on top, bottom and start (concentric).
-    val artSize = height * 0.7f
+    // Artwork is proportional to the capsule height and inset equally on top, bottom and start.
+    val artSize = height * 0.72f
     // Type steps down with the capsule so the two-line stack keeps its padding when collapsed.
-    val isSmall = height < 54.dp
+    val isSmall = height < 44.dp
     val contentColor = adaptive.contentColor
 
     val glassModifier = if (backdrop != null) {
@@ -99,6 +99,10 @@ fun MobileGlassMiniPlayer(
         Modifier.clip(Capsule()).background(MobileTheme.panel)
     }
 
+    // Generous horizontal margin keeps artwork and controls clear of the capsule end curves
+    val innerStartPadding = if (isSmall) 12.dp else 16.dp
+    val innerEndPadding = if (isSmall) 6.dp else 10.dp
+
     Row(
         modifier = modifier
             .height(height)
@@ -108,7 +112,7 @@ fun MobileGlassMiniPlayer(
                 indication = null,
                 onClick = onOpenNowPlaying
             )
-            .padding(start = (height - artSize) / 2, end = 2.dp),
+            .padding(start = innerStartPadding, end = innerEndPadding),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -126,11 +130,11 @@ fun MobileGlassMiniPlayer(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = adaptive.secondaryColor, modifier = Modifier.size(20.dp))
+                Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = adaptive.secondaryColor, modifier = Modifier.size(18.dp))
             }
         }
 
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(10.dp))
 
         Column(
             modifier = Modifier.weight(1f).padding(end = 4.dp),
@@ -139,8 +143,8 @@ fun MobileGlassMiniPlayer(
             Text(
                 text = currentSong?.title ?: "Not Playing",
                 color = contentColor,
-                fontSize = if (isSmall) 14.sp else 15.sp,
-                lineHeight = if (isSmall) 17.sp else 18.sp,
+                fontSize = if (isSmall) 13.sp else 14.sp,
+                lineHeight = if (isSmall) 16.sp else 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -148,8 +152,8 @@ fun MobileGlassMiniPlayer(
             Text(
                 text = currentSong?.artist ?: "",
                 color = adaptive.secondaryColor,
-                fontSize = if (isSmall) 12.sp else 13.sp,
-                lineHeight = if (isSmall) 14.sp else 16.sp,
+                fontSize = if (isSmall) 11.sp else 12.sp,
+                lineHeight = if (isSmall) 13.sp else 14.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -157,7 +161,7 @@ fun MobileGlassMiniPlayer(
 
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(32.dp)
                 .clip(CircleShape)
                 .clickable(onClick = onPlayPause),
             contentAlignment = Alignment.Center
@@ -166,7 +170,7 @@ fun MobileGlassMiniPlayer(
                 imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 contentDescription = if (isPlaying) "Pause" else "Play",
                 tint = contentColor,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
 
@@ -177,7 +181,7 @@ fun MobileGlassMiniPlayer(
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onNext),
                 contentAlignment = Alignment.Center
@@ -186,7 +190,7 @@ fun MobileGlassMiniPlayer(
                     imageVector = Icons.Rounded.FastForward,
                     contentDescription = "Next",
                     tint = contentColor,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }

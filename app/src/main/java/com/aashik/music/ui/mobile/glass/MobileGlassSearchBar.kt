@@ -34,7 +34,7 @@ fun MobileGlassSearchBar(
     onClear: () -> Unit,
     isActive: Boolean,
     onActiveChange: (Boolean) -> Unit,
-    placeholderText: String = "Search Apple Music and Library",
+    placeholderText: String = "Search songs, artists, stations",
     modifier: Modifier = Modifier
 ) {
     Row(
