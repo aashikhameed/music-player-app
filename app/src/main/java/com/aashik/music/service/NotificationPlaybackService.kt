@@ -12,6 +12,9 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
+import android.content.pm.ServiceInfo
+import android.util.Log
+import androidx.core.app.ServiceCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -47,10 +50,14 @@ class NotificationPlaybackService : Service() {
 
         fun startService(context: Context, customIntent: Intent? = null) {
             val intent = customIntent ?: Intent(context, NotificationPlaybackService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                Log.e("PlaybackService", "Unable to start foreground service: ${e.message}")
             }
         }
     }
@@ -292,7 +299,20 @@ class NotificationPlaybackService : Service() {
 
     private fun buildAndShowNotification(song: Song?, isPlaying: Boolean, artBitmap: Bitmap?) {
         val notification = buildNotification(song, isPlaying, artBitmap)
-        startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e("PlaybackService", "Failed to startForeground: ${e.message}")
+        }
     }
 
     private fun buildNotification(song: Song?, isPlaying: Boolean, artBitmap: Bitmap?): Notification {

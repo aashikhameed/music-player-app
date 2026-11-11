@@ -143,6 +143,18 @@ fun GenreDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(18.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
+                if (details?.songs.isNullOrEmpty() && details?.communityPlaylists.isNullOrEmpty() &&
+                    details?.featuredPlaylists.isNullOrEmpty() && details?.albums.isNullOrEmpty() && categoryStations.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(top = 48.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Couldn't load ${category.title}. Check your connection and try again.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
                 // Shelf 1: Songs
                 if (details?.songs?.isNotEmpty() == true) {
                     item {
@@ -156,6 +168,42 @@ fun GenreDetailScreen(
                                     song = song,
                                     onClick = { viewModel.play(song, playlist = details.songs) },
                                     onLongPress = { onSongLongPress(song) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Featured playlists
+                if (details?.featuredPlaylists?.isNotEmpty() == true) {
+                    item {
+                        ShelfHeader(title = "Featured playlists")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(items = details.featuredPlaylists, key = { it.id }) { item ->
+                                CommunityPlaylistCard(
+                                    item = item,
+                                    onClick = { viewModel.playShelfItem(item) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Albums
+                if (details?.albums?.isNotEmpty() == true) {
+                    item {
+                        ShelfHeader(title = "Albums")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(items = details.albums, key = { it.id }) { item ->
+                                CommunityPlaylistCard(
+                                    item = item,
+                                    onClick = { viewModel.playShelfItem(item) }
                                 )
                             }
                         }

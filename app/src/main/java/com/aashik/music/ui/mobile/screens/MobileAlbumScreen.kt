@@ -1,5 +1,8 @@
 package com.aashik.music.ui.mobile.screens
 
+import com.aashik.music.ui.mobile.glass.MobileTheme
+import com.aashik.music.ui.mobile.glass.MobileToolbarHeight
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -43,52 +46,18 @@ fun MobileAlbumScreen(
     onBack: () -> Unit,
     onSongClick: (Song) -> Unit,
     onArtistClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onPlay: () -> Unit = { album.tracks.firstOrNull()?.let(onSongClick) },
+    onShuffle: () -> Unit = { album.tracks.randomOrNull()?.let(onSongClick) }
 ) {
-    var isReviewExpanded by remember { mutableStateOf(false) }
+    val quality = remember(album.tracks) { qualityLabel(album.tracks) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 140.dp)
     ) {
-        // ─── TOP BAR WITH BACK BUTTON & CONTEXT ACTIONS ────────────────────────
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color(0xFF00E5FF),
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = "Share",
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = "Options",
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-        }
+        // Safe area + room for the floating glass toolbar (drawn by MobileAppleMusicApp)
+        item { Spacer(Modifier.statusBarsPadding().height(MobileToolbarHeight)) }
 
         // ─── 240x240pt HERO ARTWORK CARD ───────────────────────────────────────
         item {
@@ -98,36 +67,14 @@ fun MobileAlbumScreen(
                     .padding(horizontal = 24.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(240.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF1E293B))
-                        .mobileLiquidGlass(RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize(0.6f)
-                            .clip(CircleShape)
-                            .background(Color(0xFF0F172A)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize(0.35f)
-                                .clip(CircleShape)
-                                .background(Color(0xFF00E5FF).copy(alpha = 0.4f))
-                        )
-                    }
-                }
+                CollectionCover(album.tracks, size = 240.dp, cornerRadius = 14.dp)
 
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // Album Title
                 Text(
                     text = album.title,
-                    color = Color.White,
+                    color = MobileTheme.text,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -136,32 +83,31 @@ fun MobileAlbumScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Artist Link in Cyan
+                // Artist link (plain text for compilations — there is no single artist page)
+                val singleArtist = album.artist != "Various Artists" && album.artist != "Unknown Artist"
                 Text(
                     text = album.artist,
-                    color = Color(0xFF00E5FF),
+                    color = if (singleArtist) MobileTheme.accent else MobileTheme.textSecondary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.clickable { onArtistClick(album.artist) }
+                    modifier = if (singleArtist) Modifier.clickable { onArtistClick(album.artist) } else Modifier
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Format Badges Row (Pop • 2019 • Dolby Atmos • Lossless)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "${album.genre} • ${album.year}",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 12.sp
-                    )
-                    if (album.isDolbyAtmos) {
-                        MobileGlassBadgePill(text = "DOLBY ATMOS")
-                    }
-                    if (album.isLossless) {
-                        MobileGlassBadgePill(text = "LOSSLESS", useCyan = true)
+                // Real metadata only: genre/year when known, quality from the actual files.
+                val meta = listOf(album.genre, album.year).filter { it.isNotBlank() }.joinToString(" • ")
+                if (meta.isNotEmpty() || quality != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (meta.isNotEmpty()) {
+                            Text(text = meta, color = MobileTheme.textSecondary, fontSize = 12.sp)
+                        }
+                        if (album.isDolbyAtmos) MobileGlassBadgePill(text = "DOLBY ATMOS")
+                        quality?.let { MobileGlassBadgePill(text = it, useCyan = it == "LOSSLESS") }
                     }
                 }
             }
@@ -177,14 +123,14 @@ fun MobileAlbumScreen(
             ) {
                 // Solid White Play Capsule
                 Button(
-                    onClick = { album.tracks.firstOrNull()?.let(onSongClick) },
+                    onClick = onPlay,
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp),
                     shape = RoundedCornerShape(22.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
+                        containerColor = MobileTheme.text,
+                        contentColor = MobileTheme.onText
                     )
                 ) {
                     Row(
@@ -194,7 +140,7 @@ fun MobileAlbumScreen(
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
                             contentDescription = "Play",
-                            tint = Color.Black,
+                            tint = MobileTheme.onText,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
@@ -212,13 +158,9 @@ fun MobileAlbumScreen(
                         .height(44.dp)
                         .mobileLiquidGlass(
                             shape = RoundedCornerShape(22.dp),
-                            tintColor = Color.White.copy(alpha = 0.10f),
-                            borderColor = Color.White.copy(alpha = 0.15f)
+                            tintColor = MobileTheme.text.copy(alpha = 0.10f)
                         )
-                        .clickable {
-                            val shuffled = album.tracks.shuffled()
-                            shuffled.firstOrNull()?.let(onSongClick)
-                        },
+                        .clickable(onClick = onShuffle),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -228,12 +170,12 @@ fun MobileAlbumScreen(
                         Icon(
                             imageVector = Icons.Rounded.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = Color.White,
+                            tint = MobileTheme.text,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = "Shuffle",
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -242,31 +184,10 @@ fun MobileAlbumScreen(
             }
         }
 
-        // ─── EDITORIAL REVIEW EXPANDABLE CARD ──────────────────────────────────
+        // ─── EDITORIAL REVIEW (only when the album actually has one) ───────────
         if (album.editorialReview.isNotBlank()) {
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = album.editorialReview,
-                        color = Color(0xFFCBD5E1),
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        maxLines = if (isReviewExpanded) Int.MAX_VALUE else 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (isReviewExpanded) "LESS" else "MORE",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { isReviewExpanded = !isReviewExpanded }
-                    )
-                }
+                ExpandableText(album.editorialReview, Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp))
             }
         }
 
@@ -280,7 +201,7 @@ fun MobileAlbumScreen(
             HorizontalDivider(
                 modifier = Modifier.padding(start = 52.dp, end = 20.dp),
                 thickness = 0.5.dp,
-                color = Color.White.copy(alpha = 0.05f)
+                color = MobileTheme.text.copy(alpha = 0.05f)
             )
         }
 
@@ -292,24 +213,15 @@ fun MobileAlbumScreen(
                     .padding(horizontal = 20.dp, vertical = 24.dp)
             ) {
                 Text(
-                    text = "${album.tracks.size} Songs, ${calculateTotalRuntime(album.tracks)}",
-                    color = Color(0xFF94A3B8),
+                    text = runtimeLabel(album.tracks),
+                    color = MobileTheme.textSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Released ${album.year} • ℗ ${album.year} Republic Records",
-                    color = Color(0xFF64748B),
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Apple Digital Master",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                if (album.year.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Released ${album.year}", color = MobileTheme.textTertiary, fontSize = 12.sp)
+                }
             }
         }
     }
@@ -332,7 +244,7 @@ private fun AlbumNumberedTrackRow(
         // Track Index Number
         Text(
             text = "$index",
-            color = Color(0xFF64748B),
+            color = MobileTheme.textTertiary,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.width(32.dp)
@@ -344,7 +256,7 @@ private fun AlbumNumberedTrackRow(
         ) {
             Text(
                 text = song.title.ifBlank { "Untitled" },
-                color = Color.White,
+                color = MobileTheme.text,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -354,7 +266,7 @@ private fun AlbumNumberedTrackRow(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = song.artist,
-                    color = Color(0xFF94A3B8),
+                    color = MobileTheme.textSecondary,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -365,23 +277,12 @@ private fun AlbumNumberedTrackRow(
         // Duration (mm:ss)
         Text(
             text = formatDuration(song.duration),
-            color = Color(0xFF64748B),
+            color = MobileTheme.textTertiary,
             fontSize = 13.sp,
             modifier = Modifier.padding(horizontal = 8.dp)
         )
 
-        // More Options
-        IconButton(
-            onClick = {},
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MoreVert,
-                contentDescription = "Options",
-                tint = Color(0xFF64748B),
-                modifier = Modifier.size(18.dp)
-            )
-        }
+        SongMoreButton(song = song, tint = MobileTheme.textSecondary)
     }
 }
 
@@ -391,16 +292,3 @@ private fun formatDuration(durationMs: Long): String {
     val seconds = totalSeconds % 60
     return String.format("%d:%02d", minutes, seconds)
 }
-
-private fun calculateTotalRuntime(tracks: List<Song>): String {
-    val totalSeconds = tracks.sumOf { it.duration } / 1000
-    val minutes = totalSeconds / 60
-    return if (minutes >= 60) {
-        val hours = minutes / 60
-        val remainingMinutes = minutes % 60
-        "$hours hour $remainingMinutes minutes"
-    } else {
-        "$minutes minutes"
-    }
-}
-

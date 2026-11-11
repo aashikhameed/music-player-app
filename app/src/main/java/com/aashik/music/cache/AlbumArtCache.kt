@@ -139,6 +139,8 @@ object AlbumArtCache {
 
     fun getHighRes(path: String): Bitmap? = memoryCache.get(path + "_hr")
 
+    fun getSized(path: String, suffix: String): Bitmap? = memoryCache.get(path + suffix)
+
     fun hasNoArt(path: String): Boolean = noArtPaths.contains(path)
 
     fun registerStreamArtwork(path: String, artworkUrl: String, context: Context? = null) {
@@ -159,9 +161,10 @@ object AlbumArtCache {
 
     suspend fun getOrLoadHighRes(
         path: String,
+        suffix: String = "_hr",
         loader: suspend (String) -> Bitmap?
     ): Bitmap? {
-        val key = path + "_hr"
+        val key = path + suffix
         memoryCache.get(key)?.let { return it }
         if (noArtPaths.contains(path)) return null
 

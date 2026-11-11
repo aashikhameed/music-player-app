@@ -1,5 +1,8 @@
 package com.aashik.music.ui.mobile.screens
 
+import com.aashik.music.ui.mobile.glass.MobileTheme
+import com.aashik.music.ui.mobile.glass.MobileToolbarHeight
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -50,52 +53,17 @@ fun MobilePlaylistScreen(
     onBack: () -> Unit,
     onSongClick: (Song) -> Unit,
     onArtistClick: (DomainArtist) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onPlay: () -> Unit = { playlist.songs.firstOrNull()?.let(onSongClick) },
+    onShuffle: () -> Unit = { playlist.songs.randomOrNull()?.let(onSongClick) }
 ) {
-    var isDescExpanded by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 140.dp)
     ) {
-        // ─── TOP BAR WITH BACK BUTTON & CONTEXT ACTIONS ────────────────────────
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color(0xFF00E5FF),
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = "Share",
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Rounded.MoreVert,
-                            contentDescription = "Options",
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-        }
+        // Safe area + room for the floating glass toolbar (drawn by MobileAppleMusicApp)
+        item { Spacer(Modifier.statusBarsPadding().height(MobileToolbarHeight)) }
 
         // ─── 240x240pt MOSAIC HERO ARTWORK CARD ────────────────────────────────
         item {
@@ -105,42 +73,14 @@ fun MobilePlaylistScreen(
                     .padding(horizontal = 24.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(240.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF1E293B))
-                        .mobileLiquidGlass(RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // 2x2 Mosaic artwork grid simulation
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(Color(0xFF0F172A)))
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(Color(0xFF334155)))
-                        }
-                        Row(
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(Color(0xFF1E293B)))
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(Color(0xFF020617)))
-                        }
-                    }
-                }
+                CollectionMosaic(playlist.songs, size = 240.dp, cornerRadius = 14.dp)
 
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // Playlist Title
                 Text(
                     text = playlist.title,
-                    color = Color.White,
+                    color = MobileTheme.text,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -150,19 +90,23 @@ fun MobilePlaylistScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 // Curator Tag in Cyan
-                Text(
-                    text = playlist.curator,
-                    color = Color(0xFF00E5FF),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                if (playlist.curator.isNotBlank()) {
+                    Text(
+                        text = playlist.curator,
+                        color = MobileTheme.accent,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
                 // Metadata summary
                 Text(
-                    text = "${playlist.lastUpdated} • ${playlist.songs.size} Songs",
-                    color = Color(0xFF94A3B8),
+                    text = listOf(playlist.lastUpdated, runtimeLabel(playlist.songs)).filter { it.isNotBlank() }.joinToString(" • "),
+                    color = MobileTheme.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -178,14 +122,14 @@ fun MobilePlaylistScreen(
             ) {
                 // Solid White Play Capsule
                 Button(
-                    onClick = { playlist.songs.firstOrNull()?.let(onSongClick) },
+                    onClick = onPlay,
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp),
                     shape = RoundedCornerShape(22.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
+                        containerColor = MobileTheme.text,
+                        contentColor = MobileTheme.onText
                     )
                 ) {
                     Row(
@@ -195,7 +139,7 @@ fun MobilePlaylistScreen(
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
                             contentDescription = "Play",
-                            tint = Color.Black,
+                            tint = MobileTheme.onText,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
@@ -213,13 +157,9 @@ fun MobilePlaylistScreen(
                         .height(44.dp)
                         .mobileLiquidGlass(
                             shape = RoundedCornerShape(22.dp),
-                            tintColor = Color.White.copy(alpha = 0.10f),
-                            borderColor = Color.White.copy(alpha = 0.15f)
+                            tintColor = MobileTheme.text.copy(alpha = 0.10f)
                         )
-                        .clickable {
-                            val shuffled = playlist.songs.shuffled()
-                            shuffled.firstOrNull()?.let(onSongClick)
-                        },
+                        .clickable(onClick = onShuffle),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -229,12 +169,12 @@ fun MobilePlaylistScreen(
                         Icon(
                             imageVector = Icons.Rounded.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = Color.White,
+                            tint = MobileTheme.text,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = "Shuffle",
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -243,44 +183,30 @@ fun MobilePlaylistScreen(
             }
         }
 
-        // ─── EDITORIAL DESCRIPTION BOX ─────────────────────────────────────────
+        // ─── EDITORIAL DESCRIPTION ────────────────────────────────────────────
         if (playlist.description.isNotBlank()) {
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = playlist.description,
-                        color = Color(0xFFCBD5E1),
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        maxLines = if (isDescExpanded) Int.MAX_VALUE else 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (isDescExpanded) "LESS" else "MORE",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { isDescExpanded = !isDescExpanded }
-                    )
-                }
+                ExpandableText(playlist.description, Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp))
+            }
+        }
+
+        if (playlist.songs.isEmpty()) {
+            item {
+                Text(
+                    text = "No songs here yet.",
+                    color = MobileTheme.textTertiary,
+                    fontSize = 15.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 32.dp)
+                )
             }
         }
 
         // ─── TRACKLIST ROWS ────────────────────────────────────────────────────
         itemsIndexed(playlist.songs) { _, song ->
-            PlaylistTrackRow(
+            MobileSongRow(
                 song = song,
                 onClick = { onSongClick(song) }
-            )
-            HorizontalDivider(
-                modifier = Modifier.padding(start = 72.dp, end = 20.dp),
-                thickness = 0.5.dp,
-                color = Color.White.copy(alpha = 0.05f)
             )
         }
 
@@ -289,7 +215,7 @@ fun MobilePlaylistScreen(
             item {
                 Text(
                     text = "Featured Artists",
-                    color = Color.White,
+                    color = MobileTheme.text,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.3).sp,
@@ -313,13 +239,13 @@ fun MobilePlaylistScreen(
                                 modifier = Modifier
                                     .size(80.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF1E293B)),
+                                    .background(MobileTheme.surface),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Person,
                                     contentDescription = artist.name,
-                                    tint = Color(0xFF00E5FF),
+                                    tint = MobileTheme.accent,
                                     modifier = Modifier.size(36.dp)
                                 )
                             }
@@ -328,7 +254,7 @@ fun MobilePlaylistScreen(
 
                             Text(
                                 text = artist.name,
-                                color = Color.White,
+                                color = MobileTheme.text,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 textAlign = TextAlign.Center,
@@ -343,69 +269,4 @@ fun MobilePlaylistScreen(
     }
 }
 
-@Composable
-private fun PlaylistTrackRow(
-    song: Song,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(58.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // 42x42pt Artwork Thumbnail
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color(0xFF1E293B)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MusicNote,
-                contentDescription = null,
-                tint = Color(0xFF00E5FF).copy(alpha = 0.7f),
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        // Title & Artist
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = song.title.ifBlank { "Untitled" },
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = song.artist.ifBlank { "Unknown Artist" },
-                color = Color(0xFF94A3B8),
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        // Options
-        IconButton(
-            onClick = {},
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MoreVert,
-                contentDescription = "Options",
-                tint = Color(0xFF64748B),
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
 

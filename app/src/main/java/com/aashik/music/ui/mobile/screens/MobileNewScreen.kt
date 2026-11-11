@@ -1,5 +1,7 @@
 package com.aashik.music.ui.mobile.screens
 
+import com.aashik.music.ui.mobile.glass.MobileTheme
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -67,7 +69,7 @@ fun MobileNewScreen(
             ) {
                 Text(
                     text = "New",
-                    color = Color.White,
+                    color = MobileTheme.text,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
@@ -182,7 +184,7 @@ private fun SectionHeader(
     ) {
         Text(
             text = title,
-            color = Color.White,
+            color = MobileTheme.text,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.3).sp
@@ -190,7 +192,7 @@ private fun SectionHeader(
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             contentDescription = "See All",
-            tint = Color(0xFF64748B),
+            tint = MobileTheme.textTertiary,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -213,8 +215,8 @@ private fun ExclusiveEditorialHeroBanner(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF1E293B),
-                            Color(0xFF0F172A),
+                            MobileTheme.surface,
+                            MobileTheme.surfaceDeep,
                             Color(0xFF020617)
                         )
                     )
@@ -237,7 +239,7 @@ private fun ExclusiveEditorialHeroBanner(
 
                     Text(
                         text = "Best Songs of 2025",
-                        color = Color.White,
+                        color = MobileTheme.text,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         lineHeight = 32.sp
@@ -247,7 +249,7 @@ private fun ExclusiveEditorialHeroBanner(
 
                     Text(
                         text = "The songs that brought us from reflection to release in 2025.",
-                        color = Color(0xFF94A3B8),
+                        color = MobileTheme.textSecondary,
                         fontSize = 13.5.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -261,7 +263,7 @@ private fun ExclusiveEditorialHeroBanner(
                 ) {
                     Text(
                         text = "Apple Music Pop",
-                        color = Color(0xFF64748B),
+                        color = MobileTheme.textTertiary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -271,14 +273,14 @@ private fun ExclusiveEditorialHeroBanner(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF00E5FF))
+                            .background(MobileTheme.accent)
                             .clickable(onClick = onPlayClick),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
                             contentDescription = "Play",
-                            tint = Color.Black,
+                            tint = MobileTheme.onText,
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -321,14 +323,14 @@ private fun DailyTop100Row(
                     Column {
                         Text(
                             text = "TOP",
-                            color = Color(0xFF00E5FF),
+                            color = MobileTheme.accent,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 1.sp
                         )
                         Text(
                             text = "100",
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Black,
                             lineHeight = 34.sp
@@ -338,7 +340,7 @@ private fun DailyTop100Row(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = chartName,
-                    color = Color.White,
+                    color = MobileTheme.text,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -346,7 +348,7 @@ private fun DailyTop100Row(
                 )
                 Text(
                     text = "Apple Music",
-                    color = Color(0xFF94A3B8),
+                    color = MobileTheme.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -405,13 +407,13 @@ private fun LatestSongItemRow(
             modifier = Modifier
                 .size(46.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF1E293B)),
+                .background(MobileTheme.surface),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Rounded.MusicNote,
                 contentDescription = null,
-                tint = Color(0xFF00E5FF).copy(alpha = 0.7f),
+                tint = MobileTheme.accent.copy(alpha = 0.7f),
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -424,7 +426,7 @@ private fun LatestSongItemRow(
         ) {
             Text(
                 text = song.title.ifBlank { "Untitled" },
-                color = Color.White,
+                color = MobileTheme.text,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -433,7 +435,7 @@ private fun LatestSongItemRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = song.artist.ifBlank { "Unknown Artist" },
-                color = Color(0xFF94A3B8),
+                color = MobileTheme.textSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -448,7 +450,7 @@ private fun LatestSongItemRow(
             Icon(
                 imageVector = Icons.Rounded.MoreVert,
                 contentDescription = "Options",
-                tint = Color(0xFF64748B),
+                tint = MobileTheme.textTertiary,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -488,14 +490,14 @@ private fun CityChartsRow(
                     Column {
                         Text(
                             text = "TOP 25",
-                            color = Color(0xFF00E5FF),
+                            color = MobileTheme.accent,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.5.sp
                         )
                         Text(
                             text = city,
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             lineHeight = 22.sp
@@ -505,7 +507,7 @@ private fun CityChartsRow(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Top 25: $city",
-                    color = Color.White,
+                    color = MobileTheme.text,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -513,7 +515,7 @@ private fun CityChartsRow(
                 )
                 Text(
                     text = "Apple Music",
-                    color = Color(0xFF94A3B8),
+                    color = MobileTheme.textSecondary,
                     fontSize = 12.sp
                 )
             }

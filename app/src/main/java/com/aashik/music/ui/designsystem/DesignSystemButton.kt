@@ -122,7 +122,7 @@ fun Button(
 
     Row(
         modifier = modifier
-            .then(if (elevationDp > 0.dp) Modifier.shadow(elevationDp, shape) else Modifier)
+            .then(if (elevationDp > 0.dp) Modifier else Modifier)
             .then(if (border != null) Modifier.border(border, shape) else Modifier)
             .background(containerColor, shape)
             .clip(shape)

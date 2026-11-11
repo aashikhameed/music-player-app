@@ -620,88 +620,16 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
             val shouldFadeIn = (crossfadeSeconds > 0) && (isAutoCrossfade || outgoingPlayer != null)
 
-            val mp = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build()
-                )
-                setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
-                if (shouldFadeIn) {
-                    setVolume(0.0f, 0.0f)
-                } else {
-                    setVolume(1.0f, 1.0f)
-                }
-                try {
-                    setDataSource(song.path)
-                    setOnPreparedListener { player ->
-                        try {
-                            _isTrackBufferingFlow.value = false
-                            if (isAudioSilencedForVideo) {
-                                try { player.pause() } catch (_: Exception) {}
-                                try { player.setVolume(0.0f, 0.0f) } catch (_: Exception) {}
-                                return@setOnPreparedListener
-                            }
-                            player.start()
-                            _isPlayingFlow.value = true
-                            val dur = if (player.duration > 0) player.duration.toLong() else if (song.duration > 0) song.duration else 0L
-                            _durationFlow.value = dur
-                            startStreamTicker()
-                            initStreamEqualizer(player.audioSessionId)
-
-                            if (shouldFadeIn) {
-                                scope.launch(Dispatchers.Default) {
-                                    val fadeDurationMs = if (isAutoCrossfade) (crossfadeSeconds * 1000L).coerceAtLeast(500L) else 500L
-                                    val steps = (fadeDurationMs / 40L).toInt().coerceAtLeast(1)
-                                    val stepDelay = fadeDurationMs / steps
-                                    for (i in 1..steps) {
-                                        val progress = i.toFloat() / steps.toFloat()
-                                        // Equal-power sine curve matching Apple CarPlay
-                                        val vol = Math.sin(progress * Math.PI / 2.0).toFloat().coerceIn(0f, 1f)
-                                        try {
-                                            player.setVolume(vol, vol)
-                                        } catch (_: Exception) {
-                                            break
-                                        }
-                                        delay(stepDelay)
-                                    }
-                                    try {
-                                        val targetVol = if (isAudioSilencedForVideo) 0.0f else 1.0f
-                                        player.setVolume(targetVol, targetVol)
-                                    } catch (_: Exception) {}
-                                }
-                            } else if (isAudioSilencedForVideo) {
-                                try { player.setVolume(0.0f, 0.0f) } catch (_: Exception) {}
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to start streaming playback: ${e.message}")
-                            _isPlayingFlow.value = false
-                        }
-                    }
-                    setOnErrorListener { _, what, extra ->
-                        Log.e(TAG, "Streaming error: what=$what extra=$extra")
-                        _isTrackBufferingFlow.value = false
-                        _isPlayingFlow.value = false
-                        stopStreamTicker()
-                        true
-                    }
-                    setOnCompletionListener {
-                        _isTrackBufferingFlow.value = false
-                        _isPlayingFlow.value = false
-                        stopStreamTicker()
-                        onTrackEnded()
-                    }
-                    prepareAsync()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to initialize stream player: ${e.message}")
-                    _isTrackBufferingFlow.value = false
-                    _isPlayingFlow.value = false
-                }
-            }
-            streamMediaPlayer = mp
+            // Use the stream that was buffered ahead of time when this is the track we expected;
+            // otherwise build and prepare one now.
+            val holder = takePreloadedStream(song.path) ?: buildStreamHolder(song)
+            // Must be set before activating: an already-prepared stream starts synchronously and
+            // the position ticker stops itself if it finds no current player.
+            streamMediaPlayer = holder.mp
+            activateStream(holder, song, isAutoCrossfade, shouldFadeIn)
         } else {
             _isTrackBufferingFlow.value = false
+            discardPreloadedStream()
             val outgoingPlayer = streamMediaPlayer
             val outgoingEq = streamEqualizer
             streamMediaPlayer = null
@@ -738,6 +666,156 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     Log.e(TAG, "nativeBridge.playTrack returned error code $res for track: ${song.path}")
                 }
             }
+        }
+    }
+
+    // ── Stream pre-buffering ────────────────────────────────────────────────
+    // The next online track is prepared in a paused MediaPlayer while the current one plays, so
+    // "Next" starts it instantly instead of waiting for the network.
+
+    private class StreamHolder(val path: String, val mp: MediaPlayer) {
+        @Volatile var prepared = false
+        @Volatile var activated = false
+        @Volatile var failed = false
+        var isAutoCrossfade = false
+        var shouldFadeIn = false
+    }
+
+    private var preloadedStream: StreamHolder? = null
+
+    /** Starts buffering [song] (a direct-playable stream) without playing it. Call on the main thread. */
+    fun preloadStream(song: Song) {
+        if (!song.isStream() || !song.isDirectPlayable() || isAudioSilencedForVideo) return
+        if (preloadedStream?.path == song.path && preloadedStream?.failed == false) return
+        discardPreloadedStream()
+        preloadedStream = buildStreamHolder(song)
+    }
+
+    private fun takePreloadedStream(path: String): StreamHolder? {
+        val h = preloadedStream ?: return null
+        preloadedStream = null
+        if (h.path == path && !h.failed) return h
+        releaseHolder(h)
+        return null
+    }
+
+    private fun discardPreloadedStream() {
+        preloadedStream?.let { releaseHolder(it) }
+        preloadedStream = null
+    }
+
+    private fun releaseHolder(h: StreamHolder) {
+        try {
+            h.mp.setOnCompletionListener(null)
+            h.mp.setOnErrorListener(null)
+            h.mp.setOnPreparedListener(null)
+            h.mp.reset()
+            h.mp.release()
+        } catch (_: Exception) {}
+    }
+
+    /** Creates a stream player and begins preparing it. Callbacks only touch shared state once activated. */
+    private fun buildStreamHolder(song: Song): StreamHolder {
+        val mp = MediaPlayer()
+        val holder = StreamHolder(song.path, mp)
+        try {
+            mp.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            mp.setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
+            mp.setVolume(1.0f, 1.0f)
+            mp.setDataSource(song.path)
+            mp.setOnPreparedListener { player ->
+                if (holder.activated) startStreamPlayback(player, song, holder) else holder.prepared = true
+            }
+            mp.setOnErrorListener { _, what, extra ->
+                Log.e(TAG, "Streaming error: what=$what extra=$extra")
+                if (holder.activated) {
+                    _isTrackBufferingFlow.value = false
+                    _isPlayingFlow.value = false
+                    stopStreamTicker()
+                } else {
+                    holder.failed = true
+                }
+                true
+            }
+            mp.setOnCompletionListener {
+                if (holder.activated) {
+                    _isTrackBufferingFlow.value = false
+                    _isPlayingFlow.value = false
+                    stopStreamTicker()
+                    onTrackEnded()
+                }
+            }
+            mp.prepareAsync()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize stream player: ${e.message}")
+            holder.failed = true
+        }
+        return holder
+    }
+
+    /** Makes [holder] the playing stream: starts immediately if already prepared, else on prepare. */
+    private fun activateStream(holder: StreamHolder, song: Song, isAutoCrossfade: Boolean, shouldFadeIn: Boolean) {
+        holder.isAutoCrossfade = isAutoCrossfade
+        holder.shouldFadeIn = shouldFadeIn
+        if (holder.failed) {
+            _isTrackBufferingFlow.value = false
+            _isPlayingFlow.value = false
+            return
+        }
+        try { holder.mp.setVolume(if (shouldFadeIn) 0.0f else 1.0f, if (shouldFadeIn) 0.0f else 1.0f) } catch (_: Exception) {}
+        holder.activated = true
+        if (holder.prepared) startStreamPlayback(holder.mp, song, holder)
+    }
+
+    private fun startStreamPlayback(player: MediaPlayer, song: Song, holder: StreamHolder) {
+        val isAutoCrossfade = holder.isAutoCrossfade
+        val shouldFadeIn = holder.shouldFadeIn
+        try {
+            _isTrackBufferingFlow.value = false
+            if (isAudioSilencedForVideo) {
+                try { player.pause() } catch (_: Exception) {}
+                try { player.setVolume(0.0f, 0.0f) } catch (_: Exception) {}
+                return
+            }
+            player.start()
+            _isPlayingFlow.value = true
+            val dur = if (player.duration > 0) player.duration.toLong() else if (song.duration > 0) song.duration else 0L
+            _durationFlow.value = dur
+            startStreamTicker()
+            initStreamEqualizer(player.audioSessionId)
+
+            if (shouldFadeIn) {
+                scope.launch(Dispatchers.Default) {
+                    val fadeDurationMs = if (isAutoCrossfade) (crossfadeSeconds * 1000L).coerceAtLeast(500L) else 500L
+                    val steps = (fadeDurationMs / 40L).toInt().coerceAtLeast(1)
+                    val stepDelay = fadeDurationMs / steps
+                    for (i in 1..steps) {
+                        val progress = i.toFloat() / steps.toFloat()
+                        // Equal-power sine curve matching Apple CarPlay
+                        val vol = Math.sin(progress * Math.PI / 2.0).toFloat().coerceIn(0f, 1f)
+                        try {
+                            player.setVolume(vol, vol)
+                        } catch (_: Exception) {
+                            break
+                        }
+                        delay(stepDelay)
+                    }
+                    try {
+                        val targetVol = if (isAudioSilencedForVideo) 0.0f else 1.0f
+                        player.setVolume(targetVol, targetVol)
+                    } catch (_: Exception) {}
+                }
+            } else if (isAudioSilencedForVideo) {
+                try { player.setVolume(0.0f, 0.0f) } catch (_: Exception) {}
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start streaming playback: ${e.message}")
+            _isPlayingFlow.value = false
         }
     }
 
@@ -930,6 +1008,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     fun getFader(): Float = nativeBridge.getFader()
 
     fun release() {
+        discardPreloadedStream()
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
         nativeBridge.setListener(null)
         try {

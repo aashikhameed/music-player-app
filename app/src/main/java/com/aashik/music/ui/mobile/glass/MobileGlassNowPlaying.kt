@@ -1,44 +1,166 @@
 package com.aashik.music.ui.mobile.glass
 
+import android.content.Context
+import android.content.Intent
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Build
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.*
-import com.aashik.music.ui.designsystem.Icon
-import com.aashik.music.ui.designsystem.Slider
-import com.aashik.music.ui.designsystem.SliderDefaults
-import com.aashik.music.ui.designsystem.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
+import com.aashik.music.model.PlaybackMode
 import com.aashik.music.model.Song
+import com.aashik.music.ui.AlbumArtImage
+import com.aashik.music.ui.designsystem.CircularProgressIndicator
+import com.aashik.music.ui.designsystem.Icon
+import com.aashik.music.ui.designsystem.Text
+import com.aashik.music.viewmodel.MusicViewModel
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur as glassBlur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.shapes.Capsule
+import com.aashik.music.service.DownloadStatus
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private val HeroArtShape = RoundedCornerShape(12.dp)
+private val HeaderArtShape = RoundedCornerShape(6.dp)
+private val HandleShape = RoundedCornerShape(2.5.dp)
+private val PillShape = RoundedCornerShape(50)
+private val DraggedSheetShape = RoundedCornerShape(24.dp)
+private val FlatSheetShape = RoundedCornerShape(0.dp)
+
+/** Backdrop recorded from the sheet's own artwork background; every glass control here refracts it. */
+private val LocalNpBackdrop = compositionLocalOf<Backdrop?> { null }
+
+/** Which content fills the area above the controls (designScreen/mobile/Now Playing.png). */
+private enum class NowPlayingPane { PLAYER, LYRICS, QUEUE }
+
+/** Colours of the Now Playing sheet: Light / Dark follow the app palette; Album Art tints it from the cover. */
+@Immutable
+private data class NpColors(
+    val top: Color,
+    val bottom: Color,
+    val text: Color,
+    val secondary: Color,
+    val tertiary: Color,
+    val fill: Color,
+    val track: Color,
+    /** Colour for glyphs drawn on top of a [text]-coloured fill (the opposite of [text]). */
+    val onText: Color = Color.Black,
+    val isLight: Boolean = false,
+    /** Strength of the blurred cover behind the sheet. */
+    val coverAlpha: Float = 0.45f
+)
+
+private fun npColorsFor(mode: AppThemeMode, art: Color?): NpColors {
+    if (mode == AppThemeMode.LIGHT) {
+        val p = MobilePalettes.Light
+        return NpColors(
+            top = p.background, bottom = p.surface, text = p.text,
+            secondary = p.textSecondary, tertiary = p.textTertiary,
+            fill = p.text.copy(alpha = 0.08f), track = p.text.copy(alpha = 0.16f), isLight = true, coverAlpha = 0.28f
+        )
+    }
+    val text = MobilePalettes.Dark.text
+    if (mode == AppThemeMode.DARK || art == null) {
+        val base = MobilePalettes.Dark
+        return NpColors(
+            base.surface, base.background, text, text.copy(alpha = 0.62f), text.copy(alpha = 0.45f),
+            text.copy(alpha = 0.14f), text.copy(alpha = 0.22f),
+            coverAlpha = if (mode == AppThemeMode.DARK) 0.14f else 0.45f
+        )
+    }
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(
+        android.graphics.Color.rgb((art.red * 255).toInt(), (art.green * 255).toInt(), (art.blue * 255).toInt()), hsv
+    )
+    fun hsvColor(s: Float, v: Float) = Color(android.graphics.Color.HSVToColor(floatArrayOf(hsv[0], s.coerceIn(0f, 1f), v.coerceIn(0f, 1f))))
+    val sat = hsv[1].coerceIn(0.2f, 0.85f)
+    return NpColors(
+        top = hsvColor(sat * 0.7f, 0.44f),
+        bottom = hsvColor(sat * 0.75f, 0.24f),
+        text = text,
+        secondary = text.copy(alpha = 0.62f),
+        tertiary = text.copy(alpha = 0.45f),
+        fill = text.copy(alpha = 0.14f),
+        track = text.copy(alpha = 0.22f)
+    )
+}
 
 /**
- * Mobile Fullscreen Now Playing Takeover Overlay (393pt × 852pt).
- * Includes top grab handle, audio route pill, hero artwork, lossless badge,
- * progress scrubber, 64pt cyan play button, and bottom utility strip.
+ * Full-screen Now Playing sheet (designScreen/mobile/Now Playing.png):
+ * grab handle, large artwork that settles back when paused, title/artist with favourite,
+ * shuffle/repeat toggle, radio and (for streams) download, scrubber with format badge,
+ * rewind / play-pause / fast-forward, and a bottom strip that morphs the upper area between
+ * artwork, synced lyrics and the Playing Next queue. Drag the top area down to dismiss.
  */
 @Composable
 fun MobileGlassNowPlaying(
+    viewModel: MusicViewModel,
     currentSong: Song?,
     isPlaying: Boolean,
-    positionMs: Long,
-    durationMs: Long,
     albumArt: ImageBitmap?,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
@@ -46,327 +168,813 @@ fun MobileGlassNowPlaying(
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onToggleLyrics: () -> Unit,
-    onToggleQueue: () -> Unit,
-    onOpenAudioRoute: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
+    // ── Artwork-derived colours ─────────────────────────────────────────────
+    var artColor by remember { mutableStateOf<Color?>(null) }
+    LaunchedEffect(albumArt) {
+        artColor = albumArt?.let { img ->
+            withContext(Dispatchers.Default) {
+                runCatching {
+                    val bmp = img.asAndroidBitmap().let {
+                        if (Build.VERSION.SDK_INT >= 26 && it.config == android.graphics.Bitmap.Config.HARDWARE) {
+                            it.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                        } else it
+                    }
+                    MobilePalettes.dominantColor(bmp)
+                }.getOrNull()
+            }
+        }
+    }
+    val themeMode by viewModel.themeMode.collectAsState()
+    val target = remember(themeMode, artColor) { npColorsFor(themeMode, artColor) }
+    val top by animateColorAsState(target.top, tween(450), label = "npTop")
+    val bottom by animateColorAsState(target.bottom, tween(450), label = "npBottom")
+    // Text and icons adapt to what is actually behind them: the sheet background (tinted gradient
+    // plus blurred cover) is sampled and the content flips between dark and white.
+    val adaptive = rememberAdaptiveLuminance(blendGlassSurface = false, startDark = themeMode == AppThemeMode.LIGHT)
+    val content = adaptive.contentColor
+    val contentIsLight = content.luminance() > 0.5f
+    val c = target.copy(
+        top = top,
+        bottom = bottom,
+        text = content,
+        secondary = content.copy(alpha = 0.62f),
+        tertiary = content.copy(alpha = 0.45f),
+        fill = content.copy(alpha = if (contentIsLight) 0.14f else 0.08f),
+        track = content.copy(alpha = if (contentIsLight) 0.25f else 0.16f),
+        onText = if (contentIsLight) Color(0xFF0F172A) else Color.White
+    )
 
+    var pane by remember { mutableStateOf(NowPlayingPane.PLAYER) }
+    BackHandler(enabled = pane != NowPlayingPane.PLAYER) { pane = NowPlayingPane.PLAYER }
+
+    // ── Drag-down-to-dismiss ────────────────────────────────────────────────
+    val scope = rememberCoroutineScope()
+    val dragOffset = remember { Animatable(0f) }
+    val dismissPx = with(LocalDensity.current) { 140.dp.toPx() }
+    val dragModifier = Modifier.draggable(
+        orientation = Orientation.Vertical,
+        state = rememberDraggableState { delta ->
+            scope.launch { dragOffset.snapTo((dragOffset.value + delta).coerceAtLeast(0f)) }
+        },
+        onDragStopped = { velocity ->
+            if (dragOffset.value > dismissPx || velocity > 2400f) {
+                onClose()
+            } else {
+                dragOffset.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow))
+            }
+        }
+    )
+
+    val sheetBackdrop = rememberLayerBackdrop()
+
+    CompositionLocalProvider(LocalNpBackdrop provides sheetBackdrop) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0D0F12).copy(alpha = 0.96f))
-            .systemBarsPadding()
+            .graphicsLayer { translationY = dragOffset.value }
+            .clip(if (dragOffset.value > 0f) DraggedSheetShape else FlatSheetShape)
     ) {
+        // Background: artwork tint with a softly blurred copy of the cover (API 31+), recorded
+        // so the liquid slider thumbs refract it.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .layerBackdrop(sheetBackdrop)
+                .drawWithContent {
+                    // Record the background for luminance sampling, then draw it once.
+                    adaptive.layer.record { this@drawWithContent.drawContent() }
+                    drawLayer(adaptive.layer)
+                }
+                .background(Brush.verticalGradient(listOf(c.top, c.bottom)))
+        ) {
+            if (albumArt != null && Build.VERSION.SDK_INT >= 31) {
+                Image(
+                    bitmap = albumArt,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = c.coverAlpha }
+                        .blur(90.dp)
+                )
+                Box(Modifier.fillMaxSize().background(c.bottom.copy(alpha = if (c.isLight) 0.6f else 0.35f)))
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
-            // ─── TOP SECTION: Grab Handle & Audio Route Pill ─────────────────────
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 10.dp)
-            ) {
-                // Top Dismiss Grab Handle (Rectangle 73: 44x5dp, r=2.5dp)
-                Box(
-                    modifier = Modifier
-                        .width(44.dp)
-                        .height(5.dp)
-                        .clip(RoundedCornerShape(2.5.dp))
-                        .background(Color.White.copy(alpha = 0.35f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onClose
-                        )
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Centered Audio Route Pill (iPhone > AirPods Max)
-                Box(
-                    modifier = Modifier
-                        .height(32.dp)
-                        .mobileLiquidGlass(
-                            shape = RoundedCornerShape(16.dp),
-                            tintColor = Color.White.copy(alpha = 0.08f),
-                            borderColor = Color.White.copy(alpha = 0.12f)
-                        )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onOpenAudioRoute
-                        )
-                        .padding(horizontal = 14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Headphones,
-                            contentDescription = "Audio Route",
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "iPhone > AirPods Max",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-
-            // ─── CENTER SECTION: Hero Artwork Card (335x335dp) ───────────────────
+            // Grab handle
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .padding(horizontal = 12.dp)
-                    .shadow(
-                        elevation = 28.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        ambientColor = Color(0xFF00E5FF).copy(alpha = 0.25f),
-                        spotColor = Color(0xFF00E5FF).copy(alpha = 0.35f)
-                    )
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White.copy(alpha = 0.06f)),
+                    .height(28.dp)
+                    .then(dragModifier)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(Modifier.size(width = 36.dp, height = 5.dp).clip(HandleShape).background(c.text.copy(alpha = 0.4f)))
+            }
+
+            UpperArea(
+                pane = pane,
+                song = currentSong,
+                albumArt = albumArt,
+                isPlaying = isPlaying,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                viewModel = viewModel,
+                c = c,
+                dragModifier = dragModifier,
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(14.dp))
+            Scrubber(viewModel = viewModel, song = currentSong, c = c, backdrop = sheetBackdrop)
+            TransportRow(isPlaying, onPrevious, onPlayPause, onNext, c)
+            Spacer(Modifier.height(10.dp))
+            BottomStrip(
+                pane = pane,
+                onPane = { pane = if (pane == it) NowPlayingPane.PLAYER else it },
+                c = c
+            )
+        }
+    }
+    }
+}
+
+// ─── Upper area ──────────────────────────────────────────────────────────────
+
+/**
+ * Artwork and title that morph between the hero layout (big cover, title underneath) and the
+ * compact header (56dp cover beside the title) while lyrics / queue fade in below — the
+ * shared-element move from the reference, driven by one spring.
+ */
+@Composable
+private fun UpperArea(
+    pane: NowPlayingPane,
+    song: Song?,
+    albumArt: ImageBitmap?,
+    isPlaying: Boolean,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    viewModel: MusicViewModel,
+    c: NpColors,
+    dragModifier: Modifier,
+    modifier: Modifier
+) {
+    val compact = pane != NowPlayingPane.PLAYER
+    // 0 = hero, 1 = compact header
+    val t by animateFloatAsState(
+        targetValue = if (compact) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.86f, stiffness = 320f),
+        label = "npMorph"
+    )
+    // The cover settles back when paused, like the reference's paused frame (hero only).
+    val pauseScale by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 0.8f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
+        label = "heroScale"
+    )
+    val radiusDp = (12f - 6f * t).roundToInt()
+    val artShape = remember(radiusDp) { RoundedCornerShape(radiusDp.dp) }
+
+    Layout(
+        modifier = modifier,
+        content = {
+            // [0] artwork
+            Box(
+                modifier = Modifier
+                    .then(dragModifier)
+                    .graphicsLayer {
+                        val s = 1f + (pauseScale - 1f) * (1f - t)
+                        scaleX = s; scaleY = s
+                    }
+                    .clip(artShape)
+                    .background(c.fill),
                 contentAlignment = Alignment.Center
             ) {
                 if (albumArt != null) {
-                    Image(
-                        bitmap = albumArt,
-                        contentDescription = "Hero Artwork",
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Image(bitmap = albumArt, contentDescription = "Artwork", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 } else {
-                    Text("🎵", fontSize = 56.sp)
+                    LargeGlyph(Icons.Rounded.MusicNote, null, c.tertiary, 40.dp)
                 }
             }
-
-            // ─── METADATA ROW WITH LOSSLESS BADGE ────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = currentSong?.title ?: "No Song Playing",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = currentSong?.artist ?: "Unknown Artist",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    MobileGlassBadgePill(
-                        text = "LOSSLESS • ALAC 24-bit/48kHz",
-                        useCyan = true
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Favorite Heart Button
-                    MobileGlassIconButton(
-                        icon = {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (isFavorite) Color(0xFF00E5FF) else Color(0xFF94A3B8),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        onClick = onToggleFavorite,
-                        size = 36.dp,
-                        isActive = isFavorite
-                    )
-
-                    // Options Menu Button
-                    MobileGlassIconButton(
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Rounded.MoreHoriz,
-                                contentDescription = "Options",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        onClick = {},
-                        size = 36.dp
-                    )
-                }
-            }
-
-            // ─── SCRUBBER TIMELINE ───────────────────────────────────────────────
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Slider(
-                    value = progress,
-                    onValueChange = { frac -> onSeek((frac * durationMs).toLong()) },
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = Color(0xFF00E5FF),
-                        inactiveTrackColor = Color.White.copy(alpha = 0.18f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(formatTimeMs(positionMs), color = Color(0xFF64748B), fontSize = 12.sp)
-                    val remainingMs = (durationMs - positionMs).coerceAtLeast(0)
-                    Text("-${formatTimeMs(remainingMs)}", color = Color(0xFF64748B), fontSize = 12.sp)
-                }
-            }
-
-            // ─── TRANSPORT CONTROLS ROW ──────────────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                // Shuffle
-                Icon(
-                    imageVector = Icons.Rounded.Shuffle,
-                    contentDescription = "Shuffle",
-                    tint = Color(0xFF94A3B8),
-                    modifier = Modifier.size(22.dp)
-                )
-
-                // Previous
-                Icon(
-                    imageVector = Icons.Rounded.SkipPrevious,
-                    contentDescription = "Previous",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clickable(onClick = onPrevious)
-                )
-
-                // Elevated 64pt Cyan Play Button
-                MobileGlassPlayButton(
-                    isPlaying = isPlaying,
-                    onClick = onPlayPause,
-                    size = 64.dp,
-                    useCyan = true
-                )
-
-                // Next
-                Icon(
-                    imageVector = Icons.Rounded.SkipNext,
-                    contentDescription = "Next",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clickable(onClick = onNext)
-                )
-
-                // Repeat
-                Icon(
-                    imageVector = Icons.Rounded.Repeat,
-                    contentDescription = "Repeat",
-                    tint = Color(0xFF94A3B8),
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            // ─── LOWER UTILITY STRIP: Lyrics, Route, Queue ───────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Lyrics Trigger
-                MobileGlassIconButton(
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Rounded.ChatBubbleOutline,
-                            contentDescription = "Lyrics",
-                            tint = Color(0xFF94A3B8),
-                            modifier = Modifier.size(18.dp)
-                        )
+            // [1] title + actions
+            TitleRow(
+                song = song,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                viewModel = viewModel,
+                c = c,
+                shrink = t,
+                modifier = dragModifier
+            )
+            // [2] lyrics / queue, faded in with the morph
+            Box(Modifier.graphicsLayer { alpha = t }) {
+                AnimatedContent(
+                    targetState = pane,
+                    transitionSpec = {
+                        (fadeIn(tween(240)) + slideInVertically(tween(240)) { it / 14 }) togetherWith fadeOut(tween(160))
                     },
-                    onClick = onToggleLyrics,
-                    size = 38.dp
-                )
-
-                // Audio Route Center
-                Box(
-                    modifier = Modifier
-                        .height(34.dp)
-                        .mobileLiquidGlass(
-                            shape = RoundedCornerShape(17.dp),
-                            tintColor = Color.White.copy(alpha = 0.08f),
-                            borderColor = Color.White.copy(alpha = 0.12f)
-                        )
-                        .clickable(onClick = onOpenAudioRoute)
-                        .padding(horizontal = 14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Airplay,
-                            contentDescription = "AirPlay",
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "AirPods Max",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                    label = "npPane"
+                ) { p ->
+                    when (p) {
+                        NowPlayingPane.LYRICS -> LyricsPane(viewModel, c, Modifier.fillMaxSize())
+                        NowPlayingPane.QUEUE -> QueuePane(viewModel, song, c, Modifier.fillMaxSize())
+                        NowPlayingPane.PLAYER -> Box(Modifier.fillMaxSize())
                     }
                 }
+            }
+        }
+    ) { measurables, constraints ->
+        val w = constraints.maxWidth
+        val h = constraints.maxHeight
+        val compactArt = 56.dp.roundToPx()
+        val compactX = 22.dp.roundToPx()
+        val compactY = 6.dp.roundToPx()
+        val headerH = 76.dp.roundToPx()
+        val titleShift = 64.dp.roundToPx()
+        fun lerpI(a: Int, b: Int) = (a + (b - a) * t).roundToInt()
 
-                // Up Next Queue Trigger
-                MobileGlassIconButton(
-                    icon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                            contentDescription = "Queue",
-                            tint = Color(0xFF94A3B8),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    onClick = onToggleQueue,
-                    size = 38.dp
+        val titleW = lerpI(w, w - titleShift)
+        val title = measurables[1].measure(Constraints(minWidth = titleW, maxWidth = titleW))
+        val heroArea = h - title.height - 8.dp.roundToPx()
+        val heroSide = minOf(w - 56.dp.roundToPx(), heroArea - 24.dp.roundToPx()).coerceAtLeast(compactArt)
+        val side = lerpI(heroSide, compactArt)
+        val art = measurables[0].measure(Constraints.fixed(side, side))
+        val content = measurables[2].measure(Constraints(maxWidth = w, maxHeight = (h - headerH).coerceAtLeast(0)))
+
+        val artX = lerpI((w - heroSide) / 2, compactX)
+        val artY = lerpI((heroArea - heroSide) / 2, compactY)
+        val titleX = lerpI(0, titleShift)
+        val titleY = lerpI(h - title.height, compactY + (compactArt - title.height) / 2)
+        layout(w, h) {
+            content.place(0, headerH)
+            art.place(artX, artY)
+            title.place(titleX, titleY)
+        }
+    }
+}
+
+@Composable
+private fun TitleRow(
+    song: Song?,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    viewModel: MusicViewModel,
+    c: NpColors,
+    shrink: Float,
+    modifier: Modifier = Modifier
+) {
+    // Favourite star pops when toggled.
+    val starScale = remember { Animatable(1f) }
+    var seenFavorite by remember { mutableStateOf(isFavorite) }
+    LaunchedEffect(isFavorite) {
+        if (isFavorite != seenFavorite) {
+            seenFavorite = isFavorite
+            starScale.snapTo(0.6f)
+            starScale.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 700f))
+        }
+    }
+
+    Row(
+        modifier = modifier.fillMaxWidth().padding(start = 28.dp, end = 22.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = song?.title?.ifBlank { null } ?: "Not Playing",
+                color = c.text,
+                fontSize = (20f - 4f * shrink).sp,
+                lineHeight = (25f - 5f * shrink).sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = song?.artist?.ifBlank { null } ?: "Unknown Artist",
+                color = c.secondary,
+                fontSize = (18f - 4f * shrink).sp,
+                lineHeight = (23f - 5f * shrink).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        NpGlassButton(
+            icon = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+            contentDescription = if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+            c = c,
+            size = 34.dp,
+            glyph = 18.dp,
+            modifier = Modifier.graphicsLayer { scaleX = starScale.value; scaleY = starScale.value },
+            onClick = onToggleFavorite
+        )
+        Spacer(Modifier.width(8.dp))
+        ModeToggleButton(viewModel, c)
+        Spacer(Modifier.width(8.dp))
+        RadioButton(viewModel, c)
+        if (song != null && song.isStream() && !song.isYouTubeLive()) {
+            Spacer(Modifier.width(8.dp))
+            DownloadButton(song, viewModel, c)
+        }
+    }
+}
+
+/** One button that cycles Shuffle → in order → Repeat One, mirroring the headunit's mode control. */
+@Composable
+private fun ModeToggleButton(viewModel: MusicViewModel, c: NpColors) {
+    val mode by viewModel.playbackMode.collectAsState()
+    val (icon, label, active) = when (mode) {
+        PlaybackMode.SHUFFLE -> Triple(Icons.Rounded.Shuffle, "Shuffle on", true)
+        PlaybackMode.REPEAT_ONE -> Triple(Icons.Rounded.RepeatOne, "Repeat one on", true)
+        PlaybackMode.QUEUE -> Triple(Icons.Rounded.Repeat, "Playing in order", false)
+    }
+    NpGlassButton(icon, label, c, size = 34.dp, glyph = 18.dp, active = active) { viewModel.cyclePlaybackMode() }
+}
+
+@Composable
+private fun RadioButton(viewModel: MusicViewModel, c: NpColors) {
+    val radioLoading by viewModel.isRadioLoading.collectAsState()
+    val radioName by viewModel.activeRadioStationName.collectAsState()
+    NpGlassButton(
+        Icons.Rounded.Radio, "Start radio from this song", c,
+        size = 34.dp, glyph = 18.dp, active = radioName != null && !radioLoading, loading = radioLoading
+    ) { viewModel.startRadioForCurrentSong() }
+}
+
+/** Online tracks only; local files are already on the device. */
+@Composable
+private fun DownloadButton(song: Song, viewModel: MusicViewModel, c: NpColors) {
+    val context = LocalContext.current
+    val downloads by viewModel.downloadStates.collectAsState()
+    when (val status = downloads[song.id] ?: DownloadStatus.Idle) {
+        is DownloadStatus.Downloading -> NpGlassButton(
+            Icons.Rounded.Download, "Downloading", c, size = 34.dp, glyph = 18.dp, progress = status.progress
+        ) {}
+        is DownloadStatus.Downloaded -> NpGlassButton(
+            Icons.Rounded.CheckCircle, "Downloaded", c, size = 34.dp, glyph = 18.dp, active = true
+        ) { android.widget.Toast.makeText(context, "Saved for offline listening", android.widget.Toast.LENGTH_SHORT).show() }
+        is DownloadStatus.Failed -> NpGlassButton(
+            Icons.Rounded.Refresh, "Retry download", c, size = 34.dp, glyph = 18.dp
+        ) { viewModel.downloadSong(song, force = true) }
+        else -> NpGlassButton(
+            Icons.Rounded.Download, "Download", c, size = 34.dp, glyph = 18.dp
+        ) { viewModel.downloadSong(song) }
+    }
+}
+
+private fun Song.isYouTubeLive(): Boolean = duration <= 0L
+
+@Composable
+private fun LyricsPane(viewModel: MusicViewModel, c: NpColors, modifier: Modifier) {
+    val lyrics by viewModel.currentLyrics.collectAsState()
+    val isLoading by viewModel.isLoadingLyrics.collectAsState()
+    val positionMs by viewModel.positionFlow.collectAsState()
+
+    if (lyrics.isEmpty()) {
+        Box(modifier.fillMaxWidth().padding(horizontal = 28.dp), contentAlignment = Alignment.CenterStart) {
+            Text(
+                text = if (isLoading) "Loading lyrics…" else "Lyrics aren't available for this song.",
+                color = c.secondary,
+                fontSize = 22.sp,
+                lineHeight = 28.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        return
+    }
+
+    val activeIndex = remember(lyrics, positionMs) {
+        lyrics.indexOfLast { it.timeMs <= positionMs }.coerceAtLeast(0)
+    }
+    val listState = rememberLazyListState()
+    LaunchedEffect(activeIndex) {
+        listState.animateScrollToItem((activeIndex - 1).coerceAtLeast(0))
+    }
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(start = 28.dp, end = 40.dp, top = 8.dp, bottom = 160.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        itemsIndexed(lyrics, key = { i, line -> "${line.timeMs}-$i" }) { i, line ->
+            val active = i == activeIndex
+            val alpha by animateFloatAsState(if (active) 1f else 0.35f, tween(300), label = "lyricAlpha")
+            Text(
+                text = line.text.ifBlank { "♪" },
+                color = c.text,
+                fontSize = 26.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { this.alpha = alpha }
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                        viewModel.seekTo(line.timeMs)
+                    }
+            )
+        }
+    }
+}
+
+@Composable
+private fun QueuePane(viewModel: MusicViewModel, currentSong: Song?, c: NpColors, modifier: Modifier) {
+    val userQueue by viewModel.userQueue.collectAsState()
+    val mode by viewModel.playbackMode.collectAsState()
+    val upcoming = remember(userQueue, currentSong, mode) {
+        if (userQueue.isNotEmpty()) userQueue else viewModel.getUpcomingSongs(40)
+    }
+    val fromUserQueue = userQueue.isNotEmpty()
+
+    Column(modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 22.dp, end = 12.dp, top = 4.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Playing Next", color = c.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                if (!fromUserQueue) {
+                    Text(
+                        text = if (mode == PlaybackMode.SHUFFLE) "Shuffling" else "Continuing in order",
+                        color = c.secondary,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+            if (fromUserQueue) {
+                Text(
+                    text = "Clear",
+                    color = c.secondary,
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .clickable { viewModel.clearQueue() }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 )
+            }
+        }
+
+        if (upcoming.isEmpty()) {
+            Text(
+                text = "Nothing up next.",
+                color = c.secondary,
+                fontSize = 15.sp,
+                modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp)
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(bottom = 12.dp)
+            ) {
+                itemsIndexed(upcoming, key = { i, s -> "${s.id}-$i" }) { i, song ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .clickable {
+                                if (fromUserQueue) viewModel.playFromQueue(i) else viewModel.play(song, direction = 1)
+                            }
+                            .padding(horizontal = 22.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AlbumArtImage(path = song.path, artworkUrl = song.artworkUrl, size = 44.dp, borderRadius = 6.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(song.title.ifBlank { "Untitled" }, color = c.text, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(song.artist.ifBlank { "Unknown Artist" }, color = c.secondary, fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        if (fromUserQueue) {
+                            Box(
+                                Modifier.size(40.dp).clip(CircleShape).clickable { viewModel.removeFromQueue(i) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Rounded.RemoveCircleOutline, contentDescription = "Remove", tint = c.secondary, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-private fun formatTimeMs(ms: Long): String {
-    val totalSeconds = (ms / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return String.format("%d:%02d", minutes, seconds)
+// ─── Controls ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun Scrubber(viewModel: MusicViewModel, song: Song?, c: NpColors, backdrop: com.kyant.backdrop.Backdrop) {
+    // Position is read here (leaf) so the rest of the sheet doesn't recompose on every tick.
+    val positionMs by viewModel.positionFlow.collectAsState()
+    val durationMs by viewModel.durationFlow.collectAsState()
+    var scrub by remember { mutableStateOf<Float?>(null) }
+    var scrubToken by remember { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
+    val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+    val shown = scrub ?: progress
+    val shownMs = (shown * durationMs).toLong()
+
+    // After a seek keep the thumb where the user put it until the player reports the new
+    // position (or 1.2 s passes), instead of snapping back to the old position.
+    LaunchedEffect(progress) {
+        val s = scrub
+        if (s != null && kotlin.math.abs(progress - s) < 0.02f) scrub = null
+    }
+
+    Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp)) {
+        LiquidSlider(
+            // Read playback state inside the lambda so the slider tracks it as it changes.
+            value = {
+                scrub ?: if (viewModel.durationFlow.value > 0)
+                    (viewModel.positionFlow.value.toFloat() / viewModel.durationFlow.value).coerceIn(0f, 1f) else 0f
+            },
+            onValueChange = { v ->
+                if (durationMs > 0) { scrub = v; scrubToken++ }
+            },
+            valueRange = 0f..1f,
+            visibilityThreshold = 0.001f,
+            backdrop = backdrop,
+            accentColor = c.text.copy(alpha = 0.9f),
+            trackColorOverride = c.text.copy(alpha = 0.25f),
+            trackHeight = 6.dp,
+            thumbWidth = 28.dp,
+            thumbHeight = 16.dp,
+            thumbOnlyWhileSeeking = true,
+            onValueChangeFinished = {
+                val target = scrub
+                if (target != null && durationMs > 0) {
+                    viewModel.seekTo((target * durationMs).toLong())
+                    val token = ++scrubToken
+                    scope.launch { kotlinx.coroutines.delay(1200); if (scrubToken == token) scrub = null }
+                } else {
+                    scrub = null
+                }
+            }
+        )
+        Box(Modifier.fillMaxWidth().offset(y = (-6).dp)) {
+            Text(formatTimeMs(shownMs), color = c.tertiary, fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterStart))
+            formatBadge(song)?.let { badge ->
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clip(PillShape)
+                        .background(c.fill)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.GraphicEq, contentDescription = null, tint = c.secondary, modifier = Modifier.size(11.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(badge, color = c.secondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Text(
+                "-" + formatTimeMs((durationMs - shownMs).coerceAtLeast(0)),
+                color = c.tertiary,
+                fontSize = 11.sp,
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
+        }
+    }
 }
 
+@Composable
+private fun TransportRow(isPlaying: Boolean, onPrevious: () -> Unit, onPlayPause: () -> Unit, onNext: () -> Unit, c: NpColors) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 36.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TransportButton(Icons.Rounded.FastRewind, "Previous", 52.dp, c, onPrevious)
+        TransportButton(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (isPlaying) "Pause" else "Play", 60.dp, c, onPlayPause)
+        TransportButton(Icons.Rounded.FastForward, "Next", 52.dp, c, onNext)
+    }
+}
+
+@Composable
+private fun TransportButton(icon: ImageVector, contentDescription: String, glyph: Dp, c: NpColors, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.86f else 1f, spring(dampingRatio = 0.6f, stiffness = 400f), label = "tpScale")
+    val bgAlpha by animateFloatAsState(if (pressed) 0.14f else 0f, tween(120), label = "tpBg")
+    Box(
+        modifier = Modifier
+            .size(76.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(CircleShape)
+            .background(c.text.copy(alpha = bgAlpha))
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        AnimatedGlyph(icon, contentDescription, c.text, glyph)
+    }
+}
+
+/** Glyph that scales/fades between icons (play ⇄ pause, shuffle ⇄ repeat). */
+@Composable
+private fun AnimatedGlyph(icon: ImageVector, contentDescription: String?, tint: Color, size: Dp) {
+    AnimatedContent(
+        targetState = icon,
+        transitionSpec = {
+            (fadeIn(tween(160)) + scaleIn(initialScale = 0.6f, animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f))) togetherWith
+                (fadeOut(tween(120)) + scaleOut(targetScale = 0.6f, animationSpec = tween(120)))
+        },
+        label = "glyph"
+    ) { ic -> LargeGlyph(ic, contentDescription, tint, size) }
+}
+
+/** The design-system Icon never scales a vector past its 24dp intrinsic size; big glyphs need Fit. */
+@Composable
+private fun LargeGlyph(icon: ImageVector, contentDescription: String?, tint: Color, size: Dp) {
+    Image(
+        painter = rememberVectorPainter(icon),
+        contentDescription = contentDescription,
+        contentScale = ContentScale.Fit,
+        colorFilter = ColorFilter.tint(tint),
+        modifier = Modifier.size(size)
+    )
+}
+
+@Composable
+private fun BottomStrip(pane: NowPlayingPane, onPane: (NowPlayingPane) -> Unit, c: NpColors) {
+    val context = LocalContext.current
+    val route = rememberAudioRouteName()
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 40.dp, end = 40.dp, top = 6.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PaneToggle(Icons.Rounded.Lyrics, "Lyrics", pane == NowPlayingPane.LYRICS, c) { onPane(NowPlayingPane.LYRICS) }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            val interaction = remember { MutableInteractionSource() }
+            val pressed by interaction.collectIsPressedAsState()
+            val scale by animateFloatAsState(if (pressed) 0.94f else 1f, spring(dampingRatio = 0.6f, stiffness = 400f), label = "routeScale")
+            Row(
+                modifier = Modifier
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                    .height(40.dp)
+                    .npGlassSurface(c, 40.dp)
+                    .clickable(interactionSource = interaction, indication = null) { openSystemOutputSwitcher(context) }
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LargeGlyph(route.icon, "Audio output", c.text, 18.dp)
+                Text(route.label, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        PaneToggle(Icons.AutoMirrored.Rounded.FormatListBulleted, "Playing Next", pane == NowPlayingPane.QUEUE, c) { onPane(NowPlayingPane.QUEUE) }
+    }
+}
+
+@Composable
+private fun PaneToggle(icon: ImageVector, contentDescription: String, active: Boolean, c: NpColors, onClick: () -> Unit) {
+    NpGlassButton(icon, contentDescription, c, size = 40.dp, glyph = 20.dp, active = active, onClick = onClick)
+}
+
+// ─── Small pieces ────────────────────────────────────────────────────────────
+
+/** Liquid-glass surface (blur + lens from the Glass Style setting, no shadow) over the sheet's backdrop. */
+@Composable
+private fun Modifier.npGlassSurface(c: NpColors, height: Dp, active: Boolean = false): Modifier {
+    val backdrop = LocalNpBackdrop.current
+    val glass = floatingGlass(elementHeight = height)
+    val surface by animateColorAsState(
+        if (active) c.text.copy(alpha = 0.92f) else c.text.copy(alpha = glass.surfaceAlpha * 0.45f),
+        tween(220), label = "glassSurface"
+    )
+    return if (backdrop != null) {
+        this.drawBackdrop(
+            backdrop = backdrop,
+            shape = { Capsule() },
+            effects = {
+                vibrancy()
+                if (glass.blur.value > 0f) glassBlur(glass.blur.toPx())
+                if (glass.lensAmount.value > 0f) lens(glass.lensHeight.toPx(), glass.lensAmount.toPx())
+            },
+            shadow = { null },
+            innerShadow = { null },
+            onDrawSurface = { drawRect(surface) }
+        )
+    } else {
+        this.clip(PillShape).background(surface)
+    }
+}
+
+/**
+ * Round liquid-glass control used across the sheet: the sheet's own backdrop is blurred and
+ * refracted (parameters from Settings → Glass Style), with a light tint instead of a flat fill.
+ * [active] turns it into a solid light disc; [progress] shows a spinner/ring in place of the icon.
+ */
+@Composable
+private fun NpGlassButton(
+    icon: ImageVector,
+    contentDescription: String,
+    c: NpColors,
+    size: Dp,
+    glyph: Dp,
+    modifier: Modifier = Modifier,
+    active: Boolean = false,
+    loading: Boolean = false,
+    progress: Float? = null,
+    onClick: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.88f else 1f, spring(dampingRatio = 0.6f, stiffness = 400f), label = "glassScale")
+    val tint by animateColorAsState(if (active) c.onText else c.text, tween(220), label = "glassTint")
+    val glassModifier = Modifier.npGlassSurface(c, size, active)
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .then(glassModifier)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            progress != null -> CircularProgressIndicator(
+                progress = progress.coerceIn(0.04f, 1f),
+                color = tint,
+                trackColor = tint.copy(alpha = 0.25f),
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(glyph + 4.dp)
+            )
+            loading -> CircularProgressIndicator(
+                color = tint,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(glyph + 4.dp)
+            )
+            else -> AnimatedGlyph(icon, contentDescription, tint, glyph)
+        }
+    }
+}
+
+/** "Lossless" for FLAC/ALAC/WAV files, the container name otherwise, "Streaming" for online tracks. */
+private fun formatBadge(song: Song?): String? {
+    song ?: return null
+    if (song.isStream()) return "Streaming"
+    val ext = song.path.substringAfterLast('.', "").lowercase()
+    return when (ext) {
+        "flac", "alac", "wav", "aiff", "aif" -> "Lossless"
+        "m4a" -> "AAC"
+        "" -> null
+        else -> ext.uppercase()
+    }
+}
+
+private data class AudioRoute(val label: String, val icon: ImageVector)
+
+/** Name of the device audio is currently going to; updates when headphones/Bluetooth connect. */
+@Composable
+private fun rememberAudioRouteName(): AudioRoute {
+    val context = LocalContext.current
+    val audio = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    fun read(): AudioRoute {
+        val outs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        outs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP }?.let {
+            return AudioRoute(it.productName?.toString()?.ifBlank { null } ?: "Bluetooth", Icons.Rounded.Headphones)
+        }
+        outs.firstOrNull {
+            it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+        }?.let { return AudioRoute("Headphones", Icons.Rounded.Headphones) }
+        return AudioRoute("Phone Speaker", Icons.Rounded.Speaker)
+    }
+    var route by remember { mutableStateOf(read()) }
+    DisposableEffect(audio) {
+        val cb = object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>?) { route = read() }
+            override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>?) { route = read() }
+        }
+        audio.registerAudioDeviceCallback(cb, null)
+        onDispose { audio.unregisterAudioDeviceCallback(cb) }
+    }
+    return route
+}
+
+/** Opens the system media output picker (Android 11+), falling back to Bluetooth settings. */
+private fun openSystemOutputSwitcher(context: Context) {
+    if (Build.VERSION.SDK_INT >= 30) {
+        val ok = runCatching {
+            context.sendBroadcast(
+                Intent("com.android.systemui.action.LAUNCH_MEDIA_OUTPUT_DIALOG")
+                    .setPackage("com.android.systemui")
+                    .putExtra("package_name", context.packageName)
+            )
+        }.isSuccess
+        if (ok) return
+    }
+    runCatching {
+        context.startActivity(Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}
+
+private fun formatTimeMs(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+}

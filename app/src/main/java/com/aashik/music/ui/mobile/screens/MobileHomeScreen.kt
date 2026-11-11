@@ -1,5 +1,7 @@
 package com.aashik.music.ui.mobile.screens
 
+import com.aashik.music.ui.mobile.glass.MobileTheme
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -76,7 +78,7 @@ fun MobileHomeScreen(
             ) {
                 Text(
                     text = "Home",
-                    color = Color.White,
+                    color = MobileTheme.text,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
@@ -88,14 +90,13 @@ fun MobileHomeScreen(
                         .size(36.dp)
                         .mobileLiquidGlass(
                             shape = CircleShape,
-                            tintColor = Color.White.copy(alpha = 0.12f),
-                            borderColor = Color.White.copy(alpha = 0.22f)
+                            tintColor = MobileTheme.text.copy(alpha = 0.12f)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "JS",
-                        color = Color.White,
+                        color = MobileTheme.text,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -111,14 +112,8 @@ fun MobileHomeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp)
                     .height(220.dp)
-                    .shadow(
-                        elevation = 16.dp,
-                        shape = RoundedCornerShape(18.dp),
-                        ambientColor = Color.Black.copy(alpha = 0.40f),
-                        spotColor = Color.Black.copy(alpha = 0.50f)
-                    )
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFF1E293B))
+                    .background(MobileTheme.surface)
                     .clickable { heroAlbum?.let { onAlbumClick(it) } }
             ) {
                 // Gradient scrim ramp
@@ -154,14 +149,14 @@ fun MobileHomeScreen(
                     Column {
                         Text(
                             text = "Mood for You: Relax",
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Featuring ${heroAlbum?.artist ?: "Taylor Swift"}, Billie Eilish, Sabrina Carpenter",
-                            color = Color(0xFF94A3B8),
+                            color = MobileTheme.textSecondary,
                             fontSize = 13.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -254,14 +249,14 @@ private fun SectionHeader(
     ) {
         Text(
             text = title,
-            color = Color.White,
+            color = MobileTheme.text,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             contentDescription = "See All",
-            tint = Color(0xFF64748B),
+            tint = MobileTheme.textTertiary,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -285,14 +280,8 @@ private fun AlbumCardItem(
         Box(
             modifier = Modifier
                 .size(150.dp)
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(10.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = Color.Black.copy(alpha = 0.45f)
-                )
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF1E293B)),
+                .background(MobileTheme.surface),
             contentAlignment = Alignment.Center
         ) {
             Text("💿", fontSize = 42.sp)
@@ -302,7 +291,7 @@ private fun AlbumCardItem(
 
         Text(
             text = album.title,
-            color = Color.White,
+            color = MobileTheme.text,
             fontSize = 13.5.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -310,7 +299,7 @@ private fun AlbumCardItem(
         )
         Text(
             text = "${album.artist} • ${album.year}",
-            color = Color(0xFF94A3B8),
+            color = MobileTheme.textSecondary,
             fontSize = 11.5.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -335,12 +324,6 @@ private fun SongCardItem(
         Box(
             modifier = Modifier
                 .size(150.dp)
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(10.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = Color.Black.copy(alpha = 0.45f)
-                )
                 .clip(RoundedCornerShape(10.dp))
                 .background(Color(0xFF161E2E)),
             contentAlignment = Alignment.Center
@@ -352,7 +335,7 @@ private fun SongCardItem(
 
         Text(
             text = song.title,
-            color = Color.White,
+            color = MobileTheme.text,
             fontSize = 13.5.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -360,7 +343,7 @@ private fun SongCardItem(
         )
         Text(
             text = song.artist,
-            color = Color(0xFF94A3B8),
+            color = MobileTheme.textSecondary,
             fontSize = 11.5.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis

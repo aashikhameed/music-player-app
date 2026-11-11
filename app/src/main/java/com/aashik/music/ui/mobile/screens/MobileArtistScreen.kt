@@ -1,5 +1,7 @@
 package com.aashik.music.ui.mobile.screens
 
+import com.aashik.music.ui.mobile.glass.MobileTheme
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -45,10 +47,10 @@ fun MobileArtistScreen(
     onBack: () -> Unit,
     onSongClick: (Song) -> Unit,
     onAlbumClick: (DomainAlbum) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onPlay: () -> Unit = { artist.topSongs.firstOrNull()?.let(onSongClick) },
+    onShuffle: () -> Unit = { artist.topSongs.randomOrNull()?.let(onSongClick) }
 ) {
-    var isFavorite by remember { mutableStateOf(false) }
-    var isBioExpanded by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -61,86 +63,30 @@ fun MobileArtistScreen(
                     .fillMaxWidth()
                     .height(340.dp)
             ) {
-                // Background Gradient Simulation
+                // Full-bleed artwork from the artist's first song, fading into the page.
+                artist.topSongs.firstOrNull()?.let { first ->
+                    com.aashik.music.ui.AlbumArtImage(
+                        path = first.path,
+                        artworkUrl = first.artworkUrl,
+                        size = 340.dp,
+                        borderRadius = 0.dp,
+                        sharpSize = 512,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFF1E293B),
-                                    Color(0xFF0F172A),
-                                    Color(0xFF0D0F12)
-                                )
+                                0f to Color.Transparent,
+                                0.45f to MobileTheme.background.copy(alpha = 0.2f),
+                                0.75f to MobileTheme.background.copy(alpha = 0.85f),
+                                1f to MobileTheme.background
                             )
                         )
                 )
 
-                // Top Navigation Bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp)
-                        .align(Alignment.TopCenter),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .mobileLiquidGlass(
-                                shape = CircleShape,
-                                tintColor = Color.Black.copy(alpha = 0.35f),
-                                borderColor = Color.White.copy(alpha = 0.15f)
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(
-                            onClick = { isFavorite = !isFavorite },
-                            modifier = Modifier
-                                .size(38.dp)
-                                .mobileLiquidGlass(
-                                    shape = CircleShape,
-                                    tintColor = Color.Black.copy(alpha = 0.35f),
-                                    borderColor = Color.White.copy(alpha = 0.15f)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                                contentDescription = "Favorite",
-                                tint = if (isFavorite) Color(0xFF00E5FF) else Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {},
-                            modifier = Modifier
-                                .size(38.dp)
-                                .mobileLiquidGlass(
-                                    shape = CircleShape,
-                                    tintColor = Color.Black.copy(alpha = 0.35f),
-                                    borderColor = Color.White.copy(alpha = 0.15f)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "Options",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
 
                 // Artist Name at bottom of header
                 Column(
@@ -150,7 +96,7 @@ fun MobileArtistScreen(
                 ) {
                     Text(
                         text = artist.name,
-                        color = Color.White,
+                        color = MobileTheme.text,
                         fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = (-0.5).sp
@@ -168,14 +114,14 @@ fun MobileArtistScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
-                    onClick = { artist.topSongs.firstOrNull()?.let(onSongClick) },
+                    onClick = onPlay,
                     modifier = Modifier
                         .weight(1f)
                         .height(42.dp),
                     shape = RoundedCornerShape(21.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black
+                        containerColor = MobileTheme.text,
+                        contentColor = MobileTheme.onText
                     )
                 ) {
                     Row(
@@ -185,7 +131,7 @@ fun MobileArtistScreen(
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
                             contentDescription = "Play",
-                            tint = Color.Black,
+                            tint = MobileTheme.onText,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
@@ -202,13 +148,9 @@ fun MobileArtistScreen(
                         .height(42.dp)
                         .mobileLiquidGlass(
                             shape = RoundedCornerShape(21.dp),
-                            tintColor = Color.White.copy(alpha = 0.10f),
-                            borderColor = Color.White.copy(alpha = 0.15f)
+                            tintColor = MobileTheme.text.copy(alpha = 0.10f)
                         )
-                        .clickable {
-                            val shuffled = artist.topSongs.shuffled()
-                            shuffled.firstOrNull()?.let(onSongClick)
-                        },
+                        .clickable(onClick = onShuffle),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -218,12 +160,12 @@ fun MobileArtistScreen(
                         Icon(
                             imageVector = Icons.Rounded.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = Color.White,
+                            tint = MobileTheme.text,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = "Shuffle",
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -235,8 +177,8 @@ fun MobileArtistScreen(
         // ─── TOP SONGS SECTION ─────────────────────────────────────────────────
         item {
             Text(
-                text = "Top Songs",
-                color = Color.White,
+                text = "Songs",
+                color = MobileTheme.text,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.3).sp,
@@ -244,7 +186,7 @@ fun MobileArtistScreen(
             )
         }
 
-        itemsIndexed(artist.topSongs.take(5)) { index, song ->
+        itemsIndexed(artist.topSongs) { index, song ->
             ArtistTopSongItemRow(
                 rank = index + 1,
                 song = song,
@@ -256,8 +198,8 @@ fun MobileArtistScreen(
         if (artist.albums.isNotEmpty()) {
             item {
                 Text(
-                    text = "Essential Albums",
-                    color = Color.White,
+                    text = "Albums",
+                    color = MobileTheme.text,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.3).sp,
@@ -276,41 +218,19 @@ fun MobileArtistScreen(
                                 .width(150.dp)
                                 .clickable { onAlbumClick(album) }
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(150.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF1E293B))
-                                    .mobileLiquidGlass(RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize(0.6f)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF0F172A)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize(0.35f)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF00E5FF).copy(alpha = 0.4f))
-                                    )
-                                }
-                            }
+                            CollectionCover(album.tracks, size = 150.dp, cornerRadius = 12.dp, sharpSize = 256)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = album.title,
-                                color = Color.White,
+                                color = MobileTheme.text,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = album.year,
-                                color = Color(0xFF94A3B8),
+                                text = album.year.ifBlank { if (album.tracks.size == 1) "1 song" else "${album.tracks.size} songs" },
+                                color = MobileTheme.textSecondary,
                                 fontSize = 12.sp
                             )
                         }
@@ -319,76 +239,20 @@ fun MobileArtistScreen(
             }
         }
 
-        // ─── 'ABOUT' ARTIST BIOGRAPHY CARD ─────────────────────────────────────
-        item {
-            Text(
-                text = "About ${artist.name}",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.3).sp,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 12.dp)
-            )
-        }
-
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.White.copy(alpha = 0.05f))
-                    .mobileLiquidGlass(
-                        shape = RoundedCornerShape(18.dp),
-                        tintColor = Color.White.copy(alpha = 0.05f),
-                        borderColor = Color.White.copy(alpha = 0.10f)
-                    )
-                    .padding(18.dp)
-            ) {
-                Column {
-                    // Origin Grid
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text("ORIGIN", color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Text(artist.origin, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Column {
-                            Text("GENRE", color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Text(artist.genre, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        if (artist.born.isNotBlank()) {
-                            Column {
-                                Text("BORN", color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text(artist.born, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Biography Body
-                    Text(
-                        text = artist.biography,
-                        color = Color(0xFFCBD5E1),
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        maxLines = if (isBioExpanded) Int.MAX_VALUE else 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = if (isBioExpanded) "LESS" else "MORE",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { isBioExpanded = !isBioExpanded }
-                    )
-                }
+        // ─── 'ABOUT' — only when real artist info exists ────────────────────────
+        if (artist.biography.isNotBlank()) {
+            item {
+                Text(
+                    text = "About ${artist.name}",
+                    color = MobileTheme.text,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.3).sp,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 12.dp)
+                )
+            }
+            item {
+                ExpandableText(artist.biography, Modifier.fillMaxWidth().padding(horizontal = 20.dp))
             }
         }
     }
@@ -411,27 +275,13 @@ private fun ArtistTopSongItemRow(
         // Popularity Rank Number
         Text(
             text = "$rank",
-            color = Color(0xFF64748B),
+            color = MobileTheme.textTertiary,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.width(26.dp)
         )
 
-        // 44x44pt Thumbnail
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color(0xFF1E293B)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MusicNote,
-                contentDescription = null,
-                tint = Color(0xFF00E5FF).copy(alpha = 0.7f),
-                modifier = Modifier.size(22.dp)
-            )
-        }
+        com.aashik.music.ui.AlbumArtImage(path = song.path, artworkUrl = song.artworkUrl, size = 44.dp, borderRadius = 6.dp)
 
         Spacer(modifier = Modifier.width(14.dp))
 
@@ -439,7 +289,7 @@ private fun ArtistTopSongItemRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title.ifBlank { "Untitled" },
-                color = Color.White,
+                color = MobileTheme.text,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -448,25 +298,13 @@ private fun ArtistTopSongItemRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = song.album.ifBlank { "Single" },
-                color = Color(0xFF94A3B8),
+                color = MobileTheme.textSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        // More Options
-        IconButton(
-            onClick = {},
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MoreVert,
-                contentDescription = "Options",
-                tint = Color(0xFF64748B),
-                modifier = Modifier.size(18.dp)
-            )
-        }
+        SongMoreButton(song = song, tint = MobileTheme.textSecondary)
     }
 }
-

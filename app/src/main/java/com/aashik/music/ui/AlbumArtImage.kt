@@ -55,7 +55,9 @@ fun AlbumArtImage(
     size: Dp = 54.dp,
     borderRadius: Dp = 10.dp,
     @Suppress("UNUSED_PARAMETER") isPlaying: Boolean = false,
-    isHighRes: Boolean = false
+    isHighRes: Boolean = false,
+    // >0: decode a mid-quality thumbnail (e.g. 256) sharper than 64px, far lighter than full high-res
+    sharpSize: Int = 0
 ) {
     val shape = when (borderRadius) {
         20.dp -> Shape20
@@ -74,15 +76,25 @@ fun AlbumArtImage(
         AlbumArtCache.registerStreamArtwork(path, artworkUrl, context)
     }
 
-    var bitmap by remember(path, artworkUrl, isHighRes) {
+    val sharpSuffix = "_s$sharpSize"
+    var bitmap by remember(path, artworkUrl, isHighRes, sharpSize) {
         mutableStateOf<Bitmap?>(
-            if (isHighRes) AlbumArtCache.getHighRes(path) ?: AlbumArtCache.get(path)
+            if (sharpSize > 0) AlbumArtCache.getSized(path, sharpSuffix)
+            else if (isHighRes) AlbumArtCache.getHighRes(path) ?: AlbumArtCache.get(path)
             else AlbumArtCache.get(path)
         )
     }
 
     if (path.isNotEmpty() && !AlbumArtCache.hasNoArt(path)) {
-        if (isHighRes && AlbumArtCache.getHighRes(path) == null) {
+        if (sharpSize > 0) {
+            if (bitmap == null) {
+                LaunchedEffect(path, artworkUrl, sharpSize) {
+                    bitmap = AlbumArtCache.getOrLoadHighRes(path, sharpSuffix) {
+                        com.aashik.music.utils.loadAlbumArtHighRes(it, artworkUrl = artworkUrl, targetSize = sharpSize)
+                    }
+                }
+            }
+        } else if (isHighRes && AlbumArtCache.getHighRes(path) == null) {
             LaunchedEffect(path, artworkUrl) {
                 val loaded = AlbumArtCache.getOrLoadHighRes(path) {
                     com.aashik.music.utils.loadAlbumArtHighRes(it, artworkUrl = artworkUrl)

@@ -1,257 +1,137 @@
 package com.aashik.music.ui.mobile.screens
 
+import com.aashik.music.ui.mobile.glass.MobileTheme
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Radio
-import com.aashik.music.ui.designsystem.Icon
-import com.aashik.music.ui.designsystem.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.SolidColor
-import com.aashik.music.ui.mobile.glass.MobileGlassBadgePill
-import com.aashik.music.ui.mobile.glass.MobileGlassCard
-import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
+import com.aashik.music.model.RadioCategory
+import com.aashik.music.ui.AlbumArtImage
+import com.aashik.music.ui.components.GenreDetailScreen
+import com.aashik.music.ui.designsystem.Icon
+import com.aashik.music.ui.designsystem.Text
+import com.aashik.music.ui.mobile.glass.LiquidButton
+import com.aashik.music.viewmodel.MusicViewModel
 
-private val RadioCardShape = RoundedCornerShape(14.dp)
+// Pre-allocated static shapes hoisted to top-level constants for zero GC churn on automotive hardware
+private val RadioTileShape = RoundedCornerShape(16.dp)
+private val RadioArtworkRightShape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
 
-data class RadioStation(
-    val name: String,
-    val showName: String,
-    val host: String,
-    val isLive: Boolean = true,
-    val colors: List<Color>
+// Curated vibrant Apple Music-style palette for category tiles
+private val CuratedTilePalette = listOf(
+    Color(0xFF880E4F), // Deep Magenta / Plum
+    Color(0xFF1E293B), // Dark Slate
+    Color(0xFFB71C1C), // Deep Crimson Red
+    Color(0xFFE11D48), // Bright Hot Red
+    Color(0xFFE63946), // Coral Crimson
+    Color(0xFF2563EB), // Vibrant Royal Blue
+    Color(0xFFD97706), // Warm Amber / Country Gold
+    Color(0xFFEC4899), // Bubblegum Pop Pink
+    Color(0xFFDB2777), // Deep Rose Pink
+    Color(0xFF4D7C0F), // Olive Gold Green
+    Color(0xFF7C3AED), // Royal Violet
+    Color(0xFF0D9488), // Deep Teal
+    Color(0xFFEA580C), // Saturated Orange
+    Color(0xFF4338CA)  // Indigo
 )
 
-/**
- * 1:1 Mobile Radio Screen.
- * Features Apple Music 1, Apple Music Hits, Apple Music Country live radio stations,
- * broadcaster cards, and genre broadcast shelves.
- */
-@Composable
-fun MobileRadioScreen(
-    onStationClick: (RadioStation) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val liveStations = listOf(
-        RadioStation(
-            name = "Apple Music 1",
-            showName = "The Zane Lowe Show",
-            host = "Zane Lowe",
-            isLive = true,
-            colors = listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364))
-        ),
-        RadioStation(
-            name = "Apple Music Hits",
-            showName = "Top Hits Spotlight",
-            host = "Estelle",
-            isLive = true,
-            colors = listOf(Color(0xFF1A2980), Color(0xFF26D0CE))
-        ),
-        RadioStation(
-            name = "Apple Music Country",
-            showName = "Today's Country",
-            host = "Kelleigh Bannen",
-            isLive = true,
-            colors = listOf(Color(0xFF2C3E50), Color(0xFF4CA1AF))
-        )
-    )
+internal fun getTileBackgroundColor(category: RadioCategory, index: Int): Color {
+    val raw = category.stripeColor
+    val isNeutral = raw == 0xFF606060L || raw == 0xFF8C8C8CL || raw == 0xFFCCCCCCL || raw == 0L
+    val base = if (isNeutral) {
+        val paletteIndex = (category.id.hashCode().let { if (it < 0) -it else it } + index) % CuratedTilePalette.size
+        CuratedTilePalette[paletteIndex]
+    } else {
+        Color(raw)
+    }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 140.dp)
-    ) {
-        // ─── TOP HEADER ────────────────────────────────────────────────────────
-        item {
-            Text(
-                text = "Radio",
-                color = Color.White,
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.5).sp,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp)
-            )
-        }
-
-        // ─── FEATURED LIVE STATION BANNER (Apple Music 1) ──────────────────────
-        item {
-            MobileGlassCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .height(230.dp),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFF1E293B),
-                                    Color(0xFF0F172A),
-                                    Color(0xFF020617)
-                                )
-                            )
-                        )
-                        .padding(20.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            MobileGlassBadgePill(
-                                text = "LIVE NOW",
-                                useCyan = true
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = "Apple Music 1",
-                                color = Color.White,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Text(
-                                text = "The Zane Lowe Show",
-                                color = Color(0xFF00E5FF),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Text(
-                                text = "The world's biggest artists, breaking music, and culture stories.",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 13.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Broadcasting globally",
-                                color = Color(0xFF64748B),
-                                fontSize = 12.sp
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF00E5FF))
-                                    .clickable { onStationClick(liveStations.first()) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = "Listen Live",
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ─── STATIONS CAROUSEL ─────────────────────────────────────────────────
-        item {
-            Text(
-                text = "Live Stations",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.3).sp,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 12.dp)
-            )
-        }
-
-        item {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                items(liveStations) { station ->
-                    Column(
-                        modifier = Modifier
-                            .width(170.dp)
-                            .clickable { onStationClick(station) }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(170.dp)
-                                .clip(RadioCardShape)
-                                .background(SolidColor(station.colors.first()))
-                                .mobileLiquidGlass(RadioCardShape)
-                                .padding(14.dp),
-                            contentAlignment = Alignment.BottomStart
-                        ) {
-                            Column {
-                                Icon(
-                                    imageVector = Icons.Rounded.Radio,
-                                    contentDescription = null,
-                                    tint = Color(0xFF00E5FF),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = station.name,
-                                    color = Color.White,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = station.showName,
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = station.host,
-                            color = Color(0xFF94A3B8),
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
+    // Ensure text legibility: darken overly bright colors
+    val lum = base.luminance()
+    return when {
+        lum > 0.60f -> base.copy(red = base.red * 0.45f, green = base.green * 0.45f, blue = base.blue * 0.45f)
+        lum > 0.40f -> base.copy(red = base.red * 0.65f, green = base.green * 0.65f, blue = base.blue * 0.65f)
+        else -> base
     }
 }
 
+/** Radio genre/mood tile used in Search browse grid: sharp artwork on the right, favorite heart top-left. */
+@Composable
+internal fun RadioCategoryTile(
+    category: RadioCategory,
+    index: Int,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tileBg = remember(category.id) { getTileBackgroundColor(category, index) }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(104.dp)
+            .clip(RadioTileShape)
+            .background(tileBg)
+            .clickable(onClick = onClick)
+    ) {
+        if (category.imageUrl.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(92.dp)
+                    .clip(RadioArtworkRightShape)
+            ) {
+                AlbumArtImage(
+                    path = category.imageUrl,
+                    artworkUrl = category.imageUrl,
+                    size = 104.dp,
+                    borderRadius = 0.dp,
+                    sharpSize = 256,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+        Text(
+            text = category.title,
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.3).sp,
+            lineHeight = 20.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 14.dp, bottom = 12.dp, end = 82.dp)
+        )
+        Icon(
+            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+            tint = if (isFavorite) Color(0xFFFF2D55) else Color.White,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .clip(RadioTileShape)
+                .clickable(onClick = onFavoriteClick)
+                .padding(10.dp)
+                .size(20.dp)
+        )
+    }
+}

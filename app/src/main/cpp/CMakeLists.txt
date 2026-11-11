@@ -68,4 +68,5 @@ target_link_options(audio-player PRIVATE
     -flto
     -Wl,--gc-sections
     -Wl,--strip-all
+    -Wl,-z,max-page-size=16384
 )

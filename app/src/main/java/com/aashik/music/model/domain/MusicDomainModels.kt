@@ -5,22 +5,22 @@ import com.aashik.music.model.Song
 data class DomainAlbum(
     val title: String,
     val artist: String,
-    val year: String = "2025",
-    val genre: String = "Pop",
+    val year: String = "",
+    val genre: String = "",
     val artworkUri: String? = null,
-    val editorialReview: String = "An expansive listening experience crafted with rich spatial immersion.",
-    val isDolbyAtmos: Boolean = true,
-    val isLossless: Boolean = true,
+    val editorialReview: String = "",
+    val isDolbyAtmos: Boolean = false,
+    val isLossless: Boolean = false,
     val tracks: List<Song> = emptyList()
 )
 
 data class DomainArtist(
     val name: String,
     val photoUrl: String? = null,
-    val origin: String = "United States",
+    val origin: String = "",
     val born: String = "",
-    val genre: String = "Pop",
-    val biography: String = "Celebrated singer-songwriter crafting intimate, sonically rich pop and acoustic narratives.",
+    val genre: String = "",
+    val biography: String = "",
     val topSongs: List<Song> = emptyList(),
     val albums: List<DomainAlbum> = emptyList()
 )
@@ -28,9 +28,9 @@ data class DomainArtist(
 data class DomainPlaylist(
     val id: String,
     val title: String,
-    val curator: String = "Apple Music Pop",
-    val description: String = "Curated collection of the most captivating songs and spatial audio mixes.",
-    val lastUpdated: String = "Updated recently",
+    val curator: String = "",
+    val description: String = "",
+    val lastUpdated: String = "",
     val songs: List<Song> = emptyList(),
     val featuredArtists: List<DomainArtist> = emptyList()
 )

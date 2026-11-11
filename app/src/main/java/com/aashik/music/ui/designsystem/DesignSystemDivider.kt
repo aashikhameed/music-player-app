@@ -39,3 +39,4 @@ fun VerticalDivider(
             .background(color)
     )
 }
+

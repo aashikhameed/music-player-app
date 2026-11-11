@@ -49,7 +49,6 @@ fun DropdownMenu(
             val shape = DefaultMenuShape
             Box(
                 modifier = modifier
-                    .shadow(8.dp, shape)
                     .clip(shape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .widthIn(min = 120.dp, max = 320.dp)

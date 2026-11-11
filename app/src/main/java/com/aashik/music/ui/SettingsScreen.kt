@@ -92,6 +92,7 @@ import com.aashik.music.ui.components.AppUpdateSection
 import com.aashik.music.ui.components.CacheManagementSection
 import com.aashik.music.ui.components.DownloadStorageSection
 import com.aashik.music.ui.components.EqualizerNavigationCard
+import com.aashik.music.ui.components.LiquidGlassSettingsSection
 import com.aashik.music.ui.components.PlaybackPreferencesSection
 import com.aashik.music.ui.components.RefetchSection
 import com.aashik.music.ui.components.SpeedCompensatedVolumeSection
@@ -191,6 +192,7 @@ fun SettingsScreen(
                     SpeedCompensatedVolumeSection(viewModel = viewModel)
                     RefetchSection(viewModel = viewModel)
                     ThemeDisplaySection(viewModel = viewModel)
+                    LiquidGlassSettingsSection(viewModel = viewModel)
                     PlaybackPreferencesSection(viewModel = viewModel)
                     DownloadStorageSection(viewModel = viewModel)
                     CacheManagementSection(viewModel = viewModel)

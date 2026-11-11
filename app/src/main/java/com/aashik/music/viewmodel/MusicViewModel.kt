@@ -34,6 +34,7 @@ import com.aashik.music.service.UpdateState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -119,6 +120,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
 
     private val themePref = ThemePreference(application)
+    private val _themeMode = MutableStateFlow(
+        runCatching {
+            com.aashik.music.ui.mobile.glass.AppThemeMode.valueOf(
+                application.getSharedPreferences("automotive_prefs", Context.MODE_PRIVATE)
+                    .getString("theme_mode", null) ?: com.aashik.music.ui.mobile.glass.AppThemeMode.DARK.name
+            )
+        }.getOrDefault(com.aashik.music.ui.mobile.glass.AppThemeMode.DARK)
+    )
+    val themeMode: StateFlow<com.aashik.music.ui.mobile.glass.AppThemeMode> = _themeMode.asStateFlow()
     private val _isDarkTheme = MutableStateFlow(false)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
@@ -163,6 +173,24 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isSettingsOpen = MutableStateFlow(false)
     val isSettingsOpen: StateFlow<Boolean> = _isSettingsOpen.asStateFlow()
+
+    // ── Liquid Glass Effect Preferences (Persisted in SharedPreferences) ──
+    private val glassPrefs = application.getSharedPreferences("glass_settings", Context.MODE_PRIVATE)
+
+    private val _glassBlurRadius = MutableStateFlow(glassPrefs.getFloat("glass_blur", 8f))
+    val glassBlurRadius: StateFlow<Float> = _glassBlurRadius.asStateFlow()
+
+    private val _glassRefractionHeight = MutableStateFlow(glassPrefs.getFloat("glass_refraction_height", 24f))
+    val glassRefractionHeight: StateFlow<Float> = _glassRefractionHeight.asStateFlow()
+
+    private val _glassRefractionAmount = MutableStateFlow(glassPrefs.getFloat("glass_refraction_amount", 24f))
+    val glassRefractionAmount: StateFlow<Float> = _glassRefractionAmount.asStateFlow()
+
+    private val _glassChromaticAberration = MutableStateFlow(glassPrefs.getBoolean("glass_chromatic", true))
+    val glassChromaticAberration: StateFlow<Boolean> = _glassChromaticAberration.asStateFlow()
+
+    private val _glassSurfaceAlpha = MutableStateFlow(glassPrefs.getFloat("glass_surface_alpha", 0.4f))
+    val glassSurfaceAlpha: StateFlow<Float> = _glassSurfaceAlpha.asStateFlow()
 
     private val _isDriveModeOpen = MutableStateFlow(false)
     val isDriveModeOpen: StateFlow<Boolean> = _isDriveModeOpen.asStateFlow()
@@ -884,6 +912,53 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _isSettingsOpen.value = !_isSettingsOpen.value
     }
 
+    // ── Liquid Glass Effect Controls ──
+    fun updateGlassBlur(value: Float) {
+        val clamped = value.coerceIn(0f, 32f)
+        _glassBlurRadius.value = clamped
+        glassPrefs.edit().putFloat("glass_blur", clamped).apply()
+    }
+
+    fun updateGlassRefractionHeight(value: Float) {
+        val clamped = value.coerceIn(0f, 32f)
+        _glassRefractionHeight.value = clamped
+        glassPrefs.edit().putFloat("glass_refraction_height", clamped).apply()
+    }
+
+    fun updateGlassRefractionAmount(value: Float) {
+        val clamped = value.coerceIn(0f, 48f)
+        _glassRefractionAmount.value = clamped
+        glassPrefs.edit().putFloat("glass_refraction_amount", clamped).apply()
+    }
+
+    fun updateGlassChromaticAberration(enabled: Boolean) {
+        _glassChromaticAberration.value = enabled
+        glassPrefs.edit().putBoolean("glass_chromatic", enabled).apply()
+    }
+
+    fun updateGlassSurfaceAlpha(value: Float) {
+        val clamped = value.coerceIn(0.05f, 0.95f)
+        _glassSurfaceAlpha.value = clamped
+        glassPrefs.edit().putFloat("glass_surface_alpha", clamped).apply()
+    }
+
+    fun resetGlassSettings() {
+        // Catalog (AndroidLiquidGlass) values — the "Default" glass style.
+        updateGlassBlur(8f)
+        updateGlassRefractionHeight(24f)
+        updateGlassRefractionAmount(24f)
+        updateGlassChromaticAberration(true)
+        updateGlassSurfaceAlpha(0.4f)
+    }
+
+    fun setGlassPreset(blur: Float, height: Float, amount: Float, chromatic: Boolean, alpha: Float) {
+        updateGlassBlur(blur)
+        updateGlassRefractionHeight(height)
+        updateGlassRefractionAmount(amount)
+        updateGlassChromaticAberration(chromatic)
+        updateGlassSurfaceAlpha(alpha)
+    }
+
     fun openDriveMode() {
         _isDriveModeOpen.value = true
     }
@@ -1523,6 +1598,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Light / Dark / Album Art. Also keeps the legacy dark flag in sync for the headunit theme. */
+    fun setAppThemeMode(mode: com.aashik.music.ui.mobile.glass.AppThemeMode) {
+        _themeMode.value = mode
+        appPrefs.edit().putString("theme_mode", mode.name).apply()
+        viewModelScope.launch {
+            themePref.setDarkMode(mode != com.aashik.music.ui.mobile.glass.AppThemeMode.LIGHT)
+        }
+    }
+
     fun setThemeMode(isDark: Boolean) {
         viewModelScope.launch {
             themePref.setDarkMode(isDark)
@@ -2028,6 +2112,27 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             songDao.saveLastPlayed(song)
         }
         _isPlaying.value = true
+        prefetchUpcoming(song)
+    }
+
+    private var prefetchJob: Job? = null
+
+    /**
+     * While [current] plays, resolve the next online track's stream URL (a network lookup for
+     * tracks that aren't direct links) and start buffering it, so pressing Next starts it at once.
+     */
+    private fun prefetchUpcoming(current: Song) {
+        prefetchJob?.cancel()
+        if (!current.isStream()) return
+        prefetchJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(1500) // let the current track finish starting before using bandwidth
+            val next = getUpcomingSongs(1).firstOrNull() ?: return@launch
+            if (!next.isStream() || next.id == current.id) return@launch
+            val resolved = runCatching { OnlineStreamRepository.resolvePlayableSong(next) }.getOrNull() ?: return@launch
+            if (resolved.isDirectPlayable()) {
+                withContext(Dispatchers.Main) { musicPlayer.preloadStream(resolved) }
+            }
+        }
     }
 
     fun playNextSong(isAutoCrossfade: Boolean = false) {

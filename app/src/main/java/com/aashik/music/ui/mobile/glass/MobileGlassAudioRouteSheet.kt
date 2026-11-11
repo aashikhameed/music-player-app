@@ -1,5 +1,6 @@
 package com.aashik.music.ui.mobile.glass
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -17,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,17 +52,8 @@ fun MobileGlassAudioRouteSheet(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 20.dp)
-            .shadow(
-                elevation = 24.dp,
-                shape = sheetShape,
-                ambientColor = Color.Black.copy(alpha = 0.50f),
-                spotColor = Color.Black.copy(alpha = 0.65f)
-            )
-            .mobileLiquidGlass(
-                shape = sheetShape,
-                tintColor = Color(0xFF16181C).copy(alpha = 0.90f),
-                borderColor = Color.White.copy(alpha = 0.16f)
-            )
+            .clip(sheetShape)
+            .background(MobileTheme.panel.copy(alpha = 0.94f))
             .padding(20.dp)
     ) {
         Column(
@@ -80,12 +73,12 @@ fun MobileGlassAudioRouteSheet(
                     Icon(
                         imageVector = Icons.Rounded.Airplay,
                         contentDescription = "AirPlay",
-                        tint = Color(0xFF00E5FF),
+                        tint = MobileTheme.accent,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = "Audio Output",
-                        color = Color.White,
+                        color = MobileTheme.text,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -93,7 +86,7 @@ fun MobileGlassAudioRouteSheet(
 
                 Text(
                     text = "Done",
-                    color = Color(0xFF00E5FF),
+                    color = MobileTheme.accent,
                     fontSize = 14.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.clickable(
@@ -117,11 +110,8 @@ fun MobileGlassAudioRouteSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(54.dp)
-                            .mobileLiquidGlass(
-                                shape = rowShape,
-                                tintColor = if (isSelected) Color(0xFF00E5FF).copy(alpha = 0.14f) else Color.White.copy(alpha = 0.04f),
-                                borderColor = if (isSelected) Color(0xFF00E5FF).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f)
-                            )
+                            .clip(rowShape)
+                            .background(if (isSelected) MobileTheme.accent.copy(alpha = 0.15f) else MobileTheme.text.copy(alpha = 0.05f))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -142,12 +132,12 @@ fun MobileGlassAudioRouteSheet(
                                 Icon(
                                     imageVector = device.icon,
                                     contentDescription = device.name,
-                                    tint = if (isSelected) Color(0xFF00E5FF) else Color.White,
+                                    tint = if (isSelected) MobileTheme.accent else MobileTheme.text,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
                                     text = device.name,
-                                    color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                                    color = if (isSelected) MobileTheme.text else MobileTheme.textSecondary,
                                     fontSize = 15.sp,
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                 )
@@ -160,7 +150,7 @@ fun MobileGlassAudioRouteSheet(
                                 if (device.batteryPct != null) {
                                     Text(
                                         text = "${device.batteryPct}%",
-                                        color = Color(0xFF64748B),
+                                        color = MobileTheme.textTertiary,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -169,7 +159,7 @@ fun MobileGlassAudioRouteSheet(
                                     Icon(
                                         imageVector = Icons.Rounded.Check,
                                         contentDescription = "Selected",
-                                        tint = Color(0xFF00E5FF),
+                                        tint = MobileTheme.accent,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }

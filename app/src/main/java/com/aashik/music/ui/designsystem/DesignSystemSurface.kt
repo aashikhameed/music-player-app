@@ -31,7 +31,7 @@ fun Surface(
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         Box(
             modifier = modifier
-                .then(if (shadowElevation > 0.dp) Modifier.shadow(shadowElevation, shape) else Modifier)
+                .then(if (shadowElevation > 0.dp) Modifier else Modifier)
                 .then(if (border != null) Modifier.border(border, shape) else Modifier)
                 .background(color = color, shape = shape)
                 .clip(shape)
@@ -57,7 +57,7 @@ fun Surface(
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         Box(
             modifier = modifier
-                .then(if (shadowElevation > 0.dp) Modifier.shadow(shadowElevation, shape) else Modifier)
+                .then(if (shadowElevation > 0.dp) Modifier else Modifier)
                 .then(if (border != null) Modifier.border(border, shape) else Modifier)
                 .background(color = color, shape = shape)
                 .clip(shape)
@@ -71,3 +71,4 @@ fun Surface(
         }
     }
 }
+

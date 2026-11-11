@@ -56,16 +56,9 @@ fun MobileGlassControlCenterWidget(
         modifier = modifier
             .fillMaxWidth()
             .height(180.dp)
-            .shadow(
-                elevation = 16.dp,
-                shape = cardShape,
-                ambientColor = Color.Black.copy(alpha = 0.40f),
-                spotColor = Color.Black.copy(alpha = 0.50f)
-            )
             .mobileLiquidGlass(
                 shape = cardShape,
-                tintColor = Color(0xFF14161A).copy(alpha = 0.85f),
-                borderColor = Color.White.copy(alpha = 0.16f)
+                tintColor = MobileTheme.panel.copy(alpha = 0.85f)
             )
             .padding(16.dp),
         contentAlignment = Alignment.Center
@@ -89,7 +82,7 @@ fun MobileGlassControlCenterWidget(
                         modifier = Modifier
                             .size(54.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color.White.copy(alpha = 0.08f)),
+                            .background(MobileTheme.text.copy(alpha = 0.08f)),
                         contentAlignment = Alignment.Center
                     ) {
                         if (albumArt != null) {
@@ -106,7 +99,7 @@ fun MobileGlassControlCenterWidget(
                     Column(verticalArrangement = Arrangement.Center) {
                         Text(
                             text = currentSong?.title ?: "Not Playing",
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -114,7 +107,7 @@ fun MobileGlassControlCenterWidget(
                         )
                         Text(
                             text = currentSong?.artist ?: "Unknown Artist",
-                            color = Color(0xFF94A3B8),
+                            color = MobileTheme.textSecondary,
                             fontSize = 12.5.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -126,7 +119,7 @@ fun MobileGlassControlCenterWidget(
                 Icon(
                     imageVector = Icons.Rounded.Airplay,
                     contentDescription = "AirPlay Route",
-                    tint = Color(0xFF00E5FF),
+                    tint = MobileTheme.accent,
                     modifier = Modifier
                         .size(20.dp)
                         .clickable(
@@ -144,14 +137,14 @@ fun MobileGlassControlCenterWidget(
                         .fillMaxWidth()
                         .height(5.dp)
                         .clip(RoundedCornerShape(2.5.dp))
-                        .background(Color.White.copy(alpha = 0.15f))
+                        .background(MobileTheme.text.copy(alpha = 0.15f))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(progress)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(2.5.dp))
-                            .background(Color(0xFF00E5FF))
+                            .background(MobileTheme.accent)
                     )
                 }
 
@@ -161,9 +154,9 @@ fun MobileGlassControlCenterWidget(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(formatTimeMs(positionMs), color = Color(0xFF64748B), fontSize = 11.sp)
+                    Text(formatTimeMs(positionMs), color = MobileTheme.textTertiary, fontSize = 11.sp)
                     val remaining = (durationMs - positionMs).coerceAtLeast(0)
-                    Text("-${formatTimeMs(remaining)}", color = Color(0xFF64748B), fontSize = 11.sp)
+                    Text("-${formatTimeMs(remaining)}", color = MobileTheme.textTertiary, fontSize = 11.sp)
                 }
             }
 
@@ -181,7 +174,7 @@ fun MobileGlassControlCenterWidget(
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = "Previous",
-                        tint = Color.White,
+                        tint = MobileTheme.text,
                         modifier = Modifier
                             .size(24.dp)
                             .clickable(onClick = onPrevious)
@@ -197,7 +190,7 @@ fun MobileGlassControlCenterWidget(
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
                         contentDescription = "Next",
-                        tint = Color.White,
+                        tint = MobileTheme.text,
                         modifier = Modifier
                             .size(24.dp)
                             .clickable(onClick = onNext)
@@ -213,16 +206,16 @@ fun MobileGlassControlCenterWidget(
                     Icon(
                         imageVector = Icons.Rounded.VolumeUp,
                         contentDescription = "Volume",
-                        tint = Color(0xFF64748B),
+                        tint = MobileTheme.textTertiary,
                         modifier = Modifier.size(16.dp)
                     )
                     Slider(
                         value = volume,
                         onValueChange = onVolumeChange,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color(0xFF00E5FF),
-                            inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                            thumbColor = MobileTheme.text,
+                            activeTrackColor = MobileTheme.accent,
+                            inactiveTrackColor = MobileTheme.text.copy(alpha = 0.15f)
                         ),
                         modifier = Modifier.weight(1f)
                     )

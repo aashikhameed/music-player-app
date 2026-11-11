@@ -35,8 +35,7 @@ fun MobileGlassSegmentedPill(
             .height(height)
             .mobileLiquidGlass(
                 shape = containerShape,
-                tintColor = Color.White.copy(alpha = 0.08f),
-                borderColor = Color.White.copy(alpha = 0.12f)
+                tintColor = MobileTheme.text.copy(alpha = 0.08f)
             )
             .padding(3.dp),
         contentAlignment = Alignment.Center
@@ -54,7 +53,7 @@ fun MobileGlassSegmentedPill(
                         .height(height - 6.dp)
                         .clip(segmentShape)
                         .background(
-                            if (isSelected) Color(0xFF00E5FF).copy(alpha = 0.22f)
+                            if (isSelected) MobileTheme.accent.copy(alpha = 0.22f)
                             else Color.Transparent
                         )
                         .clickable(
@@ -67,7 +66,7 @@ fun MobileGlassSegmentedPill(
                 ) {
                     Text(
                         text = title,
-                        color = if (isSelected) Color(0xFF00E5FF) else Color(0xFF94A3B8),
+                        color = if (isSelected) MobileTheme.accent else MobileTheme.textSecondary,
                         fontSize = 12.5.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                     )
@@ -87,13 +86,13 @@ fun MobileGlassBadgePill(
     useCyan: Boolean = false
 ) {
     val shape = RoundedCornerShape(4.dp)
-    val tint = if (useCyan) Color(0xFF00E5FF).copy(alpha = 0.12f) else Color.White.copy(alpha = 0.08f)
-    val border = if (useCyan) Color(0xFF00E5FF).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f)
-    val textColor = if (useCyan) Color(0xFF00E5FF) else Color(0xFF94A3B8)
+    val tint = if (useCyan) MobileTheme.accent.copy(alpha = 0.12f) else MobileTheme.text.copy(alpha = 0.08f)
+    val border = if (useCyan) MobileTheme.accent.copy(alpha = 0.35f) else MobileTheme.text.copy(alpha = 0.12f)
+    val textColor = if (useCyan) MobileTheme.accent else MobileTheme.textSecondary
 
     Box(
         modifier = modifier
-            .mobileLiquidGlass(shape = shape, tintColor = tint, borderColor = border)
+            .mobileLiquidGlass(shape = shape, tintColor = tint)
             .padding(horizontal = 6.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {

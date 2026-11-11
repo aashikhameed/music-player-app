@@ -1,5 +1,7 @@
 package com.aashik.music.ui.mobile.screens
 
+import com.aashik.music.ui.mobile.glass.MobileTheme
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -14,6 +16,7 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
 import com.aashik.music.ui.designsystem.HorizontalDivider
+import com.aashik.music.ui.designsystem.CircularProgressIndicator
 import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.IconButton
 import com.aashik.music.ui.designsystem.Text
@@ -28,17 +31,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
+import com.aashik.music.ui.components.GenreDetailScreen
+import com.aashik.music.viewmodel.MusicViewModel
 import androidx.compose.ui.graphics.SolidColor
 import com.aashik.music.ui.mobile.glass.MobileGlassSearchBar
 import com.aashik.music.ui.mobile.glass.MobileGlassSegmentedPill
 import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
 
-private val CategoryCardShape = RoundedCornerShape(12.dp)
-
-data class BrowseCategory(
-    val title: String,
-    val gradientColors: List<Color>
-)
 
 /**
  * 1:1 Mobile Search Screen matching designScreen/mobile/Search.png.
@@ -51,38 +50,70 @@ data class BrowseCategory(
 fun MobileSearchScreen(
     songs: List<Song>,
     onSongClick: (Song) -> Unit,
+    viewModel: MusicViewModel,
     modifier: Modifier = Modifier
 ) {
-    var query by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
-    var selectedScopeIndex by remember { mutableIntStateOf(0) } // 0: Apple Music, 1: Library
-    var searchHistory by remember {
-        mutableStateOf(listOf("Imagine Dragons", "Alan Walker", "Coldplay", "Taylor Swift"))
+    val selectedCategory by viewModel.selectedRadioCategory.collectAsState()
+    val radioCategories by viewModel.radioCategories.collectAsState()
+    val favoriteCategoryIds by viewModel.favoriteCategoryIds.collectAsState()
+    val favoriteStationIds by viewModel.favoriteStationIds.collectAsState()
+    val radioStations by viewModel.radioStations.collectAsState()
+    val isLoadingCategorySongs by viewModel.isLoadingCategorySongs.collectAsState()
+    val exploreCategoryDetails by viewModel.exploreCategoryDetails.collectAsState()
+
+    androidx.activity.compose.BackHandler(enabled = selectedCategory != null) {
+        viewModel.closeRadioCategory()
     }
 
-    val categories = remember {
-        listOf(
-            BrowseCategory("Spatial Audio", listOf(Color(0xFF1A2980), Color(0xFF26D0CE))),
-            BrowseCategory("Hip-Hop", listOf(Color(0xFF3023AE), Color(0xFF53A0FD))),
-            BrowseCategory("Pop", listOf(Color(0xFF0BA360), Color(0xFF3CBA92))),
-            BrowseCategory("Rock", listOf(Color(0xFF2C3E50), Color(0xFF3498DB))),
-            BrowseCategory("Dance", listOf(Color(0xFF4776E6), Color(0xFF8E54E9))),
-            BrowseCategory("Chill", listOf(Color(0xFF134E5E), Color(0xFF71B280))),
-            BrowseCategory("Charts", listOf(Color(0xFF0052D4), Color(0xFF4364F7))),
-            BrowseCategory("Set Lists", listOf(Color(0xFF1F1C2C), Color(0xFF928DAB)))
-        )
-    }
-
-    val filteredSongs = remember(query, songs) {
-        if (query.isBlank()) emptyList()
-        else {
-            val q = query.trim().lowercase()
-            songs.filter {
-                it.title.lowercase().contains(q) ||
-                it.artist.lowercase().contains(q) ||
-                it.album.lowercase().contains(q)
-            }
+    selectedCategory?.let { category ->
+        val categoryStations = remember(radioStations, category.id) {
+            radioStations.filter { it.categoryId == category.id }
         }
+        GenreDetailScreen(
+            viewModel = viewModel,
+            category = category,
+            details = exploreCategoryDetails,
+            categoryStations = categoryStations,
+            isLoading = isLoadingCategorySongs,
+            onBack = { viewModel.closeRadioCategory() },
+            onSongLongPress = { },
+            favoriteStationIds = favoriteStationIds,
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    // Same search pipeline as the landscape headunit (MusicViewModel.onSearchQueryChanged):
+    // library + radio stations instantly, online streams debounced.
+    val query by viewModel.searchQuery.collectAsState()
+    val setQuery: (String) -> Unit = { viewModel.onSearchQueryChanged(it) }
+    val localResults by viewModel.searchSongs.collectAsState()
+    val onlineResults by viewModel.onlineSearchSongs.collectAsState()
+    val stationResults by viewModel.searchStations.collectAsState()
+    val isSearchingOnline by viewModel.isSearchingOnline.collectAsState()
+    val currentSong by viewModel.currentSong.collectAsState()
+    var isSearchActive by remember { mutableStateOf(query.isNotEmpty()) }
+    var selectedScopeIndex by remember { mutableIntStateOf(0) } // 0: All (online + library), 1: Library
+    // Leaving Search clears the query so the shared song list is not left filtered.
+    DisposableEffect(Unit) { onDispose { viewModel.onSearchQueryChanged("") } }
+    // Real search history: a query is remembered when one of its results is played.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val historyPrefs = remember { context.getSharedPreferences("mobile_search", android.content.Context.MODE_PRIVATE) }
+    var searchHistory by remember {
+        mutableStateOf(historyPrefs.getString("recent", "").orEmpty().split('\n').filter { it.isNotBlank() })
+    }
+    fun saveHistory(list: List<String>) {
+        searchHistory = list
+        historyPrefs.edit().putString("recent", list.joinToString("\n")).apply()
+    }
+    val rememberQuery: () -> Unit = {
+        val term = query.trim()
+        if (term.isNotEmpty()) saveHistory((listOf(term) + searchHistory.filterNot { it.equals(term, ignoreCase = true) }).take(8))
+    }
+
+    // Favorited categories float to the top of the grid
+    val categories = remember(radioCategories, favoriteCategoryIds) {
+        radioCategories.sortedByDescending { favoriteCategoryIds.contains(it.id) }
     }
 
     LazyColumn(
@@ -93,7 +124,7 @@ fun MobileSearchScreen(
         item {
             Text(
                 text = "Search",
-                color = Color.White,
+                color = MobileTheme.text,
                 fontSize = 34.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.5).sp,
@@ -106,10 +137,11 @@ fun MobileSearchScreen(
             MobileGlassSearchBar(
                 query = query,
                 onQueryChange = {
-                    query = it
+                    setQuery(it)
                     if (it.isNotEmpty()) isSearchActive = true
                 },
-                onClear = { query = "" },
+                onClear = { setQuery("") },
+                placeholderText = "Search songs, artists, stations",
                 isActive = isSearchActive,
                 onActiveChange = { isSearchActive = it }
             )
@@ -124,7 +156,7 @@ fun MobileSearchScreen(
                 contentAlignment = Alignment.Center
             ) {
                 MobileGlassSegmentedPill(
-                    items = listOf("Apple Music", "Library"),
+                    items = listOf("All", "Library"),
                     selectedIndex = selectedScopeIndex,
                     onItemSelected = { selectedScopeIndex = it }
                 )
@@ -133,38 +165,68 @@ fun MobileSearchScreen(
 
         // ─── CONDITIONAL CONTENT: SEARCH RESULTS VS IDLE BROWSE ────────────────
         if (query.isNotBlank()) {
-            // Live Search Results
-            item {
-                Text(
-                    text = "Top Results",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp)
-                )
+            val showOnline = selectedScopeIndex == 0
+            val nothingYet = localResults.isEmpty() && (!showOnline || (onlineResults.isEmpty() && stationResults.isEmpty()))
+
+            if (showOnline && (isSearchingOnline || onlineResults.isNotEmpty())) {
+                item { SearchSectionHeader("Songs") }
+                if (isSearchingOnline && onlineResults.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(26.dp),
+                                color = MobileTheme.accent,
+                                strokeWidth = 2.5.dp
+                            )
+                        }
+                    }
+                }
+                items(onlineResults, key = { "online_" + it.id }) { song ->
+                    MobileSongRow(
+                        song = song,
+                        isCurrent = song.path == currentSong?.path,
+                        onClick = { rememberQuery(); viewModel.play(song, playlist = onlineResults) }
+                    )
+                }
             }
 
-            if (filteredSongs.isEmpty()) {
+            if (localResults.isNotEmpty()) {
+                item { SearchSectionHeader("In Your Library") }
+                items(localResults, key = { "local_" + it.path }) { song ->
+                    MobileSongRow(
+                        song = song,
+                        subtitle = "${song.artist} • ${song.album}",
+                        isCurrent = song.path == currentSong?.path,
+                        onClick = { rememberQuery(); viewModel.play(song, playlist = localResults) }
+                    )
+                }
+            }
+
+            if (showOnline && stationResults.isNotEmpty()) {
+                item { SearchSectionHeader("Radio Stations") }
+                items(stationResults, key = { "station_" + it.id }) { station ->
+                    val stationSong = remember(station.id) { station.toSong() }
+                    MobileSongRow(
+                        song = stationSong,
+                        subtitle = "${station.genre} • ${station.country}",
+                        isCurrent = currentSong?.path == station.streamUrl,
+                        onClick = { rememberQuery(); viewModel.playRadioStation(station) }
+                    )
+                }
+            }
+
+            if (nothingYet && !(showOnline && isSearchingOnline)) {
                 item {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 40.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No results found for \"$query\"",
-                            color = Color(0xFF64748B),
+                            text = "No results for \"$query\"",
+                            color = MobileTheme.textTertiary,
                             fontSize = 15.sp
                         )
                     }
-                }
-            } else {
-                items(filteredSongs) { song ->
-                    SearchResultSongRow(
-                        song = song,
-                        onClick = { onSongClick(song) }
-                    )
                 }
             }
         } else {
@@ -182,18 +244,18 @@ fun MobileSearchScreen(
                     ) {
                         Text(
                             text = "Recently Searched",
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Clear",
-                            color = Color(0xFF00E5FF),
+                            color = MobileTheme.accent,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .clickable { searchHistory = emptyList() }
+                                .clickable { saveHistory(emptyList()) }
                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
@@ -203,11 +265,11 @@ fun MobileSearchScreen(
                     RecentSearchItemRow(
                         term = term,
                         onSelect = {
-                            query = term
+                            setQuery(term)
                             isSearchActive = true
                         },
                         onRemove = {
-                            searchHistory = searchHistory.filter { it != term }
+                            saveHistory(searchHistory.filter { it != term })
                         }
                     )
                 }
@@ -216,8 +278,8 @@ fun MobileSearchScreen(
             // Browse Categories Header
             item {
                 Text(
-                    text = "Browse Categories",
-                    color = Color.White,
+                    text = "Radio & Genres",
+                    color = MobileTheme.text,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.3).sp,
@@ -228,24 +290,23 @@ fun MobileSearchScreen(
             // 2-Column Categories Grid
             val chunkedCategories = categories.chunked(2)
             items(chunkedCategories.size) { rowIndex ->
-                val rowCategories = chunkedCategories[rowIndex]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    rowCategories.forEach { category ->
-                        Box(modifier = Modifier.weight(1f)) {
-                            BrowseCategoryCard(
-                                category = category,
-                                onClick = {
-                                    query = category.title
-                                    isSearchActive = true
-                                }
-                            )
-                        }
+                    chunkedCategories[rowIndex].forEachIndexed { col, category ->
+                        RadioCategoryTile(
+                            category = category,
+                            index = rowIndex * 2 + col,
+                            isFavorite = favoriteCategoryIds.contains(category.id),
+                            onFavoriteClick = { viewModel.toggleCategoryFavorite(category.id) },
+                            onClick = { viewModel.openRadioCategory(category) },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
+                    if (chunkedCategories[rowIndex].size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -269,7 +330,7 @@ private fun RecentSearchItemRow(
         Icon(
             imageVector = Icons.Rounded.History,
             contentDescription = null,
-            tint = Color(0xFF64748B),
+            tint = MobileTheme.textTertiary,
             modifier = Modifier.size(20.dp)
         )
 
@@ -277,7 +338,7 @@ private fun RecentSearchItemRow(
 
         Text(
             text = term,
-            color = Color.White,
+            color = MobileTheme.text,
             fontSize = 15.sp,
             modifier = Modifier.weight(1f)
         )
@@ -289,7 +350,7 @@ private fun RecentSearchItemRow(
             Icon(
                 imageVector = Icons.Rounded.Clear,
                 contentDescription = "Remove",
-                tint = Color(0xFF64748B),
+                tint = MobileTheme.textTertiary,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -297,95 +358,12 @@ private fun RecentSearchItemRow(
 }
 
 @Composable
-private fun SearchResultSongRow(
-    song: Song,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF1E293B)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MusicNote,
-                contentDescription = null,
-                tint = Color(0xFF00E5FF).copy(alpha = 0.7f),
-                modifier = Modifier.size(22.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = song.title.ifBlank { "Untitled" },
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "${song.artist} • ${song.album}",
-                color = Color(0xFF94A3B8),
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        IconButton(
-            onClick = {},
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MoreVert,
-                contentDescription = "Options",
-                tint = Color(0xFF64748B),
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
+private fun SearchSectionHeader(title: String) {
+    Text(
+        text = title,
+        color = MobileTheme.text,
+        fontSize = 20.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 6.dp)
+    )
 }
-
-@Composable
-private fun BrowseCategoryCard(
-    category: BrowseCategory,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(96.dp)
-            .clip(CategoryCardShape)
-            .background(SolidColor(category.gradientColors.first()))
-            .mobileLiquidGlass(
-                shape = CategoryCardShape,
-                tintColor = Color.White.copy(alpha = 0.05f),
-                borderColor = Color.White.copy(alpha = 0.12f)
-            )
-            .clickable(onClick = onClick)
-            .padding(14.dp),
-        contentAlignment = Alignment.BottomStart
-    ) {
-        Text(
-            text = category.title,
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 20.sp
-        )
-    }
-}
-

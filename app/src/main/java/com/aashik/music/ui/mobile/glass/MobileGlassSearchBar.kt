@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private val SearchCapsuleShape = RoundedCornerShape(20.dp)
+
 /**
  * Mobile Liquid Glass Capsule Search Bar (Height: 40pt, r=20pt).
  * Features magnifying glass, clear '✕' button, and animated 'Cancel' action.
@@ -35,8 +37,6 @@ fun MobileGlassSearchBar(
     placeholderText: String = "Search Apple Music and Library",
     modifier: Modifier = Modifier
 ) {
-    val capsuleShape = RoundedCornerShape(20.dp)
-
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -50,9 +50,8 @@ fun MobileGlassSearchBar(
                 .weight(1f)
                 .height(40.dp)
                 .mobileLiquidGlass(
-                    shape = capsuleShape,
-                    tintColor = Color.White.copy(alpha = 0.08f),
-                    borderColor = Color.White.copy(alpha = 0.12f)
+                    shape = SearchCapsuleShape,
+                    tintColor = MobileTheme.text.copy(alpha = 0.08f)
                 )
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
@@ -65,7 +64,7 @@ fun MobileGlassSearchBar(
                 Icon(
                     imageVector = Icons.Rounded.Search,
                     contentDescription = "Search",
-                    tint = Color(0xFF64748B),
+                    tint = MobileTheme.textTertiary,
                     modifier = Modifier.size(18.dp)
                 )
 
@@ -73,7 +72,7 @@ fun MobileGlassSearchBar(
                     if (query.isEmpty()) {
                         Text(
                             text = placeholderText,
-                            color = Color(0xFF64748B),
+                            color = MobileTheme.textTertiary,
                             fontSize = 14.5.sp,
                             maxLines = 1
                         )
@@ -83,11 +82,11 @@ fun MobileGlassSearchBar(
                         onValueChange = onQueryChange,
                         singleLine = true,
                         textStyle = TextStyle(
-                            color = Color.White,
+                            color = MobileTheme.text,
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        cursorBrush = SolidColor(Color(0xFF00E5FF)),
+                        cursorBrush = SolidColor(MobileTheme.accent),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -98,8 +97,7 @@ fun MobileGlassSearchBar(
                             .size(20.dp)
                             .mobileLiquidGlass(
                                 shape = RoundedCornerShape(10.dp),
-                                tintColor = Color.White.copy(alpha = 0.18f),
-                                borderColor = Color.White.copy(alpha = 0.25f)
+                                tintColor = MobileTheme.text.copy(alpha = 0.18f)
                             )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
@@ -111,7 +109,7 @@ fun MobileGlassSearchBar(
                         Icon(
                             imageVector = Icons.Rounded.Clear,
                             contentDescription = "Clear",
-                            tint = Color.White,
+                            tint = MobileTheme.text,
                             modifier = Modifier.size(12.dp)
                         )
                     }
@@ -123,7 +121,7 @@ fun MobileGlassSearchBar(
         if (isActive || query.isNotEmpty()) {
             Text(
                 text = "Cancel",
-                color = Color(0xFF00E5FF),
+                color = MobileTheme.accent,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Normal,
                 modifier = Modifier.clickable(

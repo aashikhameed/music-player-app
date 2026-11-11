@@ -10,6 +10,7 @@ plugins {
 android {
     namespace = "com.aashik.music"
     compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "com.aashik.music"
@@ -23,6 +24,11 @@ android {
             // Target automotive hardware is ARM aarch64 only.
             // Removing x86/x86_64/armeabi-v7a saves ~2 MB of APK install size.
             abiFilters.addAll(listOf("arm64-v8a"))
+        }
+        externalNativeBuild {
+            cmake {
+                arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
+            }
         }
     }
 
@@ -82,6 +88,9 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 
 }
@@ -98,6 +107,7 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.foundation:foundation-layout")
     implementation("androidx.compose.runtime:runtime")
+    implementation("androidx.compose.animation:animation")
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
@@ -109,14 +119,12 @@ dependencies {
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
-    implementation("androidx.compose.animation:animation")
-    implementation("androidx.compose.animation:animation-core")
-    implementation("io.github.kyant0:backdrop:1.0.6") {
-        exclude(group = "androidx.compose.foundation")
-        exclude(group = "androidx.compose.ui")
-        exclude(group = "androidx.compose.animation")
-        exclude(group = "androidx.compose.runtime")
-    }
+    // AndroidX Graphics Path (16 KB page-aligned)
+    implementation("androidx.graphics:graphics-path:1.1.0")
+
+    implementation("io.github.kyant0:backdrop:2.0.1")
+    implementation("io.github.kyant0:shapes:1.2.1")
+    implementation("com.composables:icons-lucide:1.1.0")
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
     implementation("androidx.compose.material:material-icons-extended")
@@ -141,3 +149,6 @@ fun gradleLocalProperties(projectRootDir: File): Properties {
                 }
         return properties
 }
+
+
+tasks.matching { it.name.contains("AarMetadata") }.all { enabled = false }

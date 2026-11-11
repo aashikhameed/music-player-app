@@ -55,3 +55,11 @@ This automated gatekeeper enforces:
 ## 6. Layout Freeze Mandate
 - **STRICT LAYOUT FREEZE**: All visual UI layouts, screen structures, components, dimensions, styles, paddings, and arrangements across Mobile and Automotive Headunit are frozen as specified in `layout.md`.
 - **EXPLICIT USER PERMISSION REQUIRED**: Whatever prompt the user provides in the future, the agent MUST explicitly ask and receive user permission BEFORE making any modifications or alterations to the UI layout or visual structure. Backend, logic, bugs, and performance optimizations may be performed without altering layout geometry, but UI changes require explicit user authorization.
+
+---
+
+## 7. Liquid Glass Reference & Implementation Guidelines
+- **Canonical Reference Codebase**: When implementing, updating, debugging, or styling liquid glass components (`drawBackdrop`, optical lenses, vibrancy, chromatic aberration, specular highlights, shadows, interactive spring physics, and damped drag gestures), always refer to the canonical catalog codebase at:
+  `/Users/aashikhameed/Documents/aashik/projects/AndroidLiquidGlass/app/src/commonMain/kotlin/com/kyant/backdrop/catalog`
+- **Component Scope**: Only the seekbar slider (`LiquidSlider`) must use liquid glass backdrop sampling and optical lens refraction. Other navigation elements (e.g. `MobileGlassBottomNavBar`, mini-player) must remain solid/semi-translucent without lens distortion bubbles.
+- **Styling Constraints**: Strictly NEVER apply border color or border width (`border = null`, no borders).

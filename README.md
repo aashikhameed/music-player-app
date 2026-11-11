@@ -294,6 +294,7 @@ The following open-source projects and client architectures were studied as tech
 
 - **[BitChord](https://github.com/kushagrasinghx/BitChord)**: Studied as a technical reference for client-side queue orchestration, multi-tiered queue deduplication, and media shelf hierarchy patterns.
 - **[NewPipe](https://github.com/TeamNewPipe/NewPipe)**: Studied as an architectural reference for client-side media player lifecycles, background service state management, and video player state machines.
+- **[AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)**: Canonical implementation reference for liquid glass backdrop sampling, optical lens refraction, and interactive damped drag gestures. Local reference codebase: `/Users/aashikhameed/Documents/aashik/projects/AndroidLiquidGlass/app/src/commonMain/kotlin/com/kyant/backdrop/catalog`.
 - **Community Media Schemas**: Analyzed for generic data models across track metadata, artist credits, album groupings, and bitrate categorization.
 
 > [!NOTE]

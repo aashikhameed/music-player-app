@@ -1,5 +1,7 @@
 package com.aashik.music.ui.mobile.screens
 
+import com.aashik.music.ui.mobile.glass.MobileTheme
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +19,8 @@ import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,11 +35,11 @@ import com.aashik.music.model.domain.DomainAlbum
 import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
 
 enum class LibraryCategory(val title: String, val icon: ImageVector) {
-    PLAYLISTS("Playlists", Icons.Rounded.QueueMusic),
+    FAVORITES("Favorites", Icons.Rounded.Favorite),
     ARTISTS("Artists", Icons.Rounded.Person),
     TRACKS("Tracks", Icons.Rounded.MusicNote),
     ALBUMS("Albums", Icons.Rounded.Album),
-    VIDEOS("Music Videos", Icons.Rounded.Videocam),
+    FOLDERS("Folders", Icons.Rounded.Folder),
     GENRES("Genres", Icons.Rounded.GraphicEq)
 }
 
@@ -52,19 +56,23 @@ fun MobileLibraryScreen(
     onAlbumClick: (DomainAlbum) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Group songs into albums
-    val albums = remember(songs) {
-        songs.groupBy { it.album }
-            .map { (albumTitle, albumSongs) ->
-                val first = albumSongs.first()
-                DomainAlbum(
-                    title = albumTitle.ifBlank { "Unknown Album" },
-                    artist = first.artist.ifBlank { "Unknown Artist" },
-                    year = "2025",
-                    genre = "Pop",
-                    tracks = albumSongs
-                )
-            }
+    // Albums ordered by the newest file they contain (file timestamps read off the main thread).
+    val albums by produceState(initialValue = emptyList<DomainAlbum>(), songs) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            songs.filter { !it.isStream() }
+                .groupBy { it.album.ifBlank { "Unknown Album" } }
+                .map { (albumTitle, albumSongs) ->
+                    val newest = albumSongs.maxOf { runCatching { java.io.File(it.path).lastModified() }.getOrDefault(0L) }
+                    newest to DomainAlbum(
+                        title = albumTitle,
+                        artist = albumArtistOf(albumSongs),
+                        tracks = albumSongs
+                    )
+                }
+                .sortedByDescending { it.first }
+                .take(10)
+                .map { it.second }
+        }
     }
 
     LazyColumn(
@@ -82,22 +90,12 @@ fun MobileLibraryScreen(
             ) {
                 Text(
                     text = "Library",
-                    color = Color.White,
+                    color = MobileTheme.text,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
                 )
 
-                Text(
-                    text = "Edit",
-                    color = Color(0xFF00E5FF),
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { /* Toggle editing */ }
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
-                )
             }
         }
 
@@ -117,7 +115,7 @@ fun MobileLibraryScreen(
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 44.dp),
                             thickness = 0.5.dp,
-                            color = Color.White.copy(alpha = 0.08f)
+                            color = MobileTheme.text.copy(alpha = 0.08f)
                         )
                     }
                 }
@@ -128,7 +126,7 @@ fun MobileLibraryScreen(
         item {
             Text(
                 text = "Recently Added",
-                color = Color.White,
+                color = MobileTheme.text,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.3).sp,
@@ -180,7 +178,7 @@ private fun LibraryCategoryRow(
         Icon(
             imageVector = category.icon,
             contentDescription = category.title,
-            tint = Color(0xFF00E5FF),
+            tint = MobileTheme.accent,
             modifier = Modifier.size(24.dp)
         )
 
@@ -188,7 +186,7 @@ private fun LibraryCategoryRow(
 
         Text(
             text = category.title,
-            color = Color.White,
+            color = MobileTheme.text,
             fontSize = 17.sp,
             fontWeight = FontWeight.Normal,
             modifier = Modifier.weight(1f)
@@ -197,7 +195,7 @@ private fun LibraryCategoryRow(
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             contentDescription = null,
-            tint = Color(0xFF64748B),
+            tint = MobileTheme.textTertiary,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -213,38 +211,16 @@ private fun RecentlyAddedAlbumCard(
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
-        // 168x168pt Artwork Card
-        Box(
-            modifier = Modifier
-                .aspectRatio(1f)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF1E293B))
-                .mobileLiquidGlass(RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            // Vinyl Disc Representation
-            Box(
-                modifier = Modifier
-                    .fillMaxSize(0.65f)
-                    .clip(CircleShape)
-                    .background(Color(0xFF0F172A)),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize(0.35f)
-                        .clip(CircleShape)
-                        .background(Color(0xFF00E5FF).copy(alpha = 0.35f))
-                )
-            }
+        // Square cover, sized to the card width
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            CollectionCover(album.tracks, size = maxWidth, cornerRadius = 10.dp, sharpSize = 256)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = album.title,
-            color = Color.White,
+            color = MobileTheme.text,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -253,7 +229,7 @@ private fun RecentlyAddedAlbumCard(
 
         Text(
             text = album.artist,
-            color = Color(0xFF94A3B8),
+            color = MobileTheme.textSecondary,
             fontSize = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
