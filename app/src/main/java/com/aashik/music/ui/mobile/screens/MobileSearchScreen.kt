@@ -185,7 +185,9 @@ fun MobileSearchScreen(
                     MobileSongRow(
                         song = song,
                         isCurrent = song.path == currentSong?.path,
-                        onClick = { rememberQuery(); viewModel.play(song, playlist = onlineResults) }
+                        // Seed-only playlist: the app then starts similar-song radio instead of queueing the
+                        // other search hits (same title / same movie).
+                        onClick = { rememberQuery(); viewModel.play(song, playlist = listOf(song)) }
                     )
                 }
             }

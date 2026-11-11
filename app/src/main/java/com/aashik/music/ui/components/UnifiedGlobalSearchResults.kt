@@ -164,7 +164,7 @@ fun UnifiedGlobalSearchResults(
                 SongCard(
                     song = song,
                     isPlaying = isPlaying,
-                    onClick = { viewModel.play(song, playlist = onlineSongs) },
+                    onClick = { viewModel.play(song, playlist = listOf(song)) }, // seed radio, don't queue other search hits
                     onLongPress = { onSongLongPress(song) },
                     showOptions = false,
                     isFavorite = favoritePaths.contains(song.path),
