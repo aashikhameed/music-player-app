@@ -61,8 +61,7 @@ import com.aashik.music.desktop.ui.DesktopImageCache
 @Composable
 internal fun DeskArt(song: DesktopSong?, size: Dp, shape: androidx.compose.ui.graphics.Shape = DeskArt8, modifier: Modifier = Modifier) {
     val c = Desk.c
-    var bmp by remember(song?.id) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(song?.id) { bmp = song?.let { DesktopImageCache.load(it.artworkUrl ?: it.path) } }
+    val bmp = com.aashik.music.desktop.ui.rememberRetryingImage(song?.id to song?.artworkUrl) { song?.let { DesktopImageCache.load(it.artworkUrl ?: it.path) } }
     Box(modifier.size(size).clip(shape).background(c.idleFill), contentAlignment = Alignment.Center) {
         val b = bmp
         if (b != null) Image(b, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())

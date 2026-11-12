@@ -46,6 +46,12 @@ object DesktopImageCache {
     private val memory = ConcurrentHashMap<String, ImageBitmap>()
     private val httpGate = kotlinx.coroutines.sync.Semaphore(6)
 
+    private val diskDir = File(System.getProperty("user.home"), ".musicplayer/cache/art").also { runCatching { it.mkdirs() } }
+    private fun diskFile(url: String): File {
+        val h = java.security.MessageDigest.getInstance("SHA-1").digest(url.toByteArray()).joinToString("") { "%02x".format(it) }
+        return File(diskDir, "$h.jpg")
+    }
+
     suspend fun load(rawUrl: String): ImageBitmap? = withContext(Dispatchers.IO) {
         val url = rawUrl.trim()
         if (url.isBlank()) return@withContext null
@@ -53,17 +59,7 @@ object DesktopImageCache {
 
         try {
             val bmp = if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
-                // Not every cover exists at 500x500: fall back to the 150x150 the catalogue always has.
-                // A search page asks for dozens of covers at once: limit parallel requests and retry the ones that fail.
-                httpGate.withPermit {
-                    var got: ImageBitmap? = null
-                    for (attempt in 0 until 3) {
-                        got = runCatching { loadHttpImage(url) ?: if (url.contains("500x500")) loadHttpImage(url.replace("500x500", "150x150")) else null }.getOrNull()
-                        if (got != null) break
-                        kotlinx.coroutines.delay(400L * (attempt + 1))
-                    }
-                    got
-                }
+                loadRemote(url)
             } else {
                 loadLocalImageOrAudioArt(url)
             }
@@ -71,44 +67,65 @@ object DesktopImageCache {
                 memory[url] = bmp
                 return@withContext bmp
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Silently fall through to null on corrupt or missing art
         }
         null
     }
 
-    private fun loadHttpImage(urlString: String): ImageBitmap? {
-        val conn = (URL(urlString).openConnection() as? HttpURLConnection) ?: return null
-        conn.connectTimeout = 8000
-        conn.readTimeout = 15000
-        conn.instanceFollowRedirects = true
-        conn.setRequestProperty(
-            "User-Agent",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-        )
-        conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-        conn.setRequestProperty("Referer", String(Base64.getDecoder().decode("aHR0cHM6Ly93d3cuamlvc2Fhdm4uY29tLw=="), Charsets.UTF_8))
-        conn.connect()
-
-        if (conn.responseCode in 200..299) {
-            conn.inputStream.use { stream -> return decode(stream.readBytes()) }
+    /** Remote cover: disk cache first; otherwise fetch (6 at a time, 3 tries), keep the 60 % JPEG on disk. */
+    private suspend fun loadRemote(url: String): ImageBitmap? {
+        val f = diskFile(url)
+        if (f.exists() && f.length() > 0) runCatching { return bitmapOf(f.readBytes()) }
+        return httpGate.withPermit {
+            var lossy: ByteArray? = null
+            var weak = false
+            for (attempt in 0 until 3) {
+                var raw = runCatching { fetchBytes(url) }.getOrNull()
+                weak = false
+                // Not every cover exists at 500x500: fall back to the 150x150 the catalogue always has (not cached, so a later launch retries the big one).
+                if (raw == null && url.contains("500x500")) { raw = runCatching { fetchBytes(url.replace("500x500", "150x150")) }.getOrNull(); weak = raw != null }
+                lossy = raw?.let { encodeLossy(it) }
+                if (lossy != null) break
+                kotlinx.coroutines.delay(400L * (attempt + 1))
+            }
+            lossy?.let { l -> if (!weak) runCatching { f.writeBytes(l) }; bitmapOf(l) }
         }
-        return null
+    }
+
+    private fun fetchBytes(urlString: String): ByteArray? {
+        val conn = (URL(urlString).openConnection() as? HttpURLConnection) ?: return null
+        try {
+            conn.connectTimeout = 8000
+            conn.readTimeout = 15000
+            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)")
+            conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+            conn.setRequestProperty("Referer", String(Base64.getDecoder().decode("aHR0cHM6Ly93d3cuamlvc2Fhdm4uY29tLw=="), Charsets.UTF_8))
+            conn.connect()
+            return if (conn.responseCode in 200..299) conn.inputStream.use { it.readBytes() } else null
+        } finally { conn.disconnect() }
     }
 
     /**
      * Skia decodes JPEG, PNG, WebP and GIF (ImageIO cannot read WebP, which most online covers use).
      * Artwork is kept at 60 % quality (re-encoded JPEG, longest side <= 600 px): small in memory, plenty for the UI.
      */
-    private fun decode(bytes: ByteArray): ImageBitmap? = try {
+    private fun decode(bytes: ByteArray): ImageBitmap? = encodeLossy(bytes)?.let { bitmapOf(it) }
+
+    private fun bitmapOf(encoded: ByteArray): ImageBitmap? = try {
+        org.jetbrains.skia.Image.makeFromEncoded(encoded).toComposeImageBitmap()
+    } catch (_: Throwable) { null }
+
+    private fun encodeLossy(bytes: ByteArray): ByteArray? = try {
         val img = org.jetbrains.skia.Image.makeFromEncoded(bytes)
         val scale = minOf(1f, MAX_SIDE / maxOf(img.width, img.height).toFloat())
         val w = maxOf(1, (img.width * scale).toInt()); val h = maxOf(1, (img.height * scale).toInt())
         val surface = org.jetbrains.skia.Surface.makeRasterN32Premul(w, h)
         surface.canvas.drawImageRect(img, org.jetbrains.skia.Rect.makeWH(img.width.toFloat(), img.height.toFloat()), org.jetbrains.skia.Rect.makeWH(w.toFloat(), h.toFloat()), org.jetbrains.skia.SamplingMode.LINEAR, null, true)
-        val small = surface.makeImageSnapshot()
-        val lossy = small.encodeToData(org.jetbrains.skia.EncodedImageFormat.JPEG, 60)
-        (lossy?.let { org.jetbrains.skia.Image.makeFromEncoded(it.bytes) } ?: small).toComposeImageBitmap()
+        surface.makeImageSnapshot().encodeToData(org.jetbrains.skia.EncodedImageFormat.JPEG, 60)?.bytes
     } catch (_: Throwable) { null }
 
     private const val MAX_SIDE = 600f
@@ -315,4 +332,20 @@ fun DesktopArtwork(
             )
         }
     }
+}
+
+
+/** Loads an image for the UI and quietly retries (2 s, 4 s, 6 s, 8 s) if it fails; [load] returns null when there is nothing to show. */
+@Composable
+fun rememberRetryingImage(key: Any?, load: suspend () -> ImageBitmap?): ImageBitmap? {
+    var bmp by remember(key) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(key) {
+        var tries = 0
+        while (bmp == null && tries < 5) {
+            bmp = load()
+            if (bmp == null) kotlinx.coroutines.delay(2000L * (tries + 1))
+            tries++
+        }
+    }
+    return bmp
 }

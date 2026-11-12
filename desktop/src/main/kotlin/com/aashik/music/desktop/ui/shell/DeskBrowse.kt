@@ -96,7 +96,7 @@ internal fun DeskGroupGrid(title: String, groups: List<DeskGroup>, bottomInset: 
             items(groups, key = { it.key }) { g ->
                 Column(Modifier.clickable { onOpen(g) }) {
                     Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
-                        DeskArtFill(g.cover, if (round) androidx.compose.foundation.shape.CircleShape else DeskCard)
+                        if (round) DeskArtistFill(g.title, null) else DeskArtFill(g.cover, DeskCard)
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(g.title, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -110,8 +110,7 @@ internal fun DeskGroupGrid(title: String, groups: List<DeskGroup>, bottomInset: 
 @Composable
 internal fun DeskArtFill(song: DesktopSong?, shape: androidx.compose.ui.graphics.Shape) {
     val c = Desk.c
-    var bmp by remember(song?.id) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(song?.id) { bmp = song?.let { DesktopImageCache.load(it.artworkUrl ?: it.path) } }
+    val bmp = com.aashik.music.desktop.ui.rememberRetryingImage(song?.id to song?.artworkUrl) { song?.let { DesktopImageCache.load(it.artworkUrl ?: it.path) } }
     Box(Modifier.fillMaxSize().clip(shape).background(c.idleFill), Alignment.Center) {
         val b = bmp
         if (b != null) Image(b, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -119,16 +118,19 @@ internal fun DeskArtFill(song: DesktopSong?, shape: androidx.compose.ui.graphics
     }
 }
 
-/** Round artist photo; a person glyph when the catalogue has none (never a song cover). */
+/** Round artist photo: the given one, else looked up in the catalogue by name; coloured initials while there is none. */
 @Composable
-internal fun DeskArtistFill(url: String?) {
+internal fun DeskArtistFill(name: String, url: String?) {
     val c = Desk.c
-    var bmp by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(url) { bmp = if (url.isNullOrBlank()) null else DesktopImageCache.load(url) }
-    Box(Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape).background(c.idleFill), Alignment.Center) {
+    val bmp = com.aashik.music.desktop.ui.rememberRetryingImage(name to url) {
+        val u = url ?: com.aashik.music.desktop.service.DesktopOnlineRepository.artistImage(name)
+        u?.let { DesktopImageCache.load(it) }
+    }
+    val tint = remember(name) { Color.hsv((name.lowercase().hashCode().let { if (it < 0) -it else it } % 360).toFloat(), 0.45f, 0.55f) }
+    Box(Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape).background(tint), Alignment.Center) {
         val b = bmp
         if (b != null) Image(b, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        else DeskGlyph(Icons.Rounded.Person, c.textTertiary, 44.dp)
+        else Text(name.trim().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }.ifBlank { "?" }, color = Color.White.copy(alpha = 0.9f), fontSize = 34.sp, fontWeight = FontWeight.Bold)
     }
 }
 

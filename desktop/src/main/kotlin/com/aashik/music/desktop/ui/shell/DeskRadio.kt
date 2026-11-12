@@ -144,8 +144,11 @@ private fun GenreDetail(
 /** Coloured genre tile: artwork on the right, title bottom-left, heart top-left (like the headunit tile). */
 @Composable
 private fun CategoryTile(cat: DesktopRadioCategory, index: Int, isFav: Boolean, onFav: () -> Unit, onClick: () -> Unit) {
-    var bmp by remember(cat.id) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(cat.id) { if (cat.imageUrl.isNotBlank()) bmp = DesktopImageCache.load(cat.imageUrl) }
+    // The tile's own image is hosted elsewhere and sometimes fails: fall back to a Jio cover for the genre.
+    val bmp = com.aashik.music.desktop.ui.rememberRetryingImage(cat.id) {
+        (if (cat.imageUrl.isNotBlank()) DesktopImageCache.load(cat.imageUrl) else null)
+            ?: DesktopOnlineRepository.categoryCover(cat.title)?.let { DesktopImageCache.load(it) }
+    }
     val base = Color(cat.stripeColor)
     val bg = when {
         base.luminance() > 0.60f -> base.copy(red = base.red * 0.45f, green = base.green * 0.45f, blue = base.blue * 0.45f)
@@ -165,9 +168,8 @@ private fun CategoryTile(cat: DesktopRadioCategory, index: Int, isFav: Boolean, 
 @Composable
 private fun StationRow(s: DesktopRadioStation, isPlaying: Boolean, isFav: Boolean, onPlay: () -> Unit, onFav: () -> Unit, onStartRadio: () -> Unit) {
     val c = Desk.c
-    var bmp by remember(s.id) { mutableStateOf<ImageBitmap?>(null) }
     val art = remember(s.id) { s.toSong().artworkUrl }
-    LaunchedEffect(s.id) { if (!art.isNullOrBlank()) bmp = DesktopImageCache.load(art) }
+    val bmp = com.aashik.music.desktop.ui.rememberRetryingImage(s.id) { if (!art.isNullOrBlank()) DesktopImageCache.load(art) else null }
     Row(
         Modifier.fillMaxWidth().height(64.dp).clip(DeskCard).background(if (isPlaying) c.selectedFill else c.idleFill).clickable(onClick = onPlay).padding(start = 10.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically

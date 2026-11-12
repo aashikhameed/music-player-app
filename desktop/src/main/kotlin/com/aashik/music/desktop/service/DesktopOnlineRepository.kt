@@ -112,6 +112,28 @@ object DesktopOnlineRepository {
         }
     }
 
+    private val artistImages = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val categoryCovers = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Photo of an artist from the Jio catalogue (library artists have none). Empty string = looked up, none found. */
+    suspend fun artistImage(name: String): String? {
+        val key = name.lowercase().trim()
+        if (key.isBlank()) return null
+        artistImages[key]?.let { return it.ifBlank { null } }
+        val found = runCatching { searchSongs(name, 10) }.getOrDefault(emptyList())
+            .firstOrNull { it.artistImage != null && it.artist.lowercase().let { a -> a == key || a.contains(key) || key.contains(a) } }?.artistImage
+        artistImages[key] = found.orEmpty()
+        return found
+    }
+
+    /** A Jio cover for a genre/mood tile whose own image could not be loaded. */
+    suspend fun categoryCover(title: String): String? {
+        categoryCovers[title]?.let { return it.ifBlank { null } }
+        val found = runCatching { searchSongs("$title Hits", 5) }.getOrDefault(emptyList()).firstNotNullOfOrNull { it.artworkUrl }
+        categoryCovers[title] = found.orEmpty()
+        return found
+    }
+
     private fun parseItem(item: JSONObject): DesktopSong? {
         val rawId = item.optString("id", "")
         val rawTitle = unescapeHtml(item.optString("title", "").ifBlank { item.optString("song", "") })
