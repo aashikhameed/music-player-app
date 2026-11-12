@@ -59,6 +59,8 @@ object DesktopDownloader {
             }
             conn.disconnect()
             if (!tmp.renameTo(out)) { tmp.copyTo(out, overwrite = true); tmp.delete() }
+            // Tag sidecar so the library shows the right title / artist / album for this download.
+            runCatching { File(out.parentFile, out.nameWithoutExtension + ".tags").writeText(listOf(song.title, song.artist, song.album).joinToString("\n")) }
             song.artworkUrl?.takeIf { it.startsWith("http") }?.let { art ->
                 runCatching {
                     val ext = art.substringBefore('?').substringAfterLast('.', "jpg").lowercase().takeIf { it in setOf("jpg", "jpeg", "png", "webp") } ?: "jpg"

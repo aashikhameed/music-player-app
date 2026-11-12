@@ -75,12 +75,15 @@ object DesktopLocalScanner {
                         if (!seenPaths.contains(file.absolutePath)) {
                             seenPaths.add(file.absolutePath)
                             val cleanName = file.nameWithoutExtension
+                            // "Artist - Title" (the downloader's naming); a .tags sidecar written at download time wins.
+                            val tags = runCatching { File(file.parentFile, cleanName + ".tags").readLines() }.getOrNull()
                             val parts = if (cleanName.contains(" - ")) cleanName.split(" - ", limit = 2) else null
-                            val title = parts?.getOrNull(0)?.trim() ?: cleanName
-                            val artist = parts?.getOrNull(1)?.trim() ?: "Local Artist"
+                            val title = tags?.getOrNull(0)?.takeIf { it.isNotBlank() } ?: parts?.getOrNull(1)?.trim() ?: cleanName
+                            val artist = tags?.getOrNull(1)?.takeIf { it.isNotBlank() } ?: parts?.getOrNull(0)?.trim() ?: "Local Artist"
+                            val album = tags?.getOrNull(2)?.takeIf { it.isNotBlank() }
 
                             // Companion artwork (.jpg or .png with same base name or folder.jpg) or fallback to embedded file artwork
-                            val companionArt = File(file.parentFile, "${file.nameWithoutExtension}.jpg").takeIf { it.exists() }
+                            val companionArt = listOf("jpg", "jpeg", "png", "webp").firstNotNullOfOrNull { e -> File(file.parentFile, "${file.nameWithoutExtension}.$e").takeIf { it.exists() } }
                                 ?: File(file.parentFile, "cover.jpg").takeIf { it.exists() }
                                 ?: File(file.parentFile, "folder.jpg").takeIf { it.exists() }
 
@@ -91,7 +94,7 @@ object DesktopLocalScanner {
                                     id = "local_${file.absolutePath.hashCode()}",
                                     title = title,
                                     artist = artist,
-                                    album = file.parentFile?.name ?: "Local Music",
+                                    album = album ?: file.parentFile?.name ?: "Local Music",
                                     duration = 0L,
                                     path = file.absolutePath,
                                     artworkUrl = artworkPath
