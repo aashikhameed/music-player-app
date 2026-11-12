@@ -100,12 +100,12 @@ object DesktopImageCache {
         // 1. Direct Image Files
         if (ext in listOf("jpg", "jpeg", "png", "webp", "bmp", "gif")) return decode(file.readBytes())
 
-        // 2. Embedded Audio Artwork (.m4a, .mp4, .mp3, .flac)
+        // 2. Cover saved next to the file (Jio cover from downloads / lookup) beats whatever is embedded (often a YouTube thumbnail)
+        listOf("jpg", "jpeg", "webp", "png").map { File(file.parentFile, file.nameWithoutExtension + "." + it) }
+            .firstOrNull { it.exists() }?.let { c -> decode(c.readBytes())?.let { return it } }
+        // 3. Embedded Audio Artwork (.m4a, .mp4, .mp3, .flac)
         val rawArtBytes = extractEmbeddedArtworkBytes(file)
         if (rawArtBytes != null && rawArtBytes.isNotEmpty()) decode(rawArtBytes)?.let { return it }
-        // 3. Cover saved next to the file (downloads): "<name>.jpg/.webp/.png"
-        listOf("jpg", "jpeg", "webp", "png").map { File(file.parentFile, file.nameWithoutExtension + "." + it) }
-            .firstOrNull { it.exists() }?.let { return decode(it.readBytes()) }
         return null
     }
 

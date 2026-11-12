@@ -107,4 +107,32 @@ object DesktopLocalScanner {
 
         foundSongs.sortedBy { it.title }
     }
+
+    private val IMAGE_EXT = listOf("jpg", "jpeg", "png", "webp")
+    private fun norm(t: String) = t.lowercase().replace(Regex("\\(.*?\\)|\\[.*?\\]"), " ").replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+
+    /**
+     * Local songs without a cover file next to them would show whatever is embedded in the audio (often a YouTube
+     * thumbnail). Look the song up on the Jio catalogue, save its cover next to the file and return the updated song.
+     */
+    suspend fun fetchJioCover(song: DesktopSong): DesktopSong? = withContext(Dispatchers.IO) {
+        val file = File(song.path)
+        if (!file.isFile) return@withContext null
+        if (IMAGE_EXT.any { File(file.parentFile, file.nameWithoutExtension + "." + it).exists() }) return@withContext null
+        val miss = File(file.parentFile, file.nameWithoutExtension + ".nocover")
+        if (miss.exists()) return@withContext null
+        val want = norm(song.title)
+        val hit = runCatching { DesktopOnlineRepository.searchSongs("${song.title} ${song.artist}".trim(), 5) }.getOrDefault(emptyList())
+            .firstOrNull { it.artworkUrl != null && norm(it.title).let { t -> t == want || t.contains(want) || want.contains(t) } }
+        val art = hit?.artworkUrl
+        if (art == null) { runCatching { miss.createNewFile() }; return@withContext null }
+        runCatching {
+            val ext = art.substringBefore('?').substringAfterLast('.', "jpg").lowercase().takeIf { it in IMAGE_EXT } ?: "jpg"
+            val out = File(file.parentFile, file.nameWithoutExtension + "." + ext)
+            val c = (java.net.URL(art).openConnection() as java.net.HttpURLConnection).apply { connectTimeout = 8_000; readTimeout = 12_000; setRequestProperty("User-Agent", "Mozilla/5.0") }
+            c.inputStream.use { i -> out.outputStream().use { o -> i.copyTo(o) } }
+            c.disconnect()
+            song.copy(artworkUrl = out.toURI().toString())
+        }.getOrNull()
+    }
 }

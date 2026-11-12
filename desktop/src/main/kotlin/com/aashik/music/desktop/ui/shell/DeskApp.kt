@@ -95,6 +95,10 @@ internal fun DeskApp(preview: DeskPreview? = null) {
             val loaded = DesktopLocalScanner.scanLocalMusic(DesktopLocalScanner.getStoredStorageDir())
             songs = loaded
             loaded.forEach { s -> DeskPrefs.plays(s.id).takeIf { it > 0 }?.let { plays[s.id] = it } }
+            // Songs without a cover file: fetch the Jio cover in the background and swap it in.
+            loaded.filter { !it.artworkUrl.orEmpty().let { u -> u.endsWith(".jpg") || u.endsWith(".jpeg") || u.endsWith(".png") || u.endsWith(".webp") } }.forEach { s ->
+                DesktopLocalScanner.fetchJioCover(s)?.let { n -> songs = songs.map { if (it.id == s.id) n else it } }
+            }
         }
     }
     LaunchedEffect(current?.id) {
