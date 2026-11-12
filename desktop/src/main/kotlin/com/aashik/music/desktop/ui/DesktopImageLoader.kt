@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withPermit
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.RandomAccessFile
@@ -43,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object DesktopImageCache {
     private val memory = ConcurrentHashMap<String, ImageBitmap>()
+    private val httpGate = kotlinx.coroutines.sync.Semaphore(6)
 
     suspend fun load(rawUrl: String): ImageBitmap? = withContext(Dispatchers.IO) {
         val url = rawUrl.trim()
@@ -52,7 +54,16 @@ object DesktopImageCache {
         try {
             val bmp = if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
                 // Not every cover exists at 500x500: fall back to the 150x150 the catalogue always has.
-                loadHttpImage(url) ?: if (url.contains("500x500")) loadHttpImage(url.replace("500x500", "150x150")) else null
+                // A search page asks for dozens of covers at once: limit parallel requests and retry the ones that fail.
+                httpGate.withPermit {
+                    var got: ImageBitmap? = null
+                    for (attempt in 0 until 3) {
+                        got = runCatching { loadHttpImage(url) ?: if (url.contains("500x500")) loadHttpImage(url.replace("500x500", "150x150")) else null }.getOrNull()
+                        if (got != null) break
+                        kotlinx.coroutines.delay(400L * (attempt + 1))
+                    }
+                    got
+                }
             } else {
                 loadLocalImageOrAudioArt(url)
             }
@@ -68,8 +79,8 @@ object DesktopImageCache {
 
     private fun loadHttpImage(urlString: String): ImageBitmap? {
         val conn = (URL(urlString).openConnection() as? HttpURLConnection) ?: return null
-        conn.connectTimeout = 5000
-        conn.readTimeout = 7000
+        conn.connectTimeout = 8000
+        conn.readTimeout = 15000
         conn.instanceFollowRedirects = true
         conn.setRequestProperty(
             "User-Agent",
