@@ -32,14 +32,43 @@ internal data class DeskPalette(
 }
 
 internal val DeskDark = DeskPalette(
-    background = Color(0xFF0D0F12),
-    panel = Color(0xFF141923),
+    background = Color(0xFF1E1E22),
+    panel = Color(0xFF26262E),
     text = Color.White,
-    textSecondary = Color(0xFF94A3B8),
-    textTertiary = Color(0xFF64748B),
-    accent = Color(0xFF00E5FF),
-    onAccent = Color.Black
+    textSecondary = Color(0xFF98989F),
+    textTertiary = Color(0xFF6C6C74),
+    accent = Color(0xFFFA2D48),
+    onAccent = Color.White
 )
+
+internal val DeskLight = DeskPalette(
+    background = Color(0xFFF5F5F7),
+    panel = Color(0xFFE9E9EE),
+    text = Color(0xFF1D1D1F),
+    textSecondary = Color(0xFF6E6E73),
+    textTertiary = Color(0xFF9A9AA0),
+    accent = Color(0xFFFA2D48),
+    onAccent = Color.White
+)
+
+internal enum class DeskThemeMode(val label: String) { LIGHT("Light"), DARK("Dark"), ARTWORK("Album Art") }
+
+internal object DeskPrefs {
+    private val node = java.util.prefs.Preferences.userRoot().node("com/aashik/music/desktop")
+    fun theme(): DeskThemeMode = runCatching { DeskThemeMode.valueOf(node.get("theme", "DARK")) }.getOrDefault(DeskThemeMode.DARK)
+    fun setTheme(m: DeskThemeMode) { node.put("theme", m.name) }
+    fun plays(id: String): Int = node.getInt("p" + (id.hashCode().toLong() and 0xffffffffL), 0)
+    fun addPlay(id: String) { node.putInt("p" + (id.hashCode().toLong() and 0xffffffffL), plays(id) + 1) }
+    private val favFile get() = java.io.File(System.getProperty("user.home"), ".musicplayer/favorites.txt")
+    fun loadFavorites(): List<String> = runCatching { favFile.readLines().filter { it.isNotBlank() } }.getOrDefault(emptyList())
+    fun saveFavorites(ids: List<String>) { runCatching { favFile.parentFile.mkdirs(); favFile.writeText(ids.joinToString("\n")) } }
+}
+
+internal fun deskPalette(mode: DeskThemeMode, art: ImageBitmap?): DeskPalette = when (mode) {
+    DeskThemeMode.LIGHT -> DeskLight
+    DeskThemeMode.DARK -> DeskDark
+    DeskThemeMode.ARTWORK -> deskPaletteFromArt(art)
+}
 
 internal val LocalDesk = compositionLocalOf { DeskDark }
 

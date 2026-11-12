@@ -25,10 +25,10 @@ fun main(args: Array<String>) {
         .mapIndexed { i, (t, a) -> DesktopSong("id$i", t, a, "Album ${i + 1}", 200_000L + i * 7_000L, "/demo/$i.mp3") }
     val lyr = (0 until 14).map { DesktopLyricLine(it * 4000L, "Come on, come on, turn the radio on $it") }
     val preview = DeskPreview(demo, lyr,
-        dest = if (mode == "favs") DeskDest.FAVORITES else if (mode == "settings") DeskDest.SETTINGS else DeskDest.SONGS,
-        nowPlaying = mode == "np" || mode == "split" || mode == "queue",
-        pane = when (mode) { "split" -> DeskPane.LYRICS; "queue" -> DeskPane.UP_NEXT; else -> DeskPane.NONE },
-        search = mode == "search")
+        dest = when (mode) { "recent" -> DeskDest.RECENT; "home" -> DeskDest.HOME; "artists" -> DeskDest.ARTISTS; "albums" -> DeskDest.ALBUMS; "radio" -> DeskDest.RADIO
+            "settings" -> DeskDest.SETTINGS; "eq" -> DeskDest.EQUALIZER; "search" -> DeskDest.SEARCH; "playlists" -> DeskDest.PLAYLISTS; else -> DeskDest.SONGS },
+        playing = mode != "idle", panel = if (mode == "queue") RightPanel.QUEUE else RightPanel.LYRICS,
+        sheet = mode == "sheet", query = if (mode == "search") "a" else "")
     val scene = ComposeScene(Dispatchers.Unconfined, Density(1f)) {}
     scene.constraints = Constraints(0, w, 0, h)
     scene.setContent { DesktopTheme { DeskApp(preview) } }

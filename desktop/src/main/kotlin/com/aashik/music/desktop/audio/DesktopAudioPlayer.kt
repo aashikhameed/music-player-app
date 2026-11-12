@@ -70,6 +70,7 @@ object DesktopAudioPlayer {
             mediaPlayer = player
 
             player.volume = _volume.value.toDouble()
+            applyEq(player)
 
             player.setOnReady {
                 val total = player.totalDuration
@@ -123,6 +124,29 @@ object DesktopAudioPlayer {
         } catch (e: Exception) {
             println("[DesktopAudio] Seek failed: ${e.message}")
         }
+    }
+
+    // 10-band equalizer (JavaFX AudioEqualizer: 32 Hz … 16 kHz), applied to the current and every later track.
+    private val eqGains = FloatArray(10)
+    val eqBandGains: List<Float> get() = eqGains.toList()
+
+    fun setEqBand(index: Int, db: Float) {
+        if (index !in eqGains.indices) return
+        eqGains[index] = db.coerceIn(-12f, 12f)
+        mediaPlayer?.let { applyEq(it) }
+    }
+
+    fun resetEq(values: List<Float>) {
+        for (i in eqGains.indices) eqGains[i] = values.getOrElse(i) { 0f }.coerceIn(-12f, 12f)
+        mediaPlayer?.let { applyEq(it) }
+    }
+
+    private fun applyEq(player: MediaPlayer) {
+        try {
+            val eq = player.audioEqualizer
+            eq.isEnabled = true
+            eq.bands.forEachIndexed { i, band -> if (i < eqGains.size) band.gain = eqGains[i].toDouble() }
+        } catch (_: Throwable) {}
     }
 
     fun setVolume(vol: Float) {

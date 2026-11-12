@@ -119,18 +119,19 @@ internal fun DeskPillButton(text: String, onClick: () -> Unit, modifier: Modifie
  * [progress] is read from a lambda so only this leaf recomposes on playback ticks.
  */
 @Composable
-internal fun DeskSeekSlider(progress: () -> Float, onSeek: (Float) -> Unit, modifier: Modifier = Modifier) {
+internal fun DeskSeekSlider(progress: () -> Float, onSeek: (Float) -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     val c = Desk.c
     var dragging by remember { mutableStateOf<Float?>(null) }
     var widthPx by remember { mutableStateOf(1f) }
     val pressScale by animateFloatAsState(if (dragging != null) 1.35f else 1f, spring(dampingRatio = 0.55f, stiffness = 420f))
-    val thumbW = 40.dp; val thumbH = 24.dp
+    val thumbW = if (compact) 14.dp else 40.dp; val thumbH = if (compact) 14.dp else 24.dp
+    val trackH = if (compact) 4.dp else 8.dp
     val density = LocalDensity.current
     val value = (dragging ?: progress()).coerceIn(0f, 1f)
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(if (compact) 28.dp else 44.dp)
             .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
             .pointerInput(Unit) {
                 awaitEachGesture {
@@ -152,8 +153,8 @@ internal fun DeskSeekSlider(progress: () -> Float, onSeek: (Float) -> Unit, modi
         contentAlignment = Alignment.CenterStart
     ) {
         val trackW = maxWidth
-        Box(Modifier.fillMaxWidth().height(8.dp).background(c.text.copy(alpha = 0.14f), DeskPill))
-        Box(Modifier.width(trackW * value).height(8.dp).background(c.accent, DeskPill))
+        Box(Modifier.fillMaxWidth().height(trackH).background(c.text.copy(alpha = 0.14f), DeskPill))
+        Box(Modifier.width(trackW * value).height(trackH).background(c.accent, DeskPill))
         val x = (trackW - thumbW) * value
         Box(
             Modifier
