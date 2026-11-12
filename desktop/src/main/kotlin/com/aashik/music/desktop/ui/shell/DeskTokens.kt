@@ -83,7 +83,7 @@ internal val LocalDeskWallpaper = compositionLocalOf<com.kyant.backdrop.Backdrop
 
 /** Real Kyant liquid glass: vibrancy + blur + (optional) lens over the page behind. Flat panel when no backdrop. */
 @Composable
-internal fun Modifier.deskLiquid(radius: androidx.compose.ui.unit.Dp, lens: Boolean = true, surfaceAlpha: Float = 0.35f, floating: Boolean = false): Modifier {
+internal fun Modifier.deskLiquid(radius: androidx.compose.ui.unit.Dp, lens: Boolean = true, surfaceAlpha: Float = 0.35f, floating: Boolean = false, blurDp: Float = 2f): Modifier {
     // Glass never samples a layer it is drawn into: page items use the wallpaper, floating items the whole page.
     val backdrop = if (floating) LocalDeskBackdrop.current else LocalDeskWallpaper.current
     val c = Desk.c
@@ -94,9 +94,9 @@ internal fun Modifier.deskLiquid(radius: androidx.compose.ui.unit.Dp, lens: Bool
         backdrop = backdrop,
         shape = { shape },
         effects = {
-            vibrancy()
-            blur(2.dp.toPx())
-            if (lens) lens(12.dp.toPx(), 24.dp.toPx())
+            if (!floating) vibrancy()
+            if (blurDp > 0f) blur(blurDp.dp.toPx())
+            if (lens) lens(if (floating) 24.dp.toPx() else 12.dp.toPx(), 24.dp.toPx())
         },
         highlight = { null },
         shadow = { null },

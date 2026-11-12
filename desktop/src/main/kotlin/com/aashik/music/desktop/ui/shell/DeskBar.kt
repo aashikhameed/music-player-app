@@ -101,23 +101,23 @@ internal fun DeskFloatingLayer(
         val barW = maxWidth * BarFraction
         Box(
             Modifier.align(Alignment.BottomCenter).padding(bottom = BarBottom).width(barW).height(BarHeight)
-                .deskLiquid(32.dp, lens = true, surfaceAlpha = 0.18f, floating = true).pointerInput(Unit) {}
+                .deskLiquid(32.dp, lens = true, surfaceAlpha = 0.12f, floating = true, blurDp = 0f).pointerInput(Unit) {}
         ) {
             Row(Modifier.fillMaxSize().padding(start = 14.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 val dim = if (song != null) 1f else 0.4f
-                DeskIconButton(Icons.Rounded.Shuffle, actions.onToggleShuffle, size = 36.dp, glyph = 18.dp, tint = if (shuffle) c.accent else c.textSecondary, glass = true, floating = true)
-                DeskIconButton(Icons.Rounded.FastRewind, actions.onPrevious, size = 42.dp, glyph = 28.dp, tint = c.text.copy(alpha = dim), glass = true, floating = true)
-                DeskIconButton(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, actions.onPlayPause, size = 46.dp, glyph = 36.dp, glass = true, floating = true)
-                DeskIconButton(Icons.Rounded.FastForward, actions.onNext, size = 42.dp, glyph = 28.dp, tint = c.text.copy(alpha = dim), glass = true, floating = true)
-                DeskIconButton(if (repeat == DeskRepeat.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, actions.onCycleRepeat, size = 36.dp, glyph = 18.dp, tint = if (repeat != DeskRepeat.OFF) c.accent else c.textSecondary, glass = true, floating = true)
+                DeskIconButton(Icons.Rounded.Shuffle, actions.onToggleShuffle, size = 36.dp, glyph = 18.dp, tint = if (shuffle) c.accent else c.textSecondary)
+                DeskIconButton(Icons.Rounded.FastRewind, actions.onPrevious, size = 42.dp, glyph = 28.dp, tint = c.text.copy(alpha = dim))
+                DeskIconButton(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, actions.onPlayPause, size = 46.dp, glyph = 36.dp)
+                DeskIconButton(Icons.Rounded.FastForward, actions.onNext, size = 42.dp, glyph = 28.dp, tint = c.text.copy(alpha = dim))
+                DeskIconButton(if (repeat == DeskRepeat.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, actions.onCycleRepeat, size = 36.dp, glyph = 18.dp, tint = if (repeat != DeskRepeat.OFF) c.accent else c.textSecondary)
                 Spacer(Modifier.width(14.dp))
                 NowPlayingInfo(song, actions, Modifier.weight(1f))
                 Spacer(Modifier.width(10.dp))
-                DeskIconButton(Icons.Rounded.Podcasts, onRadio, size = 38.dp, glyph = 21.dp, tint = c.text.copy(alpha = dim), enabled = song != null && !radioLoading, loading = radioLoading, glass = true, floating = true)
+                DeskIconButton(Icons.Rounded.Podcasts, onRadio, size = 38.dp, glyph = 21.dp, tint = c.text.copy(alpha = dim), enabled = song != null && !radioLoading, loading = radioLoading)
                 DownloadButton(download, onDownload)
-                DeskIconButton(Icons.Rounded.MoreHoriz, onMore, size = 38.dp, glyph = 22.dp, tint = c.text.copy(alpha = dim), enabled = song != null, glass = true, floating = true)
-                DeskIconButton(Icons.Rounded.Chat, onLyrics, size = 38.dp, glyph = 20.dp, tint = if (lyricsOpen) c.accent else c.textSecondary, glass = true, floating = true)
-                DeskIconButton(Icons.Rounded.FormatListBulleted, onQueue, size = 38.dp, glyph = 22.dp, tint = if (queueOpen) c.accent else c.text, glass = true, floating = true)
+                DeskIconButton(Icons.Rounded.MoreHoriz, onMore, size = 38.dp, glyph = 22.dp, tint = c.text.copy(alpha = dim), enabled = song != null)
+                DeskIconButton(Icons.Rounded.Chat, onLyrics, size = 38.dp, glyph = 20.dp, tint = if (lyricsOpen) c.accent else c.textSecondary)
+                DeskIconButton(Icons.Rounded.FormatListBulleted, onQueue, size = 38.dp, glyph = 22.dp, tint = if (queueOpen) c.accent else c.text)
                 Volume()
             }
         }
@@ -136,9 +136,9 @@ internal sealed interface DownloadState {
 private fun DownloadButton(state: DownloadState, onClick: () -> Unit) {
     val c = Desk.c
     when (state) {
-        DownloadState.None -> DeskIconButton(Icons.Rounded.ArrowCircleDown, {}, size = 38.dp, glyph = 22.dp, tint = c.text.copy(alpha = 0.4f), enabled = false, glass = true, floating = true)
-        DownloadState.Available -> DeskIconButton(Icons.Rounded.ArrowCircleDown, onClick, size = 38.dp, glyph = 22.dp, tint = c.text, glass = true, floating = true)
-        DownloadState.Done -> DeskIconButton(Icons.Rounded.CheckCircle, {}, size = 38.dp, glyph = 22.dp, tint = c.accent, glass = true, floating = true)
+        DownloadState.None -> DeskIconButton(Icons.Rounded.ArrowCircleDown, {}, size = 38.dp, glyph = 22.dp, tint = c.text.copy(alpha = 0.4f), enabled = false)
+        DownloadState.Available -> DeskIconButton(Icons.Rounded.ArrowCircleDown, onClick, size = 38.dp, glyph = 22.dp, tint = c.text)
+        DownloadState.Done -> DeskIconButton(Icons.Rounded.CheckCircle, {}, size = 38.dp, glyph = 22.dp, tint = c.accent)
         is DownloadState.Running -> Box(Modifier.size(38.dp), Alignment.Center) {
             androidx.compose.material3.CircularProgressIndicator(
                 progress = { state.progress.coerceAtLeast(0.03f) }, color = c.accent, trackColor = c.text.copy(alpha = 0.2f),
@@ -194,6 +194,6 @@ private fun Volume() {
     var open by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (open) Box(Modifier.width(90.dp)) { DeskSeekSlider(progress = { vol }, onSeek = { DesktopAudioPlayer.setVolume(it) }, compact = true, overPage = true) }
-        DeskIconButton(Icons.Rounded.VolumeUp, { open = !open }, size = 38.dp, glyph = 22.dp, tint = if (open) c.accent else c.textSecondary, glass = true, floating = true)
+        DeskIconButton(Icons.Rounded.VolumeUp, { open = !open }, size = 38.dp, glyph = 22.dp, tint = if (open) c.accent else c.textSecondary)
     }
 }
