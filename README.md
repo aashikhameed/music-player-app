@@ -235,7 +235,7 @@ bash .agents/skills/automotive-performance-verifier/scripts/verify_release.sh
 # Build debug APK
 ./gradlew assembleDebug
 
-# Build production R8-optimized ARM64 APK (~4.6 MB)
+# Build production R8-optimized ARM64 APK (~3.9 MB)
 ./gradlew assembleRelease
 ```
 

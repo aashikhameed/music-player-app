@@ -34,6 +34,8 @@ import com.aashik.music.model.domain.DomainArtist
 import com.aashik.music.model.domain.DomainPlaylist
 import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
 
+private val HeaderButtonShape = RoundedCornerShape(22.dp)
+
 /**
  * 1:1 Mobile Playlist Detail Screen matching designScreen/mobile/Playlist.png.
  * Features 240x240pt mosaic artwork, curator tag in Cyan,
@@ -119,7 +121,7 @@ fun MobilePlaylistScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = HeaderButtonShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MobileTheme.text,
                         contentColor = MobileTheme.onText
@@ -149,7 +151,7 @@ fun MobilePlaylistScreen(
                         .weight(1f)
                         .height(44.dp)
                         .mobileLiquidGlass(
-                            shape = RoundedCornerShape(22.dp),
+                            shape = HeaderButtonShape,
                             tintColor = MobileTheme.text.copy(alpha = 0.10f)
                         )
                         .clickable(onClick = onShuffle),

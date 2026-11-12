@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private val SearchFieldShape = RoundedCornerShape(10.dp)
+
 private val SearchCapsuleShape = RoundedCornerShape(20.dp)
 
 /**
@@ -95,7 +97,7 @@ fun MobileGlassSearchBar(
                         modifier = Modifier
                             .size(20.dp)
                             .mobileLiquidGlass(
-                                shape = RoundedCornerShape(10.dp),
+                                shape = SearchFieldShape,
                                 tintColor = MobileTheme.text.copy(alpha = 0.18f)
                             )
                             .clickable(

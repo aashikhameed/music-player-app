@@ -14,10 +14,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setBackgroundDrawable(null) // Eliminates root window overdraw
+        lockOrientation()
         hideSystemBars()
         handleLaunchIntent(intent)
         setContent {
             MusicApp()
+        }
+    }
+
+    /**
+     * Phones stay in portrait; tablets (and headunits, which are 600dp+ wide) stay in landscape.
+     * Tablet = smallest screen width of 600dp or more.
+     */
+    private fun lockOrientation() {
+        val isTablet = resources.configuration.smallestScreenWidthDp >= 600
+        requestedOrientation = if (isTablet) {
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        } else {
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
 

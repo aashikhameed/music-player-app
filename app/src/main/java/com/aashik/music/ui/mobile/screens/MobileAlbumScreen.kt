@@ -28,6 +28,8 @@ import com.aashik.music.model.domain.DomainAlbum
 import com.aashik.music.ui.mobile.glass.MobileGlassBadgePill
 import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
 
+private val HeaderButtonShape = RoundedCornerShape(22.dp)
+
 /**
  * 1:1 Mobile Album Screen matching designScreen/mobile/Album.png.
  * Features 240x240pt centered artwork, format badge pills,
@@ -121,7 +123,7 @@ fun MobileAlbumScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = HeaderButtonShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MobileTheme.text,
                         contentColor = MobileTheme.onText
@@ -151,7 +153,7 @@ fun MobileAlbumScreen(
                         .weight(1f)
                         .height(44.dp)
                         .mobileLiquidGlass(
-                            shape = RoundedCornerShape(22.dp),
+                            shape = HeaderButtonShape,
                             tintColor = MobileTheme.text.copy(alpha = 0.10f)
                         )
                         .clickable(onClick = onShuffle),

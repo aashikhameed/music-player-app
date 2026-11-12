@@ -30,6 +30,8 @@ import com.aashik.music.model.domain.DomainAlbum
 import com.aashik.music.model.domain.DomainArtist
 import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
 
+private val HeaderButtonShape = RoundedCornerShape(21.dp)
+
 /**
  * 1:1 Mobile Artist Screen matching designScreen/mobile/Artist.png.
  * Features 360pt full-bleed portrait hero header,
@@ -114,7 +116,7 @@ fun MobileArtistScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(42.dp),
-                    shape = RoundedCornerShape(21.dp),
+                    shape = HeaderButtonShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MobileTheme.text,
                         contentColor = MobileTheme.onText
@@ -143,7 +145,7 @@ fun MobileArtistScreen(
                         .weight(1f)
                         .height(42.dp)
                         .mobileLiquidGlass(
-                            shape = RoundedCornerShape(21.dp),
+                            shape = HeaderButtonShape,
                             tintColor = MobileTheme.text.copy(alpha = 0.10f)
                         )
                         .clickable(onClick = onShuffle),

@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.model.domain.DomainAlbum
 
+private val LibraryRowShape = RoundedCornerShape(10.dp)
+
 enum class LibraryCategory(val title: String, val icon: ImageVector) {
     FAVORITES("Favorites", Icons.Rounded.Favorite),
     ARTISTS("Artists", Icons.Rounded.Person),
@@ -163,7 +165,7 @@ private fun LibraryCategoryRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(LibraryRowShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically

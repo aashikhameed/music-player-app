@@ -27,6 +27,8 @@ import com.aashik.music.viewmodel.MusicViewModel
 import com.aashik.music.ui.mobile.glass.MobileGlassSearchBar
 import com.aashik.music.ui.mobile.glass.MobileGlassSegmentedPill
 
+private val ResultArtShape = RoundedCornerShape(6.dp)
+
 
 /**
  * 1:1 Mobile Search Screen matching designScreen/mobile/Search.png.
@@ -245,7 +247,7 @@ fun MobileSearchScreen(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(ResultArtShape)
                                 .clickable { saveHistory(emptyList()) }
                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                         )
