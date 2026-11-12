@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -115,6 +116,19 @@ internal fun DeskArtFill(song: DesktopSong?, shape: androidx.compose.ui.graphics
         val b = bmp
         if (b != null) Image(b, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         else DeskGlyph(Icons.Rounded.MusicNote, c.textTertiary, 40.dp)
+    }
+}
+
+/** Round artist photo; a person glyph when the catalogue has none (never a song cover). */
+@Composable
+internal fun DeskArtistFill(url: String?) {
+    val c = Desk.c
+    var bmp by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(url) { bmp = if (url.isNullOrBlank()) null else DesktopImageCache.load(url) }
+    Box(Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape).background(c.idleFill), Alignment.Center) {
+        val b = bmp
+        if (b != null) Image(b, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        else DeskGlyph(Icons.Rounded.Person, c.textTertiary, 44.dp)
     }
 }
 

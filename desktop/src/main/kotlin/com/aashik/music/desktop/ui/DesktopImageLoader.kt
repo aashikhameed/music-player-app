@@ -51,7 +51,8 @@ object DesktopImageCache {
 
         try {
             val bmp = if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
-                loadHttpImage(url)
+                // Not every cover exists at 500x500: fall back to the 150x150 the catalogue always has.
+                loadHttpImage(url) ?: if (url.contains("500x500")) loadHttpImage(url.replace("500x500", "150x150")) else null
             } else {
                 loadLocalImageOrAudioArt(url)
             }

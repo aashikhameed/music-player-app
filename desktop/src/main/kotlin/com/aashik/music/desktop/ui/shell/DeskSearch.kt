@@ -139,7 +139,7 @@ internal fun DeskSearchPage(
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(artists, key = { it.key }) { (name, songs) ->
                         Column(Modifier.width(120.dp).clickable { onOpenArtist(name) }, horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(Modifier.size(120.dp)) { DeskArtFill(songs.first(), CircleShape) }
+                            Box(Modifier.size(120.dp)) { DeskArtistFill(songs.firstNotNullOfOrNull { it.artistImage }) }
                             Spacer(Modifier.height(10.dp))
                             Text(name, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }

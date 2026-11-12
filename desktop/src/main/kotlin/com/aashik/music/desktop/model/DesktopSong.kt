@@ -7,7 +7,9 @@ data class DesktopSong(
     val album: String = "Unknown Album",
     val duration: Long = 0L,
     val path: String,
-    val artworkUrl: String? = null
+    val artworkUrl: String? = null,
+    /** Photo of the primary artist (from the catalogue), not a song cover. */
+    val artistImage: String? = null
 ) {
     fun isStream(): Boolean =
         path.startsWith("http://", ignoreCase = true) || path.startsWith("https://", ignoreCase = true)

@@ -129,11 +129,14 @@ object DesktopOnlineRepository {
         val finalStreamUrl = selectBestStream(decryptedUrl, supports320)
 
         var artist = ""
+        var artistImage: String? = null
         val artistMap = moreInfo?.optJSONObject("artistMap") ?: item.optJSONObject("artistMap")
         val primaryArtists = artistMap?.optJSONArray("primary_artists")
         if (primaryArtists != null && primaryArtists.length() > 0) {
             val firstArtist = primaryArtists.optJSONObject(0)
             artist = firstArtist?.optString("name", "") ?: ""
+            artistImage = firstArtist?.optString("image", "")?.takeIf { it.startsWith("http") && !it.contains("_i_default") }
+                ?.replace("150x150", "500x500")?.replace("50x50", "500x500")
         }
         if (artist.isBlank()) {
             val rawArtist = moreInfo?.optString("music")
@@ -165,7 +168,8 @@ object DesktopOnlineRepository {
             album = album,
             duration = durationMs,
             path = finalStreamUrl,
-            artworkUrl = artworkUrl
+            artworkUrl = artworkUrl,
+            artistImage = artistImage
         )
     }
 
