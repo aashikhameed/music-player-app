@@ -235,9 +235,32 @@ bash .agents/skills/automotive-performance-verifier/scripts/verify_release.sh
 # Build debug APK
 ./gradlew assembleDebug
 
-# Build production R8-optimized ARM64 APK (3.5 MB)
+# Build production R8-optimized ARM64 APK (~4.6 MB)
 ./gradlew assembleRelease
 ```
+
+---
+
+## 🖥️ macOS App
+
+A native desktop companion, built with Compose Multiplatform. It follows the headunit's liquid-glass design (the same Kyant `backdrop` glass), and the radio screen and radio behaviour match the car app.
+
+**Highlights**
+- Music-style layout: glass sidebar, song table with artwork, Search, Home, Radio & Genres, Artists, Albums, Playlists, Queue, Lyrics, 10-band Equalizer.
+- Liquid-glass mini player (transport, radio, download, lyrics, queue, volume) with a glass seek slider.
+- Themes: Light, Dark, and **Album Art** (background colour picked from the playing artwork).
+- Online search, radio and downloads from the Jio catalogue; downloads are saved to your music folder with cover and tags.
+- Artwork is cached on disk (`~/.musicplayer/cache/art`), kept at 60 % quality, with automatic retries and artist-photo lookup.
+
+**Requirements:** JDK 21+ (the Gradle build finds one under `~/.gradle/jdks`, or pass `-Pdesktop.jdk=/path/to/jdk`).
+
+```bash
+./gradlew :desktop:run                       # launch the app
+./gradlew :desktop:packageDmg                # build the installer -> desktop/build/compose/binaries/main/dmg/Music-1.0.0.dmg
+./gradlew :desktop:snapshot -Pmode=library   # render a screen to /tmp/desktop.png without a display (modes: library, home, search, radio, settings, eq, glass ...)
+```
+
+The DMG is not signed or notarized: on first launch right-click the app and choose **Open** (or run `xattr -dr com.apple.quarantine /Applications/Music.app`). The installer targets the chip type of the Mac that built it.
 
 ---
 
@@ -335,12 +358,3 @@ This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**
   <b>Built with ❤️ for automotive audiophiles and car enthusiast developers.</b><br>
   <sub>If you find this project useful for your car headunit, please consider starring ⭐ the repository!</sub>
 </div>
-
-## macOS app
-
-The desktop app is a separate Gradle build (Kotlin 2.4, Compose Multiplatform 1.12, Kyant backdrop liquid glass), which needs JDK 21+:
-
-```bash
-./gradlew :desktop:run                      # launch
-./gradlew :desktop:snapshot -Pmode=library  # render the UI to /tmp/desktop.png without a display
-```

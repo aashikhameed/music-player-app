@@ -66,3 +66,6 @@ local.properties
 compile_commands.json
 .clangd
 
+
+# Kotlin compiler session data
+.kotlin/
