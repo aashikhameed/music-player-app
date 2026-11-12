@@ -1,6 +1,11 @@
 package com.aashik.music.desktop.tools
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
@@ -26,7 +31,9 @@ fun main(args: Array<String>) {
             "settings" -> DeskDest.SETTINGS; "eq" -> DeskDest.EQUALIZER; "search" -> DeskDest.SEARCH; "playlists" -> DeskDest.PLAYLISTS; else -> DeskDest.SONGS },
         playing = mode != "idle", panel = if (mode == "queue") RightPanel.QUEUE else RightPanel.LYRICS,
         sheet = mode == "sheet", query = if (mode == "search") "a" else "")
-    val scene = ImageComposeScene(w, h, Density(1f)) { DesktopTheme { DeskApp(preview) } }
+    val scene = ImageComposeScene(w, h, Density(1f)) {
+        DesktopTheme { if (mode == "glass") GlassProbe() else DeskApp(preview) }
+    }
     var t = 0L
     var image = scene.render(t)
     repeat(60) { Thread.sleep(60); t += 50_000_000L; image = scene.render(t) }
@@ -34,4 +41,23 @@ fun main(args: Array<String>) {
     File(out).writeBytes(data.bytes)
     println("wrote $out")
     kotlin.system.exitProcess(0)
+}
+
+/** Probe: a capsule of real glass over striped content, to see whether lens/blur actually render. */
+@Composable
+private fun GlassProbe() {
+    val page = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
+    androidx.compose.runtime.CompositionLocalProvider(LocalDesk provides DeskDark, LocalDeskBackdrop provides page, LocalDeskWallpaper provides page) {
+        Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().layerBackdrop(page)) {
+                Row(Modifier.fillMaxSize()) {
+                    listOf(0xFFE53935, 0xFFFDD835, 0xFF43A047, 0xFF1E88E5, 0xFF8E24AA, 0xFFFB8C00).forEach {
+                        Box(Modifier.weight(1f).fillMaxHeight().background(androidx.compose.ui.graphics.Color(it)))
+                    }
+                }
+                Box(Modifier.align(androidx.compose.ui.Alignment.Center).fillMaxWidth().height(30.dp).background(androidx.compose.ui.graphics.Color.White))
+            }
+            Box(Modifier.align(androidx.compose.ui.Alignment.Center).width(330.dp).height(120.dp).deskLiquid(60.dp, floating = true, surfaceAlpha = 0.12f, blurDp = 0f))
+        }
+    }
 }

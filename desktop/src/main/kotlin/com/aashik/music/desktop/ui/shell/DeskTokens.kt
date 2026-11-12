@@ -96,12 +96,12 @@ internal fun Modifier.deskLiquid(radius: androidx.compose.ui.unit.Dp, lens: Bool
         effects = {
             if (!floating) vibrancy()
             if (blurDp > 0f) blur(blurDp.dp.toPx())
-            if (lens) lens(if (floating) 24.dp.toPx() else 12.dp.toPx(), 24.dp.toPx())
+            if (lens) lens(if (floating) 20.dp.toPx() else 12.dp.toPx(), if (floating) 40.dp.toPx() else 24.dp.toPx())
         },
-        highlight = { null },
+        highlight = { if (floating) com.kyant.backdrop.highlight.Highlight.Ambient else null },
         shadow = { null },
         innerShadow = { null },
-                onDrawSurface = { drawRect(surface) }
+                onDrawSurface = { drawRect(if (floating) Color.White.copy(alpha = surfaceAlpha) else surface) }
     )
 }
 
