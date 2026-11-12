@@ -87,7 +87,6 @@ fun MobileGlassBadgePill(
 ) {
     val shape = RoundedCornerShape(4.dp)
     val tint = if (useCyan) MobileTheme.accent.copy(alpha = 0.12f) else MobileTheme.text.copy(alpha = 0.08f)
-    val border = if (useCyan) MobileTheme.accent.copy(alpha = 0.35f) else MobileTheme.text.copy(alpha = 0.12f)
     val textColor = if (useCyan) MobileTheme.accent else MobileTheme.textSecondary
 
     Box(

@@ -1,14 +1,9 @@
 package com.aashik.music.ui.mobile.screens
 
-import com.aashik.music.ui.mobile.glass.MobileTheme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
@@ -25,11 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.RadioCategory
 import com.aashik.music.ui.AlbumArtImage
-import com.aashik.music.ui.components.GenreDetailScreen
 import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.Text
-import com.aashik.music.ui.mobile.glass.LiquidButton
-import com.aashik.music.viewmodel.MusicViewModel
 
 // Pre-allocated static shapes hoisted to top-level constants for zero GC churn on automotive hardware
 private val RadioTileShape = RoundedCornerShape(16.dp)

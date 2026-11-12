@@ -54,17 +54,13 @@ val M3DarkSurfaceContainerHighest = Color(0xFF1B2230)
 val AutoDarkBg = M3DarkBackground
 val AutoDarkSurface = M3DarkSurface
 val AutoDarkCard = M3DarkSurfaceVariant
-val AutoDarkCardActive = Color(0xFF0E283C)
 val AutoDarkBorder = M3DarkOutline
-val AutoDarkBorderActive = Color(0xFF00E5FF)
 val AutoPrimaryCyan = M3DarkPrimary
-val AutoPrimaryCyanGlow = Color(0xFF00B0FF)
 val AutoAccentAmber = M3DarkSecondary
 val AutoAccentGreen = M3DarkTertiary
 val AutoError = M3DarkError
 val AutoTextPrimary = M3DarkOnSurface
 val AutoTextSecondary = M3DarkOnSurfaceVariant
-val AutoTextDisabled = Color(0xFF475569)
 
 // =========================================================================
 // MATERIAL 3 COLOR TOKENS — AUTOMOTIVE CERAMIC AZURE (Light Mode)
@@ -117,13 +113,9 @@ val M3LightSurfaceContainerHighest = Color(0xFFCBD5E1)
 val AutoLightBg = M3LightBackground
 val AutoLightSurface = M3LightSurface
 val AutoLightCard = M3LightSurface
-val AutoLightCardActive = Color(0xFFE6F2FF)
-val AutoLightBorder = Color(0xFFD6DFE8)
 val AutoLightBorderActive = M3LightPrimary
 val AutoPrimaryAzure = M3LightPrimary
-val AutoPrimaryAzureDark = Color(0xFF0052D4)
 val AutoLightAccentAmber = M3LightSecondary
 val AutoLightAccentGreen = M3LightTertiary
 val AutoLightTextPrimary = M3LightOnSurface
 val AutoLightTextSecondary = M3LightOnSurfaceVariant
-val AutoLightTextDisabled = Color(0xFF94A3B8)

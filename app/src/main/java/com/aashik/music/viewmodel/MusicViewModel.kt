@@ -131,6 +131,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }.getOrDefault(com.aashik.music.ui.mobile.glass.AppThemeMode.DARK)
     )
     val themeMode: StateFlow<com.aashik.music.ui.mobile.glass.AppThemeMode> = _themeMode.asStateFlow()
+    private val _driveSide = MutableStateFlow(
+        runCatching {
+            com.aashik.music.model.DriveSide.valueOf(
+                application.getSharedPreferences("automotive_prefs", Context.MODE_PRIVATE)
+                    .getString("drive_side", null) ?: com.aashik.music.model.DriveSide.RIGHT.name
+            )
+        }.getOrDefault(com.aashik.music.model.DriveSide.RIGHT)
+    )
+    /** Driver's seat side; the headunit UI mirrors so navigation and controls sit on that side. */
+    val driveSide: StateFlow<com.aashik.music.model.DriveSide> = _driveSide.asStateFlow()
+
+    fun setDriveSide(side: com.aashik.music.model.DriveSide) {
+        _driveSide.value = side
+        appPrefs.edit().putString("drive_side", side.name).apply()
+    }
     private val _isDarkTheme = MutableStateFlow(false)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 

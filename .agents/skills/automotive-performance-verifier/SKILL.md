@@ -26,7 +26,7 @@ bash .agents/skills/automotive-performance-verifier/scripts/verify_release.sh
      - No dynamic `BorderStroke(...)` allocations across any composables.
      - All `RoundedCornerShape(...)` instances pre-allocated as top-level `private val` constants.
      - No multi-stop `Brush.linearGradient` on repeated list items, cards, or docks (flat `SolidColor` enforced).
-     - Direct Canvas drawing for high-frequency dynamic elements (`LiveAnimatedEqualizer` in `SongCard.kt`).
+     - Direct Canvas drawing for high-frequency dynamic elements (`LiveAnimatedEqualizer.kt`).
    - **Native C++ & JNI Layer**:
      - Zero `usleep` spin-polling in decoder loops (`mDecoderCv.wait(...)` event wait verified).
      - Hardware OpenSL ES PCM buffer consumed replenishment callbacks.

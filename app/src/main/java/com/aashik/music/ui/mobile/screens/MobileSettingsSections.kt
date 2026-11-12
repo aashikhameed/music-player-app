@@ -292,12 +292,17 @@ fun MobileLibraryStorageSettingsCard(viewModel: MusicViewModel, backdrop: Backdr
 
 // ─── HEADUNIT (LANDSCAPE) ─────────────────────────────────────────────────────
 @Composable
-fun MobileHeadunitSettingsCard(viewModel: MusicViewModel, backdrop: Backdrop) {
+fun MobileHeadunitSettingsCard(viewModel: MusicViewModel, backdrop: Backdrop, showDriveSide: Boolean = true) {
     val autoHud by viewModel.autoHudEnabled.collectAsState()
     val hideDock by viewModel.hideBottomBar.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
+    val driveSide by viewModel.driveSide.collectAsState()
 
     SettingsCard("HEADUNIT (LANDSCAPE)", backdrop) {
+        if (showDriveSide) {
+            RowLabel("Driving side", driveSide.summary)
+            ChipRow(com.aashik.music.model.DriveSide.entries, driveSide, { it.label }) { viewModel.setDriveSide(it) }
+        }
         ToggleRow(
             "Auto HUD Drive Mode",
             "Switches to the Drive HUD after 20s of inactivity while playing",

@@ -112,8 +112,8 @@ fun MusicApp() {
         isDarkMode = isDarkMode
     ) {
         if (isCarLandscape) {
-            // Automotive Headunit: 100% FROZEN LEGACY LAYOUT PRESERVED
-            MusicListScreen(viewModel)
+            // Automotive Headunit (1280×720): liquid glass car layout (CAR_LAYOUT_REDESIGN_PLAN.md)
+            com.aashik.music.ui.car.glass.CarGlassApp(viewModel)
         } else {
             // Mobile Portrait: Liquid Glass UI
             com.aashik.music.ui.mobile.screens.MobileGlassMusicApp(viewModel)

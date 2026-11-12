@@ -10,7 +10,7 @@ Whenever developing, optimizing, or reviewing code in this repository, the agent
 - **Precompute Shapes & Borders**: Never instantiate `RoundedCornerShape(...)` or `BorderStroke(...)` inside `@Composable` functions. Pre-allocate all shapes as top-level `private val` constants.
 - **Eliminate Redundant Clipping**: Never stack `.clip(shape)` right before `.background(..., shape = shape)`. Only use `.clip()` when child content overflows the bounds.
 - **Root Window Overdraw Elimination**: Always ensure `window.setBackgroundDrawable(null)` is called in `MainActivity.onCreate()` before `setContent()`.
-- **Recomposition Scoping**: High-frequency playback ticks (e.g., `positionMs`, `durationMs`, `progress`) must be read strictly inside leaf composables (`BottomBarTimeCounter`, `BottomBarSeekBar`). Never read high-frequency flows at the root `MusicListScreen` or `MediaLibraryContent` level.
+- **Recomposition Scoping**: High-frequency playback ticks (e.g., `positionMs`, `durationMs`, `progress`) must be read strictly inside leaf composables (car layout: `CapsuleTimeCounter`, `CapsuleProgress`, `SeekSlider`, `LyricsPane`). Never read high-frequency flows at the root `CarGlassApp` or `CarLibraryPane` level.
 - **Direct Canvas Drawing**: Avoid recomposition loops in Canvas components. Measure geometry in `Modifier.onSizeChanged` rather than during the draw phase.
 
 ---

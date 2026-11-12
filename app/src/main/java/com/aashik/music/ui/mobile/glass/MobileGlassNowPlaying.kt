@@ -84,8 +84,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val HeroArtShape = RoundedCornerShape(12.dp)
-private val HeaderArtShape = RoundedCornerShape(6.dp)
 private val HandleShape = RoundedCornerShape(2.5.dp)
 private val PillShape = RoundedCornerShape(50)
 private val DraggedSheetShape = RoundedCornerShape(24.dp)
@@ -715,10 +713,9 @@ private fun Scrubber(viewModel: MusicViewModel, song: Song?, c: NpColors, backdr
             backdrop = backdrop,
             accentColor = fillColor,
             trackColorOverride = c.text.copy(alpha = 0.12f),
-            trackHeight = 6.dp,
-            thumbWidth = 28.dp,
-            thumbHeight = 16.dp,
-            thumbOnlyWhileSeeking = true,
+            trackHeight = 8.dp,
+            thumbWidth = 40.dp,
+            thumbHeight = 24.dp,
             onValueChangeFinished = {
                 val target = scrub
                 if (target != null && durationMs > 0) {

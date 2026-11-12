@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.*
@@ -161,6 +160,14 @@ fun MobileGlassMusicApp(
     var activeDetail by detailStack
     var isNowPlayingExpanded by remember { mutableStateOf(false) }
     var showAudioRouteSheet by remember { mutableStateOf(false) }
+    // The portrait UI has no separate HUD: anything that asks for Drive Mode (restoring a live
+    // session, a legacy entry point) opens the Now Playing modal instead.
+    LaunchedEffect(isDriveModeOpen) {
+        if (isDriveModeOpen) {
+            isNowPlayingExpanded = true
+            viewModel.closeDriveMode()
+        }
+    }
     val isQueueOpen by viewModel.isQueueOpen.collectAsState()
 
     // Kyant0/AndroidLiquidGlass backdrop layer recorder
@@ -185,11 +192,10 @@ fun MobileGlassMusicApp(
     }
 
     // System Back Handler
-    BackHandler(enabled = isQueueOpen || isEqualizerOpen || isDriveModeOpen || isNowPlayingExpanded || showAudioRouteSheet || activeDetail != null) {
+    BackHandler(enabled = isQueueOpen || isEqualizerOpen || isNowPlayingExpanded || showAudioRouteSheet || activeDetail != null) {
         when {
             isQueueOpen -> viewModel.closeQueue()
             isEqualizerOpen -> viewModel.closeEqualizer()
-            isDriveModeOpen -> viewModel.closeDriveMode()
             showAudioRouteSheet -> showAudioRouteSheet = false
             isNowPlayingExpanded -> isNowPlayingExpanded = false
             activeDetail != null -> activeDetail = null
@@ -609,21 +615,12 @@ fun MobileGlassMusicApp(
                 )
             }
 
-            // ─── FULL-SCREEN EQUALIZER / DRIVE MODE (from v0.3.2) ───────────────
+            // ─── FULL-SCREEN EQUALIZER (from v0.3.2) ────────────────────────────
             if (isEqualizerOpen) {
                 Box(Modifier.fillMaxSize().background(MobileTheme.background).systemBarsPadding()) {
                     com.aashik.music.ui.EqualizerScreen(
                         viewModel = viewModel,
                         onClose = { viewModel.closeEqualizer() },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
-            if (isDriveModeOpen) {
-                Box(Modifier.fillMaxSize().background(MobileTheme.background).systemBarsPadding()) {
-                    com.aashik.music.ui.DriveModeScreen(
-                        viewModel = viewModel,
-                        onClose = { viewModel.closeDriveMode() },
                         modifier = Modifier.fillMaxSize()
                     )
                 }

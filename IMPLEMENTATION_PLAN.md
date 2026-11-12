@@ -9,7 +9,7 @@ v0.3.2 portrait = Material tabs + a "More" hub. Current portrait = Fluid liquid 
 
 ## Parity work: done and verified on emulator
 - Library rows now: Favorites, Artists, Tracks, Albums, Folders, Genres (Genres opens Search's radio genres). Albums/Artists/Folders open real lists; Tracks/Favorites/folder open song lists.
-- Equalizer and Drive Mode reachable from Settings (full-screen, Back closes).
+- Equalizer reachable from Settings (full-screen, Back closes). The portrait Drive HUD was removed; Drive Mode requests now open the Now Playing modal.
 
 ## Also done
 - Now Playing queue button opens the Playback Queue; lyrics button opens full-screen lyrics (both verified, Back closes).

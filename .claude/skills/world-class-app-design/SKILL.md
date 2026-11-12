@@ -34,7 +34,7 @@ calm, content-first, every element on a grid, motion that explains, glass that n
   (record the sampled backdrop via `onDrawBackdrop`).
 - **Safe area**: tab roots `statusBarsPadding()`; detail screens reserve `statusBarsPadding() + MobileToolbarHeight`;
   bottom dock sits above `navigationBarsPadding()`.
-- **Headunit landscape (`MusicListScreen`) is frozen** — mobile changes must not leak into it; shared
+- **Headunit landscape (`CarGlassApp`, `ui/car/glass/`) is frozen (layout.md §2.0)** — mobile changes must not leak into it; shared
   design-system components affect both, so check both.
 
 ## 2. Craft principles (how to make it look world class)

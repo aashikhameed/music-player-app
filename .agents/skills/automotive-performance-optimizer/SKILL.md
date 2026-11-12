@@ -59,7 +59,7 @@ Inspect native C++ and JNI components:
 ### Step 3: Compose Recomposition Scoping
 Verify high-frequency state isolation:
 - High-frequency state flows (`positionFlow`, `durationFlow`, `progressFlow`) emitting at 250ms intervals must be read **only** in leaf composables (`BottomBarTimeCounter`, `BottomBarSeekBar`).
-- Root lists and cards (`MusicListScreen`, `MediaLibraryContent`, `SongCard`) must not subscribe to progress flows.
+- Root lists and cards (`CarGlassApp`, `CarLibraryPane`, `CarSongRow`) must not subscribe to progress flows.
 - Artwork loading must be guarded with `AlbumArtCache.hasNoArt(path)` to prevent spawning coroutines for tracks without embedded art.
 
 ---

@@ -20,13 +20,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.ArrowDownward
-import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.PlayArrow
-import com.aashik.music.ui.designsystem.Button
 import com.aashik.music.ui.designsystem.ButtonDefaults
 import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.IconButton
@@ -44,9 +38,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aashik.music.model.Song
-import com.aashik.music.theme.AppGradients
-import com.aashik.music.ui.components.LiveAnimatedEqualizer
 import com.aashik.music.ui.components.QueueItemRow
 import com.aashik.music.viewmodel.MusicViewModel
 
@@ -58,11 +49,8 @@ private val DrawerShapeLandscape = RoundedCornerShape(topEnd = 16.dp, bottomEnd 
 private val DrawerShapePortrait = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 private val DrawerItemShape = RoundedCornerShape(12.dp)
 private val DrawerBadgeShape = RoundedCornerShape(8.dp)
-private val ReorderBtnShape = RoundedCornerShape(8.dp)
 
 private val BackdropColor = Color.Black.copy(alpha = 0.55f)
-private val GreenBadgeColor = Color(0xFF00E676)
-private val PlayingBarColor = Color(0xFF00E676)
 
 /**
  * Slide-over Queue Management Drawer.
@@ -77,10 +65,7 @@ fun QueueDrawer(
 ) {
     val userQueue by viewModel.userQueue.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
     val nextFromPlaylist = viewModel.getNextSong()
-
-    val cardBorder = AppGradients.border(isActive = false)
 
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT

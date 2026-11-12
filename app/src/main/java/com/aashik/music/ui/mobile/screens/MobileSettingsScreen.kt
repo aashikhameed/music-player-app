@@ -3,18 +3,14 @@ package com.aashik.music.ui.mobile.screens
 import com.aashik.music.ui.mobile.glass.MobileTheme
 import com.aashik.music.ui.mobile.glass.AppThemeMode
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,26 +19,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.ui.designsystem.Icon
-import com.aashik.music.ui.designsystem.Switch
 import com.aashik.music.ui.designsystem.Text
 import com.aashik.music.ui.mobile.glass.LiquidButton
 import com.aashik.music.ui.mobile.glass.LiquidGlassCard
 import com.aashik.music.ui.mobile.glass.LiquidIconButton
-import com.aashik.music.ui.mobile.glass.LiquidSlider
 import com.aashik.music.viewmodel.MusicViewModel
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.highlight.Highlight
-import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
-import kotlin.math.roundToInt
 
 // Pre-allocated static shapes hoisted to top-level constants for zero GC churn
-private val PreviewCardShape = RoundedRectangle(20f.dp)
 private val PresetButtonShape = Capsule()
 private val ChipPillShape = RoundedRectangle(12f.dp)
 
@@ -301,25 +289,6 @@ fun MobileSettingsScreen(
                         }
                         LiquidButton(
                             onClick = { viewModel.openEqualizer() },
-                            backdrop = backdrop,
-                            surfaceColor = MobileTheme.text.copy(alpha = 0.10f),
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Text("Open", fontSize = 11.sp, color = CyanGlassAccent)
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(text = "Drive Mode", color = MobileTheme.text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                            Text(text = "High-contrast automotive HUD controls", color = MobileTheme.textSecondary, fontSize = 11.sp)
-                        }
-                        LiquidButton(
-                            onClick = { viewModel.openDriveMode() },
                             backdrop = backdrop,
                             surfaceColor = MobileTheme.text.copy(alpha = 0.10f),
                             modifier = Modifier.height(34.dp)

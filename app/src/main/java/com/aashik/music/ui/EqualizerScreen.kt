@@ -14,32 +14,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.ArrowDropUp
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.SpatialAudio
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.SurroundSound
 import androidx.compose.material.icons.rounded.Tune
-import com.aashik.music.ui.designsystem.Button
-import com.aashik.music.ui.designsystem.ButtonDefaults
 import com.aashik.music.ui.designsystem.DropdownMenu
 import com.aashik.music.ui.designsystem.DropdownMenuItem
 import com.aashik.music.ui.designsystem.FilterChip
 import com.aashik.music.ui.designsystem.FilterChipDefaults
 import com.aashik.music.ui.designsystem.Icon
-import com.aashik.music.ui.designsystem.IconButton
 import com.aashik.music.ui.designsystem.MaterialTheme
 import com.aashik.music.ui.designsystem.Slider
 import com.aashik.music.ui.designsystem.SliderDefaults
@@ -54,42 +46,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.widthIn
 import com.aashik.music.model.EqualizerPresetRegistry
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aashik.music.theme.AppGradients
 import com.aashik.music.ui.components.BalanceFaderCard
 import com.aashik.music.ui.components.DspCard
 import com.aashik.music.ui.components.EqualizerCurveCanvas
 import com.aashik.music.viewmodel.MusicViewModel
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlin.math.roundToInt
 
 // Top-level precomputed shapes matching Material 3 specifications
 private val EqCardShape = RoundedCornerShape(12.dp)
 private val EqChipShape = RoundedCornerShape(8.dp)
 private val GridBorderShape = RoundedCornerShape(12.dp)
-private val ActionBtnShape = RoundedCornerShape(8.dp)
 private val EqCurveContainerShape = RoundedCornerShape(8.dp)
 private val EqCurveBg = Color(0xFF10141D)
 private val EqCurveBorder = Color(0xFF1E293B)

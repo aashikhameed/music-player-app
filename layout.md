@@ -58,95 +58,38 @@ Full 15-tier type hierarchy powered by `Inter` (`AppFontFamily`):
 
 ## 2. Core Screen Layouts
 
-### 2.1 Main Media Library Screen (`MusicListScreen` / `MediaLibraryContent`)
+### 2.0 Car / Landscape Liquid Glass Layout (`ui/car/glass/`, approved redesign — see `CAR_LAYOUT_REDESIGN_PLAN.md`)
 
-The home screen presents the user's media collection with high-contrast automotive typography and zero-overdraw background hierarchy.
+This is the only car (landscape) layout; the earlier Material-style car screens have been removed. Root: `CarGlassApp` (from `MusicApp` when landscape).
+Themes: Light / Dark / Artwork via `MobileTheme`; Night Highway Dimmer swaps in `CarNightPalette` while Now Playing is open.
+Only the Now Playing seek slider samples a backdrop (`LiquidSlider`); all other car surfaces are flat theme colours, no borders, no shadows.
 
-#### Screen Hierarchy:
-1. **Top Header & Search Bar**:
-   - Left: App branding / Drive HUD mode shortcut icon.
-   - Center: Dynamic filter & search field with instantaneous SQLite indexed query.
-   - Right: Media Rescan action, Filter chip toggle, and Overflow menu.
-2. **Category Navigation Tabs**:
-   - Horizontally scrollable or fixed tab strip: **Songs**, **Albums**, **Artists**, **Playlists**, **Folders**, **Radio**, **Downloads**.
-   - Active tab indicator with precomputed rounded rectangular indicator (flat solid accent color, no gradients).
-3. **Content Display Stage**:
-   - **Car (Landscape)**: Dual-pane split view or expansive multi-column grid depending on category. Left pane: Fast-scroll song list. Right pane: Current album/artist details or quick queue preview.
-   - **Mobile (Portrait)**: Single-column vertical lazy list with letter fast-scroller.
-4. **Song Item Row (`SongItem`)**:
-   - Height: 68dp (optimized for tactile automotive interaction).
-   - Left: 64 × 64 dp pre-cached thumbnail (`Bitmap.Config.RGB_565`, hardware NEON JPEG compressed disk cache).
-   - Center: Track title (single line, bold, ellipsize end) stacked over `Artist • Album` subtitle.
-   - Right: Track duration, favorite toggle (38dp circular touch surface), and options trigger.
+- **Library shell**: 240 dp solid sidebar (`CarSidebar`: clock; Search, Songs, Favorites, Folders, Radio & Genres; Drive HUD, Equalizer, Settings; 56 dp rows, r 14 selected pill) + content pane (`CarLibraryPane`: 96 dp title row, 34 sp title, inline 460×56 dp search field, back chevron for folder/genre drill-down).
+- **Song rows** (`CarSongRow`): 64 dp, 48 dp r 8 artwork, 16 sp title over 13 sp `Artist • Album`, duration, heart and "⋯" (48 dp targets), hairline under the text. Grid columns follow the 2/3-column setting.
+- **Playback capsule** (`CarPlaybackCapsule`): 68 dp, r 34, `panel` @ 94%, floats 12 dp above the bottom of the content pane. Mode, previous, play/pause (accent), next · artwork + title (tap → Now Playing) + format badge + time · locate current song, queue. 3 dp scrubbable progress line along the bottom. Hidden when "Hide Bottom Player Dock" is on.
+- **Now Playing / Drive HUD** (`CarNowPlaying`), two states sharing one spring-animated artwork:
+  - **Stage** (default): no top bar (swipe down or Back closes). Artwork fills the body height (≈624 dp square) on the driver's side (the same side it stays on in Split, so opening lyrics only shrinks it); the control column (≈568 dp) is on the far side (see Driving side below): 40 sp title (2 lines), artist, album; action chips Favorite · Download/Offline · Radio · ⋯ (56 dp pills); liquid glass seek slider with elapsed / format / remaining; transport (mode, previous, −10 s, 96 dp play/pause, +10 s, next); Lyrics | Up Next segmented switch (60 dp).
+  - **Split** (a switch segment tapped): artwork springs to 368 dp, left column holds title row (favourite, ⋯), slider and compact transport (mode, previous, 72 dp play/pause, next); the right panel (`panel`, r 24) shows synced Lyrics or the Up Next / queue list (reorder, remove, clear) with the segmented switch along its bottom. Tap the artwork, tap the selected segment, or press Back to return to the stage.
+  - Video mode: full-bleed video with auto-hiding overlay controls. Gestures: swipe ←/→ next/previous, double-tap play/pause.
+- **Driving side** (`DriveSide`, Settings → Headunit → Driving side; default right-hand drive): navigation and primary controls sit on the driver's side, artwork and lists on the passenger side. Right-hand drive = sidebar, Settings list, Equalizer header, Now Playing controls and the queue sheet on the right; left-hand drive mirrors all of them. In Now Playing the top bar keeps close + clock on the driver's edge, and in split the compact artwork + controls column moves to the driver's side while the panel takes the far side. Only placement is mirrored: text, icons and arrows keep their normal direction.
+- **Queue sheet** (`CarQueueSheet`): 480 dp sheet from the capsule, sliding in from the driver's side; reorder, remove, clear.
+- **Settings** (`CarSettingsScreen`): master-detail — 300 dp section list (Appearance, Playback, Driving & Volume, Headunit, Library & Storage, Equalizer & Audio, About) + section content.
+- **Equalizer** (`CarEqualizerScreen`): enable switch, preset chips, single-Canvas 10-band editor with curve, HPF / bass normaliser / soundstage / time-alignment chips.
+- **Dialogs**: `CarSongActionSheet` (600 dp, 2-up 64 dp action tiles); delete confirmation `LiquidAlertDialog` capped at 560 dp.
 
----
+### 2.1 Phone Now Playing (portrait, `MobileGlassNowPlaying`)
 
-### 2.2 Persistent Bottom Playback Dock (`AndroidAutoBottomBar` / `ModernBottomBar`)
+There is no separate Drive HUD on the phone. The mini-player opens the Now Playing modal, and anything that used to
+request Drive Mode (restoring a playing session, old entry points) is mapped to that same modal in `MobileGlassMusicApp`.
 
-A high-performance, leaf-recomposition playback bar docked to the bottom of all non-HUD screens.
-
-#### Component Breakdown:
-- **Root Container**: Flat solid surface (`#18191C` / `#121316`), pre-allocated border stroke, no gradients. Window background set to null to eliminate GPU fill rate overdraw.
-- **Top Seeker Progress Line (`BottomBarSeekBar`)**:
-  - 3dp height micro-scrubber spanning full bar width.
-  - Position ticks strictly read within leaf composable to isolate recompositions from parent tree.
-- **Left Stage**: 48 × 48 dp square album art thumbnail with 8dp rounded corner.
-- **Center Stage**:
-  - Title & Artist rolling marquee / truncated text.
-  - Tapping this stage launches the **Full-Screen Drive HUD Mode**.
-- **Right Stage (Transport Controls)**:
-  - Previous Track (44dp target).
-  - Play / Pause button (48dp prominent automotive target).
-  - Next Track (44dp target).
-  - Favorite Heart button.
+- Grab handle, large artwork (settles back when paused), title/artist with favourite, playback-mode button, radio button and (streams) download.
+- Liquid glass scrubber with format badge, previous / play-pause / next.
+- Bottom strip morphs the upper area between artwork, synced lyrics and the Playing Next queue; the audio output button opens the system output picker.
+- Drag the top area down or press Back to dismiss.
 
 ---
 
-### 2.3 Full-Screen Drive HUD Mode (`DriveModeScreen`)
-
-The primary in-cabin driver infotainment and mobile music stage designed for zero distraction and glanceable clarity.
-
-#### A. Automotive Landscape Stage (Car 1280 × 720)
-- **Unified Action Bar (`DriveHudActionBar`)**:
-  - Height: 54dp.
-  - Left to Right arrangement:
-    1. **Back Button**: 38dp circular surface returning to Media Library.
-    2. **Video / Audio Toggle Button**: 38dp circular surface switching between video streaming and audio playback.
-    3. **Favorite Heart Button**: 38dp circular surface displaying active/inactive favorite state.
-    4. **Radial Download Button**: 38dp circular surface displaying download progress wheel or cached status matching favorite styling.
-    5. **Radio Station Button**: 38dp circular surface for quick access to live broadcast streams.
-    6. **Up Next Preview Card**: Compact horizontal card displaying next song thumbnail (32dp), title, and artist name.
-    7. **Settings Gear Button**: 38dp circular surface opening quick configuration dialog.
-- **Main Infotainment Stage (Split View)**:
-  - **Left Half (Media Stage)**:
-    - *Video Mode*: Embedded HTML5/ExoPlayer video canvas with smooth aspect-ratio preservation.
-    - *Audio Mode*: 160 × 160 dp high-contrast Album Art stage with glowing vinyl groove disc, song title, and `$artist • $album` metadata pill.
-    - *Synchronized Lyrics*: Tap on lyrics pill smoothly hides title/artist and expands full synchronized lyrics view.
-  - **Right Half (Control & Scrubbing Deck)**:
-    - Big automotive time counters (`BottomBarTimeCounter`) for elapsed and remaining time.
-    - Automotive high-contrast linear seekbar with drag scrubbing.
-    - Primary transport deck: Repeat, Shuffle, Prev (52dp), Play/Pause (64dp elevated button), Next (52dp).
-
-#### B. Mobile Portrait Stage (Phone Display)
-- **`MobileHeroStage` & `MobilePlayerActionBar`**:
-  - Vertically stacked hierarchy:
-    1. Top: Top App Bar with back navigation, track title, and options.
-    2. Center Stage (`MobileHeroStage`): Responsive high-contrast Album Art viewport with integrated action surfaces:
-       - Floating Favorite (Heart) button anchored in bottom-left corner with precomputed shape.
-       - Floating Offline Download button anchored in bottom-right corner with live progress ring.
-       - Both floating corner actions smoothly fade out when lyrics are expanded or video mode is active.
-       - Expanding synchronized lyrics replaces the artwork stage without shifting surrounding layouts.
-    3. Action Bar (`MobilePlayerActionBar`):
-       - Four balanced, 44dp Material 3 action buttons:
-         - **Playback Mode / Shuffle**: When queue is from radio, shuffle is excluded and toggles strictly between Straight (sequential) and Repeat One. For normal playlists, cycles Shuffle -> Straight -> Repeat One.
-         - **Playback Queue**: Positioned directly to the right of Shuffle/Mode; opens the full playback queue drawer overlay.
-         - **Radio Station**: Positioned to the right of Queue; initiates instant algorithmic radio for the active song.
-         - **Synchronized Lyrics**: Positioned on the right; toggles the full lyrics display.
-    4. Bottom Transport Deck: Scrubbing seekbar with time counters, and standard automotive transport controls.
-
----
-
-### 2.4 Queue Drawer (`QueueDrawer`)
+### 2.4 Queue (`QueueDrawer` on phone, `CarQueueSheet` on the car)
 
 - Slides in from bottom (Mobile) or right-side sheet (Car).
 - Displays active playing queue with drag-to-reorder handles and swipe-to-dismiss.
@@ -154,7 +97,7 @@ The primary in-cabin driver infotainment and mobile music stage designed for zer
 
 ---
 
-### 2.5 10-Band Graphic Equalizer (`EqualizerScreen` / `EqualizerDialog`)
+### 2.5 10-Band Graphic Equalizer (`EqualizerScreen` on phone, `CarEqualizerScreen` on the car)
 
 - Real-time OpenSL ES native audio engine parametric EQ.
 - Automotive-sized vertical sliders for 10 frequency bands (31Hz, 62Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz).
@@ -170,7 +113,7 @@ The primary in-cabin driver infotainment and mobile music stage designed for zer
 
 ---
 
-### 2.7 Settings Screen (`SettingsScreen`)
+### 2.7 Settings Screen (`MobileSettingsScreen` on phone, `CarSettingsScreen` on the car)
 
 - **Audio Engine Diagnostics**: Native OpenSL ES status, buffer latency, sample rate.
 - **Auto-Download Setting**: Switch to automatically download songs listened to for at least 1 minute (bypasses already downloaded songs).
@@ -196,3 +139,6 @@ All layouts must strictly respect the hardware constraints defined in `AGENTS.md
 Any future agent, developer, or automated prompt MUST adhere to the following protocol:
 1. **No Layout Edits Without Asking**: Do NOT alter composable layouts, modifier sizes, paddings, arrangements, colors, or structural hierarchies.
 2. **Prompting the User**: If a feature or request necessitates a layout modification, the agent must explain the proposed change and wait for user authorization before touching layout files.
+
+
+> Headunit glass (API 31+): the playback capsule, queue sheet and song-action sheet are frosted (vibrancy + blur over the recorded library list, no lens/border/shadow). Below API 31 (e.g. Android 9) they stay flat solid panels and no backdrop is captured.

@@ -51,9 +51,9 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 - **Unified Floating Media Dock**: Dual-segment floating capsule housing track metadata, codec badges, scoped real-time seekbar, and tactile playback controls.
 - **Automotive Fluid Visual Transitions**: Horizontal card sliding transitions for album artwork (`slideInHorizontally` / `slideOutHorizontally`) paired with vertical fade-up / fade-down typography (`slideInVertically` / `slideOutVertically` + `fadeIn` / `fadeOut`) across the HUD and bottom dock.
 - **Collapsible Bottom Dock**: Toggle in Settings (hidden by default) maximizes vertical canvas for browsing songs, paired with a sleek bottom peek pill for instant dock access.
-- **Auto HUD Drive Mode**: Automatically enters full-screen Drive HUD after 20 seconds of driving inactivity (toggle in Settings, enabled by default).
+- **Auto HUD Drive Mode**: Automatically opens the full-screen Now Playing (Drive HUD) on the headunit after 20 seconds of driving inactivity (toggle in Settings, enabled by default).
 - **Hardware-Accelerated Seekbar**: Direct Canvas-rendered scrubbing bar with live time bubble tooltip; zero heavy trigonometry animation overhead.
-- **Live Canvas Equalizer**: In-place 4-bar dynamic equalizer drawn directly on Canvas inside `SongCard`, eliminating Compose `LayoutNode` hierarchy churn.
+- **Live Canvas Equalizer**: In-place 4-bar dynamic equalizer drawn directly on Canvas (`LiveAnimatedEqualizer`) on the playing row, eliminating Compose `LayoutNode` hierarchy churn.
 - **Adaptive Day & Night Theme**: Instant high-contrast toggle between Solar Amber/Light and Midnight Obsidian/Dark palettes designed for glare resistance and night driving.
 - **Continuous Automotive Digital Clock**: Synchronized clock island with glanceable 12-hour AM/PM indicator preserved across both library and HUD screens.
 
@@ -76,7 +76,7 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 - **Dual Fine-Tuning Sliders**: Micro-adjust Left/Right balance and Rear/Front fader presence with percentage readouts.
 - **Zero-Allocation Native DSP**: Integrated directly into OpenSL ES sample processing loop with zero GC overhead.
 
-### 🚗 Full-Screen Distraction-Free Drive Mode HUD
+### 🚗 Full-Screen Distraction-Free Drive Mode HUD (headunit)
 - **3-Tier Cockpit Architecture**:
   - **Top Row**: 12-Hour AM/PM clock with live playback dot, sleep timer, live animated audio spectrum visualizer (tap to cycle DSP presets: Flat, Acoustic, Vocal, Bass Punch, Rock), folder switcher, and one-tap **Night Highway Dimmer Mode**.
   - **Center Stage**: Large 180×180dp album artwork with horizontal automotive slide transitions paired with giant driving touch targets (84dp play/pause, 68dp skip, 52dp 10s scrub).
@@ -148,7 +148,7 @@ Engineered and verified against automotive reference head units (1280×720 @ 160
 ```text
 ┌──────────────────────────────────────────────────────────┐
 │                   Jetpack Compose UI                     │
-│    (Theme.kt • DriveModeScreen • AndroidAutoBottomBar)   │
+│    (Theme.kt • CarGlassApp • CarNowPlaying)   │
 └────────────────────────────┬─────────────────────────────┘
                              │ StateFlow & Events
 ┌────────────────────────────▼─────────────────────────────┐

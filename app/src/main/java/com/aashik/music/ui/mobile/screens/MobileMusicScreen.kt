@@ -2,15 +2,10 @@ package com.aashik.music.ui.mobile.screens
 
 import com.aashik.music.ui.mobile.glass.MobileTheme
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
@@ -23,29 +18,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
-import com.aashik.music.ui.components.LiveAnimatedEqualizer
-import com.aashik.music.ui.designsystem.HorizontalDivider
 import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.Text
 import com.aashik.music.ui.mobile.glass.LiquidAlertDialog
 import com.aashik.music.ui.mobile.glass.LiquidButton
-import com.aashik.music.ui.mobile.glass.LiquidGlassCard
 import com.aashik.music.ui.mobile.glass.LiquidIconButton
 import com.aashik.music.ui.mobile.glass.LiquidPrimaryButton
 import com.kyant.backdrop.Backdrop
 import com.kyant.shapes.Capsule
-import com.kyant.shapes.RoundedRectangle
 
 // Pre-allocated static shapes to prevent GC allocations on low-spec automotive hardware
-private val SongThumbnailShape = RoundedCornerShape(10.dp)
-private val SongThumbnailLiquidShape = RoundedRectangle(10f.dp)
 private val ActionButtonLiquidShape = Capsule()
 
 /**

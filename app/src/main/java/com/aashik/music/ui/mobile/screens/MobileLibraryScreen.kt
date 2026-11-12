@@ -2,14 +2,10 @@ package com.aashik.music.ui.mobile.screens
 
 import com.aashik.music.ui.mobile.glass.MobileTheme
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -18,13 +14,11 @@ import com.aashik.music.ui.designsystem.HorizontalDivider
 import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.model.domain.DomainAlbum
-import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
 
 enum class LibraryCategory(val title: String, val icon: ImageVector) {
     FAVORITES("Favorites", Icons.Rounded.Favorite),
