@@ -72,7 +72,7 @@ internal object DeskPrefs {
 internal fun deskPalette(mode: DeskThemeMode, art: ImageBitmap?): DeskPalette = when (mode) {
     DeskThemeMode.LIGHT -> DeskLight
     DeskThemeMode.DARK -> DeskDark
-    DeskThemeMode.ARTWORK -> DeskDark.copy(background = Color(0xFF111114))
+    DeskThemeMode.ARTWORK -> deskPaletteFromArt(art)
 }
 
 /** Whole page (wallpaper + sidebar + content + panel): sampled by floating glass (mini player, suggestions, sheets). */
@@ -89,21 +89,19 @@ internal fun Modifier.deskLiquid(radius: androidx.compose.ui.unit.Dp, lens: Bool
     val c = Desk.c
     val shape = remember(radius) { com.kyant.shapes.RoundedRectangle(radius) }
     if (backdrop == null) return background(c.panel.copy(alpha = 0.92f), RoundedCornerShape(radius))
-    val base = c.background
     val surface = c.panel.copy(alpha = surfaceAlpha)
     return drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
         effects = {
             vibrancy()
-            blur(10.dp.toPx())
-            if (lens) lens(12.dp.toPx(), 14.dp.toPx())
+            blur(2.dp.toPx())
+            if (lens) lens(12.dp.toPx(), 24.dp.toPx())
         },
         highlight = { null },
         shadow = { null },
         innerShadow = { null },
-        onDrawBackdrop = { drawBackdrop -> drawRect(base); drawBackdrop() },
-        onDrawSurface = { drawRect(surface) }
+                onDrawSurface = { drawRect(surface) }
     )
 }
 
@@ -145,10 +143,10 @@ internal fun deskPaletteFromArt(art: ImageBitmap?): DeskPalette {
         }
         val hsv = FloatArray(3)
         java.awt.Color.RGBtoHSB((r / wSum * 255).toInt(), (gr / wSum * 255).toInt(), (b / wSum * 255).toInt(), hsv)
-        val accent = java.awt.Color.HSBtoRGB(hsv[0], (hsv[1] * 1.1f).coerceIn(0.35f, 0.85f), 0.95f)
-        val bg = java.awt.Color.HSBtoRGB(hsv[0], (hsv[1] * 0.35f).coerceIn(0.05f, 0.3f), 0.09f)
-        val panel = java.awt.Color.HSBtoRGB(hsv[0], (hsv[1] * 0.3f).coerceIn(0.05f, 0.28f), 0.15f)
-        DeskDark.copy(background = Color(bg), panel = Color(panel), accent = Color(accent), onAccent = Color.Black)
+        // Background colour picked from the artwork (dark enough for white text); accent and text stay fixed.
+        val bg = java.awt.Color.HSBtoRGB(hsv[0], hsv[1].coerceIn(0.35f, 0.75f), 0.30f)
+        val panel = java.awt.Color.HSBtoRGB(hsv[0], hsv[1].coerceIn(0.3f, 0.7f), 0.38f)
+        DeskDark.copy(background = Color(bg), panel = Color(panel))
     } catch (_: Throwable) {
         DeskDark
     }

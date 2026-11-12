@@ -261,7 +261,7 @@ internal fun DeskApp(preview: DeskPreview? = null) {
         Box(Modifier.fillMaxSize()) {
             // Recorded page: wallpaper (recorded on its own for on-page glass) + sidebar, content and side panel.
             Box(Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
-                Box(Modifier.fillMaxSize().layerBackdrop(wallpaperBackdrop)) { DeskWallpaper(if (themeMode == DeskThemeMode.ARTWORK) art else null) }
+                Box(Modifier.fillMaxSize().layerBackdrop(wallpaperBackdrop)) { DeskWallpaper() }
                 Row(Modifier.fillMaxSize()) {
                     DeskSidebar(dest, userName, { dest = it; group = null; filter = "" }, Modifier.width(220.dp).fillMaxHeight())
                     Box(Modifier.weight(1f).fillMaxHeight()) { mainContent() }

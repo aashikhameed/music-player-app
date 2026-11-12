@@ -101,7 +101,7 @@ internal fun DeskFloatingLayer(
         val barW = maxWidth * BarFraction
         Box(
             Modifier.align(Alignment.BottomCenter).padding(bottom = BarBottom).width(barW).height(BarHeight)
-                .deskLiquid(32.dp, lens = true, surfaceAlpha = 0.28f, floating = true).pointerInput(Unit) {}
+                .deskLiquid(32.dp, lens = true, surfaceAlpha = 0.18f, floating = true).pointerInput(Unit) {}
         ) {
             Row(Modifier.fillMaxSize().padding(start = 14.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 val dim = if (song != null) 1f else 0.4f
