@@ -156,7 +156,7 @@ internal fun DeskSongTable(
                 val isCur = s.id == current?.id
                 val fg = if (isCur) c.onAccent else c.text
                 Row(
-                    Modifier.fillMaxWidth().height(34.dp)
+                    Modifier.fillMaxWidth().height(46.dp)
                         .background(if (isCur) c.accent else if (i % 2 == 1) c.text.copy(alpha = 0.04f) else Color.Transparent)
                         .clickable { onPlay(s) }.padding(end = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -164,7 +164,11 @@ internal fun DeskSongTable(
                     Box(Modifier.width(LeadW), Alignment.Center) {
                         if (isCur) DeskGlyph(if (isPlaying) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeMute, fg, 16.dp)
                     }
-                    Text(s.title.ifBlank { "Untitled" }, color = fg, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2.6f))
+                    Row(Modifier.weight(2.6f), verticalAlignment = Alignment.CenterVertically) {
+                        DeskArt(s, 34.dp, androidx.compose.foundation.shape.RoundedCornerShape(5.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(s.title.ifBlank { "Untitled" }, color = fg, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                     Box(Modifier.width(MoreW), Alignment.Center) {
                         DeskIconButton(Icons.Rounded.MoreHoriz, { onMore(s) }, size = 30.dp, glyph = 18.dp, tint = if (isCur) fg else c.accent)
                     }

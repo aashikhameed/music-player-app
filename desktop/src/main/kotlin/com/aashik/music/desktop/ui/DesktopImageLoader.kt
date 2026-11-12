@@ -85,10 +85,22 @@ object DesktopImageCache {
         return null
     }
 
-    /** Skia decodes JPEG, PNG, WebP and GIF (ImageIO cannot read WebP, which most online covers use). */
+    /**
+     * Skia decodes JPEG, PNG, WebP and GIF (ImageIO cannot read WebP, which most online covers use).
+     * Artwork is kept at 60 % quality (re-encoded JPEG, longest side <= 600 px): small in memory, plenty for the UI.
+     */
     private fun decode(bytes: ByteArray): ImageBitmap? = try {
-        org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
+        val img = org.jetbrains.skia.Image.makeFromEncoded(bytes)
+        val scale = minOf(1f, MAX_SIDE / maxOf(img.width, img.height).toFloat())
+        val w = maxOf(1, (img.width * scale).toInt()); val h = maxOf(1, (img.height * scale).toInt())
+        val surface = org.jetbrains.skia.Surface.makeRasterN32Premul(w, h)
+        surface.canvas.drawImageRect(img, org.jetbrains.skia.Rect.makeWH(img.width.toFloat(), img.height.toFloat()), org.jetbrains.skia.Rect.makeWH(w.toFloat(), h.toFloat()), org.jetbrains.skia.SamplingMode.LINEAR, null, true)
+        val small = surface.makeImageSnapshot()
+        val lossy = small.encodeToData(org.jetbrains.skia.EncodedImageFormat.JPEG, 60)
+        (lossy?.let { org.jetbrains.skia.Image.makeFromEncoded(it.bytes) } ?: small).toComposeImageBitmap()
     } catch (_: Throwable) { null }
+
+    private const val MAX_SIDE = 600f
 
     private fun loadLocalImageOrAudioArt(pathOrUri: String): ImageBitmap? {
         // file: URIs are percent-encoded ("Artist%20-%20Title.webp"): decode them, never strip the prefix by hand.
