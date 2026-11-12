@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
@@ -54,15 +55,13 @@ internal fun DeskSidebar(selected: DeskDest, userName: String, onSelect: (DeskDe
         Item(Icons.Rounded.GridView, "All Playlists", selected == DeskDest.PLAYLISTS) { onSelect(DeskDest.PLAYLISTS) }
         Spacer(Modifier.weight(1f))
         Row(
-            Modifier.fillMaxWidth().height(48.dp).clip(DeskItem).background(if (selected == DeskDest.SETTINGS) c.text.copy(alpha = 0.10f) else Color.Transparent)
-                .clickable { onSelect(DeskDest.SETTINGS) }.padding(horizontal = 8.dp),
+            Modifier.fillMaxWidth().height(36.dp).clip(DeskItem).background(if (selected == DeskDest.SETTINGS) c.text.copy(alpha = 0.10f) else Color.Transparent)
+                .clickable { onSelect(DeskDest.SETTINGS) }.padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(Modifier.size(34.dp).background(c.text.copy(alpha = 0.18f), DeskCircle), Alignment.Center) {
-                Text(userName.take(1).uppercase(), color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.width(10.dp))
-            Text(userName, color = c.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            DeskGlyph(Icons.Rounded.Settings, c.accent, 20.dp)
+            Spacer(Modifier.width(12.dp))
+            Text("Settings", color = c.text, fontSize = 15.sp, fontWeight = if (selected == DeskDest.SETTINGS) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1)
         }
     }
 }
