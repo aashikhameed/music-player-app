@@ -39,7 +39,7 @@ internal enum class DeskDest { SEARCH, HOME, RADIO, RECENT, ARTISTS, ALBUMS, SON
 @Composable
 internal fun DeskSidebar(selected: DeskDest, userName: String, onSelect: (DeskDest) -> Unit, modifier: Modifier = Modifier) {
     val c = Desk.c
-    Column(modifier.padding(8.dp).padding(horizontal = 6.dp, vertical = 6.dp)) {
+    Column(modifier.padding(8.dp).deskLiquid(18.dp, surfaceAlpha = 0.5f, rim = true).padding(horizontal = 6.dp, vertical = 6.dp)) {
         Spacer(Modifier.height(26.dp)) // room for the window controls (transparent title bar)
         Item(Icons.Rounded.Search, "Search", selected == DeskDest.SEARCH) { onSelect(DeskDest.SEARCH) }
         Item(Icons.Rounded.Home, "Home", selected == DeskDest.HOME) { onSelect(DeskDest.HOME) }
