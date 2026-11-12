@@ -153,14 +153,27 @@ internal fun DeskApp(preview: DeskPreview? = null) {
         onCycleRepeat = { repeat = when (repeat) { DeskRepeat.OFF -> DeskRepeat.ALL; DeskRepeat.ALL -> DeskRepeat.ONE; DeskRepeat.ONE -> DeskRepeat.OFF } },
         onSeekFraction = { f -> val d = DesktopAudioPlayer.durationMs.value.takeIf { it > 0 } ?: current?.duration ?: 0L; DesktopAudioPlayer.seekTo((f * d).toLong()) }
     )
-    // Radio: replaces Up Next with songs similar to [seed] and keeps the current song playing.
+    // Radio (same as the headunit): turns shuffle off, cancels any radio already loading, replaces Up Next with songs
+    // similar to [seed] (falls back to an artist search), and starts the seed if it is not already playing.
+    var radioJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var radioSeed by remember { mutableStateOf<String?>(null) }
+    val radioActive = radioSeed != null && !radioLoading && context.firstOrNull()?.id == radioSeed && context.any { it.id == current?.id }
     fun startRadio(seed: DesktopSong) {
-        if (radioLoading) return
+        shuffle = false
+        radioJob?.cancel()
         radioLoading = true
-        scope.launch {
-            val r = runCatching { DesktopOnlineRepository.fetchRadioQueue(seed, 20) }.getOrDefault(emptyList())
-            if (r.isNotEmpty()) { queue.clear(); queue.addAll(r.filter { it.id != seed.id }); context = listOf(seed) + r; if (current?.id != seed.id) play(seed) }
-            radioLoading = false
+        radioJob = scope.launch {
+            try {
+                var r = runCatching { DesktopOnlineRepository.fetchRadioQueue(seed, 20) }.getOrDefault(emptyList())
+                if (r.isEmpty() && seed.artist.isNotBlank()) r = runCatching { DesktopOnlineRepository.searchSongs("${seed.artist} Hits", 15) }.getOrDefault(emptyList())
+                val upcoming = r.filter { it.id != seed.id }
+                queue.clear(); queue.addAll(upcoming)
+                context = listOf(seed) + upcoming
+                radioSeed = seed.id
+                if (current?.id != seed.id || !isPlaying) play(seed)
+            } finally {
+                radioLoading = false
+            }
         }
     }
     fun download(song: DesktopSong) {
@@ -282,7 +295,7 @@ internal fun DeskApp(preview: DeskPreview? = null) {
                 onLyrics = { if (panelOpen && panel == RightPanel.LYRICS) panelOpen = false else { panel = RightPanel.LYRICS; panelOpen = true } },
                 onQueue = { if (panelOpen && panel == RightPanel.QUEUE) panelOpen = false else { panel = RightPanel.QUEUE; panelOpen = true } },
                 onMore = { current?.let { sheetSong = it } },
-                radioLoading = radioLoading, onRadio = { current?.let { startRadio(it) } },
+                radioLoading = radioLoading, radioActive = radioActive, onRadio = { current?.let { startRadio(it) } },
                 download = downloadState, onDownload = { current?.let { download(it) } },
                 modifier = Modifier.fillMaxSize().padding(start = 220.dp, end = if (panelOpen) 280.dp else 0.dp)
             )

@@ -91,6 +91,7 @@ internal fun DeskFloatingLayer(
     onQueue: () -> Unit,
     onMore: () -> Unit,
     radioLoading: Boolean,
+    radioActive: Boolean = false,
     onRadio: () -> Unit,
     download: DownloadState,
     onDownload: () -> Unit,
@@ -113,7 +114,7 @@ internal fun DeskFloatingLayer(
                 Spacer(Modifier.width(14.dp))
                 NowPlayingInfo(song, actions, Modifier.weight(1f))
                 Spacer(Modifier.width(10.dp))
-                DeskIconButton(Icons.Rounded.Podcasts, onRadio, size = 38.dp, glyph = 21.dp, tint = c.text.copy(alpha = dim), enabled = song != null && !radioLoading, loading = radioLoading)
+                DeskIconButton(Icons.Rounded.Podcasts, onRadio, size = 38.dp, glyph = 21.dp, tint = if (radioActive) c.accent else c.text.copy(alpha = dim), enabled = song != null && !radioLoading, loading = radioLoading)
                 DownloadButton(download, onDownload)
                 DeskIconButton(Icons.Rounded.MoreHoriz, onMore, size = 38.dp, glyph = 22.dp, tint = c.text.copy(alpha = dim), enabled = song != null)
                 DeskIconButton(Icons.Rounded.Chat, onLyrics, size = 38.dp, glyph = 20.dp, tint = if (lyricsOpen) c.accent else c.textSecondary)
