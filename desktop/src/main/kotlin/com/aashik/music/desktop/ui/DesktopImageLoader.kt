@@ -90,12 +90,10 @@ object DesktopImageCache {
     } catch (_: Throwable) { null }
 
     private fun loadLocalImageOrAudioArt(pathOrUri: String): ImageBitmap? {
-        val cleanPath = when {
-            pathOrUri.startsWith("file://") -> pathOrUri.substring(7)
-            pathOrUri.startsWith("file:") -> pathOrUri.substring(5)
-            else -> pathOrUri
-        }
-        val file = File(cleanPath)
+        // file: URIs are percent-encoded ("Artist%20-%20Title.webp"): decode them, never strip the prefix by hand.
+        val file = if (pathOrUri.startsWith("file:")) {
+            runCatching { File(java.net.URI(pathOrUri)) }.getOrElse { File(java.net.URLDecoder.decode(pathOrUri.removePrefix("file://").removePrefix("file:"), "UTF-8")) }
+        } else File(pathOrUri)
         if (!file.exists() || !file.isFile) return null
 
         val ext = file.extension.lowercase()
