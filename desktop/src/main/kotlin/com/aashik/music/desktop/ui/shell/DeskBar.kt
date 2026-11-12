@@ -76,7 +76,7 @@ private const val BarFraction = 0.92f
 /**
  * Content area with the floating mini player (macOS Music style): Kyant liquid glass (vibrancy, blur, lens)
  * over [backdrop], which records [content]. [overlay] draws above the content but outside the recorded
- * layer (e.g. the search suggestions panel, which is glass too and must not sample itself).
+ * layer.
  */
 @Composable
 internal fun DeskFloatingLayer(
@@ -94,13 +94,11 @@ internal fun DeskFloatingLayer(
     onRadio: () -> Unit,
     download: DownloadState,
     onDownload: () -> Unit,
-    modifier: Modifier = Modifier,
-    overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {}
+    modifier: Modifier = Modifier
 ) {
     val c = Desk.c
     BoxWithConstraints(modifier) {
         val barW = maxWidth * BarFraction
-        overlay()
         Box(
             Modifier.align(Alignment.BottomCenter).padding(bottom = BarBottom).width(barW).height(BarHeight)
                 .deskLiquid(32.dp, lens = true, surfaceAlpha = 0.28f, floating = true).pointerInput(Unit) {}

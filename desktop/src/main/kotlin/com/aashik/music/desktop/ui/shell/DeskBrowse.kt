@@ -62,18 +62,18 @@ internal fun DeskFolders(songs: List<DesktopSong>, bottomInset: Dp, onOpen: (Str
     val folders = remember(songs) { songs.groupBy { File(it.path).parent ?: "Local Music" }.entries.sortedBy { it.key.lowercase() } }
     Column(modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp)) {
         Column(Modifier.height(64.dp), verticalArrangement = Arrangement.Center) {
-            Text("Folders", color = c.text, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            Text("Folders", color = c.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Text(if (folders.size == 1) "1 folder" else "${folders.size} folders", color = c.textSecondary, fontSize = 14.sp)
         }
         Spacer(Modifier.height(8.dp))
         if (folders.isEmpty()) Box(Modifier.fillMaxSize(), Alignment.Center) { Text("No folders yet", color = c.textSecondary, fontSize = 16.sp) }
-        else LazyVerticalGrid(GridCells.Adaptive(300.dp), contentPadding = PaddingValues(bottom = bottomInset), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        else LazyVerticalGrid(GridCells.Adaptive(240.dp), contentPadding = PaddingValues(bottom = bottomInset), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             items(folders, key = { it.key }) { (path, list) ->
-                Row(Modifier.fillMaxWidth().height(88.dp).deskLiquid(16.dp).clickable { onOpen(path) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    DeskGlyph(Icons.Rounded.Folder, c.accent, 36.dp)
+                Row(Modifier.fillMaxWidth().height(64.dp).deskLiquid(14.dp).clickable { onOpen(path) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DeskGlyph(Icons.Rounded.Folder, c.accent, 28.dp)
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(File(path).name.ifBlank { path }, color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(File(path).name.ifBlank { path }, color = c.text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(if (list.size == 1) "1 song" else "${list.size} songs", color = c.textSecondary, fontSize = 13.sp)
                     }
                 }
@@ -92,7 +92,7 @@ private fun CategoryTile(cat: DesktopRadioCategory, onClick: () -> Unit, modifie
             bmp?.let { Image(it, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
         }
         Spacer(Modifier.height(8.dp))
-        Text(cat.title, color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(cat.title, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -135,7 +135,7 @@ internal fun DeskRadio(
         item {
             Row(Modifier.fillMaxWidth().height(64.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Radio & Genres", color = c.text, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                    Text("Radio & Genres", color = c.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Text("${stations.size} live stations", color = c.textSecondary, fontSize = 14.sp)
                 }
                 DeskPillButton("Surprise Me", { stations.randomOrNull()?.let { onPlay(it.toSong(), emptyList()) } }, icon = Icons.Rounded.Casino)
@@ -153,7 +153,7 @@ internal fun DeskRadio(
 
 @Composable
 private fun SectionTitle(t: String) {
-    Text(t, color = Desk.c.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
+    Text(t, color = Desk.c.text, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 6.dp))
 }
 
 @Composable
@@ -167,11 +167,11 @@ private fun TileRow(row: List<DesktopRadioCategory>, onClick: (DesktopRadioCateg
 @Composable
 private fun StationRow(s: DesktopRadioStation, isCurrent: Boolean, onClick: () -> Unit) {
     val c = Desk.c
-    Row(Modifier.fillMaxWidth().height(64.dp).clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(48.dp).height(48.dp).background(c.idleFill, DeskArt8), Alignment.Center) { DeskGlyph(Icons.Rounded.Radio, if (isCurrent) c.accent else c.textSecondary, 24.dp) }
+    Row(Modifier.fillMaxWidth().height(52.dp).clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(38.dp).height(38.dp).background(c.idleFill, DeskArt8), Alignment.Center) { DeskGlyph(Icons.Rounded.Radio, if (isCurrent) c.accent else c.textSecondary, 24.dp) }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(s.name, color = if (isCurrent) c.accent else c.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(s.name, color = if (isCurrent) c.accent else c.text, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("${s.genre} • ${s.bitrate}", color = c.textSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
@@ -186,15 +186,15 @@ internal fun DeskGroupGrid(title: String, groups: List<DeskGroup>, bottomInset: 
     Column(modifier.padding(horizontal = 24.dp)) {
         Text(title, color = c.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.height(60.dp).padding(top = 18.dp))
         if (groups.isEmpty()) Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Nothing here yet", color = c.textSecondary, fontSize = 15.sp) }
-        else LazyVerticalGrid(GridCells.Adaptive(170.dp), contentPadding = PaddingValues(bottom = bottomInset), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        else LazyVerticalGrid(GridCells.Adaptive(130.dp), contentPadding = PaddingValues(bottom = bottomInset), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             items(groups, key = { it.key }) { g ->
                 Column(Modifier.clickable { onOpen(g) }) {
                     Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
                         DeskArtFill(g.cover, if (round) androidx.compose.foundation.shape.CircleShape else DeskCard)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text(g.title, color = c.text, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(g.subtitle, color = c.textSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(g.title, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(g.subtitle, color = c.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
@@ -228,15 +228,15 @@ internal fun DeskHome(recent: List<DesktopSong>, top: List<DesktopSong>, bottomI
 @Composable
 private fun Shelf(title: String, songs: List<DesktopSong>, onPlay: (DesktopSong, List<DesktopSong>) -> Unit) {
     val c = Desk.c
-    Text(title, color = c.text, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
+    Text(title, color = c.text, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
     androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items(songs.size) { i ->
             val s = songs[i]
-            Column(Modifier.width(160.dp).clickable { onPlay(s, songs.drop(i + 1)) }) {
-                Box(Modifier.size(160.dp)) { DeskArtFill(s, DeskCard) }
+            Column(Modifier.width(120.dp).clickable { onPlay(s, songs.drop(i + 1)) }) {
+                Box(Modifier.size(120.dp)) { DeskArtFill(s, DeskCard) }
                 Spacer(Modifier.height(8.dp))
-                Text(s.title.ifBlank { "Untitled" }, color = c.text, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(s.artist, color = c.textSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(s.title.ifBlank { "Untitled" }, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(s.artist, color = c.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

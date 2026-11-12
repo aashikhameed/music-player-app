@@ -60,7 +60,7 @@ internal enum class DeskThemeMode(val label: String) { LIGHT("Light"), DARK("Dar
 
 internal object DeskPrefs {
     private val node = java.util.prefs.Preferences.userRoot().node("com/aashik/music/desktop")
-    fun theme(): DeskThemeMode = runCatching { DeskThemeMode.valueOf(node.get("theme", "DARK")) }.getOrDefault(DeskThemeMode.DARK)
+    fun theme(): DeskThemeMode = runCatching { DeskThemeMode.valueOf(node.get("theme", "ARTWORK")) }.getOrDefault(DeskThemeMode.ARTWORK)
     fun setTheme(m: DeskThemeMode) { node.put("theme", m.name) }
     fun plays(id: String): Int = node.getInt("p" + (id.hashCode().toLong() and 0xffffffffL), 0)
     fun addPlay(id: String) { node.putInt("p" + (id.hashCode().toLong() and 0xffffffffL), plays(id) + 1) }

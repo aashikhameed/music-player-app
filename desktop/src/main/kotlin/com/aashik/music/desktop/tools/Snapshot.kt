@@ -23,9 +23,9 @@ fun main(args: Array<String>) {
     val lyr = (0 until 14).map { DesktopLyricLine(it * 4000L, "Come on, come on, turn the radio on $it") }
     val preview = DeskPreview(demo, lyr,
         dest = when (mode) { "recent" -> DeskDest.RECENT; "home" -> DeskDest.HOME; "artists" -> DeskDest.ARTISTS; "albums" -> DeskDest.ALBUMS; "radio" -> DeskDest.RADIO
-            "settings" -> DeskDest.SETTINGS; "eq" -> DeskDest.EQUALIZER; "search", "suggest" -> DeskDest.SEARCH; "playlists" -> DeskDest.PLAYLISTS; else -> DeskDest.SONGS },
+            "settings" -> DeskDest.SETTINGS; "eq" -> DeskDest.EQUALIZER; "search" -> DeskDest.SEARCH; "playlists" -> DeskDest.PLAYLISTS; else -> DeskDest.SONGS },
         playing = mode != "idle", panel = if (mode == "queue") RightPanel.QUEUE else RightPanel.LYRICS,
-        sheet = mode == "sheet", query = if (mode == "search" || mode == "suggest") "a" else "", suggestions = mode == "suggest")
+        sheet = mode == "sheet", query = if (mode == "search") "a" else "")
     val scene = ImageComposeScene(w, h, Density(1f)) { DesktopTheme { DeskApp(preview) } }
     var t = 0L
     var image = scene.render(t)
