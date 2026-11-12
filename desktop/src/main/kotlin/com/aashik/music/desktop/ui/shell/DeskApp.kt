@@ -250,7 +250,7 @@ internal fun DeskApp(preview: DeskPreview? = null) {
                 key == DeskDest.ARTISTS.name -> DeskGroupGrid("Artists", artistGroups, BarInset, { group = it; filter = "" }, round = true)
                 key == DeskDest.ALBUMS.name -> DeskGroupGrid("Albums", albumGroups, BarInset, { group = it; filter = "" })
                 key == DeskDest.PLAYLISTS.name -> DeskGroupGrid("All Playlists", playlistGroups, BarInset, { group = it; filter = "" })
-                key == DeskDest.RADIO.name -> DeskRadio(current, BarInset, { s, l -> play(s, listOf(s) + l) }, Modifier.fillMaxSize())
+                key == DeskDest.RADIO.name -> DeskRadio(current, BarInset, { s, l -> play(s, listOf(s) + l) }, { startRadio(it) }, Modifier.fillMaxSize())
                 key == DeskDest.EQUALIZER.name -> DeskEqualizer(Modifier.fillMaxSize())
                 key == DeskDest.SEARCH.name -> DeskSearchPage(
                     query = searchQuery, onQuery = { searchQuery = it }, scope = searchScope, onScope = { searchScope = it },

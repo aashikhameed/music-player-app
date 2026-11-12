@@ -64,6 +64,11 @@ internal object DeskPrefs {
     fun setTheme(m: DeskThemeMode) { node.put("theme", m.name) }
     fun plays(id: String): Int = node.getInt("p" + (id.hashCode().toLong() and 0xffffffffL), 0)
     fun addPlay(id: String) { node.putInt("p" + (id.hashCode().toLong() and 0xffffffffL), plays(id) + 1) }
+    private fun ids(key: String): Set<String> = node.get(key, "").split(',').filter { it.isNotBlank() }.toSet()
+    fun favStations(): Set<String> = ids("favStations")
+    fun favCategories(): Set<String> = ids("favCategories")
+    fun saveFavStations(s: Set<String>) { node.put("favStations", s.joinToString(",")) }
+    fun saveFavCategories(s: Set<String>) { node.put("favCategories", s.joinToString(",")) }
     private val favFile get() = java.io.File(System.getProperty("user.home"), ".musicplayer/favorites.txt")
     fun loadFavorites(): List<String> = runCatching { favFile.readLines().filter { it.isNotBlank() } }.getOrDefault(emptyList())
     fun saveFavorites(ids: List<String>) { runCatching { favFile.parentFile.mkdirs(); favFile.writeText(ids.joinToString("\n")) } }

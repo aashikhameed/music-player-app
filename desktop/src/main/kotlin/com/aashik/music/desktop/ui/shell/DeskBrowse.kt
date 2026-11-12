@@ -82,101 +82,6 @@ internal fun DeskFolders(songs: List<DesktopSong>, bottomInset: Dp, onOpen: (Str
     }
 }
 
-@Composable
-private fun CategoryTile(cat: DesktopRadioCategory, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val c = Desk.c
-    var bmp by remember(cat.id) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(cat.id) { if (cat.imageUrl.isNotBlank()) bmp = DesktopImageCache.load(cat.imageUrl) }
-    Column(modifier.clickable(onClick = onClick)) {
-        Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(DeskCard).background(Color(cat.stripeColor).copy(alpha = 0.35f))) {
-            bmp?.let { Image(it, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(cat.title, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-/** Radio & Genres: live stations, then mood and genre tiles; a tile opens its online top songs. */
-@Composable
-internal fun DeskRadio(
-    current: DesktopSong?,
-    bottomInset: Dp,
-    onPlay: (DesktopSong, List<DesktopSong>) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val c = Desk.c
-    val scope = rememberCoroutineScope()
-    var category by remember { mutableStateOf<DesktopRadioCategory?>(null) }
-    var results by remember { mutableStateOf<List<DesktopSong>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
-    val stations = remember { DesktopRadioData.CURATED_STATIONS }
-
-    val cat = category
-    if (cat != null) {
-        LaunchedEffect(cat.id) {
-            loading = true; results = emptyList()
-            results = runCatching { DesktopOnlineRepository.searchSongs("${cat.title} Top Songs", limit = 25) }.getOrDefault(emptyList())
-            loading = false
-        }
-        Column(modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp)) {
-            Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                DeskIconButton(Icons.Rounded.ArrowBack, { category = null }, size = 40.dp, glyph = 20.dp, glass = true)
-                Spacer(Modifier.width(12.dp))
-                Text(cat.title, color = c.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            }
-            if (results.isEmpty()) Box(Modifier.fillMaxSize(), Alignment.Center) { Text(if (loading) "Loading ${cat.title}…" else "Nothing found. Check your connection.", color = c.textSecondary, fontSize = 15.sp) }
-            else DeskSongTable(results, current, false, emptyMap(), emptySet(), Modifier.fillMaxSize(), bottomInset = bottomInset, onPlay = { s -> onPlay(s, results) }, onMore = {}, onToggleFavorite = {})
-        }
-        return
-    }
-    val moods = remember { DesktopRadioData.MOOD_CATEGORIES }
-    val genres = remember { DesktopRadioData.GENRE_CATEGORIES }
-    LazyColumn(modifier.padding(horizontal = 24.dp), contentPadding = PaddingValues(top = 20.dp, bottom = bottomInset)) {
-        item {
-            Row(Modifier.fillMaxWidth().height(64.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Radio & Genres", color = c.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text("${stations.size} live stations", color = c.textSecondary, fontSize = 14.sp)
-                }
-                DeskPillButton("Surprise Me", { stations.randomOrNull()?.let { onPlay(it.toSong(), emptyList()) } }, icon = Icons.Rounded.Casino)
-            }
-            Spacer(Modifier.height(12.dp))
-            SectionTitle("Live Stations")
-        }
-        items(stations.size) { i -> StationRow(stations[i], current?.id == stations[i].id) { onPlay(stations[i].toSong(), emptyList()) } }
-        item { Spacer(Modifier.height(16.dp)); SectionTitle("Moods & Moments") }
-        items(moods.chunked(6)) { row -> TileRow(row) { category = it } }
-        item { Spacer(Modifier.height(16.dp)); SectionTitle("Genres") }
-        items(genres.chunked(6)) { row -> TileRow(row) { category = it } }
-    }
-}
-
-@Composable
-private fun SectionTitle(t: String) {
-    Text(t, color = Desk.c.text, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 6.dp))
-}
-
-@Composable
-private fun TileRow(row: List<DesktopRadioCategory>, onClick: (DesktopRadioCategory) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        row.forEach { CategoryTile(it, { onClick(it) }, Modifier.weight(1f)) }
-        repeat(6 - row.size) { Spacer(Modifier.weight(1f)) }
-    }
-}
-
-@Composable
-private fun StationRow(s: DesktopRadioStation, isCurrent: Boolean, onClick: () -> Unit) {
-    val c = Desk.c
-    Row(Modifier.fillMaxWidth().height(52.dp).clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(38.dp).height(38.dp).background(c.idleFill, DeskArt8), Alignment.Center) { DeskGlyph(Icons.Rounded.Radio, if (isCurrent) c.accent else c.textSecondary, 24.dp) }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(s.name, color = if (isCurrent) c.accent else c.text, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${s.genre} • ${s.bitrate}", color = c.textSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
 internal class DeskGroup(val key: String, val title: String, val subtitle: String, val cover: DesktopSong?, val songs: List<DesktopSong>)
 
 /** Artists / Albums / Playlists: a grid of cover tiles; picking one opens its songs. */
@@ -226,7 +131,7 @@ internal fun DeskHome(recent: List<DesktopSong>, top: List<DesktopSong>, bottomI
 }
 
 @Composable
-private fun Shelf(title: String, songs: List<DesktopSong>, onPlay: (DesktopSong, List<DesktopSong>) -> Unit) {
+internal fun Shelf(title: String, songs: List<DesktopSong>, onPlay: (DesktopSong, List<DesktopSong>) -> Unit) {
     val c = Desk.c
     Text(title, color = c.text, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
     androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
