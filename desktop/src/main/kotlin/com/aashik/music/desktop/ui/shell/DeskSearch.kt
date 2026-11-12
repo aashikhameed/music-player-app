@@ -196,7 +196,7 @@ private fun ScopeSwitch(scope: SearchScope, onScope: (SearchScope) -> Unit) {
 @Composable
 private fun TopResultCard(s: DesktopSong, modifier: Modifier, onClick: () -> Unit, onMore: () -> Unit) {
     val c = Desk.c
-    Row(Modifier.then(modifier).height(68.dp).deskLiquid(12.dp).clickable(onClick = onClick).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.then(modifier).height(68.dp).deskSurface(12.dp).clickable(onClick = onClick).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
         DeskArt(s, 46.dp, DeskArt8)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

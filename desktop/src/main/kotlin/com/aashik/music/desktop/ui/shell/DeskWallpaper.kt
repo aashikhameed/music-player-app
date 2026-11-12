@@ -30,6 +30,6 @@ internal fun DeskWallpaper(art: ImageBitmap?, modifier: Modifier = Modifier) {
         } else {
             Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(c.accent.copy(alpha = 0.35f), Color.Transparent), radius = 900f)))
         }
-        Box(Modifier.fillMaxSize().background(if (dark) Color.Black.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.40f)))
+        Box(Modifier.fillMaxSize().background(if (dark) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.40f)))
     }
 }

@@ -72,7 +72,7 @@ internal object DeskPrefs {
 internal fun deskPalette(mode: DeskThemeMode, art: ImageBitmap?): DeskPalette = when (mode) {
     DeskThemeMode.LIGHT -> DeskLight
     DeskThemeMode.DARK -> DeskDark
-    DeskThemeMode.ARTWORK -> deskPaletteFromArt(art)
+    DeskThemeMode.ARTWORK -> DeskDark.copy(background = Color(0xFF111114))
 }
 
 /** Whole page (wallpaper + sidebar + content + panel): sampled by floating glass (mini player, suggestions, sheets). */
@@ -158,4 +158,11 @@ internal fun deskFormatTime(ms: Long): String {
     val total = (ms / 1000).coerceAtLeast(0)
     val h = total / 3600; val m = (total % 3600) / 60; val s = total % 60
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+}
+
+/** Plain (non-glass) base surface: sidebar, cards, tiles and side panels. Glass is reserved for controls and floating UI. */
+@Composable
+internal fun Modifier.deskSurface(radius: androidx.compose.ui.unit.Dp): Modifier {
+    val c = Desk.c
+    return background(c.idleFill, RoundedCornerShape(radius))
 }

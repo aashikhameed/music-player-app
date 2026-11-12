@@ -73,7 +73,8 @@ internal fun DeskIconButton(
     active: Boolean = false,
     enabled: Boolean = true,
     loading: Boolean = false,
-    glass: Boolean = false
+    glass: Boolean = false,
+    floating: Boolean = false
 ) {
     val c = Desk.c
     val interaction = remember { MutableInteractionSource() }
@@ -93,7 +94,7 @@ internal fun DeskIconButton(
         modifier = modifier
             .size(size)
             .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.4f }
-            .then(if (glass) Modifier.deskLiquid(size / 2) else Modifier)
+            .then(if (glass) Modifier.deskLiquid(size / 2, floating = floating) else Modifier)
             .background(if (glass && !active) Color.Transparent else fill, DeskCircle)
             .hoverable(interaction)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick),
