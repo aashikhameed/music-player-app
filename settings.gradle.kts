@@ -21,3 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Music"
 include(":app")
+// macOS app: separate toolchain (Kotlin 2.4 / Compose 1.12), run from here with ./gradlew :desktop:run
+includeBuild("desktop")

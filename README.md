@@ -341,7 +341,6 @@ This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**
 The desktop app is a separate Gradle build (Kotlin 2.4, Compose Multiplatform 1.12, Kyant backdrop liquid glass), which needs JDK 21+:
 
 ```bash
-cd desktop
-../gradlew run                      # launch
-../gradlew snapshot -Pmode=library  # render the UI to /tmp/desktop.png without a display
+./gradlew :desktop:run                      # launch
+./gradlew :desktop:snapshot -Pmode=library  # render the UI to /tmp/desktop.png without a display
 ```
