@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Adaptive icon background: the navy gradient of the app icon tile. -->
+<!-- Adaptive icon background: the pink gradient of the app icon tile (the foreground is full-bleed). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <gradient android:angle="270" android:startColor="#FF182E56" android:endColor="#FF040F32" />
+    <gradient android:angle="315" android:startColor="#FFB21F6E" android:endColor="#FFF47A78" />
 </shape>
