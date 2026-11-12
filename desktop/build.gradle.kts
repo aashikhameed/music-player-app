@@ -32,3 +32,12 @@ compose.desktop {
         }
     }
 }
+
+// Dev helper: ./gradlew :desktop:snapshot -Pout=/tmp/x.png  (renders the UI off-screen, no display needed)
+tasks.register<JavaExec>("snapshot") {
+    group = "verification"
+    mainClass.set("com.aashik.music.desktop.tools.SnapshotKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    args = listOf((project.findProperty("out") as String?) ?: "/tmp/desktop.png", "1280", "720", (project.findProperty("mode") as String?) ?: "library")
+    jvmArgs("-Djava.awt.headless=true")
+}

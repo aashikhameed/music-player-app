@@ -27,11 +27,12 @@ object DesktopAudioPlayer {
 
     private var onTrackFinishedCallback: (() -> Unit)? = null
 
-    init {
-        ensureJavaFx()
-    }
+    private var javaFxStarted = false
 
+    /** Started lazily on first playback so the UI (and off-screen snapshots) never need a display. */
     private fun ensureJavaFx() {
+        if (javaFxStarted) return
+        javaFxStarted = true
         try {
             Platform.startup {}
         } catch (_: IllegalStateException) {
@@ -46,6 +47,7 @@ object DesktopAudioPlayer {
     }
 
     fun play(song: DesktopSong) {
+        ensureJavaFx()
         try {
             mediaPlayer?.stop()
             mediaPlayer?.dispose()
