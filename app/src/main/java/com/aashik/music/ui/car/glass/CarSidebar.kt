@@ -4,7 +4,12 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.MenuOpen
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -71,6 +76,8 @@ internal fun CarSidebar(
     // MORE is a portrait-only legacy tab; on the headunit it shows the full song list.
     val activeTab = if (selectedTab == LibraryTab.MORE) LibraryTab.ALL_SONGS else selectedTab
 
+    val collapsed by viewModel.sidebarCollapsed.collectAsState()
+
     Column(
         modifier = modifier
             .background(MobileTheme.panel)
@@ -78,27 +85,37 @@ internal fun CarSidebar(
             .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
-        // Header: just the clock (Equalizer and Settings are in the list below)
-        Row(
-            modifier = Modifier.fillMaxWidth().height(CarDims.Target).padding(start = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CarClock(isPlaying = isPlaying, modifier = Modifier.weight(1f))
+        // Destinations scroll when the screen is short; the footer stays pinned.
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            // Header: clock (hidden when collapsed) + collapse / expand toggle
+            Row(
+                modifier = Modifier.fillMaxWidth().height(CarDims.Target).padding(start = if (collapsed) 0.dp else 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start
+            ) {
+                if (!collapsed) CarClock(isPlaying = isPlaying, modifier = Modifier.weight(1f))
+                CarIconButton(
+                    if (collapsed) Icons.Rounded.Menu else Icons.Rounded.MenuOpen,
+                    if (collapsed) "Expand sidebar" else "Collapse sidebar",
+                    onClick = { viewModel.toggleSidebarCollapsed() },
+                    glyph = 24.dp,
+                    tint = MobileTheme.textSecondary
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+
+            SidebarItem(Icons.Rounded.Search, "Search", collapsed, selected = isSearchOpen, onClick = onOpenSearch)
+            SidebarItem(Icons.Rounded.MusicNote, "Songs", collapsed, selected = !isSearchOpen && activeTab == LibraryTab.ALL_SONGS) { onSelectTab(LibraryTab.ALL_SONGS) }
+            SidebarItem(Icons.Rounded.Favorite, "Favorites", collapsed, count = favoritePaths.size, selected = !isSearchOpen && activeTab == LibraryTab.FAVORITES) { onSelectTab(LibraryTab.FAVORITES) }
+            SidebarItem(Icons.Rounded.Folder, "Folders", collapsed, count = folders.size, selected = !isSearchOpen && activeTab == LibraryTab.FOLDERS) { onSelectTab(LibraryTab.FOLDERS) }
+            SidebarItem(Icons.Rounded.Radio, "Radio & Genres", collapsed, count = radioStations.size, selected = !isSearchOpen && activeTab == LibraryTab.RADIO) { onSelectTab(LibraryTab.RADIO) }
         }
-        Spacer(Modifier.height(12.dp))
 
-        SidebarItem(Icons.Rounded.Search, "Search", selected = isSearchOpen, onClick = onOpenSearch)
-        SidebarItem(Icons.Rounded.MusicNote, "Songs", selected = !isSearchOpen && activeTab == LibraryTab.ALL_SONGS) { onSelectTab(LibraryTab.ALL_SONGS) }
-        SidebarItem(Icons.Rounded.Favorite, "Favorites", count = favoritePaths.size, selected = !isSearchOpen && activeTab == LibraryTab.FAVORITES) { onSelectTab(LibraryTab.FAVORITES) }
-        SidebarItem(Icons.Rounded.Folder, "Folders", count = folders.size, selected = !isSearchOpen && activeTab == LibraryTab.FOLDERS) { onSelectTab(LibraryTab.FOLDERS) }
-        SidebarItem(Icons.Rounded.Radio, "Radio & Genres", count = radioStations.size, selected = !isSearchOpen && activeTab == LibraryTab.RADIO) { onSelectTab(LibraryTab.RADIO) }
-
-        Spacer(Modifier.weight(1f))
         Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).height(0.5.dp).background(carHairline))
 
-        SidebarItem(Icons.Rounded.DirectionsCar, "Drive HUD", selected = false) { viewModel.openDriveMode() }
-        SidebarItem(Icons.Rounded.GraphicEq, "Equalizer", selected = false) { viewModel.openEqualizer() }
-        SidebarItem(Icons.Rounded.Settings, "Settings", selected = false) { viewModel.openSettings() }
+        SidebarItem(Icons.Rounded.DirectionsCar, "Drive HUD", collapsed, selected = false) { viewModel.openDriveMode() }
+        SidebarItem(Icons.Rounded.GraphicEq, "Equalizer", collapsed, selected = false) { viewModel.openEqualizer() }
+        SidebarItem(Icons.Rounded.Settings, "Settings", collapsed, selected = false) { viewModel.openSettings() }
     }
 }
 
@@ -106,6 +123,7 @@ internal fun CarSidebar(
 private fun SidebarItem(
     icon: ImageVector,
     label: String,
+    collapsed: Boolean,
     selected: Boolean,
     count: Int? = null,
     onClick: () -> Unit
@@ -119,10 +137,12 @@ private fun SidebarItem(
             .clip(CarSidebarItemShape) // also bounds the press ripple
             .background(fill)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = if (collapsed) 0.dp else 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start
     ) {
-        CarGlyph(icon, null, tint, 24.dp)
+        CarGlyph(icon, label, tint, 24.dp)
+        if (collapsed) return@Row
         Spacer(Modifier.width(14.dp))
         Text(
             text = label,

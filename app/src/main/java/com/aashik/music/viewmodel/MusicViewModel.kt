@@ -146,6 +146,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _driveSide.value = side
         appPrefs.edit().putString("drive_side", side.name).apply()
     }
+    private val _sidebarCollapsed = MutableStateFlow(
+        application.getSharedPreferences("automotive_prefs", Context.MODE_PRIVATE).getBoolean("sidebar_collapsed", false)
+    )
+    /** Tablet / headunit sidebar: true = icons only. Remembered across launches. */
+    val sidebarCollapsed: StateFlow<Boolean> = _sidebarCollapsed.asStateFlow()
+
+    fun toggleSidebarCollapsed() {
+        _sidebarCollapsed.value = !_sidebarCollapsed.value
+        appPrefs.edit().putBoolean("sidebar_collapsed", _sidebarCollapsed.value).apply()
+    }
     private val _isDarkTheme = MutableStateFlow(false)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 

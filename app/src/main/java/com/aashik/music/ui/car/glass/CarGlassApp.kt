@@ -213,6 +213,11 @@ fun CarGlassApp(viewModel: MusicViewModel) {
                 LocalLayoutDirection provides if (driveSide == DriveSide.RIGHT) LayoutDirection.Rtl else LayoutDirection.Ltr
             ) {
             Row(Modifier.fillMaxSize()) {
+                val sidebarCollapsed by viewModel.sidebarCollapsed.collectAsState()
+                val sidebarWidth by androidx.compose.animation.core.animateDpAsState(
+                    if (sidebarCollapsed) CarDims.SidebarCollapsedWidth else CarDims.SidebarWidth,
+                    androidx.compose.animation.core.tween(220), label = "sidebarWidth"
+                )
                 val contentSlot = Modifier.weight(1f).fillMaxHeight()
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 CarSidebar(
@@ -226,7 +231,7 @@ fun CarGlassApp(viewModel: MusicViewModel) {
                         if (tab == LibraryTab.RADIO && selectedRadioCategory != null) viewModel.closeRadioCategory()
                         viewModel.selectTab(tab)
                     },
-                    modifier = Modifier.width(CarDims.SidebarWidth).fillMaxHeight()
+                    modifier = Modifier.width(sidebarWidth).fillMaxHeight()
                 )
                 }
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {

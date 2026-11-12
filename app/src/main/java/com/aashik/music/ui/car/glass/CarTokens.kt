@@ -85,6 +85,7 @@ internal fun Modifier.carGlass(radius: Dp, flatShape: androidx.compose.ui.graphi
 
 internal object CarDims {
     val SidebarWidth = 240.dp
+    val SidebarCollapsedWidth = 84.dp
     val SidebarRowHeight = 56.dp
     val ContentGutter = 24.dp
     val RowHeight = 64.dp
