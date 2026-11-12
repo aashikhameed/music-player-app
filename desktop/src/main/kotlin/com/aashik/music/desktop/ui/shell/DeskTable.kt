@@ -31,6 +31,8 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.VolumeMute
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -110,6 +112,7 @@ internal fun DeskToolbar(
     }
 }
 
+private val LeadW = 34.dp
 private val TimeW = 64.dp
 private val StarW = 44.dp
 private val PlaysW = 70.dp
@@ -135,7 +138,8 @@ internal fun DeskSongTable(
 ) {
     val c = Desk.c
     Column(modifier) {
-        Row(Modifier.fillMaxWidth().height(32.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(32.dp).padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width(LeadW))
             HeaderCell("Title", SortKey.TITLE, sort, sortAsc, onHeader, Modifier.weight(2.6f))
             Spacer(Modifier.width(MoreW))
             HeaderCell("Time", SortKey.TIME, sort, sortAsc, onHeader, Modifier.width(TimeW), TextAlign.End)
@@ -150,25 +154,30 @@ internal fun DeskSongTable(
         LazyColumn(state = state, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomInset)) {
             itemsIndexed(songs, key = { i, s -> "$i-${s.id}" }) { i, s ->
                 val isCur = s.id == current?.id
+                val fg = if (isCur) c.onAccent else c.text
                 Row(
-                    Modifier.fillMaxWidth().height(34.dp).background(if (i % 2 == 1) c.text.copy(alpha = 0.04f) else Color.Transparent)
-                        .clickable { onPlay(s) }.padding(horizontal = 16.dp),
+                    Modifier.fillMaxWidth().height(34.dp)
+                        .background(if (isCur) c.accent else if (i % 2 == 1) c.text.copy(alpha = 0.04f) else Color.Transparent)
+                        .clickable { onPlay(s) }.padding(end = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(s.title.ifBlank { "Untitled" }, color = if (isCur) c.accent else c.text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2.6f))
-                    Box(Modifier.width(MoreW), Alignment.Center) {
-                        DeskIconButton(Icons.Rounded.MoreHoriz, { onMore(s) }, size = 30.dp, glyph = 18.dp, tint = c.accent)
+                    Box(Modifier.width(LeadW), Alignment.Center) {
+                        if (isCur) DeskGlyph(if (isPlaying) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeMute, fg, 16.dp)
                     }
-                    Text(if (s.duration > 0) deskFormatTime(s.duration) else "", color = c.text, fontSize = 14.sp, textAlign = TextAlign.End, modifier = Modifier.width(TimeW))
+                    Text(s.title.ifBlank { "Untitled" }, color = fg, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2.6f))
+                    Box(Modifier.width(MoreW), Alignment.Center) {
+                        DeskIconButton(Icons.Rounded.MoreHoriz, { onMore(s) }, size = 30.dp, glyph = 18.dp, tint = if (isCur) fg else c.accent)
+                    }
+                    Text(if (s.duration > 0) deskFormatTime(s.duration) else "", color = fg, fontSize = 14.sp, textAlign = TextAlign.End, modifier = Modifier.width(TimeW))
                     Spacer(Modifier.width(16.dp))
-                    Text(s.artist, color = c.text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2f))
-                    Text(s.album.takeUnless { it == "Unknown Album" }.orEmpty(), color = c.text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2f))
+                    Text(s.artist, color = fg, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2f))
+                    Text(s.album.takeUnless { it == "Unknown Album" }.orEmpty(), color = fg, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(2f))
                     Text("", fontSize = 14.sp, modifier = Modifier.weight(1.2f))
                     Box(Modifier.width(StarW), Alignment.Center) {
                         val fav = favorites.contains(s.id)
-                        DeskIconButton(if (fav) Icons.Rounded.Star else Icons.Rounded.StarBorder, { onToggleFavorite(s) }, size = 30.dp, glyph = 16.dp, tint = if (fav) c.accent else c.textTertiary)
+                        DeskIconButton(if (fav) Icons.Rounded.Star else Icons.Rounded.StarBorder, { onToggleFavorite(s) }, size = 30.dp, glyph = 16.dp, tint = if (isCur) fg else if (fav) c.accent else c.textTertiary)
                     }
-                    Text((plays[s.id] ?: 0).takeIf { it > 0 }?.toString().orEmpty(), color = c.text, fontSize = 14.sp, textAlign = TextAlign.End, modifier = Modifier.width(PlaysW))
+                    Text((plays[s.id] ?: 0).takeIf { it > 0 }?.toString().orEmpty(), color = fg, fontSize = 14.sp, textAlign = TextAlign.End, modifier = Modifier.width(PlaysW))
                 }
             }
         }

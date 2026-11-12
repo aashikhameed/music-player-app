@@ -119,10 +119,12 @@ internal fun DeskPillButton(text: String, onClick: () -> Unit, modifier: Modifie
  * [progress] is read from a lambda so only this leaf recomposes on playback ticks.
  */
 @Composable
-internal fun DeskSeekSlider(progress: () -> Float, onSeek: (Float) -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
+internal fun DeskSeekSlider(progress: () -> Float, onSeek: (Float) -> Unit, modifier: Modifier = Modifier, compact: Boolean = false, overPage: Boolean = false) {
     val c = Desk.c
     var scrub by remember { mutableStateOf<Float?>(null) }
-    val backdrop = LocalDeskBackdrop.current ?: com.kyant.backdrop.backdrops.rememberLayerBackdrop()
+    // Over the page (player bar) the thumb refracts the page; inside the page it must not sample the layer it is in.
+    val own = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
+    val backdrop = if (overPage) LocalDeskBackdrop.current ?: own else own
     com.aashik.music.desktop.ui.glass.LiquidSlider(
         value = { scrub ?: progress() },
         onValueChange = { scrub = it },

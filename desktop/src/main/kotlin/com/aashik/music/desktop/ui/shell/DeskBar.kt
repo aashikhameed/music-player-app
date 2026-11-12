@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.FormatListBulleted
+import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.QueueMusic
@@ -62,13 +66,14 @@ internal class DeskTransportActions(
     val onSeekFraction: (Float) -> Unit
 )
 
-private val BarHeight = 56.dp
-private val BarBottom = 16.dp
-private const val BarFraction = 0.88f
+private val BarHeight = 64.dp
+private val BarBottom = 14.dp
+private const val BarFraction = 0.92f
 
 /**
- * Content area with the floating player bar: Kyant liquid glass (vibrancy, blur, lens) over [backdrop],
- * which records [content].
+ * Content area with the floating mini player (macOS Music style): Kyant liquid glass (vibrancy, blur, lens)
+ * over [backdrop], which records [content]. [overlay] draws above the content but outside the recorded
+ * layer (e.g. the search suggestions panel, which is glass too and must not sample itself).
  */
 @Composable
 internal fun DeskContentWithBar(
@@ -81,71 +86,76 @@ internal fun DeskContentWithBar(
     actions: DeskTransportActions,
     onLyrics: () -> Unit,
     onQueue: () -> Unit,
+    onMore: () -> Unit,
     backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
     modifier: Modifier = Modifier,
+    overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
     content: @Composable () -> Unit
 ) {
     val c = Desk.c
     BoxWithConstraints(modifier) {
-        val areaW = maxWidth; val areaH = maxHeight
-        val barW = areaW * BarFraction
+        val barW = maxWidth * BarFraction
         Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) { content() }
-        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = BarBottom).width(barW).height(BarHeight).deskLiquid(28.dp, lens = true, surfaceAlpha = 0.45f).pointerInput(Unit) {}) {
-            Row(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                DeskIconButton(Icons.Rounded.Shuffle, actions.onToggleShuffle, size = 38.dp, glyph = 18.dp, tint = if (shuffle) c.accent else c.textSecondary)
-                DeskIconButton(Icons.Rounded.SkipPrevious, actions.onPrevious, size = 40.dp, glyph = 24.dp, tint = c.text.copy(alpha = if (song != null) 1f else 0.4f))
-                DeskIconButton(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, actions.onPlayPause, size = 44.dp, glyph = 30.dp)
-                DeskIconButton(Icons.Rounded.SkipNext, actions.onNext, size = 40.dp, glyph = 24.dp, tint = c.text.copy(alpha = if (song != null) 1f else 0.4f))
-                DeskIconButton(if (repeat == DeskRepeat.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, actions.onCycleRepeat, size = 38.dp, glyph = 18.dp, tint = if (repeat != DeskRepeat.OFF) c.accent else c.textSecondary)
-                Spacer(Modifier.width(8.dp))
-                Center(song, actions, Modifier.weight(1f))
-                Spacer(Modifier.width(8.dp))
+        overlay()
+        Box(
+            Modifier.align(Alignment.BottomCenter).padding(bottom = BarBottom).width(barW).height(BarHeight)
+                .deskLiquid(32.dp, lens = true, surfaceAlpha = 0.28f).pointerInput(Unit) {}
+        ) {
+            Row(Modifier.fillMaxSize().padding(start = 14.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                val dim = if (song != null) 1f else 0.4f
+                DeskIconButton(Icons.Rounded.Shuffle, actions.onToggleShuffle, size = 36.dp, glyph = 18.dp, tint = if (shuffle) c.accent else c.textSecondary)
+                DeskIconButton(Icons.Rounded.FastRewind, actions.onPrevious, size = 42.dp, glyph = 28.dp, tint = c.text.copy(alpha = dim))
+                DeskIconButton(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, actions.onPlayPause, size = 46.dp, glyph = 36.dp)
+                DeskIconButton(Icons.Rounded.FastForward, actions.onNext, size = 42.dp, glyph = 28.dp, tint = c.text.copy(alpha = dim))
+                DeskIconButton(if (repeat == DeskRepeat.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat, actions.onCycleRepeat, size = 36.dp, glyph = 18.dp, tint = if (repeat != DeskRepeat.OFF) c.accent else c.textSecondary)
+                Spacer(Modifier.width(14.dp))
+                NowPlayingInfo(song, actions, Modifier.weight(1f))
+                Spacer(Modifier.width(10.dp))
+                DeskIconButton(Icons.Rounded.MoreHoriz, onMore, size = 38.dp, glyph = 22.dp, tint = c.text.copy(alpha = dim), enabled = song != null)
                 DeskIconButton(Icons.Rounded.Chat, onLyrics, size = 38.dp, glyph = 20.dp, tint = if (lyricsOpen) c.accent else c.textSecondary)
-                DeskIconButton(Icons.Rounded.QueueMusic, onQueue, size = 38.dp, glyph = 22.dp, tint = if (queueOpen) c.accent else c.textSecondary)
+                DeskIconButton(Icons.Rounded.FormatListBulleted, onQueue, size = 38.dp, glyph = 22.dp, tint = if (queueOpen) c.accent else c.text)
                 Volume()
             }
         }
     }
 }
 
+/** Artwork, title / artist and the progress line under them (no separate panel, as in Music). */
 @Composable
-private fun Center(song: DesktopSong?, actions: DeskTransportActions, modifier: Modifier) {
+private fun NowPlayingInfo(song: DesktopSong?, actions: DeskTransportActions, modifier: Modifier) {
     val c = Desk.c
-    Box(modifier.fillMaxHeight().background(c.text.copy(alpha = 0.06f), DeskItem), Alignment.Center) {
-        if (song == null) {
-            DeskGlyph(Icons.Rounded.MusicNote, c.textSecondary, 22.dp)
-        } else {
-            Row(Modifier.fillMaxSize().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                DeskArt(song, 40.dp, DeskArt8)
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
-                    Text(song.title.ifBlank { "Untitled" }, color = c.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                    Text(song.artist.ifBlank { "Unknown Artist" } + if (song.album != "Unknown Album") " — ${song.album}" else "", color = c.textSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                    BarProgress(song, actions)
-                }
-            }
+    if (song == null) {
+        Box(modifier.fillMaxHeight(), Alignment.Center) { DeskGlyph(Icons.Rounded.MusicNote, c.textSecondary, 24.dp) }
+        return
+    }
+    Row(modifier.fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
+        DeskArt(song, 48.dp, DeskArt8)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(song.title.ifBlank { "Untitled" }, color = c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(song.artist.ifBlank { "Unknown Artist" }, color = c.text.copy(alpha = 0.85f), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(4.dp))
+            BarProgress(song, actions)
         }
     }
 }
 
-/** Leaf: elapsed / remaining around a scrubbable line (only this reads playback ticks). */
+/** Leaf: thin scrubbable progress line (the only part of the bar that reads playback ticks). */
 @Composable
 private fun BarProgress(song: DesktopSong, actions: DeskTransportActions) {
     val c = Desk.c
     val pos by DesktopAudioPlayer.currentPositionMs.collectAsState()
     val dur by DesktopAudioPlayer.durationMs.collectAsState()
     val total = if (dur > 0) dur else song.duration
-    Row(Modifier.fillMaxWidth().height(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(deskFormatTime(pos), color = c.textSecondary, fontSize = 10.sp, modifier = Modifier.width(34.dp))
-        Box(Modifier.weight(1f).height(14.dp).pointerInput(total) {
+    val frac = if (total > 0) (pos.toFloat() / total).coerceIn(0f, 1f) else 0f
+    Box(
+        Modifier.fillMaxWidth(0.92f).height(8.dp).pointerInput(total) {
             detectTapGestures { o -> if (total > 0) actions.onSeekFraction((o.x / size.width).coerceIn(0f, 1f)) }
-        }, Alignment.Center) {
-            Box(Modifier.fillMaxWidth().height(3.dp).background(c.text.copy(alpha = 0.2f), DeskPill))
-            Box(Modifier.fillMaxWidth().height(3.dp), Alignment.CenterStart) {
-                Box(Modifier.fillMaxWidth(if (total > 0) (pos.toFloat() / total).coerceIn(0f, 1f) else 0f).height(3.dp).background(c.text, DeskPill))
-            }
-        }
-        Text("-" + deskFormatTime((total - pos).coerceAtLeast(0)), color = c.textSecondary, fontSize = 10.sp, textAlign = TextAlign.End, modifier = Modifier.width(38.dp))
+        },
+        Alignment.CenterStart
+    ) {
+        Box(Modifier.fillMaxWidth().height(3.dp).background(c.text.copy(alpha = 0.22f), DeskPill))
+        Box(Modifier.fillMaxWidth(frac).height(3.dp).background(c.text.copy(alpha = 0.9f), DeskPill))
     }
 }
 
@@ -155,7 +165,7 @@ private fun Volume() {
     val vol by DesktopAudioPlayer.volume.collectAsState()
     var open by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        if (open) Box(Modifier.width(90.dp)) { DeskSeekSlider(progress = { vol }, onSeek = { DesktopAudioPlayer.setVolume(it) }, compact = true) }
+        if (open) Box(Modifier.width(90.dp)) { DeskSeekSlider(progress = { vol }, onSeek = { DesktopAudioPlayer.setVolume(it) }, compact = true, overPage = true) }
         DeskIconButton(Icons.Rounded.VolumeUp, { open = !open }, size = 38.dp, glyph = 22.dp, tint = if (open) c.accent else c.textSecondary)
     }
 }

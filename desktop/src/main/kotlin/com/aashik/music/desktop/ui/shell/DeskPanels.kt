@@ -63,8 +63,13 @@ internal fun DeskRightPanel(
 private fun Lyrics(song: DesktopSong?, lyrics: List<DesktopLyricLine>) {
     val c = Desk.c
     if (song == null || lyrics.isEmpty()) {
-        Box(Modifier.fillMaxSize().padding(24.dp), Alignment.Center) {
-            Text(if (song == null) "Play a song to see lyrics here." else "No lyrics for this song.", color = c.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            if (song == null) Text("Play a song to see lyrics here.", color = c.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+            else {
+                Text("No Lyrics Available", color = c.textSecondary, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(10.dp))
+                Text("There aren’t any lyrics available for this song.", color = c.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+            }
         }
         return
     }

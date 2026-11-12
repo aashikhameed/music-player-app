@@ -46,7 +46,7 @@ import java.io.File
 /** Optional preset used by the off-screen snapshot tool. */
 internal class DeskPreview(
     val songs: List<DesktopSong>, val lyrics: List<DesktopLyricLine>, val dest: DeskDest = DeskDest.SONGS,
-    val playing: Boolean = true, val panel: RightPanel = RightPanel.LYRICS, val sheet: Boolean = false, val query: String = ""
+    val playing: Boolean = true, val panel: RightPanel = RightPanel.LYRICS, val sheet: Boolean = false, val query: String = "", val suggestions: Boolean = false
 )
 
 private val BarInset = 100.dp
@@ -66,7 +66,11 @@ internal fun DeskApp(preview: DeskPreview? = null) {
     var art by remember { mutableStateOf<ImageBitmap?>(null) }
     var dest by remember { mutableStateOf(preview?.dest ?: DeskDest.SONGS) }
     var group by remember { mutableStateOf<DeskGroup?>(null) }
-    var filter by remember { mutableStateOf(preview?.query ?: "") }
+    var filter by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(preview?.query ?: "") }
+    var searchScope by remember { mutableStateOf(SearchScope.LIBRARY) }
+    var searchFocused by remember { mutableStateOf(false) }
+    var suggestDismissed by remember { mutableStateOf(false) }
     var sort by remember { mutableStateOf(SortKey.TITLE) }
     var sortAsc by remember { mutableStateOf(true) }
     var panelOpen by remember { mutableStateOf(true) }
@@ -95,10 +99,11 @@ internal fun DeskApp(preview: DeskPreview? = null) {
         if (preview == null) lyrics = DesktopLyricsRepository.fetchLyrics(s)
     }
     LaunchedEffect(dest, group) { tableState.scrollToItem(0) }
-    LaunchedEffect(dest, filter) {
-        if (dest == DeskDest.SEARCH && filter.trim().length >= 2 && preview == null) {
-            onlineLoading = true; delay(400)
-            onlineResults = runCatching { DesktopOnlineRepository.searchSongs(filter, 15) }.getOrDefault(emptyList())
+    LaunchedEffect(dest, searchQuery, searchScope) {
+        suggestDismissed = false
+        if (dest == DeskDest.SEARCH && searchScope == SearchScope.ONLINE && searchQuery.trim().length >= 2 && preview == null) {
+            onlineLoading = true; delay(350)
+            onlineResults = runCatching { DesktopOnlineRepository.searchSongs(searchQuery, 24) }.getOrDefault(emptyList())
             onlineLoading = false
         } else onlineResults = emptyList()
     }
@@ -169,6 +174,10 @@ internal fun DeskApp(preview: DeskPreview? = null) {
             songs.groupBy { File(it.path).parent ?: "Local Music" }.map { (k, v) -> DeskGroup("pl-$k", File(k).name.ifBlank { k }, "${v.size} songs", v.first(), v) }
     }
 
+    val searchResults: List<DesktopSong> = if (searchScope == SearchScope.ONLINE) onlineResults
+        else if (searchQuery.isBlank()) emptyList()
+        else songs.filter { it.title.contains(searchQuery, true) || it.artist.contains(searchQuery, true) || it.album.contains(searchQuery, true) }
+
     @Composable
     fun table(title: String, list: List<DesktopSong>, placeholder: String, onBack: (() -> Unit)? = null, withSort: Boolean = true) {
         val shown = sorted(list.filter(::matches))
@@ -196,12 +205,17 @@ internal fun DeskApp(preview: DeskPreview? = null) {
                 key == DeskDest.PLAYLISTS.name -> DeskGroupGrid("All Playlists", playlistGroups, BarInset, { group = it; filter = "" })
                 key == DeskDest.RADIO.name -> DeskRadio(current, BarInset, { s, l -> play(s, listOf(s) + l) }, Modifier.fillMaxSize())
                 key == DeskDest.EQUALIZER.name -> DeskEqualizer(Modifier.fillMaxSize())
-                key == DeskDest.SEARCH.name -> Column(Modifier.fillMaxSize()) {
-                    DeskToolbar("Search", filter, "Songs, artists, albums, online", null, null, { filter = it })
-                    val local = songs.filter(::matches)
-                    DeskSongTable(local + onlineResults, current, isPlaying, plays, favSet, Modifier.fillMaxSize(), state = tableState, bottomInset = BarInset,
-                        onPlay = { s -> play(s, if (onlineResults.any { it.id == s.id }) onlineResults else local) }, onMore = { sheetSong = it }, onToggleFavorite = toggleFavorite)
-                }
+                key == DeskDest.SEARCH.name -> DeskSearchPage(
+                    query = searchQuery, onQuery = { searchQuery = it }, scope = searchScope, onScope = { searchScope = it },
+                    focused = searchFocused, onFocus = { searchFocused = it },
+                    onSubmit = { searchResults.firstOrNull()?.let { play(it, searchResults) }; suggestDismissed = true },
+                    onEscape = { suggestDismissed = true },
+                    results = searchResults, loading = onlineLoading, bottomInset = BarInset,
+                    onPlay = { s, l -> play(s, l); suggestDismissed = true }, onMore = { sheetSong = it },
+                    onOpenArtist = { name -> val l = searchResults.filter { it.artist.contains(name, true) }; group = DeskGroup("sa-$name", name, "", l.firstOrNull(), l) },
+                    onOpenAlbum = { album, artist -> val l = searchResults.filter { it.album == album }; group = DeskGroup("sb-$album", album, artist, l.firstOrNull(), l) },
+                    modifier = Modifier.fillMaxSize()
+                )
                 else -> DeskSettings(
                     themeMode, { themeMode = it; DeskPrefs.setTheme(it) },
                     { dir -> DesktopLocalScanner.saveStorageDir(dir); scope.launch { songs = DesktopLocalScanner.scanLocalMusic(dir) } },
@@ -221,8 +235,14 @@ internal fun DeskApp(preview: DeskPreview? = null) {
                     lyricsOpen = panelOpen && panel == RightPanel.LYRICS, queueOpen = panelOpen && panel == RightPanel.QUEUE, actions = actions,
                     onLyrics = { if (panelOpen && panel == RightPanel.LYRICS) panelOpen = false else { panel = RightPanel.LYRICS; panelOpen = true } },
                     onQueue = { if (panelOpen && panel == RightPanel.QUEUE) panelOpen = false else { panel = RightPanel.QUEUE; panelOpen = true } },
+                    onMore = { current?.let { sheetSong = it } },
                     backdrop = backdrop,
-                    modifier = Modifier.weight(1f).fillMaxHeight()
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    overlay = {
+                        val show = dest == DeskDest.SEARCH && group == null && searchQuery.isNotBlank() && searchResults.isNotEmpty() &&
+                            !suggestDismissed && (searchFocused || preview?.suggestions == true)
+                        if (show) DeskSearchSuggestions(searchQuery, searchResults) { s -> play(s, searchResults); suggestDismissed = true }
+                    }
                 ) { mainContent() }
                 if (panelOpen) DeskRightPanel(
                     panel, current, lyrics, queue, { s -> play(s, queue.toList().dropWhile { it.id != s.id }) }, { queue.remove(it) }, { queue.clear() },
