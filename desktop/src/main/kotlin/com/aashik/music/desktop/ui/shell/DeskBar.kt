@@ -39,7 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.layout
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -67,8 +67,8 @@ private val BarBottom = 16.dp
 private const val BarFraction = 0.88f
 
 /**
- * Content area with the floating player bar. The bar is real frosted glass: it draws a blurred copy of
- * [content] (state is hoisted, so both copies show the same rows) under a translucent tint.
+ * Content area with the floating player bar: Kyant liquid glass (vibrancy, blur, lens) over [backdrop],
+ * which records [content].
  */
 @Composable
 internal fun DeskContentWithBar(
@@ -81,6 +81,7 @@ internal fun DeskContentWithBar(
     actions: DeskTransportActions,
     onLyrics: () -> Unit,
     onQueue: () -> Unit,
+    backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
@@ -88,23 +89,8 @@ internal fun DeskContentWithBar(
     BoxWithConstraints(modifier) {
         val areaW = maxWidth; val areaH = maxHeight
         val barW = areaW * BarFraction
-        val barX = (areaW - barW) / 2
-        val barY = areaH - BarBottom - BarHeight
-        Box(Modifier.fillMaxSize()) { content() }
-        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = BarBottom).width(barW).height(BarHeight).clip(DeskCapsule)) {
-            // frosted backdrop: blurred copy of the content, aligned to the same pixels
-            val density = androidx.compose.ui.platform.LocalDensity.current
-            val (wPx, hPx, xPx, yPx) = with(density) { listOf(areaW.roundToPx(), areaH.roundToPx(), barX.roundToPx(), barY.roundToPx()) }
-            Box(
-                Modifier
-                    .layout { measurable, _ ->
-                        val p = measurable.measure(androidx.compose.ui.unit.Constraints.fixed(wPx, hPx))
-                        layout(0, 0) { p.place(-xPx, -yPx) }
-                    }
-                    .graphicsLayer { renderEffect = androidx.compose.ui.graphics.BlurEffect(36f, 36f, androidx.compose.ui.graphics.TileMode.Clamp) }
-                    .background(c.background)
-            ) { content() }
-            Box(Modifier.fillMaxSize().background(c.panel.copy(alpha = 0.62f)).pointerInput(Unit) {})
+        Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) { content() }
+        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = BarBottom).width(barW).height(BarHeight).deskLiquid(28.dp, lens = true, surfaceAlpha = 0.45f).pointerInput(Unit) {}) {
             Row(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 DeskIconButton(Icons.Rounded.Shuffle, actions.onToggleShuffle, size = 38.dp, glyph = 18.dp, tint = if (shuffle) c.accent else c.textSecondary)
                 DeskIconButton(Icons.Rounded.SkipPrevious, actions.onPrevious, size = 40.dp, glyph = 24.dp, tint = c.text.copy(alpha = if (song != null) 1f else 0.4f))

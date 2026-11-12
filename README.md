@@ -335,3 +335,13 @@ This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**
   <b>Built with ❤️ for automotive audiophiles and car enthusiast developers.</b><br>
   <sub>If you find this project useful for your car headunit, please consider starring ⭐ the repository!</sub>
 </div>
+
+## macOS app
+
+The desktop app is a separate Gradle build (Kotlin 2.4, Compose Multiplatform 1.12, Kyant backdrop liquid glass), which needs JDK 21+:
+
+```bash
+cd desktop
+../gradlew run                      # launch
+../gradlew snapshot -Pmode=library  # render the UI to /tmp/desktop.png without a display
+```

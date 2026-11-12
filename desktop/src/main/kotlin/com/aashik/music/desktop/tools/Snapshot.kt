@@ -2,16 +2,13 @@ package com.aashik.music.desktop.tools
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.ComposeScene
-import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import com.aashik.music.desktop.model.DesktopSong
 import com.aashik.music.desktop.service.DesktopLyricLine
 import com.aashik.music.desktop.ui.shell.*
 import com.aashik.music.desktop.ui.DesktopTheme
-import kotlinx.coroutines.Dispatchers
 import org.jetbrains.skia.EncodedImageFormat
-import org.jetbrains.skia.Surface
 import java.io.File
 
 /** Dev tool: renders the desktop UI off-screen to a PNG (no display needed). args: out.png [w h] */
@@ -29,18 +26,11 @@ fun main(args: Array<String>) {
             "settings" -> DeskDest.SETTINGS; "eq" -> DeskDest.EQUALIZER; "search" -> DeskDest.SEARCH; "playlists" -> DeskDest.PLAYLISTS; else -> DeskDest.SONGS },
         playing = mode != "idle", panel = if (mode == "queue") RightPanel.QUEUE else RightPanel.LYRICS,
         sheet = mode == "sheet", query = if (mode == "search") "a" else "")
-    val scene = ComposeScene(Dispatchers.Unconfined, Density(1f)) {}
-    scene.constraints = Constraints(0, w, 0, h)
-    scene.setContent { DesktopTheme { DeskApp(preview) } }
-    val surface = Surface.makeRasterN32Premul(w, h)
+    val scene = ImageComposeScene(w, h, Density(1f)) { DesktopTheme { DeskApp(preview) } }
     var t = 0L
-    repeat(40) {
-        Thread.sleep(50)
-        t += 50_000_000L
-        surface.canvas.clear(0xFF000000.toInt())
-        scene.render(surface.canvas, t)
-    }
-    val data = surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)!!
+    var image = scene.render(t)
+    repeat(40) { Thread.sleep(50); t += 50_000_000L; image = scene.render(t) }
+    val data = image.encodeToData(EncodedImageFormat.PNG)!!
     File(out).writeBytes(data.bytes)
     println("wrote $out")
     kotlin.system.exitProcess(0)

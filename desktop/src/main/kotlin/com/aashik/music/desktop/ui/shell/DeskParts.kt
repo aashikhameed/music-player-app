@@ -115,55 +115,26 @@ internal fun DeskPillButton(text: String, onClick: () -> Unit, modifier: Modifie
 }
 
 /**
- * Liquid-glass style seek slider: pill thumb that swells under the pointer (spring), accent fill.
+ * Kyant liquid glass slider (squash-and-stretch glass thumb with lens), shared with the Android app.
  * [progress] is read from a lambda so only this leaf recomposes on playback ticks.
  */
 @Composable
 internal fun DeskSeekSlider(progress: () -> Float, onSeek: (Float) -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     val c = Desk.c
-    var dragging by remember { mutableStateOf<Float?>(null) }
-    var widthPx by remember { mutableStateOf(1f) }
-    val pressScale by animateFloatAsState(if (dragging != null) 1.35f else 1f, spring(dampingRatio = 0.55f, stiffness = 420f))
-    val thumbW = if (compact) 14.dp else 40.dp; val thumbH = if (compact) 14.dp else 24.dp
-    val trackH = if (compact) 4.dp else 8.dp
-    val density = LocalDensity.current
-    val value = (dragging ?: progress()).coerceIn(0f, 1f)
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(if (compact) 28.dp else 44.dp)
-            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    var v = (down.position.x / widthPx).coerceIn(0f, 1f)
-                    dragging = v
-                    while (true) {
-                        val ev = awaitPointerEventPassMain()
-                        val ch = ev.changes.firstOrNull() ?: break
-                        v = (ch.position.x / widthPx).coerceIn(0f, 1f)
-                        dragging = v
-                        if (!ch.pressed) break
-                        ch.consume()
-                    }
-                    onSeek(v)
-                    dragging = null
-                }
-            },
-        contentAlignment = Alignment.CenterStart
-    ) {
-        val trackW = maxWidth
-        Box(Modifier.fillMaxWidth().height(trackH).background(c.text.copy(alpha = 0.14f), DeskPill))
-        Box(Modifier.width(trackW * value).height(trackH).background(c.accent, DeskPill))
-        val x = (trackW - thumbW) * value
-        Box(
-            Modifier
-                .offset(x = x)
-                .size(thumbW, thumbH)
-                .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
-                .background(Color.White, DeskPill)
-        )
-    }
+    var scrub by remember { mutableStateOf<Float?>(null) }
+    val backdrop = LocalDeskBackdrop.current ?: com.kyant.backdrop.backdrops.rememberLayerBackdrop()
+    com.aashik.music.desktop.ui.glass.LiquidSlider(
+        value = { scrub ?: progress() },
+        onValueChange = { scrub = it },
+        valueRange = 0f..1f,
+        visibilityThreshold = 0.001f,
+        backdrop = backdrop,
+        modifier = modifier,
+        accentColor = c.accent,
+        trackColorOverride = c.text.copy(alpha = 0.14f),
+        trackHeight = if (compact) 4.dp else 8.dp,
+        thumbWidth = if (compact) 28.dp else 40.dp,
+        thumbHeight = if (compact) 18.dp else 24.dp,
+        onValueChangeFinished = { scrub?.let(onSeek); scrub = null }
+    )
 }
-
-private suspend fun androidx.compose.ui.input.pointer.AwaitPointerEventScope.awaitPointerEventPassMain() = awaitPointerEvent()

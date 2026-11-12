@@ -183,7 +183,7 @@ internal fun DeskApp(preview: DeskPreview? = null) {
     }
 
     @Composable
-    fun main() {
+    fun mainContent() {
         Crossfade(if (group != null) "group" else dest.name, animationSpec = tween(160)) { key ->
             val g = group
             when {
@@ -211,7 +211,8 @@ internal fun DeskApp(preview: DeskPreview? = null) {
         }
     }
 
-    CompositionLocalProvider(LocalDesk provides palette) {
+    val backdrop = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
+    CompositionLocalProvider(LocalDesk provides palette, LocalDeskBackdrop provides backdrop) {
         Box(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxSize().background(palette.background)) {
                 DeskSidebar(dest, userName, { dest = it; group = null; filter = "" }, Modifier.width(220.dp).fillMaxHeight())
@@ -220,8 +221,9 @@ internal fun DeskApp(preview: DeskPreview? = null) {
                     lyricsOpen = panelOpen && panel == RightPanel.LYRICS, queueOpen = panelOpen && panel == RightPanel.QUEUE, actions = actions,
                     onLyrics = { if (panelOpen && panel == RightPanel.LYRICS) panelOpen = false else { panel = RightPanel.LYRICS; panelOpen = true } },
                     onQueue = { if (panelOpen && panel == RightPanel.QUEUE) panelOpen = false else { panel = RightPanel.QUEUE; panelOpen = true } },
+                    backdrop = backdrop,
                     modifier = Modifier.weight(1f).fillMaxHeight()
-                ) { main() }
+                ) { mainContent() }
                 if (panelOpen) DeskRightPanel(
                     panel, current, lyrics, queue, { s -> play(s, queue.toList().dropWhile { it.id != s.id }) }, { queue.remove(it) }, { queue.clear() },
                     Modifier.width(280.dp).fillMaxHeight()

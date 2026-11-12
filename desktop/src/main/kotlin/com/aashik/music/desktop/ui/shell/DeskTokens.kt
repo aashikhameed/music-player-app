@@ -5,6 +5,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -68,6 +73,34 @@ internal fun deskPalette(mode: DeskThemeMode, art: ImageBitmap?): DeskPalette = 
     DeskThemeMode.LIGHT -> DeskLight
     DeskThemeMode.DARK -> DeskDark
     DeskThemeMode.ARTWORK -> deskPaletteFromArt(art)
+}
+
+/** Page layer recorded for the glass surfaces (player bar, sheets, slider thumbs). */
+internal val LocalDeskBackdrop = compositionLocalOf<com.kyant.backdrop.Backdrop?> { null }
+
+/** Real Kyant liquid glass: vibrancy + blur + (optional) lens over the page behind. Flat panel when no backdrop. */
+@Composable
+internal fun Modifier.deskLiquid(radius: androidx.compose.ui.unit.Dp, lens: Boolean = true, surfaceAlpha: Float = 0.5f): Modifier {
+    val backdrop = LocalDeskBackdrop.current
+    val c = Desk.c
+    val shape = remember(radius) { com.kyant.shapes.RoundedRectangle(radius) }
+    if (backdrop == null) return background(c.panel.copy(alpha = 0.92f), RoundedCornerShape(radius))
+    val base = c.background
+    val surface = c.panel.copy(alpha = surfaceAlpha)
+    return drawBackdrop(
+        backdrop = backdrop,
+        shape = { shape },
+        effects = {
+            vibrancy()
+            blur(10.dp.toPx())
+            if (lens) lens(12.dp.toPx(), 14.dp.toPx())
+        },
+        highlight = { null },
+        shadow = { null },
+        innerShadow = { null },
+        onDrawBackdrop = { drawBackdrop -> drawRect(base); drawBackdrop() },
+        onDrawSurface = { drawRect(surface) }
+    )
 }
 
 internal val LocalDesk = compositionLocalOf { DeskDark }

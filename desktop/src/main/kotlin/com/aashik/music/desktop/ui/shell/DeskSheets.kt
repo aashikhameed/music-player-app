@@ -56,7 +56,7 @@ internal fun DeskSongActionSheet(song: DesktopSong?, actions: List<DeskAction>, 
     val s = shown[0]
     DeskModal(visible = song != null, onDismiss = onDismiss) {
         if (s == null) return@DeskModal
-        Column(Modifier.width(600.dp).background(c.panel, DeskSheet).padding(20.dp)) {
+        Column(Modifier.width(600.dp).deskLiquid(24.dp, lens = false, surfaceAlpha = 0.7f).padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 DeskArt(s, 64.dp)
                 Spacer(Modifier.width(16.dp))
@@ -91,7 +91,7 @@ internal fun DeskSongActionSheet(song: DesktopSong?, actions: List<DeskAction>, 
 internal fun DeskConfirmDialog(visible: Boolean, title: String, message: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val c = Desk.c
     DeskModal(visible, onDismiss) {
-        Column(Modifier.width(480.dp).background(c.panel, DeskSheet).padding(24.dp)) {
+        Column(Modifier.width(480.dp).deskLiquid(24.dp, lens = false, surfaceAlpha = 0.7f).padding(24.dp)) {
             Text(title, color = c.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Text(message, color = c.textSecondary, fontSize = 16.sp)
