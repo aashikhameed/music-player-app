@@ -47,7 +47,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -80,7 +79,7 @@ private const val BarFraction = 0.92f
  * layer (e.g. the search suggestions panel, which is glass too and must not sample itself).
  */
 @Composable
-internal fun DeskContentWithBar(
+internal fun DeskFloatingLayer(
     song: DesktopSong?,
     isPlaying: Boolean,
     shuffle: Boolean,
@@ -95,19 +94,16 @@ internal fun DeskContentWithBar(
     onRadio: () -> Unit,
     download: DownloadState,
     onDownload: () -> Unit,
-    backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
     modifier: Modifier = Modifier,
-    overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
-    content: @Composable () -> Unit
+    overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {}
 ) {
     val c = Desk.c
     BoxWithConstraints(modifier) {
         val barW = maxWidth * BarFraction
-        Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) { content() }
         overlay()
         Box(
             Modifier.align(Alignment.BottomCenter).padding(bottom = BarBottom).width(barW).height(BarHeight)
-                .deskLiquid(32.dp, lens = true, surfaceAlpha = 0.28f).pointerInput(Unit) {}
+                .deskLiquid(32.dp, lens = true, surfaceAlpha = 0.28f, floating = true).pointerInput(Unit) {}
         ) {
             Row(Modifier.fillMaxSize().padding(start = 14.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 val dim = if (song != null) 1f else 0.4f

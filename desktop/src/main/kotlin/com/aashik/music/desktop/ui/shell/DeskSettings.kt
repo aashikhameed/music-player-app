@@ -99,12 +99,12 @@ internal fun DeskSettings(
                         Text(dir, color = c.accent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            DeskPillButton("Choose Folder…", { DesktopFolderPicker.pickFolder(dir)?.let { dir = it; onStorageDirChanged(it) } }, icon = Icons.Rounded.Folder)
-                            DeskPillButton("Rescan", { onStorageDirChanged(dir) }, icon = Icons.Rounded.Refresh, accent = false)
+                            DeskPillButton("Choose Folder…", { DesktopFolderPicker.pickFolder(dir)?.let { dir = it; onStorageDirChanged(it) } }, icon = Icons.Rounded.Folder, glass = false)
+                            DeskPillButton("Rescan", { onStorageDirChanged(dir) }, icon = Icons.Rounded.Refresh, accent = false, glass = false)
                         }
                     }
                 }
-                Section.AUDIO -> Card("Equalizer", "10-band equalizer, applied to the audio engine.") { DeskPillButton("Open Equalizer", onOpenEqualizer, icon = Icons.Rounded.GraphicEq) }
+                Section.AUDIO -> Card("Equalizer", "10-band equalizer, applied to the audio engine.") { DeskPillButton("Open Equalizer", onOpenEqualizer, icon = Icons.Rounded.GraphicEq, glass = false) }
                 Section.ABOUT -> Card("Music Player for macOS", "Version 0.4.3 • JavaFX audio engine") {}
             }
         }
@@ -114,7 +114,7 @@ internal fun DeskSettings(
 @Composable
 private fun Card(title: String, subtitle: String?, content: @Composable () -> Unit) {
     val c = Desk.c
-    Column(Modifier.fillMaxWidth().background(c.idleFill, DeskCard).padding(20.dp)) {
+    Column(Modifier.fillMaxWidth().deskLiquid(16.dp).padding(20.dp)) {
         Text(title, color = c.text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         if (subtitle != null) Text(subtitle, color = c.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp))
         Spacer(Modifier.height(14.dp))
@@ -123,9 +123,9 @@ private fun Card(title: String, subtitle: String?, content: @Composable () -> Un
 }
 
 @Composable
-private fun Chip(label: String, selected: Boolean, onClick: (Unit) -> Unit) {
+private fun Chip(label: String, selected: Boolean, glass: Boolean = false, onClick: (Unit) -> Unit) {
     val c = Desk.c
-    Box(Modifier.height(48.dp).background(if (selected) c.accent else c.idleFill, DeskPill).clickable { onClick(Unit) }.padding(horizontal = 22.dp), Alignment.Center) {
+    Box(Modifier.height(48.dp).then(if (glass) Modifier.deskLiquid(24.dp) else Modifier).background(if (selected) c.accent else if (glass) Color.Transparent else c.idleFill, DeskPill).clickable { onClick(Unit) }.padding(horizontal = 22.dp), Alignment.Center) {
         Text(label, color = if (selected) c.onAccent else c.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
     }
 }
@@ -167,7 +167,7 @@ internal fun DeskEqualizer(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Presets.keys.forEach { name ->
-                Chip(name, name == preset) { _ ->
+                Chip(name, name == preset, glass = true) { _ ->
                     preset = name
                     val v = Presets.getValue(name)
                     v.forEachIndexed { i, g -> gains[i] = g }
@@ -176,7 +176,7 @@ internal fun DeskEqualizer(modifier: Modifier = Modifier) {
             }
         }
         Spacer(Modifier.height(24.dp))
-        Row(Modifier.fillMaxWidth().weight(1f).background(c.idleFill, DeskSheet).padding(horizontal = 24.dp, vertical = 20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+        Row(Modifier.fillMaxWidth().weight(1f).deskLiquid(24.dp).padding(horizontal = 24.dp, vertical = 20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             Freqs.forEachIndexed { i, f ->
                 Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("${if (gains[i] > 0) "+" else ""}${gains[i].toInt()} dB", color = c.textSecondary, fontSize = 12.sp)

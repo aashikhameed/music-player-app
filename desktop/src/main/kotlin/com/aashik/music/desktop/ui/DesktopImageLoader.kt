@@ -33,7 +33,6 @@ import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
-import javax.imageio.ImageIO
 
 /**
  * Universal High-Performance Desktop Artwork Loader & Cacher.
@@ -80,15 +79,15 @@ object DesktopImageCache {
         conn.connect()
 
         if (conn.responseCode in 200..299) {
-            conn.inputStream.use { stream ->
-                val buf = ImageIO.read(stream)
-                if (buf != null) {
-                    return buf.toComposeImageBitmap()
-                }
-            }
+            conn.inputStream.use { stream -> return decode(stream.readBytes()) }
         }
         return null
     }
+
+    /** Skia decodes JPEG, PNG, WebP and GIF (ImageIO cannot read WebP, which most online covers use). */
+    private fun decode(bytes: ByteArray): ImageBitmap? = try {
+        org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
+    } catch (_: Throwable) { null }
 
     private fun loadLocalImageOrAudioArt(pathOrUri: String): ImageBitmap? {
         val cleanPath = when {
@@ -101,19 +100,14 @@ object DesktopImageCache {
 
         val ext = file.extension.lowercase()
         // 1. Direct Image Files
-        if (ext in listOf("jpg", "jpeg", "png", "webp", "bmp", "gif")) {
-            val buf = ImageIO.read(file) ?: return null
-            return buf.toComposeImageBitmap()
-        }
+        if (ext in listOf("jpg", "jpeg", "png", "webp", "bmp", "gif")) return decode(file.readBytes())
 
         // 2. Embedded Audio Artwork (.m4a, .mp4, .mp3, .flac)
         val rawArtBytes = extractEmbeddedArtworkBytes(file)
-        if (rawArtBytes != null && rawArtBytes.isNotEmpty()) {
-            val buf = ByteArrayInputStream(rawArtBytes).use { ImageIO.read(it) }
-            if (buf != null) {
-                return buf.toComposeImageBitmap()
-            }
-        }
+        if (rawArtBytes != null && rawArtBytes.isNotEmpty()) decode(rawArtBytes)?.let { return it }
+        // 3. Cover saved next to the file (downloads): "<name>.jpg/.webp/.png"
+        listOf("jpg", "jpeg", "webp", "png").map { File(file.parentFile, file.nameWithoutExtension + "." + it) }
+            .firstOrNull { it.exists() }?.let { return decode(it.readBytes()) }
         return null
     }
 

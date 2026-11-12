@@ -72,7 +72,8 @@ internal fun DeskIconButton(
     filled: Boolean = false,
     active: Boolean = false,
     enabled: Boolean = true,
-    loading: Boolean = false
+    loading: Boolean = false,
+    glass: Boolean = false
 ) {
     val c = Desk.c
     val interaction = remember { MutableInteractionSource() }
@@ -92,7 +93,8 @@ internal fun DeskIconButton(
         modifier = modifier
             .size(size)
             .graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.4f }
-            .background(fill, DeskCircle)
+            .then(if (glass) Modifier.deskLiquid(size / 2) else Modifier)
+            .background(if (glass && !active) Color.Transparent else fill, DeskCircle)
             .hoverable(interaction)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
@@ -103,12 +105,13 @@ internal fun DeskIconButton(
 }
 
 @Composable
-internal fun DeskPillButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, accent: Boolean = true) {
+internal fun DeskPillButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, accent: Boolean = true, glass: Boolean = true) {
     val c = Desk.c
     Row(
         modifier = modifier
             .height(48.dp)
-            .background(if (accent) c.accent else c.idleFill, DeskPill)
+            .then(if (glass) Modifier.deskLiquid(24.dp) else Modifier)
+            .background(if (accent) c.accent.copy(alpha = if (glass) 0.85f else 1f) else if (glass) Color.Transparent else c.idleFill, DeskPill)
             .clickable(onClick = onClick)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically

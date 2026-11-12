@@ -75,13 +75,17 @@ internal fun deskPalette(mode: DeskThemeMode, art: ImageBitmap?): DeskPalette = 
     DeskThemeMode.ARTWORK -> deskPaletteFromArt(art)
 }
 
-/** Page layer recorded for the glass surfaces (player bar, sheets, slider thumbs). */
+/** Whole page (wallpaper + sidebar + content + panel): sampled by floating glass (mini player, suggestions, sheets). */
 internal val LocalDeskBackdrop = compositionLocalOf<com.kyant.backdrop.Backdrop?> { null }
+
+/** Wallpaper only: sampled by glass that lives on the page itself (sidebar, panels, cards, pills, buttons). */
+internal val LocalDeskWallpaper = compositionLocalOf<com.kyant.backdrop.Backdrop?> { null }
 
 /** Real Kyant liquid glass: vibrancy + blur + (optional) lens over the page behind. Flat panel when no backdrop. */
 @Composable
-internal fun Modifier.deskLiquid(radius: androidx.compose.ui.unit.Dp, lens: Boolean = true, surfaceAlpha: Float = 0.5f): Modifier {
-    val backdrop = LocalDeskBackdrop.current
+internal fun Modifier.deskLiquid(radius: androidx.compose.ui.unit.Dp, lens: Boolean = true, surfaceAlpha: Float = 0.35f, floating: Boolean = false): Modifier {
+    // Glass never samples a layer it is drawn into: page items use the wallpaper, floating items the whole page.
+    val backdrop = if (floating) LocalDeskBackdrop.current else LocalDeskWallpaper.current
     val c = Desk.c
     val shape = remember(radius) { com.kyant.shapes.RoundedRectangle(radius) }
     if (backdrop == null) return background(c.panel.copy(alpha = 0.92f), RoundedCornerShape(radius))

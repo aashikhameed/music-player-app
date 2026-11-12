@@ -50,8 +50,7 @@ internal fun DeskRightPanel(
     modifier: Modifier = Modifier
 ) {
     val c = Desk.c
-    Box(modifier.background(c.background)) {
-        Box(Modifier.width(0.5.dp).fillMaxSize().background(c.hairline))
+    Box(modifier.padding(8.dp).deskLiquid(18.dp)) {
         when (panel) {
             RightPanel.LYRICS -> Lyrics(song, lyrics)
             RightPanel.QUEUE -> Queue(queue, onPlayFromQueue, onRemoveFromQueue, onClearQueue)

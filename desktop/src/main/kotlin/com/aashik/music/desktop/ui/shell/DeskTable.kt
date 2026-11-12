@@ -87,11 +87,11 @@ internal fun DeskToolbar(
     val c = Desk.c
     var menu by remember { mutableStateOf(false) }
     Row(modifier.fillMaxWidth().height(60.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (onBack != null) { DeskIconButton(androidx.compose.material.icons.Icons.Rounded.ArrowBackIos, onBack, size = 36.dp, glyph = 18.dp, tint = c.accent); Spacer(Modifier.width(4.dp)) }
+        if (onBack != null) { DeskIconButton(androidx.compose.material.icons.Icons.Rounded.ArrowBackIos, onBack, size = 36.dp, glyph = 18.dp, tint = c.accent, glass = true); Spacer(Modifier.width(4.dp)) }
         Text(title, color = c.text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (onSort != null) {
             Box {
-                DeskIconButton(Icons.Rounded.Tune, { menu = !menu }, size = 40.dp, glyph = 20.dp, filled = true)
+                DeskIconButton(Icons.Rounded.Tune, { menu = !menu }, size = 40.dp, glyph = 20.dp, glass = true)
                 androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     SortKey.values().forEach { k ->
                         androidx.compose.material3.DropdownMenuItem(text = { Text(k.label + if (k == sort) "  ✓" else "") }, onClick = { onSort(k); menu = false })
@@ -100,7 +100,7 @@ internal fun DeskToolbar(
             }
             Spacer(Modifier.width(10.dp))
         }
-        Row(Modifier.width(300.dp).height(40.dp).background(c.text.copy(alpha = 0.10f), DeskPill).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.width(300.dp).height(40.dp).deskLiquid(20.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             DeskGlyph(Icons.Rounded.Search, c.textSecondary, 18.dp)
             Spacer(Modifier.width(8.dp))
             Box(Modifier.weight(1f)) {

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
@@ -255,32 +257,38 @@ internal fun DeskApp(preview: DeskPreview? = null) {
         }
     }
 
-    val backdrop = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
-    CompositionLocalProvider(LocalDesk provides palette, LocalDeskBackdrop provides backdrop) {
+    val pageBackdrop = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
+    val wallpaperBackdrop = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
+    CompositionLocalProvider(LocalDesk provides palette, LocalDeskBackdrop provides pageBackdrop, LocalDeskWallpaper provides wallpaperBackdrop) {
         Box(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxSize().background(palette.background)) {
-                DeskSidebar(dest, userName, { dest = it; group = null; filter = "" }, Modifier.width(220.dp).fillMaxHeight())
-                DeskContentWithBar(
-                    song = current, isPlaying = isPlaying, shuffle = shuffle, repeat = repeat,
-                    lyricsOpen = panelOpen && panel == RightPanel.LYRICS, queueOpen = panelOpen && panel == RightPanel.QUEUE, actions = actions,
-                    onLyrics = { if (panelOpen && panel == RightPanel.LYRICS) panelOpen = false else { panel = RightPanel.LYRICS; panelOpen = true } },
-                    onQueue = { if (panelOpen && panel == RightPanel.QUEUE) panelOpen = false else { panel = RightPanel.QUEUE; panelOpen = true } },
-                    onMore = { current?.let { sheetSong = it } },
-                    radioLoading = radioLoading, onRadio = { current?.let { startRadio(it) } },
-                    download = downloadState, onDownload = { current?.let { download(it) } },
-                    backdrop = backdrop,
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    overlay = {
-                        val show = dest == DeskDest.SEARCH && group == null && searchQuery.isNotBlank() && searchResults.isNotEmpty() &&
-                            !suggestDismissed && (searchFocused || preview?.suggestions == true)
-                        if (show) DeskSearchSuggestions(searchQuery, searchResults) { s -> play(s, searchResults); suggestDismissed = true }
-                    }
-                ) { mainContent() }
-                if (panelOpen) DeskRightPanel(
-                    panel, current, lyrics, queue, { s -> play(s, queue.toList().dropWhile { it.id != s.id }) }, { queue.remove(it) }, { queue.clear() },
-                    Modifier.width(280.dp).fillMaxHeight()
-                )
+            // Recorded page: wallpaper (recorded on its own for on-page glass) + sidebar, content and side panel.
+            Box(Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
+                Box(Modifier.fillMaxSize().layerBackdrop(wallpaperBackdrop)) { DeskWallpaper(art) }
+                Row(Modifier.fillMaxSize()) {
+                    DeskSidebar(dest, userName, { dest = it; group = null; filter = "" }, Modifier.width(220.dp).fillMaxHeight())
+                    Box(Modifier.weight(1f).fillMaxHeight()) { mainContent() }
+                    if (panelOpen) DeskRightPanel(
+                        panel, current, lyrics, queue, { s -> play(s, queue.toList().dropWhile { it.id != s.id }) }, { queue.remove(it) }, { queue.clear() },
+                        Modifier.width(280.dp).fillMaxHeight()
+                    )
+                }
             }
+            // Floating glass over the content column: mini player + search suggestions.
+            DeskFloatingLayer(
+                song = current, isPlaying = isPlaying, shuffle = shuffle, repeat = repeat,
+                lyricsOpen = panelOpen && panel == RightPanel.LYRICS, queueOpen = panelOpen && panel == RightPanel.QUEUE, actions = actions,
+                onLyrics = { if (panelOpen && panel == RightPanel.LYRICS) panelOpen = false else { panel = RightPanel.LYRICS; panelOpen = true } },
+                onQueue = { if (panelOpen && panel == RightPanel.QUEUE) panelOpen = false else { panel = RightPanel.QUEUE; panelOpen = true } },
+                onMore = { current?.let { sheetSong = it } },
+                radioLoading = radioLoading, onRadio = { current?.let { startRadio(it) } },
+                download = downloadState, onDownload = { current?.let { download(it) } },
+                modifier = Modifier.fillMaxSize().padding(start = 220.dp, end = if (panelOpen) 280.dp else 0.dp),
+                overlay = {
+                    val show = dest == DeskDest.SEARCH && group == null && searchQuery.isNotBlank() && searchResults.isNotEmpty() &&
+                        !suggestDismissed && (searchFocused || preview?.suggestions == true)
+                    if (show) DeskSearchSuggestions(searchQuery, searchResults) { s -> play(s, searchResults); suggestDismissed = true }
+                }
+            )
             val s = sheetSong
             DeskSongActionSheet(
                 s,

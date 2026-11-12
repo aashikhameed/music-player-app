@@ -19,7 +19,7 @@ fun main(args: Array<String>) {
     val h = args.getOrNull(2)?.toInt() ?: 720
     val mode = args.getOrElse(3) { "library" }
     val demo = listOf("Cheap Thrills" to "Sia", "Unstoppable" to "Sia", "Blinding Lights" to "The Weeknd", "Levitating" to "Dua Lipa", "Heat Waves" to "Glass Animals", "As It Was" to "Harry Styles", "Stay" to "The Kid LAROI", "Bad Habits" to "Ed Sheeran")
-        .mapIndexed { i, (t, a) -> DesktopSong("id$i", t, a, "Album ${i + 1}", 200_000L + i * 7_000L, "/demo/$i.mp3") }
+        .mapIndexed { i, (t, a) -> DesktopSong("id$i", t, a, "Album ${i + 1}", 200_000L + i * 7_000L, "/demo/$i.mp3", artworkUrl = if (i % 2 == 0) com.aashik.music.desktop.utils.b64u("aHR0cHM6Ly9jLnNhYXZuY2RuLmNvbS8yOTEvT3J1LUthbC1PcnUtS2FubmFkaS1UYW1pbC0yMDEyLTIwMjYwMTIwMjAxMjU3LTUwMHg1MDAud2VicA==") else null) }
     val lyr = (0 until 14).map { DesktopLyricLine(it * 4000L, "Come on, come on, turn the radio on $it") }
     val preview = DeskPreview(demo, lyr,
         dest = when (mode) { "recent" -> DeskDest.RECENT; "home" -> DeskDest.HOME; "artists" -> DeskDest.ARTISTS; "albums" -> DeskDest.ALBUMS; "radio" -> DeskDest.RADIO
@@ -29,7 +29,7 @@ fun main(args: Array<String>) {
     val scene = ImageComposeScene(w, h, Density(1f)) { DesktopTheme { DeskApp(preview) } }
     var t = 0L
     var image = scene.render(t)
-    repeat(40) { Thread.sleep(50); t += 50_000_000L; image = scene.render(t) }
+    repeat(60) { Thread.sleep(60); t += 50_000_000L; image = scene.render(t) }
     val data = image.encodeToData(EncodedImageFormat.PNG)!!
     File(out).writeBytes(data.bytes)
     println("wrote $out")

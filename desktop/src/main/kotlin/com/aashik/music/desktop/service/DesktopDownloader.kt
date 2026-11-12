@@ -59,6 +59,14 @@ object DesktopDownloader {
             }
             conn.disconnect()
             if (!tmp.renameTo(out)) { tmp.copyTo(out, overwrite = true); tmp.delete() }
+            song.artworkUrl?.takeIf { it.startsWith("http") }?.let { art ->
+                runCatching {
+                    val ext = art.substringBefore('?').substringAfterLast('.', "jpg").lowercase().takeIf { it in setOf("jpg", "jpeg", "png", "webp") } ?: "jpg"
+                    val c = (URL(art).openConnection() as HttpURLConnection).apply { connectTimeout = 10_000; readTimeout = 15_000; setRequestProperty("User-Agent", "Mozilla/5.0") }
+                    c.inputStream.use { i -> File(out.parentFile, out.nameWithoutExtension + "." + ext).outputStream().use { o -> i.copyTo(o) } }
+                    c.disconnect()
+                }
+            }
             set(song.id, 1f)
             out
         } catch (e: Exception) {

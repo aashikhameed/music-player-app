@@ -69,7 +69,7 @@ internal fun DeskFolders(songs: List<DesktopSong>, bottomInset: Dp, onOpen: (Str
         if (folders.isEmpty()) Box(Modifier.fillMaxSize(), Alignment.Center) { Text("No folders yet", color = c.textSecondary, fontSize = 16.sp) }
         else LazyVerticalGrid(GridCells.Adaptive(300.dp), contentPadding = PaddingValues(bottom = bottomInset), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             items(folders, key = { it.key }) { (path, list) ->
-                Row(Modifier.fillMaxWidth().height(88.dp).background(c.idleFill, DeskCard).clickable { onOpen(path) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().height(88.dp).deskLiquid(16.dp).clickable { onOpen(path) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     DeskGlyph(Icons.Rounded.Folder, c.accent, 36.dp)
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
@@ -120,7 +120,7 @@ internal fun DeskRadio(
         }
         Column(modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp)) {
             Row(Modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                DeskIconButton(Icons.Rounded.ArrowBack, { category = null }, size = 40.dp, glyph = 20.dp, filled = true)
+                DeskIconButton(Icons.Rounded.ArrowBack, { category = null }, size = 40.dp, glyph = 20.dp, glass = true)
                 Spacer(Modifier.width(12.dp))
                 Text(cat.title, color = c.text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }

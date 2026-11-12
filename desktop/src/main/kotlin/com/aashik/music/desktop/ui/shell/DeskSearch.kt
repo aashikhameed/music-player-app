@@ -93,7 +93,7 @@ internal fun DeskSearchPage(
                     Modifier.weight(1f).height(42.dp)
                         .background(c.accent.copy(alpha = if (focused) 0.55f else 0f), FieldShape)
                         .padding(if (focused) 2.dp else 0.dp)
-                        .background(c.text.copy(alpha = 0.10f).compositeOverBg(c.background), FieldShape)
+                        .deskLiquid(16.dp)
                         .padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -183,7 +183,7 @@ private fun SectionHeader(title: String, chevron: Boolean) {
 @Composable
 private fun ScopeSwitch(scope: SearchScope, onScope: (SearchScope) -> Unit) {
     val c = Desk.c
-    Row(Modifier.height(42.dp).background(c.text.copy(alpha = 0.10f), DeskPill).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.height(42.dp).deskLiquid(21.dp).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
         SearchScope.values().forEach { s ->
             val on = s == scope
             Box(
@@ -197,7 +197,7 @@ private fun ScopeSwitch(scope: SearchScope, onScope: (SearchScope) -> Unit) {
 @Composable
 private fun TopResultCard(s: DesktopSong, modifier: Modifier, onClick: () -> Unit, onMore: () -> Unit) {
     val c = Desk.c
-    Row(Modifier.then(modifier).height(96.dp).background(c.text.copy(alpha = 0.06f), TileShape).clickable(onClick = onClick).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.then(modifier).height(96.dp).deskLiquid(14.dp).clickable(onClick = onClick).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
         DeskArt(s, 64.dp, DeskArt8)
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
@@ -214,7 +214,7 @@ internal fun BoxScope.DeskSearchSuggestions(query: String, results: List<Desktop
     val c = Desk.c
     Column(
         Modifier.align(Alignment.TopCenter).padding(top = SearchTopBar - 4.dp).widthIn(max = 720.dp).fillMaxWidth(0.62f)
-            .deskLiquid(18.dp, lens = true, surfaceAlpha = 0.55f).padding(vertical = 8.dp)
+            .deskLiquid(18.dp, lens = true, surfaceAlpha = 0.55f, floating = true).padding(vertical = 8.dp)
     ) {
         Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 26.dp), verticalAlignment = Alignment.CenterVertically) {
             DeskGlyph(Icons.Rounded.Search, c.textSecondary, 20.dp); Spacer(Modifier.width(12.dp))
