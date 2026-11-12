@@ -39,8 +39,9 @@ compose.desktop {
         runtimeJdk?.let { javaHome = it }
         mainClass = "com.aashik.music.desktop.MainKt"
         nativeDistributions {
-            packageName = "MusicPlayer"
+            packageName = "Music"
             packageVersion = "1.0.0"
+            macOS { iconFile.set(project.file("icons/icon.icns")) }
         }
     }
 }
