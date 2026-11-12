@@ -49,7 +49,6 @@ fun EqualizerCurveCanvas(
             .fillMaxWidth()
             .height(64.dp)
             .background(EqCurveBg, shape = EqCurveContainerShape)
-            .border(1.dp, EqCurveBorder, shape = EqCurveContainerShape)
             .onSizeChanged {
                 canvasWidth = it.width.toFloat()
                 canvasHeight = it.height.toFloat()

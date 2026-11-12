@@ -28,12 +28,10 @@ fun DspCard(
     icon: ImageVector,
     content: @Composable () -> Unit
 ) {
-    val cardBorder = AppGradients.border(isActive = false)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), shape = DspCardShape)
-            .border(width = 0.8.dp, brush = cardBorder, shape = DspCardShape)
             .padding(12.dp)
     ) {
         Row(

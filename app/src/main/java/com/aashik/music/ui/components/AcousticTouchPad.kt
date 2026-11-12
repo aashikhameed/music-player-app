@@ -37,7 +37,6 @@ fun AcousticTouchPad(
     Box(
         modifier = modifier
             .background(gridBgColor, shape = GridBorderShape)
-            .border(1.dp, gridLineColor, GridBorderShape)
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val normX = ((offset.x / size.width) * 2f - 1f).coerceIn(-1f, 1f)

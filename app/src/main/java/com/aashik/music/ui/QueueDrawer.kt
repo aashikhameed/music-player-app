@@ -1,7 +1,6 @@
 package com.aashik.music.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -179,8 +178,7 @@ fun QueueDrawer(
                     // Empty Queue State
                     Surface(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .border(width = 0.8.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), shape = DrawerItemShape),
+                            .fillMaxWidth(),
                         shape = DrawerItemShape,
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                     ) {
@@ -221,8 +219,7 @@ fun QueueDrawer(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { viewModel.playNextSong() }
-                                .border(width = 0.8.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), shape = DrawerItemShape),
+                                .clickable { viewModel.playNextSong() },
                             shape = DrawerItemShape,
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
                         ) {

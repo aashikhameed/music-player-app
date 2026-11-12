@@ -200,7 +200,6 @@ fun EqualizerScreen(
                                 .fillMaxWidth()
                                 .clip(EqDropdownShape)
                                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, EqDropdownShape)
                                 .clickable(enabled = isEnabled) { isDropdownExpanded = true }
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
