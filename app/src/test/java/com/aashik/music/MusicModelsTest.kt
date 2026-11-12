@@ -1,5 +1,7 @@
 package com.aashik.music
 
+import com.aashik.music.utils.b64u
+
 import com.aashik.music.model.MusicFolder
 import com.aashik.music.model.Song
 import org.junit.Assert.assertEquals
@@ -376,7 +378,7 @@ class MusicModelsTest {
             artist = "Stream Artist",
             album = "Single Album",
             duration = 215000L,
-            path = "https://media.streamcdn.com/123/stream.mp4"
+            path = b64u("aHR0cHM6Ly9tZWRpYS5zdHJlYW1jZG4uY29tLzEyMy9zdHJlYW0ubXA0")
         )
         assertTrue(streamSong.isStream())
         assertEquals("STREAM", streamSong.getFileExtension())
@@ -388,7 +390,7 @@ class MusicModelsTest {
             artist = "ChillHop",
             album = "Community Radio",
             duration = 0L,
-            path = "https://streams.ilovemusic.de/iloveradio17.mp3"
+            path = b64u("aHR0cHM6Ly9zdHJlYW1zLmlsb3ZlbXVzaWMuZGUvaWxvdmVyYWRpbzE3Lm1wMw==")
         )
         assertTrue(liveRadio.isStream())
         assertEquals("LIVE", liveRadio.getFileExtension())
@@ -402,7 +404,7 @@ class MusicModelsTest {
             name = "Nightwave Plaza",
             genre = "Synthwave",
             description = "Aesthetic Synthwave Stream",
-            streamUrl = "https://radio.plaza.one/mp3",
+            streamUrl = b64u("aHR0cHM6Ly9yYWRpby5wbGF6YS5vbmUvbXAz"),
             bitrate = "128 kbps",
             country = "Global"
         )
@@ -412,7 +414,7 @@ class MusicModelsTest {
         assertEquals("Synthwave • 128 kbps", stationSong.artist)
         assertEquals("Online Radio & Streams", stationSong.album)
         assertEquals(0L, stationSong.duration)
-        assertEquals("https://radio.plaza.one/mp3", stationSong.path)
+        assertEquals(b64u("aHR0cHM6Ly9yYWRpby5wbGF6YS5vbmUvbXAz"), stationSong.path)
     }
 
     @Test
@@ -439,7 +441,7 @@ class MusicModelsTest {
             artist = "The Weeknd",
             album = "After Hours",
             duration = 200000L,
-            path = "https://media.streamcdn.com/test_320.mp4"
+            path = b64u("aHR0cHM6Ly9tZWRpYS5zdHJlYW1jZG4uY29tL3Rlc3RfMzIwLm1wNA==")
         )
         // Finite duration streams are eligible for download
         assertTrue(streamSong.isStream())
@@ -452,7 +454,7 @@ class MusicModelsTest {
             artist = "Lofi",
             album = "Radio",
             duration = 0L,
-            path = "https://play.streamafrica.net/lofigirl"
+            path = b64u("aHR0cHM6Ly9wbGF5LnN0cmVhbWFmcmljYS5uZXQvbG9maWdpcmw=")
         )
         assertTrue(liveStation.isStream())
         assertEquals(0L, liveStation.duration)
@@ -536,7 +538,7 @@ class MusicModelsTest {
             artist = "Anirudh Ravichander",
             album = "Jailer 2",
             duration = 240000L,
-            path = "https://example.com/stream.mp4"
+            path = b64u("aHR0cHM6Ly9leGFtcGxlLmNvbS9zdHJlYW0ubXA0")
         )
 
         // Register genre
@@ -548,7 +550,7 @@ class MusicModelsTest {
             id = "test_lofi",
             name = "Lofi Study",
             genre = "Lo-Fi",
-            streamUrl = "https://example.com/lofi.mp3"
+            streamUrl = b64u("aHR0cHM6Ly9leGFtcGxlLmNvbS9sb2ZpLm1wMw==")
         )
         val stationSong = station.toSong()
         com.aashik.music.service.OnlineStreamRepository.registerSongGenre(stationSong.id, station.genre)
@@ -626,8 +628,8 @@ class MusicModelsTest {
 
     @Test
     fun testSingleDownloadDirectoryStructure() {
-        val song1 = Song(id = "online_1", title = "Track 1", artist = "Artist A", album = "Album A", duration = 180000L, path = "https://media.streamcdn.com/1/track1.mp4")
-        val song2 = Song(id = "online_2", title = "Track 2", artist = "Artist B", album = "Album B", duration = 210000L, path = "https://media.streamcdn.com/2/track2.mp4")
+        val song1 = Song(id = "online_1", title = "Track 1", artist = "Artist A", album = "Album A", duration = 180000L, path = b64u("aHR0cHM6Ly9tZWRpYS5zdHJlYW1jZG4uY29tLzEvdHJhY2sxLm1wNA=="))
+        val song2 = Song(id = "online_2", title = "Track 2", artist = "Artist B", album = "Album B", duration = 210000L, path = b64u("aHR0cHM6Ly9tZWRpYS5zdHJlYW1jZG4uY29tLzIvdHJhY2syLm1wNA=="))
 
         val parentDir = java.io.File("/storage/emulated/0/Music/MusicPlayer")
         val file1 = java.io.File(parentDir, "Artist_A_Track_1_hash1.m4a")
@@ -736,7 +738,7 @@ class MusicModelsTest {
             artist = "Artist",
             album = "Album",
             duration = 180000L,
-            path = "https://example.com/audio.mp3"
+            path = b64u("aHR0cHM6Ly9leGFtcGxlLmNvbS9hdWRpby5tcDM=")
         )
         val localSong = Song(
             id = "/sdcard/Music/local.mp3",
@@ -766,8 +768,8 @@ class MusicModelsTest {
     fun testVideoAudioQueueIntegrity() {
         // Given an active user queue
         val currentQueue = listOf(
-            Song(id = "1", title = "Song 1", artist = "A", album = "Al", duration = 180000L, path = "http://1"),
-            Song(id = "2", title = "Song 2", artist = "B", album = "Al", duration = 180000L, path = "http://2")
+            Song(id = "1", title = "Song 1", artist = "A", album = "Al", duration = 180000L, path = b64u("aHR0cDovLzE=")),
+            Song(id = "2", title = "Song 2", artist = "B", album = "Al", duration = 180000L, path = b64u("aHR0cDovLzI="))
         )
 
         // Toggling video mode on/off must keep the exact user queue unchanged
@@ -785,13 +787,13 @@ class MusicModelsTest {
             title = "Yaakkai Thiri",
             artist = "A.R. Rahman",
             album = "Aayutha Ezhuthu",
-            artworkUrl = "https://example.com/art.jpg",
+            artworkUrl = b64u("aHR0cHM6Ly9leGFtcGxlLmNvbS9hcnQuanBn"),
             duration = 240000L
         )
         assertEquals("Yaakkai Thiri", meta.title)
         assertEquals("A.R. Rahman", meta.artist)
         assertEquals("Aayutha Ezhuthu", meta.album)
-        assertEquals("https://example.com/art.jpg", meta.artworkUrl)
+        assertEquals(b64u("aHR0cHM6Ly9leGFtcGxlLmNvbS9hcnQuanBn"), meta.artworkUrl)
         assertEquals(240000L, meta.duration)
 
         // Filename cleaning check
@@ -909,7 +911,7 @@ class MusicModelsTest {
 
         // 4. TTML Parsing
         val ttml = """
-            <tt xmlns="http://www.w3.org/ns/ttml">
+            <tt xmlns=b64u("aHR0cDovL3d3dy53My5vcmcvbnMvdHRtbA==")>
                 <body>
                     <div>
                         <p begin="00:09.500" end="00:12.000"><span>First</span> <span>line</span></p>

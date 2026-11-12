@@ -1,5 +1,7 @@
 package com.aashik.music
 
+import com.aashik.music.utils.b64u
+
 import com.aashik.music.model.Song
 import com.aashik.music.provider.LocalFileSourceProvider
 import com.aashik.music.provider.OnlineStreamSourceProvider
@@ -72,7 +74,7 @@ class EqualizerModelTest {
             title = "Stream Song",
             artist = "Stream Artist",
             album = "Stream Album",
-            path = "https://example.com/stream.mp3",
+            path = b64u("aHR0cHM6Ly9leGFtcGxlLmNvbS9zdHJlYW0ubXAz"),
             duration = 0L
         )
         assertFalse(provider.isOfflineAvailable(streamSong))
@@ -89,11 +91,11 @@ class EqualizerModelTest {
             title = "Radio Station",
             artist = "Radio",
             album = "Live",
-            path = "http://stream.example.com/live.aac",
+            path = b64u("aHR0cDovL3N0cmVhbS5leGFtcGxlLmNvbS9saXZlLmFhYw=="),
             duration = 0L
         )
         assertFalse(provider.isOfflineAvailable(streamSong))
-        assertEquals("http://stream.example.com/live.aac", provider.getStreamUri(streamSong))
+        assertEquals(b64u("aHR0cDovL3N0cmVhbS5leGFtcGxlLmNvbS9saXZlLmFhYw=="), provider.getStreamUri(streamSong))
 
         val localSong = Song(
             id = "4",

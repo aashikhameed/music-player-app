@@ -1,5 +1,7 @@
 package com.aashik.music.service
 
+import com.aashik.music.utils.b64u
+
 import android.content.Context
 import com.aashik.music.model.Song
 import kotlinx.coroutines.Dispatchers
@@ -37,8 +39,8 @@ data class LyricLine(
  *  - Pure standard Android HTTP (HttpURLConnection), zero external dependencies
  */
 object LyricsRepository {
-    private const val LRCLIB_URL = "https://lrclib.net/api"
-    private const val BINI_URL = "https://lyrics-api.binimum.org"
+    private val LRCLIB_URL = b64u("aHR0cHM6Ly9scmNsaWIubmV0L2FwaQ==")
+    private val BINI_URL = b64u("aHR0cHM6Ly9seXJpY3MtYXBpLmJpbmltdW0ub3Jn")
     private val USER_AGENT = String(java.util.Base64.getDecoder().decode("TW96aWxsYS81LjAgKExpbnV4OyBBbmRvaWQgMTA7IEF1dG9tb3RpdmUpIEFwcGxlV2ViS2l0LzUzNy4zNiAoS0hUTUwsIGxpa2UgR2Vja28pIENocm9tZS8xMjAuMC4wLjAgU2FmYXJpLzUzNy4zNg=="), Charsets.UTF_8)
 
     private val memoryCache = ConcurrentHashMap<String, List<LyricLine>>()

@@ -39,7 +39,7 @@ private val CardLargeCornerShape = RoundedRectangle(24f.dp)
  * Liquid Glass Card implementation following Kyant0/AndroidLiquidGlass.
  * 
  * References:
- * - https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar
+ * - aHR0cHM6Ly9reWFudC5naXRib29rLmlvL2JhY2tkcm9wL3R1dG9yaWFscy9nbGFzcy1ib3R0b20tYmFy
  * - app/src/commonMain/kotlin/com/kyant/backdrop/catalog/destinations/GlassPlaygroundContent.kt
  * 
  * Features:

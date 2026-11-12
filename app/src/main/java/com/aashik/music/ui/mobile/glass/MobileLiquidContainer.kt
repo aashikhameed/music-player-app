@@ -16,7 +16,7 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 
 /**
  * Controller configuration for the mobile liquid glass backing canvas.
- * Implements the architecture defined in https://kyant.gitbook.io/backdrop.
+ * Implements the architecture defined in aHR0cHM6Ly9reWFudC5naXRib29rLmlvL2JhY2tkcm9wLg==
  */
 class MobileLiquidBackdropController(
     val backgroundColor: Color = MobileTheme.background

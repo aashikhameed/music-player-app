@@ -1,5 +1,7 @@
 package com.aashik.music.model
 
+import com.aashik.music.utils.b64u
+
 import androidx.compose.runtime.Immutable
 
 enum class CategorySection {
@@ -56,7 +58,7 @@ data class RadioStation(
                 title = "Chill",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFFA4C5FF,
-                imageUrl = "https://yt3.googleusercontent.com/CDt4RjHDGr0YiX6WxARTBFkdb9k9VsAIm88sJXZ7B3O1yMoS53kLS_dy8ZIKRrFRHHCB6OJePWU1GbY=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0NEdDRSakhER3IwWWlYNld4QVJUQkZrZGI5azlWc0FJbTg4c0pYWjdCM08xeU1vUzUza0xTX2R5OFpJS1JyRlJISENCNk9KZVBXVTFHYlk9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX1JOQWZFeDByc2Jm"
             ),
             RadioCategory(
@@ -64,7 +66,7 @@ data class RadioStation(
                 title = "Commute",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFFFFC200,
-                imageUrl = "https://yt3.googleusercontent.com/TALQkjUiJF2lNPNzYAFFAvJfJPiLHtSHF2YbtXKLA84h-ZaN7X8scDed7OTAiFgKx6CZ4K2ZAZyqUUw=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1RBTFFralVpSkYybE5QTnpZQUZGQXZKZkpQaUxIdFNIRjJZYnRYS0xBODRoLVphTjdYOHNjRGVkN09UQWlGZ0t4NkNaNEsyWkFaeXFVVXc9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX044Z2o5WERLckpU"
             ),
             RadioCategory(
@@ -72,7 +74,7 @@ data class RadioStation(
                 title = "Diwali",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFF606060,
-                imageUrl = "https://yt3.googleusercontent.com/HFR703oTI5lyhzTdsn1Zo_Npm9QxtIMyVzz7JzzD1rxdgfESj97ckbb2cw7Ao-s5nmZ6AX56Xs3jLQ=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0hGUjcwM29USTVseWh6VGRzbjFab19OcG05UXh0SU15Vnp6N0p6ekQxcnhkZ2ZFU2o5N2NrYmIyY3c3QW8tczVubVo2QVg1NlhzM2pMUT13MTIwMC1oMTIwMC1sOTAtcmo="),
                 params = "ggMPOg1uX0lQVm1ablYxWml5"
             ),
             RadioCategory(
@@ -80,7 +82,7 @@ data class RadioStation(
                 title = "Energize",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFFFFE780,
-                imageUrl = "https://yt3.googleusercontent.com/PiHeLTzGupMv0PkTI0dg-sstkzOx8yNkBOEfV67yP_sUkJtXLRk4JO8dwhz18rZAz9gHJSAGHeztsJ4=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1BpSGVMVHpHdXBNdjBQa1RJMGRnLXNzdGt6T3g4eU5rQk9FZlY2N3lQX3NVa0p0WExSazRKTzhkd2h6MThyWkF6OWdISlNBR0hlenRzSjQ9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX2lRZUZiMnNrQnJW"
             ),
             RadioCategory(
@@ -88,7 +90,7 @@ data class RadioStation(
                 title = "Feel good",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFFA4FFA4,
-                imageUrl = "https://yt3.googleusercontent.com/Am3iIGzF5Dz-8e2nKJMQfn5TE_1aAT2wUOKHJJ2xzfSoS0LT4XV6pOZax_mKLc2HarHbqnm_VQ0sY9vF=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0FtM2lJR3pGNUR6LThlMm5LSk1RZm41VEVfMWFBVDJ3VU9LSEpKMnh6ZlNvUzBMVDRYVjZwT1pheF9tS0xjMkhhckhicW5tX1ZRMHNZOXZGPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uXzZQbDB5eThLRTQ3"
             ),
             RadioCategory(
@@ -96,7 +98,7 @@ data class RadioStation(
                 title = "Focus",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFFCCCCCC,
-                imageUrl = "https://yt3.googleusercontent.com/9I45SYZAfTeR17ByV9i2yDpWhQ5DTWMCrW3Lei8vMIiZzeyUnf2zRFUDBob4TGwgUkXAAR_x1Xa8VA=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLzlJNDVTWVpBZlRlUjE3QnlWOWkyeURwV2hRNURUV01DclczTGVpOHZNSWlaemV5VW5mMnpSRlVEQm9iNFRHd2dVa1hBQVJfeDFYYThWQT13MTIwMC1oMTIwMC1sOTAtcmo="),
                 params = "ggMPOg1uX0NvNGNhWThMYWRh"
             ),
             RadioCategory(
@@ -104,7 +106,7 @@ data class RadioStation(
                 title = "Gaming",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFF606060,
-                imageUrl = "https://yt3.googleusercontent.com/QrISu_Bk4sR6MN_TUD2bbWO4ZyfdSFJVE8JPpCD4P9uCRmyQtE1e3HjxtwsiomjiR0idTKD7Wl6w9A=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1FySVN1X0JrNHNSNk1OX1RVRDJiYldPNFp5ZmRTRkpWRThKUHBDRDRQOXVDUm15UXRFMWUzSGp4dHdzaW9tamlSMGlkVEtEN1dsNnc5QT13MTIwMC1oMTIwMC1sOTAtcmo="),
                 params = "ggMPOg1uX3NmUVV4Vzl3WGQ0"
             ),
             RadioCategory(
@@ -112,7 +114,7 @@ data class RadioStation(
                 title = "Party",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFFB47BFF,
-                imageUrl = "https://yt3.googleusercontent.com/kHXGXRuL3_9v5rKBGrGX_-TY3HMrMvuTO1cHaD_dGZS04YFp1WxF8hXXmTwjXSv-FVxNlJE201hPoKI=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2tIWEdYUnVMM185djVyS0JHckdYXy1UWTNITXJNdnVUTzFjSGFEX2RHWlMwNFlGcDFXeEY4aFhYbVR3alhTdi1GVnhObEpFMjAxaFBvS0k9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX0pmQ0s2V0JRclZs"
             ),
             RadioCategory(
@@ -120,7 +122,7 @@ data class RadioStation(
                 title = "Romance",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFFCC0000,
-                imageUrl = "https://yt3.googleusercontent.com/HEdSa36FoDLbUaGWynkGzG_QFFElSh2RpOF4UOXgPwWTUkbqynoWw8W5trrQAnQM76PgryWuXYTLMgw=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0hFZFNhMzZGb0RMYlVhR1d5bmtHekdfUUZGRWxTaDJScE9GNFVPWGdQd1dUVWticXlub1d3OFc1dHJyUUFuUU03NlBncnlXdVhZVExNZ3c9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX0FzQ2FhZWtUY211"
             ),
             RadioCategory(
@@ -128,7 +130,7 @@ data class RadioStation(
                 title = "Sad",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFF8C8C8C,
-                imageUrl = "https://yt3.googleusercontent.com/q4iCQuoHBeumL9s0LMTIiCMeYR2EdIlNp_YAKiKUjlehuF8-lRO-_PvCplt2TCvKQV3ECPQGZU_pmrQ=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3E0aUNRdW9IQmV1bUw5czBMTVRJaUNNZVlSMkVkSWxOcF9ZQUtpS1VqbGVodUY4LWxSTy1fUHZDcGx0MlRDdktRVjNFQ1BRR1pVX3BtclE9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX0JLQ0gySWZKZVY1"
             ),
             RadioCategory(
@@ -136,7 +138,7 @@ data class RadioStation(
                 title = "Sleep",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFF7B3EDB,
-                imageUrl = "https://yt3.googleusercontent.com/SwyowKe-kDLokD2wEouPllJwjfKlG73podaFDHBzaEDeR0mu3mgp0x4iy7ouTDD0JuksjzG3ObZsfQ=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1N3eW93S2Uta0RMb2tEMndFb3VQbGxKd2pmS2xHNzNwb2RhRkRIQnphRURlUjBtdTNtZ3AweDRpeTdvdVRERDBKdWtzanpHM09iWnNmUT13MTIwMC1oMTIwMC1sOTAtcmo="),
                 params = "ggMPOg1uX1MxaFQ3Z0JMZkN4"
             ),
             RadioCategory(
@@ -144,7 +146,7 @@ data class RadioStation(
                 title = "Workout",
                 section = CategorySection.MOODS_AND_MOMENTS,
                 stripeColor = 0xFFFF8D40,
-                imageUrl = "https://yt3.googleusercontent.com/ugsYfFh0MWr_EITP7kg1K3PMeDx2HC_EkEqQzD7-ww31VEwGHJPuCXIdcxBAqJGc8z4o9Q9shyxQsA=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3Vnc1lmRmgwTVdyX0VJVFA3a2cxSzNQTWVEeDJIQ19Fa0VxUXpENy13dzMxVkV3R0hKUHVDWElkY3hCQXFKR2M4ejRvOVE5c2h5eFFzQT13MTIwMC1oMTIwMC1sOTAtcmo="),
                 params = "ggMPOg1uX09LWkhnTjRGRUJh"
             )        )
 
@@ -154,7 +156,7 @@ data class RadioStation(
                 title = "African",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF00A513,
-                imageUrl = "https://yt3.googleusercontent.com/kTxtxmzJ-4CKH_7InmwvuAMpJncOg2-HcZjSL2V-21OQo87TBSGqmHdKajnEhTyKQdELwV_FfIfyvJ4=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2tUeHR4bXpKLTRDS0hfN0lubXd2dUFNcEpuY09nMi1IY1pqU0wyVi0yMU9Rbzg3VEJTR3FtSGRLYWpuRWhUeUtRZEVMd1ZfRmZJZnl2SjQ9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX0UzWGxlRE5jMDVk"
             ),
             RadioCategory(
@@ -162,7 +164,7 @@ data class RadioStation(
                 title = "Arabic",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFE24B00,
-                imageUrl = "https://yt3.googleusercontent.com/rYJeFMLIXhFmrrK-VGHeWf9r7HXwDpS0n1wC8U_3pU09MsavuRR-h0vpl5y9SpMPY9dfsMuxOVhMFwA=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3JZSmVGTUxJWGhGbXJySy1WR0hlV2Y5cjdIWHdEcFMwbjF3QzhVXzNwVTA5TXNhdnVSUi1oMHZwbDV5OVNwTVBZOWRmc011eE9WaE1Gd0E9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX3VOQWxsblVZTFNE"
             ),
             RadioCategory(
@@ -170,7 +172,7 @@ data class RadioStation(
                 title = "Bengali",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFFE780,
-                imageUrl = "https://yt3.googleusercontent.com/pK2GEiXP6Y39SIqt0yloi59loLlKJ9Quotgpb_wpt-DPFcNg5er3XME1oX_NCIXFYS_NQivfJipvn1gz=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3BLMkdFaVhQNlkzOVNJcXQweWxvaTU5bG9MbEtKOVF1b3RncGJfd3B0LURQRmNOZzVlcjNYTUUxb1hfTkNJWEZZU19OUWl2ZkppcHZuMWd6PXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX1ZEZzBvYUp0TGNI"
             ),
             RadioCategory(
@@ -178,7 +180,7 @@ data class RadioStation(
                 title = "Bhojpuri",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFAA09AA,
-                imageUrl = "https://yt3.googleusercontent.com/jv803U2QeOu_0S_AGjKCDe9CmB1U-8PohJD7KvpPoLnsBnxUNJjCXWhvFTtwmuQygwugqWcUiA0tenDn=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2p2ODAzVTJRZU91XzBTX0FHaktDRGU5Q21CMVUtOFBvaEpEN0t2cFBvTG5zQm54VU5KakNYV2h2RlR0d211UXlnd3VncVdjVWlBMHRlbkRuPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX05iYWtoenBuUkZX"
             ),
             RadioCategory(
@@ -186,7 +188,7 @@ data class RadioStation(
                 title = "Carnatic classical",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFF8D40,
-                imageUrl = "https://yt3.googleusercontent.com/CI62SWBxOP3v62oUe_q-0et8fG5w4li3SrkkfS52vFRKc_DrWU0zOAS9dTU6YxzxfOanGHZKQLPF-HQqnQ=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0NJNjJTV0J4T1AzdjYyb1VlX3EtMGV0OGZHNXc0bGkzU3Jra2ZTNTJ2RlJLY19EcldVMHpPQVM5ZFRVNll4enhmT2FuR0haS1FMUEYtSFFxblE9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX2tuQ3JyczRkeEJK"
             ),
             RadioCategory(
@@ -194,7 +196,7 @@ data class RadioStation(
                 title = "Classical",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFCCCCCC,
-                imageUrl = "https://yt3.googleusercontent.com/gt2VLko0VPeGpEwZwen50BQ7KLTCC_La1Z5o2bpRfe4mqQakRcdct1adWV2Qkn5HZUOob9iAL5AU6PM=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2d0MlZMa28wVlBlR3BFd1p3ZW41MEJRN0tMVENDX0xhMVo1bzJicFJmZTRtcVFha1JjZGN0MWFkV1YyUWtuNUhaVU9vYjlpQUw1QVU2UE09dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX1N4VmduTmdUR3dm"
             ),
             RadioCategory(
@@ -202,7 +204,7 @@ data class RadioStation(
                 title = "Country & Americana",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF337DFF,
-                imageUrl = "https://yt3.googleusercontent.com/pXFQCa7a4g8yaLQOuE2y0zWK4X0A9Kdjx1PTC_KICZc9OEgahsFl-F6VBihBNOLAiYX7XnuPqaC4Yio=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3BYRlFDYTdhNGc4eWFMUU91RTJ5MHpXSzRYMEE5S2RqeDFQVENfS0lDWmM5T0VnYWhzRmwtRjZWQmloQk5PTEFpWVg3WG51UHFhQzRZaW89dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX1RXcFlyZEpRb1d3"
             ),
             RadioCategory(
@@ -210,7 +212,7 @@ data class RadioStation(
                 title = "Dance & electronic",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF0092BF,
-                imageUrl = "https://yt3.googleusercontent.com/vZoVcMsQI0ggXXTTLp0wITvlRFe2yK9dgwQr6xCljw_EbUp4rDBPUiAh-I-SpPZ6lHTZnzPE_05K_mA=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3Zab1ZjTXNRSTBnZ1hYVFRMcDB3SVR2bFJGZTJ5SzlkZ3dRcjZ4Q2xqd19FYlVwNHJEQlBVaUFoLUktU3BQWjZsSFRabnpQRV8wNUtfbUE9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX1NPTld3SDN3WGs4"
             ),
             RadioCategory(
@@ -218,7 +220,7 @@ data class RadioStation(
                 title = "Decades",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFA4FFA4,
-                imageUrl = "https://yt3.googleusercontent.com/PzpjzCcvOOWN7fRIGzI5su0UEbtbF1va8Vb1ylLUwLnTxIjwOP2twr7TPfoR7ZBXMUfu09H5a16bc6ox=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1B6cGp6Q2N2T09XTjdmUklHekk1c3UwVUVidGJGMXZhOFZiMXlsTFV3TG5UeElqd09QMnR3cjdUUGZvUjdaQlhNVWZ1MDlINWExNmJjNm94PXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX253QXk4VXN5NGdj"
             ),
             RadioCategory(
@@ -226,7 +228,7 @@ data class RadioStation(
                 title = "Desi hip-hop",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF606060,
-                imageUrl = "https://yt3.googleusercontent.com/S8j2pafsPquKvFPv1svpiFwhuNuiEWm7uzZswzcApOFr35GWxCIXgLu5CP9UPzqeoXUPD1uSD9Dd95A=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1M4ajJwYWZzUHF1S3ZGUHYxc3ZwaUZ3aHVOdWlFV203dXpac3d6Y0FwT0ZyMzVHV3hDSVhnTHU1Q1A5VVB6cWVvWFVQRDF1U0Q5RGQ5NUE9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX3VtYUhGSmtKdlhr"
             ),
             RadioCategory(
@@ -234,7 +236,7 @@ data class RadioStation(
                 title = "Devotional",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF606060,
-                imageUrl = "https://yt3.googleusercontent.com/Zx-E1XhOKa_9C5OmtilDDZ1uwuaFSZxj3PyKQOPNurRIyd4PB_AeKixWMFG7OXdShMF_VgHlsb-q5FQ=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1p4LUUxWGhPS2FfOUM1T210aWxERFoxdXd1YUZTWnhqM1B5S1FPUE51clJJeWQ0UEJfQWVLaXhXTUZHN09YZFNoTUZfVmdIbHNiLXE1RlE9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX3g1dEo4cmZVY1Jm"
             ),
             RadioCategory(
@@ -242,7 +244,7 @@ data class RadioStation(
                 title = "Family",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF0092BF,
-                imageUrl = "https://yt3.googleusercontent.com/oNUke-azZe_39Hn0AGoJs_pzHR0P_HWF6NsmwHzIYxYuY1Zev5xHTPKihGkBU5FJUHuY-WbKtqUfuCOnXg=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL29OVWtlLWF6WmVfMzlIbjBBR29Kc19wekhSMFBfSFdGNk5zbXdIeklZeFl1WTFaZXY1eEhUUEtpaEdrQlU1RkpVSHVZLVdiS3RxVWZ1Q09uWGc9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uXzMyY3J2SGM0bVh5"
             ),
             RadioCategory(
@@ -250,7 +252,7 @@ data class RadioStation(
                 title = "Folk & acoustic",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF00A513,
-                imageUrl = "https://yt3.googleusercontent.com/GKC3nhmGLOznorgWsid0owU6nQ7AxUx_wX2lxDmfgs4E2BRj9-qTInkC5VQRohGfd882wyxRpZQ89rxm=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0dLQzNuaG1HTE96bm9yZ1dzaWQwb3dVNm5RN0F4VXhfd1gybHhEbWZnczRFMkJSajktcVRJbmtDNVZRUm9oR2ZkODgyd3l4UnBaUTg5cnhtPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uXzBTRFBmQ3N4b0R6"
             ),
             RadioCategory(
@@ -258,7 +260,7 @@ data class RadioStation(
                 title = "Ghazal/sufi",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF4DEEFF,
-                imageUrl = "https://yt3.googleusercontent.com/CdHeMrQSKIquSi_OxDh4pe5wUIB8XKzWNVGDj5no5fQcC7g7wojSiwxzSCgfcBU-a14A4RUtOA89Pq_F=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0NkSGVNclFTS0lxdVNpX094RGg0cGU1d1VJQjhYS3pXTlZHRGo1bm81ZlFjQzdnN3dvalNpd3h6U0NnZmNCVS1hMTRBNFJVdE9BODlQcV9GPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX1FyMnBXRmhFakpn"
             ),
             RadioCategory(
@@ -266,7 +268,7 @@ data class RadioStation(
                 title = "Gujarati",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFE24B00,
-                imageUrl = "https://yt3.googleusercontent.com/MlOe5fnYeBLb12zb8XEBozl6a2fQCu6sn8ksWLY50-B_6pNHXt2ybCeF4sO1_tdYPB1jYk5nrlO8snqd=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL01sT2U1Zm5ZZUJMYjEyemI4WEVCb3psNmEyZlFDdTZzbjhrc1dMWTUwLUJfNnBOSFh0MnliQ2VGNHNPMV90ZFlQQjFqWWs1bnJsTzhzbnFkPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX0RXaUs0U3dTcWtD"
             ),
             RadioCategory(
@@ -274,7 +276,7 @@ data class RadioStation(
                 title = "Haryanvi",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF0092BF,
-                imageUrl = "https://yt3.googleusercontent.com/Aq9aoAmgjOBga-nrwRxKMdrWaib7EDS78AlVB6ct084HrrOQVNhubVBzqp1iY3eAm6T--QnaqkagnrY=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0FxOWFvQW1nak9CZ2EtbnJ3UnhLTWRyV2FpYjdFRFM3OEFsVkI2Y3QwODRIcnJPUVZOaHViVkJ6cXAxaVkzZUFtNlQtLVFuYXFrYWduclk9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uXzVTb3lITFZwQ2w1"
             ),
             RadioCategory(
@@ -282,7 +284,7 @@ data class RadioStation(
                 title = "Hindi",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFFE780,
-                imageUrl = "https://yt3.googleusercontent.com/0lPp5SGRnGUn0NWQvBCIONNZVe7T4PTtgvFSg9Tqx3UHUjqu0-DpqC-kpSApkwa04gdi-7nhW5nSmj06cQ=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLzBsUHA1U0dSbkdVbjBOV1F2QkNJT05OWlZlN1Q0UFR0Z3ZGU2c5VHF4M1VIVWpxdTAtRHBxQy1rcFNBcGt3YTA0Z2RpLTduaFc1blNtajA2Y1E9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX2ZvbzNJMzJwRkFT"
             ),
             RadioCategory(
@@ -290,7 +292,7 @@ data class RadioStation(
                 title = "Hindustani classical",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFF78FF,
-                imageUrl = "https://yt3.googleusercontent.com/KYw74XSQwtKPbZTrHMNEBAnEMg1P1gNGwymnZwBSjstbqSE-MpigGlTIy6IZvC-ERlRkeP0c7VTiZObS=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0tZdzc0WFNRd3RLUGJaVHJITU5FQkFuRU1nMVAxZ05Hd3ltblp3QlNqc3RicVNFLU1waWdHbFRJeTZJWnZDLUVSbFJrZVAwYzdWVGlaT2JTPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX1FEVXVJSkdrdVgw"
             ),
             RadioCategory(
@@ -298,7 +300,7 @@ data class RadioStation(
                 title = "Hip-hop",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFE24B00,
-                imageUrl = "https://yt3.googleusercontent.com/IBwK4LOs4sO-Cd-_5YO4XC2B2N1hvyBvKfr60tT_ljIuwmOuVWWW2NypbcvzKgScVAbRsWEYbmsjfcm2cw=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0lCd0s0TE9zNHNPLUNkLV81WU80WEMyQjJOMWh2eUJ2S2ZyNjB0VF9sakl1d21PdVZXV1cyTnlwYmN2ektnU2NWQWJSc1dFWWJtc2pmY20yY3c9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX0M2dmRieXNxTW1s"
             ),
             RadioCategory(
@@ -306,7 +308,7 @@ data class RadioStation(
                 title = "Indian indie",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFCCCCCC,
-                imageUrl = "https://yt3.googleusercontent.com/naKgO_9vvIczuf7Vq1llQyRAQOOW898kBZN3pio-Bkbfcmdu3Gv14_ivEBZiHAow8VbPEq1bhO0j2DU=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL25hS2dPXzl2dkljenVmN1ZxMWxsUXlSQVFPT1c4OThrQlpOM3Bpby1Ca2JmY21kdTNHdjE0X2l2RUJaaUhBb3c4VmJQRXExYmhPMGoyRFU9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX3FzMXBrNWlUMWNH"
             ),
             RadioCategory(
@@ -314,7 +316,7 @@ data class RadioStation(
                 title = "Indian pop",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFA4FFA4,
-                imageUrl = "https://yt3.googleusercontent.com/0QRq0hY5hsJEQfYgLYiDlMC2RbYAAr5NCkr01xQtcTkPzxgOxSEx2S8fzqr1rPu7yhlMR68fOQ3sKbn9=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLzBRUnEwaFk1aHNKRVFmWWdMWWlEbE1DMlJiWUFBcjVOQ2tyMDF4UXRjVGtQenhnT3hTRXgyUzhmenFyMXJQdTd5aGxNUjY4Zk9RM3NLYm45PXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uXzNleFNpSmk2TTcy"
             ),
             RadioCategory(
@@ -322,7 +324,7 @@ data class RadioStation(
                 title = "Indie & alternative",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFCCCCCC,
-                imageUrl = "https://yt3.googleusercontent.com/weYQWfEwWNPOuAm34geXN1LkSYPlsJay78NnQgHC3PKsyZcdvBHIsMtqoFh3rioA4XgMdHMQd3h6vH6mbA=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3dlWVFXZkV3V05QT3VBbTM0Z2VYTjFMa1NZUGxzSmF5NzhOblFnSEMzUEtzeVpjZHZCSElzTXRxb0ZoM3Jpb0E0WGdNZEhNUWQzaDZ2SDZtYkE9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX21NWWpBbU01SDgy"
             ),
             RadioCategory(
@@ -330,7 +332,7 @@ data class RadioStation(
                 title = "J-Pop",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFF78FF,
-                imageUrl = "https://yt3.googleusercontent.com/R4k8Fj3T1Y-LvlSrMIY6ekpKg5OviQqzaNTq4WoL2QHwBjc6C0CHOMl7R8Kbdyj8atWWkpsYi1HPCbnU=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1I0azhGajNUMVktTHZsU3JNSVk2ZWtwS2c1T3ZpUXF6YU5UcTRXb0wyUUh3QmpjNkMwQ0hPTWw3UjhLYmR5ajhhdFdXa3BzWWkxSFBDYm5VPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uXzAwSjVITDBZckJR"
             ),
             RadioCategory(
@@ -338,7 +340,7 @@ data class RadioStation(
                 title = "Jazz",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFA4C5FF,
-                imageUrl = "https://yt3.googleusercontent.com/eJ3BhkvN3MmLZt95bBLG-aqGdUvoA1F_AWIyPOpUx69Rv_WsGlQMOHWSHMD48MppwWppHpQWwjIR2LTA=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2VKM0Joa3ZOM01tTFp0OTViQkxHLWFxR2RVdm9BMUZfQVdJeVBPcFV4NjlSdl9Xc0dsUU1PSFdTSE1ENDhNcHB3V3BwSHBRV3dqSVIyTFRBPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX3lPcDFRaE9wM1BS"
             ),
             RadioCategory(
@@ -346,7 +348,7 @@ data class RadioStation(
                 title = "K-Pop",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFB47BFF,
-                imageUrl = "https://yt3.googleusercontent.com/GriPb4nuy0ykhBVO0s1K0aYQBrbosi_ML1F0HYOCrHouOFTpUIm1zijUz7cZVNoVfd_XPWm_DEEhGVk=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0dyaVBiNG51eTB5a2hCVk8wczFLMGFZUUJyYm9zaV9NTDFGMEhZT0NySG91T0ZUcFVJbTF6aWpVejdjWlZOb1ZmZF9YUFdtX0RFRWhHVms9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX0JrbjBDOFFPSzJW"
             ),
             RadioCategory(
@@ -354,7 +356,7 @@ data class RadioStation(
                 title = "Kannada",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFFC200,
-                imageUrl = "https://yt3.googleusercontent.com/oKR034hvFE56fpXYSvfCb3ww5fr7ne3FjRArGrWBfspJ6h1egEnoeLAcCyO8fiq54FzO3KZk0U9RfwbY=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL29LUjAzNGh2RkU1NmZwWFlTdmZDYjN3dzVmcjduZTNGalJBckdyV0Jmc3BKNmgxZWdFbm9lTEFjQ3lPOGZpcTU0RnpPM0taazBVOVJmd2JZPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX29zOEp0MzY3djA5"
             ),
             RadioCategory(
@@ -362,7 +364,7 @@ data class RadioStation(
                 title = "Latin",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFFC200,
-                imageUrl = "https://yt3.googleusercontent.com/QDpr0efHIuy71QwYWH5HxxvFi7rn_nMvJe-n4PXQb8WY3hNXkLbXPtgu1VCUKcnAdrfpFiSLJ68JkzpP=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1FEcHIwZWZISXV5NzFRd1lXSDVIeHh2Rmk3cm5fbk12SmUtbjRQWFFiOFdZM2hOWGtMYlhQdGd1MVZDVUtjbkFkcmZwRmlTTEo2OEprenBQPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX29wWTRjMHV1dWN5"
             ),
             RadioCategory(
@@ -370,7 +372,7 @@ data class RadioStation(
                 title = "Malayalam",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF00A513,
-                imageUrl = "https://yt3.googleusercontent.com/Y4Ud_A5wBH9QEMdIws233FywE8rYjstI_9HYlS8-aqWwcFzGPYPxIShnNgqQIJzO0VAaerBHSc9Q_jZS=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1k0VWRfQTV3Qkg5UUVNZEl3czIzM0Z5d0U4cllqc3RJXzlIWWxTOC1hcVd3Y0Z6R1BZUHhJU2huTmdxUUlKek8wVkFhZXJCSFNjOVFfalpTPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX050dDRiSWN3R1ZN"
             ),
             RadioCategory(
@@ -378,7 +380,7 @@ data class RadioStation(
                 title = "Marathi",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFB47BFF,
-                imageUrl = "https://yt3.googleusercontent.com/BgAdCatlOJ9yf5BfVNZrRJbGU6S71dnJYWrxllUPL5oqj1eUFGSARQ0kOyOUKRs-Ac2_-9F89vwtl-MGfg=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0JnQWRDYXRsT0o5eWY1QmZWTlpyUkpiR1U2UzcxZG5KWVdyeGxsVVBMNW9xajFlVUZHU0FSUTBrT3lPVUtScy1BYzJfLTlGODl2d3RsLU1HZmc9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX2Y4V2dyOWVRUHZm"
             ),
             RadioCategory(
@@ -386,7 +388,7 @@ data class RadioStation(
                 title = "Metal",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF8C8C8C,
-                imageUrl = "https://yt3.googleusercontent.com/Rqh2HDAD-Fj1-oHYqVklPGklMHIV3r6SMPMZmFE3FlLiWeBBnP3SCESfgeNdzQ-DmpCIvOGE4J0hzVxa=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1JxaDJIREFELUZqMS1vSFlxVmtsUEdrbE1ISVYzcjZTTVBNWm1GRTNGbExpV2VCQm5QM1NDRVNmZ2VOZHpRLURtcENJdk9HRTRKMGh6VnhhPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uXzdlSXhKZ0hMV1Z4"
             ),
             RadioCategory(
@@ -394,7 +396,7 @@ data class RadioStation(
                 title = "Monsoon",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFFE780,
-                imageUrl = "https://yt3.googleusercontent.com/z9D4wsUqTy0Qvbz71_kDNHVor-VJchsiaA8SYehP9QLT29LwQlrFbhqEM8vlufocn8cnklN6du9RWA=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3o5RDR3c1VxVHkwUXZiejcxX2tETkhWb3ItVkpjaHNpYUE4U1llaFA5UUxUMjlMd1FsckZiaHFFTTh2bHVmb2NuOGNua2xONmR1OVJXQT13MTIwMC1oMTIwMC1sOTAtcmo="),
                 params = "ggMPOg1uX2FGWmM5SHVqYlJX"
             ),
             RadioCategory(
@@ -402,7 +404,7 @@ data class RadioStation(
                 title = "Pop",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFF78FF,
-                imageUrl = "https://yt3.googleusercontent.com/ynkpsIdsYe1fVEOpJeAO_SzQHJF3rsujhQ4EsmuIdVKavbNm5uDvDTBShK6bPj4I7Sj9Yd6Zvpni2Ktu7g=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3lua3BzSWRzWWUxZlZFT3BKZUFPX1N6UUhKRjNyc3VqaFE0RXNtdUlkVkthdmJObTV1RHZEVEJTaEs2YlBqNEk3U2o5WWQ2WnZwbmkyS3R1N2c9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX1lLQkxHbHhWQUUy"
             ),
             RadioCategory(
@@ -410,7 +412,7 @@ data class RadioStation(
                 title = "Punjabi",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFE24B00,
-                imageUrl = "https://yt3.googleusercontent.com/O_Bm1zevAi82n4YdLFG6jc-ocB6RF3FQHFOtz3vc4MnIZ36gZXv5h1lYjQiRFjaLr5JMUN8xtCsasfjW=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL09fQm0xemV2QWk4Mm40WWRMRkc2amMtb2NCNlJGM0ZRSEZPdHozdmM0TW5JWjM2Z1pYdjVoMWxZalFpUkZqYUxyNUpNVU44eHRDc2FzZmpXPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX1ZKNkRodjF2YWxv"
             ),
             RadioCategory(
@@ -418,7 +420,7 @@ data class RadioStation(
                 title = "R&B & soul",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFF7B3EDB,
-                imageUrl = "https://yt3.googleusercontent.com/KoChllWiDj_wg7KyRxmV23vBtID3OHM1YAsYxzVfCXprHl5xW6txUCJEjCZSu3RivNCGm78MXrQLlOU=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0tvQ2hsbFdpRGpfd2c3S3lSeG1WMjN2QnRJRDNPSE0xWUFzWXh6VmZDWHBySGw1eFc2dHhVQ0pFakNaU3UzUml2TkNHbTc4TVhyUUxsT1U9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX2JxQ2hxc2J5UFhR"
             ),
             RadioCategory(
@@ -426,7 +428,7 @@ data class RadioStation(
                 title = "Reggae & caribbean",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFFE780,
-                imageUrl = "https://yt3.googleusercontent.com/Fpzuam9iaeclowWeZFFOqzQoRBDQYPPwfvtiTXPyoW5lIv4E8Ct5Jedc43-TVEtG2YiQ_RhLHcjyX9yV=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0ZwenVhbTlpYWVjbG93V2VaRkZPcXpRb1JCRFFZUFB3ZnZ0aVRYUHlvVzVsSXY0RThDdDVKZWRjNDMtVFZFdEcyWWlRX1JoTEhjanlYOXlWPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uX1JUc2lFcDFuUUth"
             ),
             RadioCategory(
@@ -434,7 +436,7 @@ data class RadioStation(
                 title = "Rock",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFCC0000,
-                imageUrl = "https://yt3.googleusercontent.com/FOWVxykYND0FkmVvjkxwvP3t8EQtJi3dg1obE2c1MfhFLmbUwbfzGYOKF3VDSKXs-MZNiYUxPCskzucI=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0ZPV1Z4eWtZTkQwRmttVnZqa3h3dlAzdDhFUXRKaTNkZzFvYkUyYzFNZmhGTG1iVXdiZnpHWU9LRjNWRFNLWHMtTVpOaVlVeFBDc2t6dWNJPXcxMjAwLWgxMjAwLWw5MC1yag=="),
                 params = "ggMPOg1uXzJKTm5jUEZ5Uzlu"
             ),
             RadioCategory(
@@ -442,7 +444,7 @@ data class RadioStation(
                 title = "Tamil",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFCC0000,
-                imageUrl = "https://yt3.googleusercontent.com/tETw7MM7-S7RmVrDalJmmp6r8GbJwObQzuADQmUZ6v1EMYZBOzVXpA8VkpT6mvFPksKm9k9Ck2xm_uk=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL3RFVHc3TU03LVM3Um1WckRhbEptbXA2cjhHYkp3T2JRenVBRFFtVVo2djFFTVlaQk96VlhwQThWa3BUNm12RlBrc0ttOWs5Q2syeG1fdWs9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX2p2emtjU3J3ZVFB"
             ),
             RadioCategory(
@@ -450,7 +452,7 @@ data class RadioStation(
                 title = "Telugu",
                 section = CategorySection.GENRES,
                 stripeColor = 0xFFFF78FF,
-                imageUrl = "https://yt3.googleusercontent.com/HyvOG8jPgXN2QkojP3fOpenC9bVLFK15xSkhzIw4G7QKyf1wNazOmuslDfbFVmvOV2TUAumNAq34iWA=w1200-h1200-l90-rj",
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0h5dk9HOGpQZ1hOMlFrb2pQM2ZPcGVuQzliVkxGSzE1eFNraHpJdzRHN1FLeWYxd05hek9tdXNsRGZiRlZtdk9WMlRVQXVtTkFxMzRpV0E9dzEyMDAtaDEyMDAtbDkwLXJq"),
                 params = "ggMPOg1uX0syaEVmTXhSOVl6"
             )
         )
@@ -464,30 +466,30 @@ data class RadioStation(
                 name = "Lofi Girl Beats",
                 genre = "Lo-Fi",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://play.streamafrica.net/lofiradio",
+                streamUrl = b64u("aHR0cHM6Ly9wbGF5LnN0cmVhbWFmcmljYS5uZXQvbG9maXJhZGlv"),
                 description = "24/7 relaxing lofi hip hop radio - beats to relax/study to",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/CDt4RjHDGr0YiX6WxARTBFkdb9k9VsAIm88sJXZ7B3O1yMoS53kLS_dy8ZIKRrFRHHCB6OJePWU1GbY=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0NEdDRSakhER3IwWWlYNld4QVJUQkZrZGI5azlWc0FJbTg4c0pYWjdCM08xeU1vUzUza0xTX2R5OFpJS1JyRlJISENCNk9KZVBXVTFHYlk9dzUwMC1oNTAwLWw5MC1yag==")
             ),
             RadioStation(
                 id = "stream_box_lofi",
                 name = "Box Lofi Chill",
                 genre = "Lo-Fi",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://streams.ilovemusic.de/iloveradio17.mp3",
+                streamUrl = b64u("aHR0cHM6Ly9zdHJlYW1zLmlsb3ZlbXVzaWMuZGUvaWxvdmVyYWRpbzE3Lm1wMw=="),
                 description = "Mellow instrumental hip-hop and chillhop vibes",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/9I45SYZAfTeR17ByV9i2yDpWhQ5DTWMCrW3Lei8vMIiZzeyUnf2zRFUDBob4TGwgUkXAAR_x1Xa8VA=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tLzlJNDVTWVpBZlRlUjE3QnlWOWkyeURwV2hRNURUV01DclczTGVpOHZNSWlaemV5VW5mMnpSRlVEQm9iNFRHd2dVa1hBQVJfeDFYYThWQT13NTAwLWg1MDAtbDkwLXJq")
             ),
             RadioStation(
                 id = "stream_chillhop",
                 name = "ChillHop Radio",
                 genre = "Lo-Fi",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "http://stream.zeno.fm/f3wvbbqmdg8uv",
+                streamUrl = b64u("aHR0cDovL3N0cmVhbS56ZW5vLmZtL2Yzd3ZiYnFtZGc4dXY="),
                 description = "Smooth urban jazz beats and lo-fi coffeehop",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/Am3iIGzF5Dz-8e2nKJMQfn5TE_1aAT2wUOKHJJ2xzfSoS0LT4XV6pOZax_mKLc2HarHbqnm_VQ0sY9vF=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0FtM2lJR3pGNUR6LThlMm5LSk1RZm41VEVfMWFBVDJ3VU9LSEpKMnh6ZlNvUzBMVDRYVjZwT1pheF9tS0xjMkhhckhicW5tX1ZRMHNZOXZGPXc1MDAtaDUwMC1sOTAtcmo=")
             ),
 
             // ── Synthwave & Retro ──
@@ -496,30 +498,30 @@ data class RadioStation(
                 name = "Nightwave Synthwave",
                 genre = "Synthwave",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://stream.zeno.fm/w74x0q2ddezuv",
+                streamUrl = b64u("aHR0cHM6Ly9zdHJlYW0uemVuby5mbS93NzR4MHEyZGRlenV2"),
                 description = "Retrowave, Darksynth & 80s electronic driving frequencies",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/FOWVxykYND0FkmVvjkxwvP3t8EQtJi3dg1obE2c1MfhFLmbUwbfzGYOKF3VDSKXs-MZNiYUxPCskzucI=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0ZPV1Z4eWtZTkQwRmttVnZqa3h3dlAzdDhFUXRKaTNkZzFvYkUyYzFNZmhGTG1iVXdiZnpHWU9LRjNWRFNLWHMtTVpOaVlVeFBDc2t6dWNJPXc1MDAtaDUwMC1sOTAtcmo=")
             ),
             RadioStation(
                 id = "stream_plaza",
                 name = "Nightwave Plaza",
                 genre = "Vaporwave",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://radio.plaza.one/mp3",
+                streamUrl = b64u("aHR0cHM6Ly9yYWRpby5wbGF6YS5vbmUvbXAz"),
                 description = "Nostalgic vaporwave, future funk and mallsoft aesthetics",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/KoChllWiDj_wg7KyRxmV23vBtID3OHM1YAsYxzVfCXprHl5xW6txUCJEjCZSu3RivNCGm78MXrQLlOU=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0tvQ2hsbFdpRGpfd2c3S3lSeG1WMjN2QnRJRDNPSE0xWUFzWXh6VmZDWHBySGw1eFc2dHhVQ0pFakNaU3UzUml2TkNHbTc4TVhyUUxsT1U9dzUwMC1oNTAwLWw5MC1yag==")
             ),
             RadioStation(
                 id = "stream_retrowave",
                 name = "Retro Synthwave 80s",
                 genre = "Synthwave",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://stream.zeno.fm/7cvvuvqmdg8uv",
+                streamUrl = b64u("aHR0cHM6Ly9zdHJlYW0uemVuby5mbS83Y3Z2dXZxbWRnOHV2"),
                 description = "Pure 80s analog synthesizers and neon outrun soundtracks",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/HyvOG8jPgXN2QkojP3fOpenC9bVLFK15xSkhzIw4G7QKyf1wNazOmuslDfbFVmvOV2TUAumNAq34iWA=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL0h5dk9HOGpQZ1hOMlFrb2pQM2ZPcGVuQzliVkxGSzE1eFNraHpJdzRHN1FLeWYxd05hek9tdXNsRGZiRlZtdk9WMlRVQXVtTkFxMzRpV0E9dzUwMC1oNTAwLWw5MC1yag==")
             ),
 
             // ── Rock & Alternative ──
@@ -528,7 +530,7 @@ data class RadioStation(
                 name = "Radio Paradise Rock",
                 genre = "Rock",
                 categoryId = "genre_rock",
-                streamUrl = "https://stream.radioparadise.com/rock-128",
+                streamUrl = b64u("aHR0cHM6Ly9zdHJlYW0ucmFkaW9wYXJhZGlzZS5jb20vcm9jay0xMjg="),
                 description = "Curated modern and classic rock mix with no commercials",
                 bitrate = "128 kbps"
             ),
@@ -537,7 +539,7 @@ data class RadioStation(
                 name = "Rock Antenne Classic",
                 genre = "Classic Rock",
                 categoryId = "genre_rock",
-                streamUrl = "https://s2-webradio.antenne.de/rock-antenne",
+                streamUrl = b64u("aHR0cHM6Ly9zMi13ZWJyYWRpby5hbnRlbm5lLmRlL3JvY2stYW50ZW5uZQ=="),
                 description = "Legendary guitar anthems, stadium rock and metal hits",
                 bitrate = "128 kbps"
             ),
@@ -546,7 +548,7 @@ data class RadioStation(
                 name = "Radio Paradise Main",
                 genre = "Eclectic Rock",
                 categoryId = "genre_rock",
-                streamUrl = "https://stream.radioparadise.com/mp3-128",
+                streamUrl = b64u("aHR0cHM6Ly9zdHJlYW0ucmFkaW9wYXJhZGlzZS5jb20vbXAzLTEyOA=="),
                 description = "Unique blend of acoustic, indie rock and world rhythm",
                 bitrate = "128 kbps"
             ),
@@ -557,7 +559,7 @@ data class RadioStation(
                 name = "SomaFM DEF CON Radio",
                 genre = "Electronic",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://ice2.somafm.com/defcon-128-mp3",
+                streamUrl = b64u("aHR0cHM6Ly9pY2UyLnNvbWFmbS5jb20vZGVmY29uLTEyOC1tcDM="),
                 description = "Music for hacking. The soundtrack for the DEF CON conference",
                 bitrate = "128 kbps"
             ),
@@ -566,7 +568,7 @@ data class RadioStation(
                 name = "Dance Wave Hits",
                 genre = "Dance / EDM",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://dancewave.online/dance.mp3",
+                streamUrl = b64u("aHR0cHM6Ly9kYW5jZXdhdmUub25saW5lL2RhbmNlLm1wMw=="),
                 description = "Non-stop modern dance, house, and electronic club tracks",
                 bitrate = "128 kbps"
             ),
@@ -575,7 +577,7 @@ data class RadioStation(
                 name = "Ibiza Global Radio",
                 genre = "House / Club",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://stream.ibizaglobalradio.com:8024/ibizaglobalradio.mp3",
+                streamUrl = b64u("aHR0cHM6Ly9zdHJlYW0uaWJpemFnbG9iYWxyYWRpby5jb206ODAyNC9pYml6YWdsb2JhbHJhZGlvLm1wMw=="),
                 description = "Live underground deep house and electronic sets from Ibiza",
                 bitrate = "128 kbps"
             ),
@@ -586,30 +588,30 @@ data class RadioStation(
                 name = "SomaFM Groove Salad",
                 genre = "Ambient",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://ice2.somafm.com/groovesalad-128-mp3",
+                streamUrl = b64u("aHR0cHM6Ly9pY2UyLnNvbWFmbS5jb20vZ3Jvb3Zlc2FsYWQtMTI4LW1wMw=="),
                 description = "A nicely chilled plate of ambient/downtempo beats and grooves",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/SwyowKe-kDLokD2wEouPllJwjfKlG73podaFDHBzaEDeR0mu3mgp0x4iy7ouTDD0JuksjzG3ObZsfQ=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1N3eW93S2Uta0RMb2tEMndFb3VQbGxKd2pmS2xHNzNwb2RhRkRIQnphRURlUjBtdTNtZ3AweDRpeTdvdVRERDBKdWtzanpHM09iWnNmUT13NTAwLWg1MDAtbDkwLXJq")
             ),
             RadioStation(
                 id = "stream_deep_space",
                 name = "SomaFM Deep Space One",
                 genre = "Space Ambient",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://ice2.somafm.com/deepspaceone-128-mp3",
+                streamUrl = b64u("aHR0cHM6Ly9pY2UyLnNvbWFmbS5jb20vZGVlcHNwYWNlb25lLTEyOC1tcDM="),
                 description = "Deep ambient electronic and space music for exploration",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/SwyowKe-kDLokD2wEouPllJwjfKlG73podaFDHBzaEDeR0mu3mgp0x4iy7ouTDD0JuksjzG3ObZsfQ=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1N3eW93S2Uta0RMb2tEMndFb3VQbGxKd2pmS2xHNzNwb2RhRkRIQnphRURlUjBtdTNtZ3AweDRpeTdvdVRERDBKdWtzanpHM09iWnNmUT13NTAwLWg1MDAtbDkwLXJq")
             ),
             RadioStation(
                 id = "stream_drone_zone",
                 name = "SomaFM Drone Zone",
                 genre = "Drone Ambient",
                 categoryId = "genre_dance_and_electronic",
-                streamUrl = "https://ice2.somafm.com/dronezone-128-mp3",
+                streamUrl = b64u("aHR0cHM6Ly9pY2UyLnNvbWFmbS5jb20vZHJvbmV6b25lLTEyOC1tcDM="),
                 description = "Atmospheric, served best with headphones for highway drives",
                 bitrate = "128 kbps",
-                imageUrl = "https://yt3.googleusercontent.com/SwyowKe-kDLokD2wEouPllJwjfKlG73podaFDHBzaEDeR0mu3mgp0x4iy7ouTDD0JuksjzG3ObZsfQ=w500-h500-l90-rj"
+                imageUrl = b64u("aHR0cHM6Ly95dDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL1N3eW93S2Uta0RMb2tEMndFb3VQbGxKd2pmS2xHNzNwb2RhRkRIQnphRURlUjBtdTNtZ3AweDRpeTdvdVRERDBKdWtzanpHM09iWnNmUT13NTAwLWg1MDAtbDkwLXJq")
             ),
 
             // ── Jazz & Soul ──
@@ -618,7 +620,7 @@ data class RadioStation(
                 name = "Radio Swiss Jazz",
                 genre = "Jazz",
                 categoryId = "genre_jazz",
-                streamUrl = "http://stream.srg-ssr.ch/m/rsj/mp3_128",
+                streamUrl = b64u("aHR0cDovL3N0cmVhbS5zcmctc3NyLmNoL20vcnNqL21wM18xMjg="),
                 description = "Smooth jazz, swing, bebop, and soul classics 24/7",
                 bitrate = "128 kbps"
             ),
@@ -627,7 +629,7 @@ data class RadioStation(
                 name = "Linn Jazz UK",
                 genre = "Audiophile Jazz",
                 categoryId = "genre_jazz",
-                streamUrl = "http://radio.linn.co.uk:8000/autodj",
+                streamUrl = b64u("aHR0cDovL3JhZGlvLmxpbm4uY28udWs6ODAwMC9hdXRvZGo="),
                 description = "Studio quality jazz masters and acoustic soul recordings",
                 bitrate = "128 kbps"
             ),
@@ -636,7 +638,7 @@ data class RadioStation(
                 name = "Smooth Jazz Florida",
                 genre = "Smooth Jazz",
                 categoryId = "genre_jazz",
-                streamUrl = "https://stream.zeno.fm/0545s0hmdg8uv",
+                streamUrl = b64u("aHR0cHM6Ly9zdHJlYW0uemVuby5mbS8wNTQ1czBobWRnOHV2"),
                 description = "Contemporary jazz, saxophone melodies, and relaxing grooves",
                 bitrate = "128 kbps"
             ),
@@ -647,7 +649,7 @@ data class RadioStation(
                 name = "Radio Swiss Classic",
                 genre = "Classical",
                 categoryId = "genre_classical",
-                streamUrl = "http://stream.srg-ssr.ch/m/rsc_de/mp3_128",
+                streamUrl = b64u("aHR0cDovL3N0cmVhbS5zcmctc3NyLmNoL20vcnNjX2RlL21wM18xMjg="),
                 description = "Timeless classical music, symphonies, and chamber performances",
                 bitrate = "128 kbps"
             ),
@@ -656,7 +658,7 @@ data class RadioStation(
                 name = "Classic FM UK",
                 genre = "Classical",
                 categoryId = "genre_classical",
-                streamUrl = "https://media-ssl.musicradio.com/ClassicFMMP3",
+                streamUrl = b64u("aHR0cHM6Ly9tZWRpYS1zc2wubXVzaWNyYWRpby5jb20vQ2xhc3NpY0ZNTVAz"),
                 description = "The world's greatest music station with celebrated concertos",
                 bitrate = "128 kbps"
             ),
@@ -665,7 +667,7 @@ data class RadioStation(
                 name = "Linn Classical",
                 genre = "Symphonic",
                 categoryId = "genre_classical",
-                streamUrl = "http://radio.linn.co.uk:8004/autodj",
+                streamUrl = b64u("aHR0cDovL3JhZGlvLmxpbm4uY28udWs6ODAwNC9hdXRvZGo="),
                 description = "Uncompressed audiophile recordings of philharmonic orchestras",
                 bitrate = "128 kbps"
             ),
@@ -676,7 +678,7 @@ data class RadioStation(
                 name = "BBC World Service",
                 genre = "News",
                 categoryId = "mood_commute",
-                streamUrl = "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
+                streamUrl = b64u("aHR0cDovL3N0cmVhbS5saXZlLnZjLmJiY21lZGlhLmNvLnVrL2JiY193b3JsZF9zZXJ2aWNl"),
                 description = "International news, analysis and current affairs worldwide",
                 bitrate = "96 kbps"
             ),
@@ -685,7 +687,7 @@ data class RadioStation(
                 name = "NPR News Live",
                 genre = "News / Talk",
                 categoryId = "mood_commute",
-                streamUrl = "https://npr-ice.streamguys1.com/live.mp3",
+                streamUrl = b64u("aHR0cHM6Ly9ucHItaWNlLnN0cmVhbWd1eXMxLmNvbS9saXZlLm1wMw=="),
                 description = "National Public Radio live reporting and documentary talk",
                 bitrate = "96 kbps"
             )

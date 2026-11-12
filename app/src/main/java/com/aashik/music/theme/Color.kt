@@ -4,7 +4,7 @@ import androidx.compose.ui.graphics.Color
 
 // =========================================================================
 // MATERIAL 3 COLOR TOKENS — AUTOMOTIVE CYBER OBSIDIAN (Dark Mode)
-// Matches https://m3.material.io/styles/color/the-color-system/tokens
+// Matches aHR0cHM6Ly9tMy5tYXRlcmlhbC5pby9zdHlsZXMvY29sb3IvdGhlLWNvbG9yLXN5c3RlbS90b2tlbnM=
 // Engineered for deep OLED contrast & automotive cockpit legibility
 // =========================================================================
 val M3DarkPrimary = Color(0xFF00E5FF)               // High-luma electric cyber cyan

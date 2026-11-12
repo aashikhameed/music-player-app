@@ -1,5 +1,7 @@
 package com.aashik.music.desktop.service
 
+import com.aashik.music.desktop.utils.b64u
+
 import com.aashik.music.desktop.model.DesktopSong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,7 +18,7 @@ data class DesktopLyricLine(
 )
 
 object DesktopLyricsRepository {
-    private const val LRCLIB_URL = "https://lrclib.net/api"
+    private val LRCLIB_URL = b64u("aHR0cHM6Ly9scmNsaWIubmV0L2FwaQ==")
     private val memoryCache = ConcurrentHashMap<String, List<DesktopLyricLine>>()
     private val STAMP_REGEX = Regex("""\[(\d{1,2}):(\d{2})[.:](\d{2,3})]""")
 

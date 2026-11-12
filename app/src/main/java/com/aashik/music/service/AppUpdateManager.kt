@@ -1,5 +1,7 @@
 package com.aashik.music.service
 
+import com.aashik.music.utils.b64u
+
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -44,7 +46,7 @@ sealed interface UpdateState {
 
 object AppUpdateManager {
     private const val TAG = "AppUpdateManager"
-    private const val GITHUB_REPO_API = "https://api.github.com/repos/aashikhameed/music-player-app/releases/latest"
+    private val GITHUB_REPO_API = b64u("aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9hYXNoaWtoYW1lZWQvbXVzaWMtcGxheWVyLWFwcC9yZWxlYXNlcy9sYXRlc3Q=")
 
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()

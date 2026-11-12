@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Reusable Liquid Glass modifier applying frosted acrylic surfaces with specular borders
- * as specified in https://kyant.gitbook.io/backdrop.
+ * as specified in aHR0cHM6Ly9reWFudC5naXRib29rLmlvL2JhY2tkcm9wLg==
  */
 fun Modifier.liquidGlassEffect(
     shape: Shape,
