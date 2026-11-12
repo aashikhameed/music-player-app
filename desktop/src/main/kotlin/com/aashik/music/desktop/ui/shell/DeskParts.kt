@@ -71,7 +71,8 @@ internal fun DeskIconButton(
     tint: Color = Desk.c.text,
     filled: Boolean = false,
     active: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    loading: Boolean = false
 ) {
     val c = Desk.c
     val interaction = remember { MutableInteractionSource() }
@@ -95,7 +96,10 @@ internal fun DeskIconButton(
             .hoverable(interaction)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
-    ) { DeskGlyph(icon, if (active) c.onAccent else tint, glyph) }
+    ) {
+        if (loading) androidx.compose.material3.CircularProgressIndicator(color = tint, strokeWidth = 2.dp, modifier = Modifier.size(glyph * 0.85f))
+        else DeskGlyph(icon, if (active) c.onAccent else tint, glyph)
+    }
 }
 
 @Composable

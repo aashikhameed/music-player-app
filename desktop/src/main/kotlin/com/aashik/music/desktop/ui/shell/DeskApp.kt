@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlaylistAdd
@@ -83,6 +84,8 @@ internal fun DeskApp(preview: DeskPreview? = null) {
     var onlineResults by remember { mutableStateOf<List<DesktopSong>>(emptyList()) }
     var onlineLoading by remember { mutableStateOf(false) }
     val isPlaying by DesktopAudioPlayer.isPlaying.collectAsState()
+    val downloads by com.aashik.music.desktop.service.DesktopDownloader.progress.collectAsState()
+    var radioLoading by remember { mutableStateOf(false) }
     val tableState = rememberLazyListState()
     val userName = remember { System.getProperty("user.name")?.replaceFirstChar { it.uppercase() } ?: "You" }
 
@@ -146,6 +149,33 @@ internal fun DeskApp(preview: DeskPreview? = null) {
         onCycleRepeat = { repeat = when (repeat) { DeskRepeat.OFF -> DeskRepeat.ALL; DeskRepeat.ALL -> DeskRepeat.ONE; DeskRepeat.ONE -> DeskRepeat.OFF } },
         onSeekFraction = { f -> val d = DesktopAudioPlayer.durationMs.value.takeIf { it > 0 } ?: current?.duration ?: 0L; DesktopAudioPlayer.seekTo((f * d).toLong()) }
     )
+    // Radio: replaces Up Next with songs similar to [seed] and keeps the current song playing.
+    fun startRadio(seed: DesktopSong) {
+        if (radioLoading) return
+        radioLoading = true
+        scope.launch {
+            val r = runCatching { DesktopOnlineRepository.fetchRadioQueue(seed, 20) }.getOrDefault(emptyList())
+            if (r.isNotEmpty()) { queue.clear(); queue.addAll(r.filter { it.id != seed.id }); context = listOf(seed) + r; if (current?.id != seed.id) play(seed) }
+            radioLoading = false
+        }
+    }
+    fun download(song: DesktopSong) {
+        val dir = DesktopLocalScanner.getStoredStorageDir()
+        scope.launch {
+            val f = com.aashik.music.desktop.service.DesktopDownloader.download(song, dir)
+            if (f != null && preview == null) songs = DesktopLocalScanner.scanLocalMusic(dir)
+        }
+    }
+    val downloadState: DownloadState = current.let { s ->
+        val dir = DesktopLocalScanner.getStoredStorageDir()
+        when {
+            s == null -> DownloadState.None
+            downloads[s.id]?.let { it < 1f } == true -> DownloadState.Running(downloads[s.id] ?: 0f)
+            com.aashik.music.desktop.service.DesktopDownloader.isDownloaded(s, dir) -> DownloadState.Done
+            else -> DownloadState.Available
+        }
+    }
+
     val toggleFavorite: (DesktopSong) -> Unit = { s ->
         if (favorites.contains(s.id)) favorites.remove(s.id) else favorites.add(s.id)
         if (preview == null) DeskPrefs.saveFavorites(favorites.toList())
@@ -236,6 +266,8 @@ internal fun DeskApp(preview: DeskPreview? = null) {
                     onLyrics = { if (panelOpen && panel == RightPanel.LYRICS) panelOpen = false else { panel = RightPanel.LYRICS; panelOpen = true } },
                     onQueue = { if (panelOpen && panel == RightPanel.QUEUE) panelOpen = false else { panel = RightPanel.QUEUE; panelOpen = true } },
                     onMore = { current?.let { sheetSong = it } },
+                    radioLoading = radioLoading, onRadio = { current?.let { startRadio(it) } },
+                    download = downloadState, onDownload = { current?.let { download(it) } },
                     backdrop = backdrop,
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     overlay = {
@@ -256,7 +288,8 @@ internal fun DeskApp(preview: DeskPreview? = null) {
                     s?.let { x -> DeskAction(Icons.Rounded.PlaylistPlay, "Play next") { queue.add(0, x) } },
                     s?.let { x -> DeskAction(Icons.Rounded.PlaylistAdd, "Add to queue") { queue.add(x) } },
                     s?.let { x -> DeskAction(if (favSet.contains(x.id)) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, if (favSet.contains(x.id)) "Remove from favorites" else "Add to favorites") { toggleFavorite(x) } },
-                    s?.let { x -> DeskAction(Icons.Rounded.Podcasts, "Start radio") { scope.launch { val r = runCatching { DesktopOnlineRepository.fetchRadioQueue(x, 20) }.getOrDefault(emptyList()); if (r.isNotEmpty()) { queue.clear(); queue.addAll(r); play(x) } } } },
+                    s?.let { x -> DeskAction(Icons.Rounded.Podcasts, "Start radio") { if (current?.id != x.id) play(x); startRadio(x) } },
+                    s?.takeIf { it.isStream() && downloads[it.id] == null }?.let { x -> DeskAction(Icons.Rounded.Download, "Download") { download(x) } },
                     s?.takeIf { !it.isStream() }?.let { x -> DeskAction(Icons.Rounded.Delete, "Delete from storage", DeskDestructive) { deleteSong = x } }
                 ),
                 onDismiss = { sheetSong = null }

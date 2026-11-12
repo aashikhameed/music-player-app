@@ -15,11 +15,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ArrowCircleDown
+import androidx.compose.material.icons.rounded.Podcasts
 import androidx.compose.material.icons.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.FastForward
@@ -87,6 +91,10 @@ internal fun DeskContentWithBar(
     onLyrics: () -> Unit,
     onQueue: () -> Unit,
     onMore: () -> Unit,
+    radioLoading: Boolean,
+    onRadio: () -> Unit,
+    download: DownloadState,
+    onDownload: () -> Unit,
     backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
     modifier: Modifier = Modifier,
     overlay: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {},
@@ -111,11 +119,37 @@ internal fun DeskContentWithBar(
                 Spacer(Modifier.width(14.dp))
                 NowPlayingInfo(song, actions, Modifier.weight(1f))
                 Spacer(Modifier.width(10.dp))
+                DeskIconButton(Icons.Rounded.Podcasts, onRadio, size = 38.dp, glyph = 21.dp, tint = c.text.copy(alpha = dim), enabled = song != null && !radioLoading, loading = radioLoading)
+                DownloadButton(download, onDownload)
                 DeskIconButton(Icons.Rounded.MoreHoriz, onMore, size = 38.dp, glyph = 22.dp, tint = c.text.copy(alpha = dim), enabled = song != null)
                 DeskIconButton(Icons.Rounded.Chat, onLyrics, size = 38.dp, glyph = 20.dp, tint = if (lyricsOpen) c.accent else c.textSecondary)
                 DeskIconButton(Icons.Rounded.FormatListBulleted, onQueue, size = 38.dp, glyph = 22.dp, tint = if (queueOpen) c.accent else c.text)
                 Volume()
             }
+        }
+    }
+}
+
+/** None: nothing to download (no song). */
+internal sealed interface DownloadState {
+    data object None : DownloadState
+    data object Available : DownloadState
+    data class Running(val progress: Float) : DownloadState
+    data object Done : DownloadState
+}
+
+@Composable
+private fun DownloadButton(state: DownloadState, onClick: () -> Unit) {
+    val c = Desk.c
+    when (state) {
+        DownloadState.None -> DeskIconButton(Icons.Rounded.ArrowCircleDown, {}, size = 38.dp, glyph = 22.dp, tint = c.text.copy(alpha = 0.4f), enabled = false)
+        DownloadState.Available -> DeskIconButton(Icons.Rounded.ArrowCircleDown, onClick, size = 38.dp, glyph = 22.dp, tint = c.text)
+        DownloadState.Done -> DeskIconButton(Icons.Rounded.CheckCircle, {}, size = 38.dp, glyph = 22.dp, tint = c.accent)
+        is DownloadState.Running -> Box(Modifier.size(38.dp), Alignment.Center) {
+            androidx.compose.material3.CircularProgressIndicator(
+                progress = { state.progress.coerceAtLeast(0.03f) }, color = c.accent, trackColor = c.text.copy(alpha = 0.2f),
+                strokeWidth = 2.5.dp, modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
