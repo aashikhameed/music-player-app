@@ -39,6 +39,7 @@ compose.desktop {
         runtimeJdk?.let { javaHome = it }
         mainClass = "com.aashik.music.desktop.MainKt"
         nativeDistributions {
+            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg)
             packageName = "Music"
             packageVersion = "1.0.0"
             macOS { iconFile.set(project.file("icons/icon.icns")) }
