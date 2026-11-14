@@ -2,10 +2,13 @@ package com.aashik.music.ui.mobile.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,6 +19,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -160,6 +164,23 @@ fun MobileGlassMusicApp(
     var activeDetail by detailStack
     var isNowPlayingExpanded by remember { mutableStateOf(false) }
     var showAudioRouteSheet by remember { mutableStateOf(false) }
+    // Hero transition: 0 = mini-player, 1 = full-screen Now Playing. Bounds are in root coordinates.
+    // One linear clock drives both directions, so closing is the exact reverse of opening.
+    val npClock = remember { androidx.compose.animation.core.Animatable(0f) }
+    val npProgress = remember {
+        object { val value: Float get() = HeroEasing.transform(npClock.value) }
+    }
+    var miniCapsuleRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var miniArtRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val npScope = rememberCoroutineScope()
+    val npDragRangePx = with(androidx.compose.ui.platform.LocalDensity.current) { 420.dp.toPx() }
+    LaunchedEffect(isNowPlayingExpanded) {
+        npClock.animateTo(
+            if (isNowPlayingExpanded) 1f else 0f,
+            tween(520, easing = androidx.compose.animation.core.LinearEasing)
+        )
+    }
+    val npVisible by remember { derivedStateOf { npClock.value > 0.001f || isNowPlayingExpanded } }
     // The portrait UI has no separate HUD: anything that asks for Drive Mode (restoring a live
     // session, a legacy entry point) opens the Now Playing modal instead.
     LaunchedEffect(isDriveModeOpen) {
@@ -462,13 +483,13 @@ fun MobileGlassMusicApp(
             val collapsedBottom = 16.dp + (64.dp - CollapsedDockHeight) / 2
             val collapse by animateFloatAsState(
                 targetValue = if (barCollapsed) 1f else 0f,
-                animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f),
+                animationSpec = spring(dampingRatio = 0.9f, stiffness = 900f),
                 label = "dockCollapse"
             )
             AnimatedVisibility(
                 visible = !isNowPlayingExpanded,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                enter = fadeIn(tween(220, delayMillis = 120)),
+                exit = fadeOut(tween(160)),
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 Box(modifier = Modifier.fillMaxWidth().navigationBarsPadding().height(160.dp)) {
@@ -552,6 +573,7 @@ fun MobileGlassMusicApp(
                             onPlayPause = { viewModel.togglePlayPause() },
                             onNext = { viewModel.playNextSong() },
                             onOpenNowPlaying = { isNowPlayingExpanded = true },
+                            onBounds = { capsule, art -> miniCapsuleRect = capsule; miniArtRect = art },
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
@@ -561,30 +583,47 @@ fun MobileGlassMusicApp(
                 }
             }
 
-            // ─── FULLSCREEN NOW PLAYING MODAL TAKEOVER OVERLAY ───────────────────
-            AnimatedVisibility(
-                visible = isNowPlayingExpanded,
-                enter = slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-                ) + fadeIn(),
-                exit = slideOutVertically(
-                    targetOffsetY = { it },
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-                ) + fadeOut()
-            ) {
-                MobileGlassNowPlaying(
-                    viewModel = viewModel,
-                    currentSong = currentSong,
-                    isPlaying = isPlaying,
-                    albumArt = largeArt,
-                    isFavorite = currentSong?.path?.let { favoritePaths.contains(it) } == true,
-                    onToggleFavorite = { currentSong?.let { viewModel.toggleFavorite(it.path) } },
-                    onClose = { isNowPlayingExpanded = false },
-                    onPlayPause = { viewModel.togglePlayPause() },
-                    onPrevious = { viewModel.playPreviousSong() },
-                    onNext = { viewModel.playNextSong() }
-                )
+            // ─── NOW PLAYING: CONTAINER TRANSFORM FROM THE MINI-PLAYER ──────────
+            // The sheet grows out of the mini-player capsule while the cover art flies from the
+            // mini-player thumbnail to its place in the sheet (and back when closing).
+            if (npVisible) {
+                Box(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                val p = npProgress.value
+                                val cap = miniCapsuleRect
+                                if (cap != null && p < 1f) {
+                                    clip = true
+                                    shape = HeroRevealShape(cap, p)
+                                } else if (cap == null) {
+                                    alpha = p
+                                }
+                            }
+                    ) {
+                        MobileGlassNowPlaying(
+                            viewModel = viewModel,
+                            currentSong = currentSong,
+                            isPlaying = isPlaying,
+                            albumArt = largeArt,
+                            isFavorite = currentSong?.path?.let { favoritePaths.contains(it) } == true,
+                            onToggleFavorite = { currentSong?.let { viewModel.toggleFavorite(it.path) } },
+                            onClose = { isNowPlayingExpanded = false },
+                            onPlayPause = { viewModel.togglePlayPause() },
+                            onPrevious = { viewModel.playPreviousSong() },
+                            onNext = { viewModel.playNextSong() },
+                            contentAlpha = { ((npProgress.value - 0.25f) / 0.6f).coerceIn(0f, 1f) },
+                            entry = { npProgress.value },
+                            miniArt = miniArtRect,
+                            onDrag = { d -> npScope.launch { npClock.snapTo((npClock.value - d / npDragRangePx).coerceIn(0f, 1f)) } },
+                            onDragEnd = { v ->
+                                if (npClock.value < 0.8f || v > 2000f) isNowPlayingExpanded = false
+                                else npScope.launch { npClock.animateTo(1f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
+                            }
+                        )
+                    }
+                }
             }
 
             // ─── AIRPLAY AUDIO ROUTE MODAL SHEET ────────────────────────────────
@@ -629,3 +668,27 @@ fun MobileGlassMusicApp(
     }
 }
 }
+
+/** Clip that grows from the mini-player capsule to the full screen as [progress] goes 0 → 1. */
+private class HeroRevealShape(
+    private val from: androidx.compose.ui.geometry.Rect,
+    private val progress: Float
+) : androidx.compose.ui.graphics.Shape {
+    override fun createOutline(
+        size: androidx.compose.ui.geometry.Size,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        density: androidx.compose.ui.unit.Density
+    ): androidx.compose.ui.graphics.Outline {
+        val p = progress
+        fun l(a: Float, b: Float) = a + (b - a) * p
+        val rad = l(from.height / 2f, 0f)
+        return androidx.compose.ui.graphics.Outline.Rounded(
+            androidx.compose.ui.geometry.RoundRect(
+                l(from.left, 0f), l(from.top, 0f), l(from.right, size.width), l(from.bottom, size.height),
+                androidx.compose.ui.geometry.CornerRadius(rad, rad)
+            )
+        )
+    }
+}
+
+private val HeroEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)

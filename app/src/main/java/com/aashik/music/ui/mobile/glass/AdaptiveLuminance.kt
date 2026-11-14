@@ -22,7 +22,7 @@ import kotlinx.coroutines.withContext
 /**
  * Adaptive content colour for glass surfaces, ported from the AndroidLiquidGlass catalog
  * (`AdaptiveLuminanceGlassContent`): the glass records what it samples into [layer]
- * (via `onDrawBackdrop`), a 5×5 thumbnail is averaged for luminance about once a second,
+ * (via `onDrawBackdrop`), a 5×5 thumbnail is averaged for luminance about three times a second,
  * and [contentColor] animates to dark text on bright backdrops and white text on dark ones.
  */
 @Stable
@@ -60,7 +60,7 @@ fun rememberAdaptiveLuminance(
     LaunchedEffect(layer) {
         val buffer = IntArray(25)
         while (isActive) {
-            delay(500)
+            delay(300)
             val luminance = runCatching {
                 val image = layer.toImageBitmap()
                 withContext(Dispatchers.Default) {
@@ -77,7 +77,7 @@ fun rememberAdaptiveLuminance(
             }.getOrNull() ?: continue
             val visible = luminance * (1.0 - currentSurfaceAlpha) + currentPanelLuminance * currentSurfaceAlpha
             launch {
-                colorAnimation.animateTo(if (visible > 0.5) DarkContent else LightContent, tween(1000))
+                colorAnimation.animateTo(if (visible > 0.5) DarkContent else LightContent, tween(160))
             }
         }
     }

@@ -12,7 +12,6 @@ import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.History
 import com.aashik.music.ui.designsystem.CircularProgressIndicator
 import com.aashik.music.ui.designsystem.Icon
-import com.aashik.music.ui.designsystem.IconButton
 import com.aashik.music.ui.designsystem.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.ui.components.GenreDetailScreen
 import com.aashik.music.viewmodel.MusicViewModel
+import com.aashik.music.ui.mobile.glass.LiquidButton
+import com.aashik.music.ui.mobile.glass.LiquidIconButton
 import com.aashik.music.ui.mobile.glass.MobileGlassSearchBar
 import com.aashik.music.ui.mobile.glass.MobileGlassSegmentedPill
 
@@ -241,16 +242,18 @@ fun MobileSearchScreen(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = "Clear",
-                            color = MobileTheme.accent,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .clip(ResultArtShape)
-                                .clickable { saveHistory(emptyList()) }
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
+                        LiquidButton(
+                            onClick = { saveHistory(emptyList()) },
+                            surfaceColor = MobileTheme.text.copy(alpha = 0.10f),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Text(
+                                text = "Clear",
+                                color = MobileTheme.accent,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
 
@@ -336,14 +339,14 @@ private fun RecentSearchItemRow(
             modifier = Modifier.weight(1f)
         )
 
-        IconButton(
+        LiquidIconButton(
             onClick = onRemove,
-            modifier = Modifier.size(28.dp)
+            size = 30.dp
         ) {
             Icon(
                 imageVector = Icons.Rounded.Clear,
                 contentDescription = "Remove",
-                tint = MobileTheme.textTertiary,
+                tint = MobileTheme.text,
                 modifier = Modifier.size(16.dp)
             )
         }

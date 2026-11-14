@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.ui.designsystem.Icon
 import com.aashik.music.ui.designsystem.Text
 import com.aashik.music.ui.mobile.glass.LiquidButton
-import com.aashik.music.ui.mobile.glass.LiquidGlassCard
+import com.aashik.music.ui.mobile.glass.LiquidSlider
 import com.aashik.music.ui.mobile.glass.LiquidIconButton
 import com.aashik.music.viewmodel.MusicViewModel
 import com.kyant.backdrop.Backdrop
@@ -41,6 +41,7 @@ private val CyanGlassAccent: androidx.compose.ui.graphics.Color get() = MobileTh
  * Allows interactive real-time tuning of optical lens refraction, shader blur,
  * chromatic aberration, and obsidian surface opacity with live preview.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MobileSettingsScreen(
     viewModel: MusicViewModel,
@@ -118,10 +119,7 @@ fun MobileSettingsScreen(
 
         // ─── AUDIO & THEME CARD ───────────────────────────────────────────────
         item {
-            LiquidGlassCard(
-                backdrop = backdrop,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            SettingsCardSurface {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -153,9 +151,10 @@ fun MobileSettingsScreen(
                             color = MobileTheme.textSecondary,
                             fontSize = 11.sp
                         )
-                        Row(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             listOf(
                                 Triple(AppThemeMode.LIGHT, Icons.Rounded.LightMode, Color(0xFFFFD54F)),
@@ -167,7 +166,7 @@ fun MobileSettingsScreen(
                                     onClick = { viewModel.setAppThemeMode(mode) },
                                     backdrop = backdrop,
                                     surfaceColor = if (selected) tone.copy(alpha = 0.25f) else MobileTheme.text.copy(alpha = 0.08f),
-                                    modifier = Modifier.weight(1f).height(34.dp)
+                                    modifier = Modifier.height(34.dp)
                                 ) {
                                     Icon(
                                         imageVector = icon,
@@ -212,9 +211,10 @@ fun MobileSettingsScreen(
                             color = MobileTheme.textSecondary,
                             fontSize = 11.sp
                         )
-                        Row(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             glassPresets.forEach { preset ->
                                 val selected = preset == activePreset
@@ -228,7 +228,7 @@ fun MobileSettingsScreen(
                                     surfaceColor = if (selected) MobileTheme.accent.copy(alpha = 0.22f)
                                         else MobileTheme.text.copy(alpha = 0.08f),
                                     shape = PresetButtonShape,
-                                    modifier = Modifier.weight(1f).height(34.dp)
+                                    modifier = Modifier.height(34.dp)
                                 ) {
                                     Text(
                                         text = preset.name,
@@ -241,10 +241,37 @@ fun MobileSettingsScreen(
                         }
                     }
 
+                    // Glass opacity: strength of the tint behind every glass surface
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Glass Opacity",
+                                color = MobileTheme.text,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "${(glassSurfaceAlpha * 100).toInt()}%",
+                                color = MobileTheme.textSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        LiquidSlider(
+                            value = glassSurfaceAlpha,
+                            onValueChange = { viewModel.updateGlassSurfaceAlpha(it) },
+                            valueRange = 0.05f..0.95f,
+                            backdrop = backdrop
+                        )
+                    }
+
                     // Rescan Library Button
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
@@ -278,9 +305,9 @@ fun MobileSettingsScreen(
                         }
                     }
 
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {

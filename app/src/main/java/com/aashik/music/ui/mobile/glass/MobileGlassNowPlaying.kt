@@ -38,6 +38,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -166,7 +168,15 @@ fun MobileGlassNowPlaying(
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Hero transition hooks: fade of the sheet content, whether the real artwork is shown yet, and its bounds. */
+    contentAlpha: () -> Float = { 1f },
+    /** Opening progress 0..1 (mini-player → full sheet); the artwork is placed between [miniArt] and its hero spot. */
+    entry: () -> Float = { 1f },
+    /** Mini-player thumbnail bounds in root coordinates; null = no shared-element start. */
+    miniArt: androidx.compose.ui.geometry.Rect? = null,
+    onDrag: (Float) -> Unit = {},
+    onDragEnd: (Float) -> Unit = {}
 ) {
     // ── Artwork-derived colours ─────────────────────────────────────────────
     var artColor by remember { mutableStateOf<Color?>(null) }
@@ -207,32 +217,20 @@ fun MobileGlassNowPlaying(
     var pane by remember { mutableStateOf(NowPlayingPane.PLAYER) }
     BackHandler(enabled = pane != NowPlayingPane.PLAYER) { pane = NowPlayingPane.PLAYER }
 
-    // ── Drag-down-to-dismiss ────────────────────────────────────────────────
-    val scope = rememberCoroutineScope()
-    val dragOffset = remember { Animatable(0f) }
-    val dismissPx = with(LocalDensity.current) { 140.dp.toPx() }
+    // ── Drag-down-to-dismiss: the drag drives the hero transition itself (see MobileGlassMusicApp) ──
     val dragModifier = Modifier.draggable(
         orientation = Orientation.Vertical,
-        state = rememberDraggableState { delta ->
-            scope.launch { dragOffset.snapTo((dragOffset.value + delta).coerceAtLeast(0f)) }
-        },
-        onDragStopped = { velocity ->
-            if (dragOffset.value > dismissPx || velocity > 2400f) {
-                onClose()
-            } else {
-                dragOffset.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow))
-            }
-        }
+        state = rememberDraggableState { delta -> onDrag(delta) },
+        onDragStopped = { velocity -> onDragEnd(velocity) }
     )
 
     val sheetBackdrop = rememberLayerBackdrop()
+    val statusTop = WindowInsets.statusBars.getTop(LocalDensity.current)
 
     CompositionLocalProvider(LocalNpBackdrop provides sheetBackdrop) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .graphicsLayer { translationY = dragOffset.value }
-            .clip(if (dragOffset.value > 0f) DraggedSheetShape else FlatSheetShape)
     ) {
         // Background: artwork tint with a softly blurred copy of the cover (API 31+), recorded
         // so the liquid slider thumbs refract it.
@@ -272,6 +270,7 @@ fun MobileGlassNowPlaying(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(28.dp)
+                    .graphicsLayer { alpha = contentAlpha() }
                     .then(dragModifier)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),
                 contentAlignment = Alignment.Center
@@ -289,9 +288,14 @@ fun MobileGlassNowPlaying(
                 viewModel = viewModel,
                 c = c,
                 dragModifier = dragModifier,
+                entry = entry,
+                miniArt = miniArt,
+                contentAlpha = contentAlpha,
+                originY = statusTop + with(LocalDensity.current) { 28.dp.roundToPx() },
                 modifier = Modifier.weight(1f).fillMaxWidth()
             )
 
+            Column(Modifier.graphicsLayer { alpha = contentAlpha() }) {
             Spacer(Modifier.height(14.dp))
             Scrubber(viewModel = viewModel, song = currentSong, c = c, backdrop = sheetBackdrop, artColor = artColor)
             TransportRow(isPlaying, onPrevious, onPlayPause, onNext, c)
@@ -301,6 +305,9 @@ fun MobileGlassNowPlaying(
                 onPane = { pane = if (pane == it) NowPlayingPane.PLAYER else it },
                 c = c
             )
+            // Lift the whole control stack a little off the bottom edge.
+            Spacer(Modifier.height(34.dp))
+            }
         }
     }
     }
@@ -324,6 +331,10 @@ private fun UpperArea(
     viewModel: MusicViewModel,
     c: NpColors,
     dragModifier: Modifier,
+    entry: () -> Float,
+    miniArt: androidx.compose.ui.geometry.Rect?,
+    contentAlpha: () -> Float,
+    originY: Int,
     modifier: Modifier
 ) {
     val compact = pane != NowPlayingPane.PLAYER
@@ -333,12 +344,7 @@ private fun UpperArea(
         animationSpec = spring(dampingRatio = 0.86f, stiffness = 320f),
         label = "npMorph"
     )
-    // The cover settles back when paused, like the reference's paused frame (hero only).
-    val pauseScale by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 0.8f,
-        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
-        label = "heroScale"
-    )
+    val heroActions by remember { derivedStateOf { t < 0.98f } }
     val radiusDp = (12f - 6f * t).roundToInt()
     val artShape = remember(radiusDp) { RoundedCornerShape(radiusDp.dp) }
 
@@ -349,31 +355,33 @@ private fun UpperArea(
             Box(
                 modifier = Modifier
                     .then(dragModifier)
-                    .graphicsLayer {
-                        val s = 1f + (pauseScale - 1f) * (1f - t)
-                        scaleX = s; scaleY = s
-                    }
                     .clip(artShape)
                     .background(c.fill),
                 contentAlignment = Alignment.Center
             ) {
                 if (albumArt != null) {
-                    Image(bitmap = albumArt, contentDescription = "Artwork", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    Image(
+                        bitmap = albumArt, contentDescription = "Artwork", contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
                     LargeGlyph(Icons.Rounded.MusicNote, null, c.tertiary, 40.dp)
                 }
+                // Hero layout: the action buttons sit inside the artwork's bottom-right corner.
+                if (heroActions) {
+                    NowPlayingActions(
+                        song, isFavorite, onToggleFavorite, viewModel, c,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(12.dp)
+                            .graphicsLayer { alpha = (1f - t) * entry() * entry() }
+                    )
+                }
             }
-            // [1] title + actions
-            TitleRow(
-                song = song,
-                isFavorite = isFavorite,
-                onToggleFavorite = onToggleFavorite,
-                viewModel = viewModel,
-                c = c,
-                shrink = t,
-                modifier = dragModifier
-            )
-            // [2] lyrics / queue, faded in with the morph
+            // [1] title
+            TitleRow(song = song, c = c, shrink = t, modifier = dragModifier.graphicsLayer { alpha = contentAlpha() })
+            // [2] lyrics / queue, faded in with the morph. The action buttons ride along in the
+            // compact header (they are inside the artwork in the hero layout).
             Box(Modifier.graphicsLayer { alpha = t }) {
                 AnimatedContent(
                     targetState = pane,
@@ -389,6 +397,11 @@ private fun UpperArea(
                     }
                 }
             }
+            // [3] compact-header actions
+            NowPlayingActions(
+                song, isFavorite, onToggleFavorite, viewModel, c,
+                modifier = Modifier.graphicsLayer { alpha = t }
+            )
         }
     ) { measurables, constraints ->
         val w = constraints.maxWidth
@@ -400,34 +413,76 @@ private fun UpperArea(
         val titleShift = 64.dp.roundToPx()
         fun lerpI(a: Int, b: Int) = (a + (b - a) * t).roundToInt()
 
-        val titleW = lerpI(w, w - titleShift)
+        val actions = measurables[3].measure(Constraints())
+        val actionsGap = 8.dp.roundToPx()
+        val actionsEnd = 22.dp.roundToPx()
+        val titleW = lerpI(w, w - titleShift - actions.width - actionsGap - actionsEnd)
         val title = measurables[1].measure(Constraints(minWidth = titleW, maxWidth = titleW))
         val heroArea = h - title.height - 8.dp.roundToPx()
+        // Cover is the largest square that fits; cover + title are centred as one group.
         val heroSide = minOf(w - 56.dp.roundToPx(), heroArea - 24.dp.roundToPx()).coerceAtLeast(compactArt)
+        val heroGap = 18.dp.roundToPx()
+        val groupTop = ((h - (heroSide + heroGap + title.height)) / 2).coerceAtLeast(0)
         val side = lerpI(heroSide, compactArt)
-        val art = measurables[0].measure(Constraints.fixed(side, side))
+        // Shared element: while opening/closing the cover travels from the mini-player thumbnail.
+        val e = entry()
+        val mini = miniArt
+        val artSide = if (mini != null) (mini.width + (side - mini.width) * e).roundToInt().coerceAtLeast(1) else side
+        val art = measurables[0].measure(Constraints.fixed(artSide, artSide))
         val content = measurables[2].measure(Constraints(maxWidth = w, maxHeight = (h - headerH).coerceAtLeast(0)))
 
         val artX = lerpI((w - heroSide) / 2, compactX)
-        val artY = lerpI((heroArea - heroSide) / 2, compactY)
+        val artY = lerpI(groupTop, compactY)
         val titleX = lerpI(0, titleShift)
-        val titleY = lerpI(h - title.height, compactY + (compactArt - title.height) / 2)
+        val titleY = lerpI(groupTop + heroSide + heroGap, compactY + (compactArt - title.height) / 2)
         layout(w, h) {
             content.place(0, headerH)
-            art.place(artX, artY)
+            if (mini != null) {
+                art.place(
+                    (mini.left + (artX - mini.left) * e).roundToInt(),
+                    (mini.top - originY + (artY - (mini.top - originY)) * e).roundToInt()
+                )
+            } else art.place(artX, artY)
             title.place(titleX, titleY)
+            // Only the header copy is placed; the hero copy lives inside the artwork.
+            if (t > 0.02f) {
+                actions.place(w - actionsEnd - actions.width, compactY + (compactArt - actions.height) / 2)
+            }
         }
     }
 }
 
 @Composable
-private fun TitleRow(
+private fun TitleRow(song: Song?, c: NpColors, shrink: Float, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().padding(start = 28.dp, end = 22.dp)) {
+        Text(
+            text = song?.title?.ifBlank { null } ?: "Not Playing",
+            color = c.text,
+            fontSize = (20f - 4f * shrink).sp,
+            lineHeight = (25f - 5f * shrink).sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = song?.artist?.ifBlank { null } ?: "Unknown Artist",
+            color = c.secondary,
+            fontSize = (18f - 4f * shrink).sp,
+            lineHeight = (23f - 5f * shrink).sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/** Favourite, shuffle/repeat, radio and (streams) download: the glass actions that used to sit beside the title. */
+@Composable
+private fun NowPlayingActions(
     song: Song?,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     viewModel: MusicViewModel,
     c: NpColors,
-    shrink: Float,
     modifier: Modifier = Modifier
 ) {
     // Favourite star pops when toggled.
@@ -441,30 +496,7 @@ private fun TitleRow(
         }
     }
 
-    Row(
-        modifier = modifier.fillMaxWidth().padding(start = 28.dp, end = 22.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = song?.title?.ifBlank { null } ?: "Not Playing",
-                color = c.text,
-                fontSize = (20f - 4f * shrink).sp,
-                lineHeight = (25f - 5f * shrink).sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = song?.artist?.ifBlank { null } ?: "Unknown Artist",
-                color = c.secondary,
-                fontSize = (18f - 4f * shrink).sp,
-                lineHeight = (23f - 5f * shrink).sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Spacer(Modifier.width(8.dp))
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         NpGlassButton(
             icon = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
             contentDescription = if (isFavorite) "Remove from Favorites" else "Add to Favorites",
@@ -474,12 +506,9 @@ private fun TitleRow(
             modifier = Modifier.graphicsLayer { scaleX = starScale.value; scaleY = starScale.value },
             onClick = onToggleFavorite
         )
-        Spacer(Modifier.width(8.dp))
         ModeToggleButton(viewModel, c)
-        Spacer(Modifier.width(8.dp))
         RadioButton(viewModel, c)
         if (song != null && song.isStream() && !song.isLiveStream()) {
-            Spacer(Modifier.width(8.dp))
             DownloadButton(song, viewModel, c)
         }
     }
@@ -760,9 +789,9 @@ private fun TransportRow(isPlaying: Boolean, onPrevious: () -> Unit, onPlayPause
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TransportButton(Icons.Rounded.FastRewind, "Previous", 52.dp, c, onPrevious)
-        TransportButton(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (isPlaying) "Pause" else "Play", 60.dp, c, onPlayPause)
-        TransportButton(Icons.Rounded.FastForward, "Next", 52.dp, c, onNext)
+        TransportButton(Icons.Rounded.FastRewind, "Previous", 44.dp, c, onPrevious)
+        TransportButton(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (isPlaying) "Pause" else "Play", 64.dp, c, onPlayPause)
+        TransportButton(Icons.Rounded.FastForward, "Next", 44.dp, c, onNext)
     }
 }
 
@@ -855,7 +884,7 @@ private fun Modifier.npGlassSurface(c: NpColors, height: Dp, active: Boolean = f
     val glass = floatingGlass(elementHeight = height)
     val surface by animateColorAsState(
         if (active) c.text.copy(alpha = 0.92f) else c.text.copy(alpha = glass.surfaceAlpha * 0.45f),
-        tween(220), label = "glassSurface"
+        tween(120), label = "glassSurface"
     )
     return if (backdrop != null) {
         this.drawBackdrop(
@@ -896,7 +925,7 @@ private fun NpGlassButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.88f else 1f, spring(dampingRatio = 0.6f, stiffness = 400f), label = "glassScale")
-    val tint by animateColorAsState(if (active) c.onText else c.text, tween(220), label = "glassTint")
+    val tint by animateColorAsState(if (active) c.onText else c.text, tween(120), label = "glassTint")
     val glassModifier = Modifier.npGlassSurface(c, size, active)
 
     Box(

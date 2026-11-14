@@ -16,8 +16,8 @@ android {
         applicationId = "com.aashik.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 88
-        versionName = "0.4.7"
+        versionCode = 89
+        versionName = "0.4.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {

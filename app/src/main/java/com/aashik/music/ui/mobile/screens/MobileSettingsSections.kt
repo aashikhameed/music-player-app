@@ -2,9 +2,7 @@ package com.aashik.music.ui.mobile.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,7 +20,7 @@ import com.aashik.music.ui.components.DownloadLocationDialog
 import com.aashik.music.ui.mobile.glass.LiquidToggle
 import com.aashik.music.ui.designsystem.Text
 import com.aashik.music.ui.mobile.glass.LiquidButton
-import com.aashik.music.ui.mobile.glass.LiquidGlassCard
+import com.aashik.music.ui.mobile.glass.LocalGlassConfig
 import com.aashik.music.ui.mobile.glass.LiquidSlider
 import com.aashik.music.ui.mobile.glass.MobileTheme
 import com.aashik.music.viewmodel.MusicViewModel
@@ -34,9 +32,26 @@ import kotlin.math.roundToInt
 
 private val ChipShape = RoundedCornerShape(50)
 
+private val SettingsCardShape = RoundedCornerShape(18.dp)
+
+/**
+ * Flat settings card. A live backdrop (blur + lens) on six tall cards made the long list stutter
+ * while scrolling, so cards are a solid panel tint whose strength follows the Glass Opacity setting.
+ */
+@Composable
+internal fun SettingsCardSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val alpha = LocalGlassConfig.current.surfaceAlpha.coerceIn(0.35f, 0.95f)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MobileTheme.panel.copy(alpha = alpha), SettingsCardShape)
+            .background(MobileTheme.text.copy(alpha = 0.05f), SettingsCardShape)
+    ) { content() }
+}
+
 @Composable
 private fun SettingsCard(title: String, backdrop: Backdrop, content: @Composable ColumnScope.() -> Unit) {
-    LiquidGlassCard(backdrop = backdrop, modifier = Modifier.fillMaxWidth()) {
+    SettingsCardSurface {
         Column(
             modifier = Modifier.fillMaxWidth().padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -74,11 +89,13 @@ private fun ToggleRow(title: String, subtitle: String, checked: Boolean, backdro
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun <T> ChipRow(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         options.forEach { option ->
             val isSelected = option == selected

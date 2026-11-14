@@ -20,6 +20,13 @@ import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,8 +51,8 @@ private val MiniArtShape = RoundedCornerShape(8.dp)
 /** Shared with the collapsed tab-bar circles so the whole dock row lines up (compact 20% reduction). */
 val MiniPlayerHeight = 48.dp
 
-/** Height of the collapsed dock row (mini-player + round tab buttons), reduced proportionally. */
-val CollapsedDockHeight = 38.dp
+/** Height of the collapsed dock row (mini-player + round tab buttons), (grown from 38dp so the mini-player stays comfortable to read and tap while scrolling). */
+val CollapsedDockHeight = 52.dp
 
 /** Horizontal gutter shared by the tab bar, mini-player and collapsed buttons. */
 val DockGutter = 24.dp
@@ -68,8 +75,15 @@ fun MobileGlassMiniPlayer(
     modifier: Modifier = Modifier,
     backdrop: Backdrop? = null,
     compact: Boolean = false,
-    height: Dp = MiniPlayerHeight
+    height: Dp = MiniPlayerHeight,
+    /** Reports the capsule and artwork bounds (root coordinates) for the Now Playing hero transition. */
+    onBounds: (capsule: Rect, art: Rect) -> Unit = { _, _ -> }
 ) {
+    var capsuleRect by remember { mutableStateOf<Rect?>(null) }
+    var artRect by remember { mutableStateOf<Rect?>(null) }
+    val capsuleNow = capsuleRect
+    val artNow = artRect
+    LaunchedEffect(capsuleNow, artNow) { if (capsuleNow != null && artNow != null) onBounds(capsuleNow, artNow) }
     val adaptive = rememberAdaptiveLuminance()
     val glass = floatingGlass(elementHeight = height)
     // Artwork is proportional to the capsule height and inset equally on top, bottom and start.
@@ -106,6 +120,7 @@ fun MobileGlassMiniPlayer(
     Row(
         modifier = modifier
             .height(height)
+            .onGloballyPositioned { capsuleRect = it.boundsInRoot() }
             .then(glassModifier)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -118,6 +133,7 @@ fun MobileGlassMiniPlayer(
         Box(
             modifier = Modifier
                 .size(artSize)
+                .onGloballyPositioned { artRect = it.boundsInRoot() }
                 .clip(MiniArtShape)
                 .background(contentColor.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center

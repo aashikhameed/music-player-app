@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.model.domain.DomainAlbum
 import com.aashik.music.model.domain.DomainArtist
-import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
+import com.aashik.music.ui.mobile.glass.MobilePlayShuffleRow
 
 private val HeaderButtonShape = RoundedCornerShape(21.dp)
 
@@ -105,71 +105,7 @@ fun MobileArtistScreen(
 
         // ─── ACTION CAPSULES (PLAY & SHUFFLE) ───────────────────────────────────
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = onPlay,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp),
-                    shape = HeaderButtonShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MobileTheme.text,
-                        contentColor = MobileTheme.onText
-                    )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Play",
-                            tint = MobileTheme.onText,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "Play",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp)
-                        .mobileLiquidGlass(
-                            shape = HeaderButtonShape,
-                            tintColor = MobileTheme.text.copy(alpha = 0.10f)
-                        )
-                        .clickable(onClick = onShuffle),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = MobileTheme.text,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Shuffle",
-                            color = MobileTheme.text,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                }
-            }
+            MobilePlayShuffleRow(onPlay = onPlay, onShuffle = onShuffle, buttonHeight = 42.dp)
         }
 
         // ─── TOP SONGS SECTION ─────────────────────────────────────────────────

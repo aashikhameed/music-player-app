@@ -224,7 +224,6 @@ fun CarGlassApp(viewModel: MusicViewModel) {
                     viewModel = viewModel,
                     selectedTab = selectedTab,
                     isSearchOpen = isSearchOpen,
-                    onOpenSearch = { isSearchOpen = true },
                     onSelectTab = { tab ->
                         if (isSearchOpen) closeSearch()
                         if (tab == LibraryTab.FOLDERS && selectedTab == LibraryTab.FOLDERS) viewModel.closeFolder()
@@ -252,6 +251,7 @@ fun CarGlassApp(viewModel: MusicViewModel) {
                             selectedFolder = selectedFolder,
                             searchQuery = searchQuery,
                             isSearchOpen = isSearchOpen,
+                            onOpenSearch = { isSearchOpen = true },
                             onCloseSearch = closeSearch,
                             favoritePaths = favoritePaths,
                             currentSongId = currentSong?.id,

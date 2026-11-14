@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.MenuOpen
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -23,11 +24,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Radio
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,11 +63,10 @@ internal fun CarSidebar(
     viewModel: MusicViewModel,
     selectedTab: LibraryTab,
     isSearchOpen: Boolean,
-    onOpenSearch: () -> Unit,
     onSelectTab: (LibraryTab) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenSearch: () -> Unit = {}
 ) {
-    val folders by viewModel.folders.collectAsState()
     val favoritePaths by viewModel.favoritePaths.collectAsState()
     val radioStations by viewModel.radioStations.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -80,41 +77,45 @@ internal fun CarSidebar(
 
     Column(
         modifier = modifier
+            .fillMaxHeight()
             .background(MobileTheme.panel)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
-        // Destinations scroll when the screen is short; the footer stays pinned.
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            // Header: clock (hidden when collapsed) + collapse / expand toggle
-            Row(
-                modifier = Modifier.fillMaxWidth().height(CarDims.Target).padding(start = if (collapsed) 0.dp else 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start
-            ) {
-                if (!collapsed) CarClock(isPlaying = isPlaying, modifier = Modifier.weight(1f))
-                CarIconButton(
-                    if (collapsed) Icons.Rounded.Menu else Icons.Rounded.MenuOpen,
-                    if (collapsed) "Expand sidebar" else "Collapse sidebar",
-                    onClick = { viewModel.toggleSidebarCollapsed() },
-                    glyph = 24.dp,
-                    tint = MobileTheme.textSecondary
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-
-            SidebarItem(Icons.Rounded.Search, "Search", collapsed, selected = isSearchOpen, onClick = onOpenSearch)
-            SidebarItem(Icons.Rounded.MusicNote, "Songs", collapsed, selected = !isSearchOpen && activeTab == LibraryTab.ALL_SONGS) { onSelectTab(LibraryTab.ALL_SONGS) }
-            SidebarItem(Icons.Rounded.Favorite, "Favorites", collapsed, count = favoritePaths.size, selected = !isSearchOpen && activeTab == LibraryTab.FAVORITES) { onSelectTab(LibraryTab.FAVORITES) }
-            SidebarItem(Icons.Rounded.Folder, "Folders", collapsed, count = folders.size, selected = !isSearchOpen && activeTab == LibraryTab.FOLDERS) { onSelectTab(LibraryTab.FOLDERS) }
-            SidebarItem(Icons.Rounded.Radio, "Radio & Genres", collapsed, count = radioStations.size, selected = !isSearchOpen && activeTab == LibraryTab.RADIO) { onSelectTab(LibraryTab.RADIO) }
+        // Header: clock at the top, then collapse / expand toggle below it
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = if (collapsed) 0.dp else 8.dp, bottom = 8.dp),
+            horizontalAlignment = if (collapsed) Alignment.CenterHorizontally else Alignment.Start
+        ) {
+            CarClock(
+                isPlaying = isPlaying,
+                fontSize = if (collapsed) 15f else 22f,
+                showAmPm = !collapsed,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+            CarIconButton(
+                if (collapsed) Icons.Rounded.Menu else Icons.Rounded.MenuOpen,
+                if (collapsed) "Expand sidebar" else "Collapse sidebar",
+                onClick = { viewModel.toggleSidebarCollapsed() },
+                glyph = 24.dp,
+                tint = MobileTheme.textSecondary
+            )
         }
+        Spacer(Modifier.height(8.dp))
 
+        SidebarItem(Icons.Rounded.MusicNote, "Songs", collapsed, selected = activeTab == LibraryTab.ALL_SONGS) { onSelectTab(LibraryTab.ALL_SONGS) }
+        SidebarItem(Icons.Rounded.Favorite, "Favorites", collapsed, count = favoritePaths.size, selected = activeTab == LibraryTab.FAVORITES) { onSelectTab(LibraryTab.FAVORITES) }
+        SidebarItem(Icons.Rounded.Radio, "Radio & Genres", collapsed, count = radioStations.size, selected = activeTab == LibraryTab.RADIO) { onSelectTab(LibraryTab.RADIO) }
+
+        Spacer(Modifier.height(8.dp))
         Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).height(0.5.dp).background(carHairline))
+        Spacer(Modifier.height(4.dp))
 
         SidebarItem(Icons.Rounded.DirectionsCar, "Drive HUD", collapsed, selected = false) { viewModel.openDriveMode() }
-        SidebarItem(Icons.Rounded.GraphicEq, "Equalizer", collapsed, selected = false) { viewModel.openEqualizer() }
         SidebarItem(Icons.Rounded.Settings, "Settings", collapsed, selected = false) { viewModel.openSettings() }
     }
 }
@@ -160,7 +161,12 @@ private fun SidebarItem(
 
 /** Leaf 12-hour clock, refreshed every 15 s; the dot turns green while music plays. */
 @Composable
-internal fun CarClock(isPlaying: Boolean, modifier: Modifier = Modifier, fontSize: Float = 22f) {
+internal fun CarClock(
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+    fontSize: Float = 22f,
+    showAmPm: Boolean = true
+) {
     var now by remember { mutableStateOf(getCurrentTimeWithAmPm()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -174,7 +180,7 @@ internal fun CarClock(isPlaying: Boolean, modifier: Modifier = Modifier, fontSiz
         Text(
             text = buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = fontSize.sp, letterSpacing = (-0.3).sp)) { append(digits) }
-                if (amPm.isNotEmpty()) {
+                if (showAmPm && amPm.isNotEmpty()) {
                     append(" ")
                     withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, fontSize = (fontSize * 0.55f).sp, color = MobileTheme.textSecondary)) { append(amPm) }
                 }
@@ -182,7 +188,7 @@ internal fun CarClock(isPlaying: Boolean, modifier: Modifier = Modifier, fontSiz
             color = MobileTheme.text,
             maxLines = 1
         )
-        Spacer(Modifier.width(8.dp))
-        Box(Modifier.size(7.dp).background(if (isPlaying) PlayingDotGreen else MobileTheme.textTertiary, CarCircle))
+        Spacer(Modifier.width(6.dp))
+        Box(Modifier.size(6.dp).background(if (isPlaying) PlayingDotGreen else MobileTheme.textTertiary, CarCircle))
     }
 }

@@ -93,20 +93,7 @@ fun MobileGlassSearchBar(
                 }
 
                 if (query.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .mobileLiquidGlass(
-                                shape = SearchFieldShape,
-                                tintColor = MobileTheme.text.copy(alpha = 0.18f)
-                            )
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onClear
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    LiquidIconButton(onClick = onClear, size = 22.dp) {
                         Icon(
                             imageVector = Icons.Rounded.Clear,
                             contentDescription = "Clear",
@@ -120,20 +107,16 @@ fun MobileGlassSearchBar(
 
         // Cancel Button (appears when active)
         if (isActive || query.isNotEmpty()) {
-            Text(
-                text = "Cancel",
-                color = MobileTheme.accent,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Normal,
-                modifier = Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {
-                        onClear()
-                        onActiveChange(false)
-                    }
-                )
-            )
+            LiquidButton(
+                onClick = {
+                    onClear()
+                    onActiveChange(false)
+                },
+                surfaceColor = MobileTheme.text.copy(alpha = 0.10f),
+                modifier = Modifier.height(34.dp)
+            ) {
+                Text(text = "Cancel", color = MobileTheme.accent, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
         }
     }
 }

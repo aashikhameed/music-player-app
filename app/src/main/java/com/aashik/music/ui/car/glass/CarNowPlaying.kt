@@ -83,6 +83,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -146,9 +148,10 @@ internal fun CarNowPlaying(
     val isVideoActive = playVideoForStreams && !isSpeedLockActive &&
         (!currentVideoId.isNullOrBlank() || song?.isVideo() == true)
 
-    var pane by rememberSaveable { mutableStateOf(CarPane.NONE) }
-    BackHandler(enabled = pane != CarPane.NONE && !isQueueOpen) { pane = CarPane.NONE }
-    val togglePane: (CarPane) -> Unit = { pane = if (pane == it) CarPane.NONE else it }
+    // Always the split view: Up Next / Lyrics beside the cover and controls.
+    var pane by rememberSaveable { mutableStateOf(CarPane.UP_NEXT) }
+    // The split view is the only layout: tabs switch between Lyrics and Up Next, never to an empty stage.
+    val togglePane: (CarPane) -> Unit = { pane = it }
 
     // ── Video: controls auto-hide after 4.5 s while playing; tap toggles them ──
     var controlsVisible by remember { mutableStateOf(true) }
@@ -311,7 +314,8 @@ private fun NowPlayingBody(
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier) {
-        val stageSide = minOf(maxHeight, maxWidth * 0.52f)
+        // Controls come first: the cover takes about a third of the width, the rest goes to the control column.
+        val stageSide = minOf(maxHeight, maxWidth * 0.36f)
         val t by animateFloatAsState(
             targetValue = if (pane != CarPane.NONE) 1f else 0f,
             animationSpec = spring(dampingRatio = 0.86f, stiffness = 320f),
@@ -325,18 +329,6 @@ private fun NowPlayingBody(
         val artX = lerp(stageArtX, splitArtX, t)
         val pauseScale by animateFloatAsState(if (isPlaying) 1f else 0.97f, spring(dampingRatio = 0.7f, stiffness = 300f), label = "heroScale")
 
-        // Stage: control column to the right of the big artwork
-        AnimatedVisibility(
-            visible = pane == CarPane.NONE,
-            enter = fadeIn(tween(260, delayMillis = 90)) + slideInHorizontally(spring(dampingRatio = 0.9f, stiffness = 320f)) { it / 12 },
-            exit = fadeOut(tween(120)),
-            modifier = Modifier.fillMaxSize().then(
-                if (driverRight) Modifier.padding(end = stageSide + StageGap) else Modifier.padding(start = stageSide + StageGap)
-            )
-        ) {
-            StageColumn(viewModel, song, isPlaying, backdrop, onSongActions, onPane, Modifier.fillMaxSize())
-        }
-
         // Split: compact left column + panel
         AnimatedVisibility(
             visible = pane != CarPane.NONE,
@@ -344,7 +336,7 @@ private fun NowPlayingBody(
             exit = fadeOut(tween(120)),
             modifier = Modifier.fillMaxSize()
         ) {
-            val lastPane = remember { mutableStateOf(CarPane.LYRICS) }
+            val lastPane = remember { mutableStateOf(CarPane.UP_NEXT) }
             SideEffect { if (pane != CarPane.NONE) lastPane.value = pane }
             Row(Modifier.fillMaxSize()) {
                 val column: @Composable () -> Unit = {
@@ -373,9 +365,6 @@ private fun NowPlayingBody(
             modifier = Modifier
                 .offset(x = artX)
                 .size(artSide)
-                .clickable(enabled = pane != CarPane.NONE, interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                    onPane(CarPane.NONE)
-                }
         ) { (_, art) ->
             Box(
                 Modifier
@@ -392,44 +381,6 @@ private fun NowPlayingBody(
     }
 }
 
-/** Stage control column: title, action chips, seek, big transport, Lyrics / Up Next switch. */
-@Composable
-private fun StageColumn(
-    viewModel: MusicViewModel,
-    song: Song?,
-    isPlaying: Boolean,
-    backdrop: Backdrop,
-    onSongActions: (Song) -> Unit,
-    onPane: (CarPane) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier) {
-        SongTitles(song, big = true, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(18.dp))
-        if (song != null) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                FavoriteChip(viewModel, song)
-                DownloadChip(viewModel, song)
-                RadioChip(viewModel)
-                Spacer(Modifier.weight(1f))
-                CarIconButton(Icons.Rounded.MoreHoriz, "More actions", onClick = { onSongActions(song) }, filled = true, glyph = 24.dp)
-            }
-        }
-        Spacer(Modifier.weight(1f))
-        Spacer(Modifier.height(20.dp))
-        SeekSlider(viewModel, song, backdrop)
-        Spacer(Modifier.height(4.dp))
-        TransportRow(viewModel, isPlaying, TransportStyle.STAGE)
-        Spacer(Modifier.height(12.dp))
-        CarSegmented(
-            items = PaneTabs,
-            selected = null,
-            onSelect = { onPane(PaneOrder[it]) },
-            modifier = Modifier.fillMaxWidth().height(60.dp)
-        )
-    }
-}
-
 /** Split left column: room for the artwork (drawn by the parent), compact title row, slider, transport. */
 @Composable
 private fun SplitLeft(
@@ -443,6 +394,14 @@ private fun SplitLeft(
     Column(modifier) {
         Spacer(Modifier.height(SplitArtSide + 16.dp))
         CompactTitleRow(viewModel, song, onSongActions)
+        if (song != null) {
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                FavoriteChip(viewModel, song, showLabel = false)
+                DownloadChip(viewModel, song, showLabel = false)
+                RadioChip(viewModel, showLabel = false)
+            }
+        }
         Spacer(Modifier.weight(1f))
         SeekSlider(viewModel, song, backdrop)
         Spacer(Modifier.height(4.dp))
@@ -536,23 +495,12 @@ private fun rememberHeartScale(isFavorite: Boolean): Animatable<Float, Animation
     return heartScale
 }
 
-/** Split / deck title row: titles + favourite + ⋯. */
+/** Split title row: titles + ⋯ (favourite / download / radio sit in the chip row below). */
 @Composable
 private fun CompactTitleRow(viewModel: MusicViewModel, song: Song?, onSongActions: (Song) -> Unit) {
-    val favoritePaths by viewModel.favoritePaths.collectAsState()
-    val isFavorite = song?.path?.let { favoritePaths.contains(it) } == true
-    val heartScale = rememberHeartScale(isFavorite)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         SongTitles(song, big = false, modifier = Modifier.weight(1f))
         if (song != null) {
-            CarIconButton(
-                if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                if (isFavorite) "Remove from favorites" else "Add to favorites",
-                onClick = { viewModel.toggleFavorite(song.path) },
-                tint = if (isFavorite) FavoriteRed else MobileTheme.text,
-                size = 48.dp, glyph = 24.dp,
-                modifier = Modifier.graphicsLayer { scaleX = heartScale.value; scaleY = heartScale.value }
-            )
             CarIconButton(Icons.Rounded.MoreHoriz, "More actions", onClick = { onSongActions(song) }, size = 48.dp, glyph = 24.dp)
         }
     }
@@ -592,7 +540,8 @@ private fun CarActionChip(
     tint: Color = MobileTheme.text,
     fill: Color = carIdleFill,
     progress: Float? = null,
-    loading: Boolean = false
+    loading: Boolean = false,
+    showLabel: Boolean = true
 ) {
     val animatedFill by animateColorAsState(fill, tween(220), label = "chipFill")
     Row(
@@ -601,7 +550,8 @@ private fun CarActionChip(
             .clip(CarPillShape)
             .background(animatedFill)
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp),
+            .semantics { contentDescription = label }
+            .padding(horizontal = if (showLabel) 18.dp else 17.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         when {
@@ -612,13 +562,15 @@ private fun CarActionChip(
             loading -> CircularProgressIndicator(color = tint, strokeWidth = 2.5.dp, modifier = Modifier.size(22.dp))
             else -> CarGlyph(icon, null, tint, 22.dp)
         }
-        Spacer(Modifier.width(8.dp))
-        Text(label, color = tint, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+        if (showLabel) {
+            Spacer(Modifier.width(8.dp))
+            Text(label, color = tint, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+        }
     }
 }
 
 @Composable
-private fun FavoriteChip(viewModel: MusicViewModel, song: Song) {
+private fun FavoriteChip(viewModel: MusicViewModel, song: Song, showLabel: Boolean = true) {
     val favoritePaths by viewModel.favoritePaths.collectAsState()
     val isFavorite = favoritePaths.contains(song.path)
     val heartScale = rememberHeartScale(isFavorite)
@@ -628,13 +580,14 @@ private fun FavoriteChip(viewModel: MusicViewModel, song: Song) {
         onClick = { viewModel.toggleFavorite(song.path) },
         tint = if (isFavorite) FavoriteRed else MobileTheme.text,
         fill = if (isFavorite) FavoriteRed.copy(alpha = 0.16f) else carIdleFill,
+        showLabel = showLabel,
         modifier = Modifier.graphicsLayer { scaleX = heartScale.value; scaleY = heartScale.value }
     )
 }
 
 /** Streams can be saved offline (progress ring); a saved track can be deleted again. */
 @Composable
-private fun DownloadChip(viewModel: MusicViewModel, song: Song) {
+private fun DownloadChip(viewModel: MusicViewModel, song: Song, showLabel: Boolean = true) {
     val downloads by viewModel.downloadStates.collectAsState()
     val status = downloads[song.id] ?: DownloadStatus.Idle
     val isDownloaded = status is DownloadStatus.Downloaded || viewModel.isSongDownloaded(song.id) ||
@@ -642,18 +595,18 @@ private fun DownloadChip(viewModel: MusicViewModel, song: Song) {
     val downloadable = (song.isStream() && song.duration > 0) || isDownloaded
     if (!downloadable) return
     when {
-        status is DownloadStatus.Downloading -> CarActionChip(Icons.Rounded.Download, "Saving", onClick = {}, progress = status.progress)
+        status is DownloadStatus.Downloading -> CarActionChip(Icons.Rounded.Download, "Saving", onClick = {}, progress = status.progress, showLabel = showLabel)
         isDownloaded -> CarActionChip(
             Icons.Rounded.CheckCircle, "Offline", onClick = { viewModel.deleteDownload(song) },
-            tint = DownloadedGreen, fill = DownloadedGreen.copy(alpha = 0.16f)
+            tint = DownloadedGreen, fill = DownloadedGreen.copy(alpha = 0.16f), showLabel = showLabel
         )
-        status is DownloadStatus.Failed -> CarActionChip(Icons.Rounded.Refresh, "Retry", onClick = { viewModel.downloadSong(song, force = true) })
-        else -> CarActionChip(Icons.Rounded.Download, "Download", onClick = { viewModel.downloadSong(song) })
+        status is DownloadStatus.Failed -> CarActionChip(Icons.Rounded.Refresh, "Retry", onClick = { viewModel.downloadSong(song, force = true) }, showLabel = showLabel)
+        else -> CarActionChip(Icons.Rounded.Download, "Download", onClick = { viewModel.downloadSong(song) }, showLabel = showLabel)
     }
 }
 
 @Composable
-private fun RadioChip(viewModel: MusicViewModel) {
+private fun RadioChip(viewModel: MusicViewModel, showLabel: Boolean = true) {
     val radioLoading by viewModel.isRadioLoading.collectAsState()
     val radioName by viewModel.activeRadioStationName.collectAsState()
     val active = radioName != null && !radioLoading
@@ -663,7 +616,8 @@ private fun RadioChip(viewModel: MusicViewModel) {
         onClick = { viewModel.startRadioForCurrentSong() },
         tint = if (active) MobileTheme.accent else MobileTheme.text,
         fill = if (active) carSelectedFill else carIdleFill,
-        loading = radioLoading
+        loading = radioLoading,
+        showLabel = showLabel
     )
 }
 
@@ -793,7 +747,7 @@ private fun SeekSlider(viewModel: MusicViewModel, song: Song?, backdrop: Backdro
     }
 }
 
-private enum class TransportStyle { STAGE, COMPACT, DECK }
+private enum class TransportStyle { COMPACT, DECK }
 
 /** Button sizes per transport style. [skip] = show the ±10 s buttons. */
 private class TransportSizes(
@@ -801,8 +755,7 @@ private class TransportSizes(
     val skip: Dp, val skipGlyph: Dp, val play: Dp, val playGlyph: Dp, val showSkip: Boolean
 )
 
-private val StageTransport = TransportSizes(112.dp, 56.dp, 26.dp, 64.dp, 40.dp, 56.dp, 28.dp, 96.dp, 52.dp, true)
-private val CompactTransport = TransportSizes(84.dp, 48.dp, 24.dp, 56.dp, 36.dp, 0.dp, 0.dp, 72.dp, 40.dp, false)
+private val CompactTransport = TransportSizes(92.dp, 52.dp, 26.dp, 64.dp, 40.dp, 0.dp, 0.dp, 80.dp, 44.dp, false)
 private val DeckTransport = TransportSizes(84.dp, 48.dp, 24.dp, 56.dp, 38.dp, 48.dp, 26.dp, 76.dp, 42.dp, true)
 
 @Composable
@@ -814,7 +767,6 @@ private fun TransportRow(viewModel: MusicViewModel, isPlaying: Boolean, style: T
         PlaybackMode.QUEUE -> Triple(Icons.Rounded.Repeat, "Playing in order", false)
     }
     val s = when (style) {
-        TransportStyle.STAGE -> StageTransport
         TransportStyle.COMPACT -> CompactTransport
         TransportStyle.DECK -> DeckTransport
     }

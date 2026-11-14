@@ -91,6 +91,7 @@ internal fun CarLibraryPane(
     selectedFolder: String?,
     searchQuery: String,
     isSearchOpen: Boolean,
+    onOpenSearch: () -> Unit,
     onCloseSearch: () -> Unit,
     favoritePaths: Set<String>,
     currentSongId: String?,
@@ -144,6 +145,25 @@ internal fun CarLibraryPane(
     }
 
     Column(modifier.statusBarsPadding()) {
+        val trailingContent: (@Composable () -> Unit)? = when {
+            showSearch -> null
+            activeTab == LibraryTab.ALL_SONGS -> {
+                {
+                    CarIconButton(
+                        icon = Icons.Rounded.Search,
+                        contentDescription = "Search songs",
+                        onClick = onOpenSearch,
+                        filled = true,
+                        glyph = 24.dp
+                    )
+                }
+            }
+            activeTab == LibraryTab.RADIO && selectedRadioCategory == null -> {
+                { CarTextPillButton("Surprise Me", Icons.Rounded.Shuffle) { viewModel.playRandomOrNextRadioStation() } }
+            }
+            else -> null
+        }
+
         TitleRow(
             title = title,
             subtitle = subtitle,
@@ -152,9 +172,7 @@ internal fun CarLibraryPane(
             searchQuery = searchQuery,
             onQueryChange = { viewModel.onSearchQueryChanged(it) },
             onCloseSearch = onCloseSearch,
-            trailing = if (!showSearch && activeTab == LibraryTab.RADIO && selectedRadioCategory == null) {
-                { CarTextPillButton("Surprise Me", Icons.Rounded.Shuffle) { viewModel.playRandomOrNextRadioStation() } }
-            } else null
+            trailing = trailingContent
         )
 
         val contentKey = when {

@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.aashik.music.model.Song
 import com.aashik.music.model.domain.DomainAlbum
 import com.aashik.music.ui.mobile.glass.MobileGlassBadgePill
-import com.aashik.music.ui.mobile.glass.mobileLiquidGlass
+import com.aashik.music.ui.mobile.glass.MobilePlayShuffleRow
 
 private val HeaderButtonShape = RoundedCornerShape(22.dp)
 
@@ -111,73 +111,7 @@ fun MobileAlbumScreen(
 
         // ─── ACTION BUTTONS: PLAY & SHUFFLE CAPSULES (160x44pt) ────────────────
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Solid White Play Capsule
-                Button(
-                    onClick = onPlay,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp),
-                    shape = HeaderButtonShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MobileTheme.text,
-                        contentColor = MobileTheme.onText
-                    )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Play",
-                            tint = MobileTheme.onText,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "Play",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                }
-
-                // Frosted Glass Shuffle Capsule
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .mobileLiquidGlass(
-                            shape = HeaderButtonShape,
-                            tintColor = MobileTheme.text.copy(alpha = 0.10f)
-                        )
-                        .clickable(onClick = onShuffle),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = MobileTheme.text,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Shuffle",
-                            color = MobileTheme.text,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
-                    }
-                }
-            }
+            MobilePlayShuffleRow(onPlay = onPlay, onShuffle = onShuffle, buttonHeight = 44.dp)
         }
 
         // ─── EDITORIAL REVIEW (only when the album actually has one) ───────────
