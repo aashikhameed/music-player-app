@@ -235,11 +235,11 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 echo -e "\n${BOLD}6. Scanning Packaging & Build Settings...${NC}"
 
-# Check 6a: ARM64 single ABI filter
-if grep -q 'abiFilters.addAll(listOf("arm64-v8a"))' app/build.gradle.kts; then
-    pass "build.gradle.kts: ARM64-only ABI filter verified (saves ~2 MB unused .so binaries)"
+# Check 6a: ARM ABI filter
+if grep -q 'abiFilters.addAll(listOf("arm64-v8a"' app/build.gradle.kts && ! grep -q '"x86"' app/build.gradle.kts; then
+    pass "build.gradle.kts: ARM automotive & TV ABI filter verified (x86 stripped)"
 else
-    fail "build.gradle.kts: Multi-ABI packaging detected (must be arm64-v8a only)"
+    fail "build.gradle.kts: Multi-ABI packaging detected (must be ARM architectures only)"
 fi
 
 # Check 6b: R8 minification & resource shrinking

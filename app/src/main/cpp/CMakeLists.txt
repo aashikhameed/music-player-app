@@ -51,18 +51,42 @@ target_link_libraries(audio-player
 # -fomit-frame-pointer  Free one general-purpose register for tighter loops
 # -ffunction-sections / -fdata-sections + --gc-sections  Dead-strip unused code
 # ─────────────────────────────────────────────────────────────────────────────
-target_compile_options(audio-player PRIVATE
-    -O3
-    -flto
-    -fvisibility=hidden
-    -march=armv8-a
-    -ftree-vectorize
-    -ffast-math
-    -fomit-frame-pointer
-    -ffunction-sections
-    -fdata-sections
-    -DNDEBUG
-)
+if (${ANDROID_ABI} STREQUAL "arm64-v8a")
+    target_compile_options(audio-player PRIVATE
+        -O3
+        -flto
+        -fvisibility=hidden
+        -march=armv8-a
+        -ftree-vectorize
+        -ffast-math
+        -fomit-frame-pointer
+        -ffunction-sections
+        -fdata-sections
+        -DNDEBUG
+    )
+elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
+    target_compile_options(audio-player PRIVATE
+        -O3
+        -flto
+        -fvisibility=hidden
+        -march=armv7-a
+        -mfloat-abi=softfp
+        -mfpu=neon
+        -ftree-vectorize
+        -ffast-math
+        -fomit-frame-pointer
+        -ffunction-sections
+        -fdata-sections
+        -DNDEBUG
+    )
+else()
+    target_compile_options(audio-player PRIVATE
+        -O3
+        -flto
+        -fvisibility=hidden
+        -DNDEBUG
+    )
+endif()
 
 target_link_options(audio-player PRIVATE
     -flto

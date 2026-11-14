@@ -81,12 +81,13 @@ else
         fail "APK Size exceeded ceiling: $APK_MB MB (> 5.0 MB)"
     fi
 
-    # 4b. Single ABI check (arm64-v8a only)
+    # 4b. ARM ABI check (arm64-v8a + optional armeabi-v7a for Android TV / headunits)
     ZIP_ABIS=$(unzip -l "$APK_PATH" 2>/dev/null | grep -o 'lib/[^/]*/' | sort -u | tr -d ' ' || true)
-    if [ "$ZIP_ABIS" = "lib/arm64-v8a/" ]; then
-        pass "Native ABI: Strictly single arm64-v8a binary ($ZIP_ABIS)"
+    if [ "$ZIP_ABIS" = "lib/arm64-v8a/" ] || [ "$ZIP_ABIS" = "lib/arm64-v8a/
+lib/armeabi-v7a/" ]; then
+        pass "Native ABI: ARM automotive and TV binary verified ($ZIP_ABIS)"
     else
-        fail "Unexpected ABIs in release APK: $ZIP_ABIS (expected only lib/arm64-v8a/)"
+        fail "Unexpected ABIs in release APK: $ZIP_ABIS (expected ARM binaries)"
     fi
 
     # 4c. Verify presence of libaudio-player.so

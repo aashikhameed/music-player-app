@@ -16,14 +16,13 @@ android {
         applicationId = "com.aashik.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 87
-        versionName = "0.4.6"
+        versionCode = 88
+        versionName = "0.4.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
-            // Target automotive hardware is ARM aarch64 only.
-            // Removing x86/x86_64/armeabi-v7a saves ~2 MB of APK install size.
-            abiFilters.addAll(listOf("arm64-v8a"))
+            // Target ARM architectures: 64-bit (arm64-v8a) and 32-bit (armeabi-v7a) for Android TV & Headunits
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
         }
         externalNativeBuild {
             cmake {
@@ -51,14 +50,19 @@ android {
                 storePassword = signingKeystorePassword
                 keyAlias = signingKeyAlias
                 keyPassword = signingKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
             }
+        }
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
-            isShrinkResources = true
             isShrinkResources = true
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             proguardFiles(
@@ -90,7 +94,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
         }
     }
 
