@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.aashik.music.model.DriveSide
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -127,21 +129,31 @@ internal fun CarSettingsScreen(viewModel: MusicViewModel, onClose: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 CarSettingsSection.entries.forEach { s ->
                     val selected = s == section
-                    val fill by animateColorAsState(if (selected) carSelectedFill else Color.Transparent, tween(200), label = "setFill")
-                    val tint = if (selected) MobileTheme.accent else MobileTheme.text
+                    val interaction = remember { MutableInteractionSource() }
+                    val isFocused by interaction.collectIsFocusedAsState()
+                    val isHighlighted = selected || isFocused
+                    val fill by animateColorAsState(
+                        when {
+                            selected -> carSelectedFill
+                            isFocused -> MobileTheme.accent.copy(alpha = 0.25f)
+                            else -> Color.Transparent
+                        },
+                        tween(200), label = "setFill"
+                    )
+                    val tint = if (isHighlighted) MobileTheme.accent else MobileTheme.text
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .height(CarDims.SidebarRowHeight)
                             .clip(CarSidebarItemShape)
                             .background(fill)
-                            .clickable { section = s }
+                            .clickable(interactionSource = interaction, indication = null) { section = s }
                             .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CarGlyph(s.icon, null, tint, 24.dp)
                         Spacer(Modifier.width(14.dp))
-                        Text(s.label, color = tint, fontSize = 17.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
+                        Text(s.label, color = tint, fontSize = 17.sp, fontWeight = if (isHighlighted) FontWeight.SemiBold else FontWeight.Medium)
                     }
                 }
             }
@@ -169,6 +181,7 @@ internal fun CarSettingsScreen(viewModel: MusicViewModel, onClose: () -> Unit) {
                             CarSettingsSection.PLAYBACK -> item { CarScaledText { MobilePlaybackSettingsCard(viewModel, backdrop) } }
                             CarSettingsSection.DRIVING -> item { CarScaledText { MobileSpeedVolumeSettingsCard(viewModel, backdrop) } }
                             CarSettingsSection.HEADUNIT -> {
+                                item { OrientationCard(viewModel) }
                                 item { DriveSideCard(viewModel) }
                                 item { CarScaledText { MobileHeadunitSettingsCard(viewModel, backdrop, showDriveSide = false) } }
                             }
@@ -223,14 +236,24 @@ private fun Label(title: String, subtitle: String?, modifier: Modifier = Modifie
 
 @Composable
 private fun ChoiceChip(label: String, selected: Boolean, modifier: Modifier = Modifier, icon: ImageVector? = null, onClick: () -> Unit) {
-    val fill by animateColorAsState(if (selected) carSelectedFill else carIdleFill, tween(200), label = "chipFill")
-    val tint = if (selected) MobileTheme.accent else MobileTheme.text
+    val interaction = remember { MutableInteractionSource() }
+    val isFocused by interaction.collectIsFocusedAsState()
+    val isHighlighted = selected || isFocused
+    val fill by animateColorAsState(
+        when {
+            selected -> carSelectedFill
+            isFocused -> MobileTheme.accent.copy(alpha = 0.28f)
+            else -> carIdleFill
+        },
+        tween(200), label = "chipFill"
+    )
+    val tint = if (isHighlighted) MobileTheme.accent else MobileTheme.text
     Row(
         modifier
             .height(48.dp)
             .clip(CarPillShape)
             .background(fill)
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 18.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
@@ -239,7 +262,24 @@ private fun ChoiceChip(label: String, selected: Boolean, modifier: Modifier = Mo
             CarGlyph(icon, null, tint, 20.dp)
             Spacer(Modifier.width(8.dp))
         }
-        Text(label, color = tint, fontSize = 15.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1)
+        Text(label, color = tint, fontSize = 15.sp, fontWeight = if (isHighlighted) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1)
+    }
+}
+
+/** Orientation mode picker: Auto (unlocked), Landscape, Portrait. */
+@Composable
+private fun OrientationCard(viewModel: MusicViewModel) {
+    val orientation by viewModel.appOrientation.collectAsState()
+    CarCard("SCREEN ORIENTATION") {
+        Label(
+            "Screen Orientation",
+            orientation.summary
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            com.aashik.music.model.AppOrientation.entries.forEach { option ->
+                ChoiceChip(option.label, orientation == option, Modifier.weight(1f)) { viewModel.setAppOrientation(option) }
+            }
+        }
     }
 }
 
@@ -262,7 +302,17 @@ private fun DriveSideCard(viewModel: MusicViewModel) {
 
 @Composable
 private fun DriveSideOption(option: DriveSide, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val fill by animateColorAsState(if (selected) carSelectedFill else carIdleFill, tween(200), label = "sideFill")
+    val interaction = remember { MutableInteractionSource() }
+    val isFocused by interaction.collectIsFocusedAsState()
+    val isHighlighted = selected || isFocused
+    val fill by animateColorAsState(
+        when {
+            selected -> carSelectedFill
+            isFocused -> MobileTheme.accent.copy(alpha = 0.28f)
+            else -> carIdleFill
+        },
+        tween(200), label = "sideFill"
+    )
     val accent = MobileTheme.accent
     val screen = MobileTheme.background
     val ink = MobileTheme.text
@@ -270,7 +320,7 @@ private fun DriveSideOption(option: DriveSide, selected: Boolean, modifier: Modi
         modifier
             .clip(CarCardShape)
             .background(fill)
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -301,7 +351,7 @@ private fun DriveSideOption(option: DriveSide, selected: Boolean, modifier: Modi
         Column {
             Text(
                 option.label,
-                color = if (selected) MobileTheme.accent else MobileTheme.text,
+                color = if (isHighlighted) MobileTheme.accent else MobileTheme.text,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
             )

@@ -14,6 +14,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -161,17 +162,27 @@ internal fun CarIconButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.88f else 1f, spring(dampingRatio = 0.6f, stiffness = 400f), label = "carBtnScale")
+    val isFocused by interaction.collectIsFocusedAsState()
+    val scale by animateFloatAsState(
+        if (pressed) 0.88f else if (isFocused) 1.08f else 1f,
+        spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "carBtnScale"
+    )
     val fill by animateColorAsState(
         when {
             active -> MobileTheme.accent
+            isFocused -> MobileTheme.accent.copy(alpha = 0.35f)
             filled -> carIdleFill
             pressed -> MobileTheme.text.copy(alpha = 0.10f)
             else -> Color.Transparent
         },
         tween(200), label = "carBtnFill"
     )
-    val glyphTint = if (active) MobileTheme.onText else tint
+    val glyphTint = when {
+        active -> MobileTheme.onText
+        isFocused -> MobileTheme.accent
+        else -> tint
+    }
     Box(
         modifier = modifier
             .size(size)

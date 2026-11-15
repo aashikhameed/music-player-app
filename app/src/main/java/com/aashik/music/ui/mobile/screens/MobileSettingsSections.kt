@@ -314,8 +314,11 @@ fun MobileHeadunitSettingsCard(viewModel: MusicViewModel, backdrop: Backdrop, sh
     val hideDock by viewModel.hideBottomBar.collectAsState()
     val gridColumns by viewModel.gridColumns.collectAsState()
     val driveSide by viewModel.driveSide.collectAsState()
+    val appOrientation by viewModel.appOrientation.collectAsState()
 
-    SettingsCard("HEADUNIT (LANDSCAPE)", backdrop) {
+    SettingsCard("HEADUNIT & DISPLAY", backdrop) {
+        RowLabel("Screen Orientation", appOrientation.summary)
+        ChipRow(com.aashik.music.model.AppOrientation.entries, appOrientation, { it.label }) { viewModel.setAppOrientation(it) }
         if (showDriveSide) {
             RowLabel("Driving side", driveSide.summary)
             ChipRow(com.aashik.music.model.DriveSide.entries, driveSide, { it.label }) { viewModel.setDriveSide(it) }

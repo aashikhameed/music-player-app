@@ -1,6 +1,7 @@
 package com.aashik.music.ui.car.glass
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,6 +10,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -433,12 +436,22 @@ internal fun CarSongRow(
     subtitle: String = listOf(song.artist.ifBlank { "Unknown Artist" }, song.album).filter { it.isNotBlank() }.joinToString(" • "),
     playingIndicator: (@Composable () -> Unit)? = null
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val isFocused by interaction.collectIsFocusedAsState()
+    val fill by animateColorAsState(
+        when {
+            isFocused -> MobileTheme.accent.copy(alpha = 0.22f)
+            else -> Color.Transparent
+        },
+        tween(200), label = "carSongRowFill"
+    )
     Box(modifier.fillMaxWidth().height(CarDims.RowHeight)) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(CarArtShape8)
-                .combinedClickable(onClick = onClick, onLongClick = onLongPress)
+                .background(fill)
+                .combinedClickable(interactionSource = interaction, indication = null, onClick = onClick, onLongClick = onLongPress)
                 .padding(start = 8.dp, end = 0.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

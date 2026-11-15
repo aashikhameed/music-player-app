@@ -654,13 +654,12 @@ fun MobileGlassMusicApp(
                 )
             }
 
-            // ─── FULL-SCREEN EQUALIZER (from v0.3.2) ────────────────────────────
+            // ─── FULL-SCREEN EQUALIZER (Liquid Glass) ──────────────────────────
             if (isEqualizerOpen) {
-                Box(Modifier.fillMaxSize().background(MobileTheme.background).systemBarsPadding()) {
-                    com.aashik.music.ui.EqualizerScreen(
+                Box(Modifier.fillMaxSize().background(MobileTheme.background)) {
+                    com.aashik.music.ui.car.glass.CarEqualizerScreen(
                         viewModel = viewModel,
-                        onClose = { viewModel.closeEqualizer() },
-                        modifier = Modifier.fillMaxSize()
+                        onClose = { viewModel.closeEqualizer() }
                     )
                 }
             }

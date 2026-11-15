@@ -14,7 +14,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setBackgroundDrawable(null) // Eliminates root window overdraw
-        lockOrientation()
         hideSystemBars()
         handleLaunchIntent(intent)
         setContent {
@@ -22,16 +21,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Phones stay in portrait; tablets (and headunits, which are 600dp+ wide) stay in landscape.
-     * Tablet = smallest screen width of 600dp or more.
-     */
-    private fun lockOrientation() {
-        val isTablet = resources.configuration.smallestScreenWidthDp >= 600
-        requestedOrientation = if (isTablet) {
-            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        } else {
-            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    fun applyOrientation(orientation: com.aashik.music.model.AppOrientation) {
+        val uiMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK
+        val isTv = uiMode == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION ||
+            packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+
+        requestedOrientation = when (orientation) {
+            com.aashik.music.model.AppOrientation.AUTO -> {
+                if (isTv) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+            com.aashik.music.model.AppOrientation.LANDSCAPE -> {
+                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
+            com.aashik.music.model.AppOrientation.PORTRAIT -> {
+                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
         }
     }
 

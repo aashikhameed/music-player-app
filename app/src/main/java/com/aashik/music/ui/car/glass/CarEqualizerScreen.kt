@@ -7,6 +7,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -86,6 +89,8 @@ internal fun CarEqualizerScreen(viewModel: MusicViewModel, onClose: () -> Unit) 
     val surroundMode by viewModel.virtualSurroundMode.collectAsState()
     val timeAlignmentMode by viewModel.timeAlignmentMode.collectAsState()
     val bassMode by viewModel.bassNormalizerMode.collectAsState()
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     Column(Modifier.fillMaxSize().background(MobileTheme.background).statusBarsPadding().padding(horizontal = 24.dp)) {
         val driveSide by viewModel.driveSide.collectAsState()
@@ -134,22 +139,45 @@ internal fun CarEqualizerScreen(viewModel: MusicViewModel, onClose: () -> Unit) 
                     )
                 }
             }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    EqCard("DOOR SPEAKER HIGH-PASS FILTER", Modifier.weight(1f)) {
+            if (isLandscape) {
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        EqCard("DOOR SPEAKER HIGH-PASS FILTER", Modifier.weight(1f)) {
+                            ChipRow(HpfLabels, hpfMode) { viewModel.setEqualizerHpfMode(it) }
+                        }
+                        EqCard("BASS NORMALISER", Modifier.weight(1f)) {
+                            ChipRow(BassLabels, bassMode) { viewModel.setBassNormalizer(it) }
+                        }
+                    }
+                }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        EqCard("VIRTUAL CABIN SOUNDSTAGE", Modifier.weight(1f)) {
+                            ChipRow(SurroundLabels, surroundMode) { viewModel.setVirtualSurroundMode(it) }
+                        }
+                        EqCard("TIME ALIGNMENT", Modifier.weight(1f)) {
+                            ChipRow(TimeAlignmentLabels, timeAlignmentMode) { viewModel.setTimeAlignment(it) }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    EqCard("DOOR SPEAKER HIGH-PASS FILTER") {
                         ChipRow(HpfLabels, hpfMode) { viewModel.setEqualizerHpfMode(it) }
                     }
-                    EqCard("BASS NORMALISER", Modifier.weight(1f)) {
+                }
+                item {
+                    EqCard("BASS NORMALISER") {
                         ChipRow(BassLabels, bassMode) { viewModel.setBassNormalizer(it) }
                     }
                 }
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    EqCard("VIRTUAL CABIN SOUNDSTAGE", Modifier.weight(1f)) {
+                item {
+                    EqCard("VIRTUAL CABIN SOUNDSTAGE") {
                         ChipRow(SurroundLabels, surroundMode) { viewModel.setVirtualSurroundMode(it) }
                     }
-                    EqCard("TIME ALIGNMENT", Modifier.weight(1f)) {
+                }
+                item {
+                    EqCard("TIME ALIGNMENT") {
                         ChipRow(TimeAlignmentLabels, timeAlignmentMode) { viewModel.setTimeAlignment(it) }
                     }
                 }
@@ -161,7 +189,11 @@ internal fun CarEqualizerScreen(viewModel: MusicViewModel, onClose: () -> Unit) 
 @Composable
 private fun EqCard(title: String, modifier: Modifier = Modifier, trailing: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier.fillMaxWidth().background(MobileTheme.panel, CarCardShape).padding(20.dp),
+        modifier
+            .fillMaxWidth()
+            .clip(CarCardShape)
+            .background(MobileTheme.panel.copy(alpha = 0.92f))
+            .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -174,18 +206,33 @@ private fun EqCard(title: String, modifier: Modifier = Modifier, trailing: Strin
 
 @Composable
 private fun EqChip(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val fill by animateColorAsState(if (selected) MobileTheme.accent else carIdleFill, tween(200), label = "eqChip")
+    val interaction = remember { MutableInteractionSource() }
+    val isFocused by interaction.collectIsFocusedAsState()
+    val isHighlighted = selected || isFocused
+    val fill by animateColorAsState(
+        when {
+            selected -> MobileTheme.accent
+            isFocused -> MobileTheme.accent.copy(alpha = 0.35f)
+            else -> carIdleFill
+        },
+        tween(200), label = "eqChip"
+    )
+    val textColor = when {
+        selected -> MobileTheme.onText
+        isFocused -> MobileTheme.accent
+        else -> MobileTheme.text
+    }
     Box(
         modifier
             .height(48.dp)
             .clip(CarPillShape)
             .background(fill)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp),
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = if (selected) MobileTheme.onText else MobileTheme.text, fontSize = 15.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1)
+        Text(label, color = textColor, fontSize = 14.sp,
+            fontWeight = if (isHighlighted) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1)
     }
 }
 
@@ -196,16 +243,26 @@ private fun ChipRow(labels: List<String>, selected: Int, onSelect: (Int) -> Unit
     }
 }
 
-/** Flat on/off switch (no backdrop sampling). */
+/** Flat on/off switch with TV remote focus support. */
 @Composable
 internal fun CarSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    val track by animateColorAsState(if (checked) MobileTheme.accent else MobileTheme.text.copy(alpha = 0.18f), tween(200), label = "swTrack")
+    val interaction = remember { MutableInteractionSource() }
+    val isFocused by interaction.collectIsFocusedAsState()
+    val track by animateColorAsState(
+        when {
+            checked -> MobileTheme.accent
+            isFocused -> MobileTheme.accent.copy(alpha = 0.40f)
+            else -> MobileTheme.text.copy(alpha = 0.18f)
+        },
+        tween(200), label = "swTrack"
+    )
     val knobX by animateDpAsState(if (checked) 28.dp else 4.dp, spring(dampingRatio = 0.7f, stiffness = 500f), label = "swKnob")
     Box(
         Modifier
             .size(width = 64.dp, height = 40.dp)
-            .background(track, CarPillShape)
-            .clickable { onCheckedChange(!checked) }
+            .clip(CarPillShape)
+            .background(track)
+            .clickable(interactionSource = interaction, indication = null) { onCheckedChange(!checked) }
     ) {
         Box(Modifier.offset(x = knobX, y = 4.dp).size(32.dp).background(Color.White, CarCircle))
     }

@@ -146,6 +146,26 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _driveSide.value = side
         appPrefs.edit().putString("drive_side", side.name).apply()
     }
+
+    private val _appOrientation = MutableStateFlow(
+        runCatching {
+            val saved = appPrefs.getString("app_orientation", null)
+            if (saved != null) {
+                com.aashik.music.model.AppOrientation.valueOf(saved)
+            } else {
+                val uiMode = application.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_MASK
+                val isTv = uiMode == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION ||
+                    application.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+                if (isTv) com.aashik.music.model.AppOrientation.LANDSCAPE else com.aashik.music.model.AppOrientation.AUTO
+            }
+        }.getOrDefault(com.aashik.music.model.AppOrientation.AUTO)
+    )
+    val appOrientation: StateFlow<com.aashik.music.model.AppOrientation> = _appOrientation.asStateFlow()
+
+    fun setAppOrientation(orientation: com.aashik.music.model.AppOrientation) {
+        _appOrientation.value = orientation
+        appPrefs.edit().putString("app_orientation", orientation.name).apply()
+    }
     private val _sidebarCollapsed = MutableStateFlow(
         application.getSharedPreferences("automotive_prefs", Context.MODE_PRIVATE).getBoolean("sidebar_collapsed", false)
     )

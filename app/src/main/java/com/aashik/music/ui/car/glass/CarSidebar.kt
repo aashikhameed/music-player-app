@@ -4,6 +4,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
@@ -129,15 +131,25 @@ private fun SidebarItem(
     count: Int? = null,
     onClick: () -> Unit
 ) {
-    val fill by animateColorAsState(if (selected) carSelectedFill else Color.Transparent, tween(220), label = "sideFill")
-    val tint = if (selected) MobileTheme.accent else MobileTheme.text
+    val interaction = remember { MutableInteractionSource() }
+    val isFocused by interaction.collectIsFocusedAsState()
+    val isHighlighted = selected || isFocused
+    val fill by animateColorAsState(
+        when {
+            selected -> carSelectedFill
+            isFocused -> MobileTheme.accent.copy(alpha = 0.25f)
+            else -> Color.Transparent
+        },
+        tween(220), label = "sideFill"
+    )
+    val tint = if (isHighlighted) MobileTheme.accent else MobileTheme.text
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(CarDims.SidebarRowHeight)
             .clip(CarSidebarItemShape) // also bounds the press ripple
             .background(fill)
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = if (collapsed) 0.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.Start

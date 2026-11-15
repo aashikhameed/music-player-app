@@ -73,8 +73,8 @@ Only the Now Playing seek slider samples a backdrop (`LiquidSlider`); all other 
   - Video mode: full-bleed video with auto-hiding overlay controls. Gestures: swipe ←/→ next/previous, double-tap play/pause.
 - **Driving side** (`DriveSide`, Settings → Headunit → Driving side; default right-hand drive): navigation and primary controls sit on the driver's side, artwork and lists on the passenger side. Right-hand drive = sidebar, Settings list, Equalizer header, Now Playing controls and the queue sheet on the right; left-hand drive mirrors all of them. In Now Playing the top bar keeps close + clock on the driver's edge, and in split the compact artwork + controls column moves to the driver's side while the panel takes the far side. Only placement is mirrored: text, icons and arrows keep their normal direction.
 - **Queue sheet** (`CarQueueSheet`): 480 dp sheet from the capsule, sliding in from the driver's side; reorder, remove, clear.
-- **Settings** (`CarSettingsScreen`): master-detail — 300 dp section list (Appearance, Playback, Driving & Volume, Headunit, Library & Storage, Equalizer & Audio, About) + section content.
-- **Equalizer** (`CarEqualizerScreen`): enable switch, preset chips, single-Canvas 10-band editor with curve, HPF / bass normaliser / soundstage / time-alignment chips.
+- **Settings** (`CarSettingsScreen`): master-detail — 300 dp section list (Appearance, Playback, Driving & Volume, Headunit, Library & Storage, Equalizer & Audio, About) + section content; includes Screen Orientation mode selector (Auto / Landscape / Portrait) and TV remote D-pad focus traversal.
+- **Equalizer** (`CarEqualizerScreen`): liquid glass design system across Mobile and Car/TV, enable switch, preset chips with TV remote focus, single-Canvas 10-band editor with curve, HPF / bass normaliser / soundstage / time-alignment chips.
 - **Dialogs**: `CarSongActionSheet` (600 dp, 2-up 64 dp action tiles); delete confirmation `LiquidAlertDialog` capped at 560 dp.
 
 ### 2.1 Phone Now Playing (portrait, `MobileGlassNowPlaying`)

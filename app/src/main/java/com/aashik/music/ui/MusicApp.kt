@@ -105,8 +105,17 @@ fun MusicApp() {
         }
     }
 
+    val appOrientation by viewModel.appOrientation.collectAsState()
+    LaunchedEffect(appOrientation) {
+        (context as? com.aashik.music.MainActivity)?.applyOrientation(appOrientation)
+    }
+
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val isCarLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isCarLandscape = when (appOrientation) {
+        com.aashik.music.model.AppOrientation.LANDSCAPE -> true
+        com.aashik.music.model.AppOrientation.PORTRAIT -> false
+        com.aashik.music.model.AppOrientation.AUTO -> configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    }
 
     CarMusicTheme(
         isDarkMode = isDarkMode
