@@ -94,24 +94,16 @@ object WearRadioRepository {
     )
 
     val GENRE_CATEGORIES = listOf(
-        // Regional Indian & Global Languages (matching Mobile)
-        RadioCategory("genre_tamil", "Tamil", "Tamil hits, melodies & kuthu", false),
-        RadioCategory("genre_telugu", "Telugu", "Telugu chartbusters & melodies", false),
-        RadioCategory("genre_hindi", "Hindi", "Bollywood & indie Hindi hits", false),
-        RadioCategory("genre_malayalam", "Malayalam", "Mollywood melodies & indie", false),
-        RadioCategory("genre_kannada", "Kannada", "Sandalwood hits & classics", false),
-        RadioCategory("genre_punjabi", "Punjabi", "Punjabi pop, bhangra & beats", false),
-        RadioCategory("genre_english", "English", "Global English pop & top hits", false),
+        // Popular Global & Chart Genres
         RadioCategory("genre_pop", "Pop Hits", "Global charts & trending pop", false),
         RadioCategory("genre_hiphop", "Hip-Hop", "Beats, bars & flow", false),
-        RadioCategory("genre_dance", "Dance & Electronic", "EDM, house & festival anthems", false),
-        RadioCategory("genre_rock", "Rock Classics", "Riffs, anthems & alt-rock", false),
-        RadioCategory("genre_indie", "Indie & Alternative", "Fresh indie soundscapes", false),
-        RadioCategory("genre_lofi", "Lo-Fi Beats", "Mellow beats to relax/study to", false),
-        RadioCategory("genre_classical", "Classical", "Orchestral masterpieces", false),
+        RadioCategory("genre_dance", "Dance & Electronic", "EDM & dancefloor anthems", false),
+        RadioCategory("genre_rock", "Rock Classics", "Riffs & rock anthems", false),
+        RadioCategory("genre_lofi", "Lo-Fi Beats", "Mellow beats to relax/study", false),
         RadioCategory("genre_acoustic", "Acoustic & Folk", "Raw unplugged sessions", false),
-        RadioCategory("genre_jazz", "Jazz & Soul", "Smooth brass & soulful grooves", false),
-        RadioCategory("genre_kpop", "K-Pop", "High-energy global K-Pop", false)
+        RadioCategory("genre_english", "English Top Hits", "Billboard & global charts", false),
+        RadioCategory("genre_hindi", "Bollywood & Hindi", "Bollywood & indie Hindi hits", false),
+        RadioCategory("genre_tamil", "Tamil Hits", "Tamil chartbusters & melodies", false)
     )
 
     suspend fun getCategoryTracks(category: RadioCategory, page: Int = 1): List<WearSong> {
