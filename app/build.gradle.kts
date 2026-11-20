@@ -16,8 +16,8 @@ android {
         applicationId = "com.aashik.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 91
-        versionName = "0.4.10"
+        versionCode = 92
+        versionName = "0.4.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
@@ -80,6 +80,12 @@ android {
         jvmTarget = "11"
         freeCompilerArgs += listOf("-Xskip-metadata-version-check")
     }
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    kotlinOptions {
+        freeCompilerArgs += listOf("-Xskip-metadata-version-check")
+    }
+}
 
     buildFeatures {
         compose = true

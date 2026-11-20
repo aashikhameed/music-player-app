@@ -68,14 +68,14 @@ object WearOnlineRepository {
             .replace("&nbsp;", " ")
     }
 
-    suspend fun search(query: String, limit: Int = 12): List<WearSong> = withContext(Dispatchers.IO) {
+    suspend fun search(query: String, limit: Int = 12, page: Int = 1): List<WearSong> = withContext(Dispatchers.IO) {
         val q = query.trim()
         if (q.isBlank()) return@withContext emptyList<WearSong>()
 
         var connection: HttpURLConnection? = null
         try {
             val encodedQuery = URLEncoder.encode(q, "UTF-8")
-            val endpoint = "$API_BASE?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=android&q=$encodedQuery&p=1&n=$limit"
+            val endpoint = "$API_BASE?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=android&q=$encodedQuery&p=$page&n=$limit"
             val url = URL(endpoint)
 
             connection = (url.openConnection() as HttpURLConnection).apply {

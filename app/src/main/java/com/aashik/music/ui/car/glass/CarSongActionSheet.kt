@@ -119,7 +119,7 @@ private fun SheetContent(
     onDeleteRequest: (Song) -> Unit,
     onDismiss: () -> Unit
 ) {
-            val isDownloaded = viewModel.isSongDownloaded(s.id) || s.id.startsWith("download_") || s.path.contains("MusicPlayer")
+            val isDownloaded = viewModel.isSongDownloaded(s) || s.id.startsWith("download_") || s.path.contains("MusicPlayer")
             val canDownload = (s.isStream() && s.duration > 0) || isDownloaded
             val actions = buildList {
                 add(SongAction(Icons.AutoMirrored.Rounded.PlaylistPlay, "Play next") { viewModel.playNext(s) })

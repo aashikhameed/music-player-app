@@ -601,7 +601,10 @@ private fun RadioButton(viewModel: MusicViewModel, c: NpColors) {
 private fun DownloadButton(song: Song, viewModel: MusicViewModel, c: NpColors) {
     val context = LocalContext.current
     val downloads by viewModel.downloadStates.collectAsState()
-    when (val status = downloads[song.id] ?: DownloadStatus.Idle) {
+    val rawStatus = downloads[song.id]
+    val isDownloaded = remember(song, rawStatus) { viewModel.isSongDownloaded(song) }
+    val status = if (rawStatus is DownloadStatus.Downloading) rawStatus else if (isDownloaded) DownloadStatus.Downloaded else (rawStatus ?: DownloadStatus.Idle)
+    when (status) {
         is DownloadStatus.Downloading -> NpGlassButton(
             Icons.Rounded.Download, "Downloading", c, size = 34.dp, glyph = 18.dp, progress = status.progress
         ) {}

@@ -324,6 +324,13 @@ object StreamDownloadManager {
         return getStatus(songId) is DownloadStatus.Downloaded
     }
 
+    fun findLocalSongMatch(title: String, artist: String, localSongs: List<Song>): Song? {
+        return localSongs.firstOrNull { local ->
+            if (local.isStream()) return@firstOrNull false
+            OnlineStreamRepository.isAccurateMatch(title, artist, local.title, local.artist)
+        }
+    }
+
     fun getLocalPathForSong(songId: String): String? {
         val path = idToLocalPath[songId] ?: return null
         return if (File(path).exists()) path else null

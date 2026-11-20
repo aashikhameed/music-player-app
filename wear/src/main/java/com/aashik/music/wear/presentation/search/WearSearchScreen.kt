@@ -41,7 +41,7 @@ import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.ListHeader
 import androidx.wear.compose.material.Text
 import com.aashik.music.wear.model.WearSong
-import com.aashik.music.wear.online.WearOnlineRepository
+import com.aashik.music.wear.online.WearRadioRepository
 import com.aashik.music.wear.presentation.util.isScreenRound
 import com.aashik.music.wear.theme.WearBackgroundBlack
 import com.aashik.music.wear.theme.WearOnSurfaceDim
@@ -54,15 +54,17 @@ private val SquareChipShape = RoundedCornerShape(12.dp)
 
 @Composable
 fun WearSearchScreen(
-    onSongSelected: (WearSong) -> Unit,
+    onSongSelected: (WearSong, List<WearSong>, WearRadioRepository.RadioCategory?) -> Unit,
+    onPlayLiveStation: ((WearSong) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val isRound = isScreenRound()
     val listState = rememberScalingLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    var isSearching by remember { mutableStateOf(false) }
-    var searchResults by remember { mutableStateOf<List<WearSong>>(emptyList()) }
-    var lastQuery by remember { mutableStateOf("") }
+    var isLoadingStation by remember { mutableStateOf(false) }
+    var activeStationTitle by remember { mutableStateOf("") }
+    var activeCategory by remember { mutableStateOf<WearRadioRepository.RadioCategory?>(null) }
+    var stationTracks by remember { mutableStateOf<List<WearSong>>(emptyList()) }
     val chipShape = remember(isRound) {
         if (isRound) CircleShape else SquareChipShape
     }
@@ -79,42 +81,52 @@ fun WearSearchScreen(
             item {
                 ListHeader {
                     Text(
-                        text = "Online Music & Streams",
-                        fontSize = 13.sp,
+                        text = "Radio & Genres",
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                 }
             }
 
-            if (isSearching) {
+            if (isLoadingStation) {
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
+                            .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
-                            indicatorColor = WearPrimaryCyan,
-                            trackColor = WearSurfaceCard,
-                            modifier = Modifier.size(28.dp)
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(
+                                indicatorColor = WearPrimaryCyan,
+                                trackColor = WearSurfaceCard,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Tuning to $activeStationTitle...",
+                                fontSize = 11.sp,
+                                color = WearOnSurfaceDim,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
-            } else if (searchResults.isNotEmpty()) {
+            } else if (stationTracks.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Results for \"$lastQuery\":",
-                        fontSize = 11.sp,
+                        text = "Station: $activeStationTitle",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = WearSecondaryAmber,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                 }
 
-                items(searchResults) { song ->
+                items(stationTracks) { song ->
                     Chip(
-                        onClick = { onSongSelected(song) },
+                        onClick = { onSongSelected(song, stationTracks, activeCategory) },
                         label = {
                             Text(
                                 text = song.title,
@@ -127,7 +139,7 @@ fun WearSearchScreen(
                         },
                         secondaryLabel = {
                             Text(
-                                text = "${song.artist} • ONLINE 320K",
+                                text = "${song.artist} • LIVE STREAM",
                                 fontSize = 10.sp,
                                 color = WearPrimaryCyan,
                                 maxLines = 1,
@@ -148,45 +160,159 @@ fun WearSearchScreen(
                     )
                 }
             } else {
+                // ─── LIVE 24/7 RADIO STATIONS ───────────────────────────────────────
                 item {
                     Text(
-                        text = "Curated Online Stations",
+                        text = "Live Radio Stations",
                         fontSize = 11.sp,
-                        color = WearOnSurfaceDim,
+                        fontWeight = FontWeight.Bold,
+                        color = WearPrimaryCyan,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                 }
 
-                items(WearOnlineRepository.CURATED_STATIONS) { station ->
+                items(WearRadioRepository.LIVE_RADIO_STATIONS) { station ->
                     Chip(
                         onClick = {
-                            lastQuery = station
-                            isSearching = true
-                            coroutineScope.launch {
-                                val results = WearOnlineRepository.search(station)
-                                searchResults = results
-                                isSearching = false
+                            val liveSong = with(WearRadioRepository) { station.toWearSong() }
+                            if (onPlayLiveStation != null) {
+                                onPlayLiveStation(liveSong)
+                            } else {
+                                onSongSelected(liveSong, listOf(liveSong), null)
                             }
                         },
                         label = {
                             Text(
-                                text = station,
+                                text = station.name,
                                 fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Color.White
                             )
                         },
                         secondaryLabel = {
                             Text(
-                                text = "Wi-Fi High-Res Stream",
+                                text = "LIVE • ${station.description}",
+                                fontSize = 10.sp,
+                                color = WearPrimaryCyan,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Radio,
+                                contentDescription = null,
+                                tint = WearPrimaryCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        colors = ChipDefaults.chipColors(backgroundColor = WearSurfaceCard),
+                        shape = chipShape,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // ─── MOODS & MOMENTS (Matching Mobile Radio) ─────────────────────────
+                item {
+                    Text(
+                        text = "Moods & Moments",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WearSecondaryAmber,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
+
+                items(WearRadioRepository.MOOD_CATEGORIES) { mood ->
+                    Chip(
+                        onClick = {
+                            activeStationTitle = mood.title
+                            activeCategory = mood
+                            isLoadingStation = true
+                            coroutineScope.launch {
+                                val tracks = WearRadioRepository.getCategoryTracks(mood)
+                                stationTracks = tracks
+                                isLoadingStation = false
+                                if (tracks.isNotEmpty()) {
+                                    onSongSelected(tracks.first(), tracks, mood)
+                                }
+                            }
+                        },
+                        label = {
+                            Text(
+                                text = mood.title,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        },
+                        secondaryLabel = {
+                            Text(
+                                text = mood.subtitle,
                                 fontSize = 10.sp,
                                 color = WearOnSurfaceDim
                             )
                         },
                         icon = {
                             Icon(
-                                imageVector = Icons.Default.Search,
+                                imageVector = Icons.Default.Radio,
                                 contentDescription = null,
                                 tint = WearPrimaryCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        colors = ChipDefaults.secondaryChipColors(backgroundColor = WearSurfaceCard),
+                        shape = chipShape,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // ─── GENRES (Matching Mobile Radio) ─────────────────────────────────
+                item {
+                    Text(
+                        text = "Popular Genres",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WearSecondaryAmber,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+
+                items(WearRadioRepository.GENRE_CATEGORIES) { genre ->
+                    Chip(
+                        onClick = {
+                            activeStationTitle = genre.title
+                            activeCategory = genre
+                            isLoadingStation = true
+                            coroutineScope.launch {
+                                val tracks = WearRadioRepository.getCategoryTracks(genre)
+                                stationTracks = tracks
+                                isLoadingStation = false
+                                if (tracks.isNotEmpty()) {
+                                    onSongSelected(tracks.first(), tracks, genre)
+                                }
+                            }
+                        },
+                        label = {
+                            Text(
+                                text = genre.title,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        },
+                        secondaryLabel = {
+                            Text(
+                                text = genre.subtitle,
+                                fontSize = 10.sp,
+                                color = WearOnSurfaceDim
+                            )
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = WearSecondaryAmber,
                                 modifier = Modifier.size(16.dp)
                             )
                         },

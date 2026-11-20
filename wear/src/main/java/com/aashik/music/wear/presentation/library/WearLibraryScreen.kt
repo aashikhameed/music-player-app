@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -54,6 +55,8 @@ fun WearLibraryScreen(
     onScanStorageClicked: () -> Unit,
     onQueueClicked: () -> Unit,
     onSearchClicked: () -> Unit,
+    onDownloadsClicked: (() -> Unit)? = null,
+    downloadedCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val isRound = isScreenRound()
@@ -84,13 +87,13 @@ fun WearLibraryScreen(
                 }
             }
 
-            // Online Search Chip
+            // Radio & Genres Chip
             item {
                 Chip(
                     onClick = onSearchClicked,
                     label = {
                         Text(
-                            text = "Search Online Streams",
+                            text = "Radio & Genres",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
@@ -98,15 +101,15 @@ fun WearLibraryScreen(
                     },
                     secondaryLabel = {
                         Text(
-                            text = "Wi-Fi radio & streams",
+                            text = "Live stations & moods",
                             fontSize = 10.sp,
                             color = WearPrimaryCyan
                         )
                     },
                     icon = {
                         Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
+                            imageVector = Icons.Default.Radio,
+                            contentDescription = "Radio",
                             tint = WearPrimaryCyan,
                             modifier = Modifier.size(18.dp)
                         )
@@ -115,6 +118,41 @@ fun WearLibraryScreen(
                     shape = chipShape,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            // Offline Downloads Chip
+            if (onDownloadsClicked != null) {
+                item {
+                    Chip(
+                        onClick = onDownloadsClicked,
+                        label = {
+                            Text(
+                                text = "Downloads",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        },
+                        secondaryLabel = {
+                            Text(
+                                text = "$downloadedCount saved offline",
+                                fontSize = 10.sp,
+                                color = Color(0xFF30D158)
+                            )
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.CloudDownload,
+                                contentDescription = "Downloads",
+                                tint = Color(0xFF30D158),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = ChipDefaults.chipColors(backgroundColor = WearSurfaceCard),
+                        shape = chipShape,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             // Current Queue Chip

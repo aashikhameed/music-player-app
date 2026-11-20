@@ -588,7 +588,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             positionFlow.collect { posMs ->
                 if (_autoDownloadStreamTracks.value && posMs >= 60_000L) {
                     val song = _currentSong.value
-                    if (song != null && song.isStream() && !StreamDownloadManager.isDownloaded(song.id)) {
+                    if (song != null && song.isStream() && !isSongDownloaded(song)) {
                         if (autoDownloadedSongIds.add(song.id)) {
                             Log.d(TAG, "Auto-downloading stream song after 1 min playback: ${song.title} (${song.id})")
                             downloadSong(song)
@@ -1408,6 +1408,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun downloadSong(song: Song, force: Boolean = false) {
+        if (!force && isSongDownloaded(song)) {
+            Log.d(TAG, "Song '${song.title}' already exists locally or downloaded. Skipping duplicate download.")
+            return
+        }
         val app = getApplication<Application>()
         val target = if (_currentSong.value?.id == song.id) (_currentSong.value ?: song) else song
         StreamDownloadManager.downloadSong(app, target, songDao, forceRedownload = force) { downloadedSong ->
@@ -1507,9 +1511,41 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun isSongDownloaded(songId: String): Boolean = StreamDownloadManager.isDownloaded(songId)
+    fun findLocalSong(song: Song): Song? {
+        if (!song.isStream() && File(song.path).exists()) return song
+        val downloadedPath = StreamDownloadManager.getLocalPathForSong(song.id)
+        if (downloadedPath != null && File(downloadedPath).exists()) {
+            return song.copy(path = downloadedPath)
+        }
+        val match = StreamDownloadManager.findLocalSongMatch(song.title, song.artist, originalSongs)
+        if (match != null && File(match.path).exists()) {
+            return match
+        }
+        return null
+    }
 
-    fun getDownloadStatus(song: Song): DownloadStatus = StreamDownloadManager.getStatus(song.id)
+    fun isSongDownloaded(song: Song): Boolean {
+        if (StreamDownloadManager.isDownloaded(song.id)) return true
+        if (song.id.startsWith("download_") || song.path.contains("MusicPlayer")) return true
+        if (!song.isStream() && File(song.path).exists()) return true
+        return findLocalSong(song) != null
+    }
+
+    fun isSongDownloaded(songId: String): Boolean {
+        if (StreamDownloadManager.isDownloaded(songId)) return true
+        val song = _songs.value.find { it.id == songId }
+            ?: activePlaylist.find { it.id == songId }
+            ?: originalSongs.find { it.id == songId }
+            ?: _currentSong.value?.takeIf { it.id == songId }
+        return if (song != null) isSongDownloaded(song) else false
+    }
+
+    fun getDownloadStatus(song: Song): DownloadStatus {
+        val status = StreamDownloadManager.getStatus(song.id)
+        if (status is DownloadStatus.Downloading) return status
+        if (isSongDownloaded(song)) return DownloadStatus.Downloaded
+        return status
+    }
 
     // ── GitHub App Auto-Update Management ──
     val updateState: StateFlow<UpdateState> = AppUpdateManager.updateState
@@ -2063,8 +2099,22 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 addToPlayedHistory(prev)
             }
         }
-        _currentSong.value = song
-        fetchLyricsForSong(song)
+
+        // Redirect stream track to local file if it already exists in local storage
+        val localMatch = if (song.isStream()) findLocalSong(song) else null
+        val songToPlay = if (localMatch != null && localMatch.path != song.path) {
+            Log.d(TAG, "Redirecting stream track '${song.title}' to local file: ${localMatch.path}")
+            song.copy(
+                path = localMatch.path,
+                duration = if (localMatch.duration > 0) localMatch.duration else song.duration,
+                artworkUrl = song.artworkUrl ?: localMatch.artworkUrl
+            )
+        } else {
+            song
+        }
+
+        _currentSong.value = songToPlay
+        fetchLyricsForSong(songToPlay)
 
         val targetList = playlist ?: when {
             _songs.value.any { it.id == song.id } -> _songs.value
@@ -2115,7 +2165,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         _navigationDirection.value = targetDir
         _navigatingTrack.value = NavigatingTrack(
-            song = song,
+            song = songToPlay,
             direction = targetDir,
             transitionId = ++transitionSeq
         )
@@ -2124,7 +2174,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             val isSongInShuffled = activeShuffledSongs.any { it.id == song.id }
             if (isNewPlaylist || activeShuffledSongs.isEmpty() || !isSongInShuffled) {
                 val others = activePlaylist.filter { it.id != song.id }.shuffled()
-                activeShuffledSongs = (listOf(song) + others).toMutableList()
+                activeShuffledSongs = (listOf(songToPlay) + others).toMutableList()
                 shuffledSongs = activeShuffledSongs
             }
         }
@@ -2132,23 +2182,23 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         val queue = if (_isShuffleOn.value) activeShuffledSongs else activePlaylist
         val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         musicPlayer.setPlaylist(queue, startIndex)
-        musicPlayer.resetPlaybackForNewTrack(song)
+        musicPlayer.resetPlaybackForNewTrack(songToPlay)
 
-        if (song.isStream() && !song.isDirectPlayable()) {
+        if (songToPlay.isStream() && !songToPlay.isDirectPlayable()) {
             _isRadioLoading.value = true
             viewModelScope.launch(Dispatchers.IO) {
-                val resolved = OnlineStreamRepository.resolvePlayableSong(song)
+                val resolved = OnlineStreamRepository.resolvePlayableSong(songToPlay)
                 withContext(Dispatchers.Main) {
                     _isRadioLoading.value = false
-                    if (_currentSong.value?.id == song.id) {
+                    if (_currentSong.value?.id == songToPlay.id) {
                         _currentSong.value = resolved
                         _navigatingTrack.value = _navigatingTrack.value.copy(song = resolved)
-                        activePlaylist = activePlaylist.map { if (it.id == song.id) resolved else it }
-                        _songs.value = _songs.value.map { if (it.id == song.id) resolved else it }
-                        _userQueue.value = _userQueue.value.map { if (it.id == song.id) resolved else it }
+                        activePlaylist = activePlaylist.map { if (it.id == songToPlay.id) resolved else it }
+                        _songs.value = _songs.value.map { if (it.id == songToPlay.id) resolved else it }
+                        _userQueue.value = _userQueue.value.map { if (it.id == songToPlay.id) resolved else it }
                         musicPlayer.userQueue = _userQueue.value
                         MusicController.play(resolved)
-                        if (resolved.title != song.title || resolved.artist != song.artist) {
+                        if (resolved.title != songToPlay.title || resolved.artist != songToPlay.artist) {
                             fetchLyricsForSong(resolved)
                         }
                         if (!musicPlayer.isAudioSilencedForVideo()) {
@@ -2172,14 +2222,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             }
         } else {
             if (!musicPlayer.isAudioSilencedForVideo()) {
-                musicPlayer.play(song, isAutoCrossfade)
+                musicPlayer.play(songToPlay, isAutoCrossfade)
             }
         }
         viewModelScope.launch {
-            songDao.saveLastPlayed(song)
+            songDao.saveLastPlayed(songToPlay)
         }
         _isPlaying.value = true
-        prefetchUpcoming(song)
+        prefetchUpcoming(songToPlay)
     }
 
     private var prefetchJob: Job? = null

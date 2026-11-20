@@ -249,7 +249,7 @@ A native desktop companion, built with Compose Multiplatform. It follows the hea
 - Music-style layout: glass sidebar, song table with artwork, Search, Home, Radio & Genres, Artists, Albums, Playlists, Queue, Lyrics, 10-band Equalizer.
 - Liquid-glass mini player (transport, radio, download, lyrics, queue, volume) with a glass seek slider.
 - Themes: Light, Dark, and **Album Art** (background colour picked from the playing artwork).
-- Online search, radio and downloads from the Jio catalogue; downloads are saved to your music folder with cover and tags.
+- Online search, radio and downloads with automatic artwork and metadata tagging; downloads are saved directly to your music folder.
 - Artwork is cached on disk (`~/.musicplayer/cache/art`), kept at 60 % quality, with automatic retries and artist-photo lookup.
 
 **Requirements:** JDK 21+ (the Gradle build finds one under `~/.gradle/jdks`, or pass `-Pdesktop.jdk=/path/to/jdk`).
@@ -261,6 +261,30 @@ A native desktop companion, built with Compose Multiplatform. It follows the hea
 ```
 
 The DMG is not signed or notarized: on first launch right-click the app and choose **Open** (or run `xattr -dr com.apple.quarantine /Applications/Music.app`). The installer targets the chip type of the Mac that built it.
+
+---
+
+## ⌚ Standalone Wear OS Smartwatch App
+
+A lightweight, phone-free standalone smartwatch music player built with **Compose for Wear OS**.
+
+**Highlights**
+- **Phone-Free Independence**: Runs completely autonomously on smartwatches, playing audio directly through the watch's internal speaker or paired Bluetooth headphones.
+- **Circular & Square Screen Support**:
+  - *Circular Displays*: Outer bezel progress arc tracking screen circumference, radial insets, centered album art, and tactile touch controls.
+  - *Square Displays*: Top linear capsule progress indicator with elapsed/total timestamps and edge-to-edge layout utilization.
+- **Rotary Crown & Bezel Integration**: Smooth hardware crown rotation controls playback volume with a dynamic HUD volume bubble.
+- **Online Radio & Genre Streaming**: Direct Wi-Fi streaming with mobile-aligned radio categories:
+  - *Moods & Moments*: Chill, Workout, Energize, Focus, Feel Good, Commute, Sleep, Party, Romance.
+  - *Genres*: Pop Hits, Hip-Hop, Dance & Electronic, Rock Classics, Indie, Lo-Fi Beats, Classical, Acoustic, Jazz, K-Pop.
+- **Offline Local Storage**: Built-in MediaStore scanner for files in the watch's `/Music` folder, accompanied by an internal flash storage monitor.
+- **Watch Face Complication & Ongoing Activity**: Includes a `SHORT_TEXT` complication provider and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` ongoing activity icon for 1-tap playback resumption.
+- **Ultra-Small Binary Footprint**: Optimized with R8 full-mode shrinking to just **1.7 MB**.
+
+```bash
+./gradlew :wear:assembleDebug       # build debug APK for watch / emulator
+./gradlew :wear:assembleRelease     # compile production R8-optimized Wear OS APK
+```
 
 ---
 

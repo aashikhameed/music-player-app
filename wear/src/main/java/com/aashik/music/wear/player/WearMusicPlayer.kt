@@ -47,12 +47,23 @@ object WearMusicPlayer {
     private var progressJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Main + Job())
 
+    private var activeCategory: com.aashik.music.wear.online.WearRadioRepository.RadioCategory? = null
+    private var currentCategoryPage: Int = 1
+    private var isReplenishingQueue: Boolean = false
+
     fun initialize(context: Context) {
         audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     }
 
-    fun setPlaylist(songs: List<WearSong>, startIndex: Int = 0) {
+    fun setPlaylist(
+        songs: List<WearSong>,
+        startIndex: Int = 0,
+        category: com.aashik.music.wear.online.WearRadioRepository.RadioCategory? = null
+    ) {
         if (songs.isEmpty()) return
+        activeCategory = category
+        currentCategoryPage = 1
+        isReplenishingQueue = false
         val safeIndex = startIndex.coerceIn(0, songs.size - 1)
         _state.value = _state.value.copy(
             playlist = songs,
@@ -72,6 +83,21 @@ object WearMusicPlayer {
             val isNetworkStream = song.path.startsWith("http://", ignoreCase = true) ||
                                   song.path.startsWith("https://", ignoreCase = true)
 
+            val songToPlay = if (isNetworkStream) {
+                val cleanTitle = song.title.lowercase().replace(Regex("[^a-z0-9]"), " ").trim()
+                val localMatch = _state.value.playlist.firstOrNull { local ->
+                    !local.path.startsWith("http://", ignoreCase = true) &&
+                    !local.path.startsWith("https://", ignoreCase = true) &&
+                    local.title.lowercase().replace(Regex("[^a-z0-9]"), " ").trim() == cleanTitle
+                }
+                localMatch ?: song
+            } else {
+                song
+            }
+
+            val isLocalPlayable = !songToPlay.path.startsWith("http://", ignoreCase = true) &&
+                                  !songToPlay.path.startsWith("https://", ignoreCase = true)
+
             val player = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
@@ -79,8 +105,10 @@ object WearMusicPlayer {
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .build()
                 )
-                setWakeMode(null, PowerManager.PARTIAL_WAKE_LOCK)
-                setDataSource(song.path)
+                try {
+                    setWakeMode(null, PowerManager.PARTIAL_WAKE_LOCK)
+                } catch (_: Throwable) {}
+                setDataSource(songToPlay.path)
                 setVolume(_state.value.volume, _state.value.volume)
                 setOnCompletionListener {
                     next()
@@ -92,17 +120,17 @@ object WearMusicPlayer {
             }
             mediaPlayer = player
 
-            if (isNetworkStream) {
+            if (!isLocalPlayable) {
                 _state.value = _state.value.copy(
-                    currentSong = song,
+                    currentSong = songToPlay,
                     isPlaying = false,
                     isBuffering = true,
-                    durationMs = song.durationMs,
+                    durationMs = songToPlay.durationMs,
                     positionMs = 0L
                 )
                 player.setOnPreparedListener { mp ->
                     if (mediaPlayer == mp) {
-                        val duration = if (song.durationMs > 0) song.durationMs else mp.duration.toLong().coerceAtLeast(0L)
+                        val duration = if (songToPlay.durationMs > 0) songToPlay.durationMs else mp.duration.toLong().coerceAtLeast(0L)
                         mp.start()
                         _state.value = _state.value.copy(
                             isPlaying = true,
@@ -115,11 +143,11 @@ object WearMusicPlayer {
                 player.prepareAsync()
             } else {
                 player.prepare()
-                val duration = if (song.durationMs > 0) song.durationMs else player.duration.toLong()
+                val duration = if (songToPlay.durationMs > 0) songToPlay.durationMs else player.duration.toLong()
                 player.start()
 
                 _state.value = _state.value.copy(
-                    currentSong = song,
+                    currentSong = songToPlay,
                     isPlaying = true,
                     isBuffering = false,
                     durationMs = duration,
@@ -167,9 +195,79 @@ object WearMusicPlayer {
     fun next() {
         val playlist = _state.value.playlist
         if (playlist.isEmpty()) return
+        val currentIndex = _state.value.currentIndex
+        val isNearEnd = currentIndex >= playlist.size - 2
+        val isLastSong = currentIndex >= playlist.size - 1
+
+        val cat = activeCategory
+        if (cat != null && isNearEnd && !isReplenishingQueue) {
+            replenishCategoryQueue(cat)
+        }
+
+        if (isLastSong && cat != null) {
+            // When user or auto-advance hits the very last song of an online station,
+            // attempt immediate refill or loop around while fresh tracks are appended
+            if (!isReplenishingQueue) {
+                scope.launch {
+                    val newBatch = fetchMoreCategoryTracks(cat)
+                    if (newBatch.isNotEmpty()) {
+                        val updated = _state.value.playlist + newBatch
+                        val nextIndex = currentIndex + 1
+                        _state.value = _state.value.copy(
+                            playlist = updated,
+                            currentIndex = nextIndex,
+                            currentSong = updated.getOrNull(nextIndex)
+                        )
+                        updated.getOrNull(nextIndex)?.let { playSong(it) }
+                    } else {
+                        val nextIndex = 0
+                        _state.value = _state.value.copy(currentIndex = nextIndex)
+                        playSong(playlist[nextIndex])
+                    }
+                }
+            } else {
+                val nextIndex = (currentIndex + 1) % playlist.size
+                _state.value = _state.value.copy(currentIndex = nextIndex)
+                playSong(playlist[nextIndex])
+            }
+            return
+        }
+
         val nextIndex = (_state.value.currentIndex + 1) % playlist.size
         _state.value = _state.value.copy(currentIndex = nextIndex)
         playSong(playlist[nextIndex])
+    }
+
+    private fun replenishCategoryQueue(cat: com.aashik.music.wear.online.WearRadioRepository.RadioCategory) {
+        if (isReplenishingQueue) return
+        isReplenishingQueue = true
+        scope.launch {
+            try {
+                val newBatch = fetchMoreCategoryTracks(cat)
+                if (newBatch.isNotEmpty()) {
+                    val currentList = _state.value.playlist
+                    val existingIds = currentList.map { it.id }.toSet()
+                    val distinctNew = newBatch.filter { !existingIds.contains(it.id) }
+                    if (distinctNew.isNotEmpty()) {
+                        _state.value = _state.value.copy(playlist = currentList + distinctNew)
+                    }
+                }
+            } finally {
+                isReplenishingQueue = false
+            }
+        }
+    }
+
+    private suspend fun fetchMoreCategoryTracks(
+        cat: com.aashik.music.wear.online.WearRadioRepository.RadioCategory
+    ): List<WearSong> {
+        val nextPage = currentCategoryPage + 1
+        val tracks = com.aashik.music.wear.online.WearRadioRepository.getCategoryTracks(cat, page = nextPage)
+        if (tracks.isNotEmpty()) {
+            currentCategoryPage = nextPage
+            return tracks
+        }
+        return emptyList()
     }
 
     fun previous() {
@@ -178,6 +276,22 @@ object WearMusicPlayer {
         val prevIndex = if (_state.value.currentIndex > 0) _state.value.currentIndex - 1 else playlist.size - 1
         _state.value = _state.value.copy(currentIndex = prevIndex)
         playSong(playlist[prevIndex])
+    }
+
+    private var seekDebounceJob: Job? = null
+
+    fun seekBy(deltaMs: Long) {
+        val duration = _state.value.durationMs
+        if (duration <= 0L) return
+        val currentPos = _state.value.positionMs
+        val targetPos = (currentPos + deltaMs).coerceIn(0L, duration)
+        _state.value = _state.value.copy(positionMs = targetPos)
+
+        seekDebounceJob?.cancel()
+        seekDebounceJob = scope.launch {
+            delay(120L)
+            mediaPlayer?.seekTo(targetPos.toInt())
+        }
     }
 
     fun seekTo(positionMs: Long) {

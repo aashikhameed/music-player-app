@@ -16,19 +16,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Downloading
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.rounded.AvTimer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,6 +56,7 @@ import androidx.wear.compose.material.Text
 import com.aashik.music.wear.player.WearPlayerState
 import com.aashik.music.wear.presentation.components.CircularProgressArc
 import com.aashik.music.wear.presentation.components.LinearProgressCapsule
+import com.aashik.music.wear.presentation.components.RotarySeekBubble
 import com.aashik.music.wear.presentation.components.RotaryVolumeBubble
 import com.aashik.music.wear.presentation.util.isScreenRound
 import com.aashik.music.wear.theme.WearBackgroundBlack
@@ -62,6 +67,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+enum class RotaryMode {
+    SEEK,
+    VOLUME
+}
+
 private val SquareThumbnailShape = RoundedCornerShape(10.dp)
 
 @Composable
@@ -71,15 +81,22 @@ fun WearNowPlayingScreen(
     onNextClicked: () -> Unit,
     onPreviousClicked: () -> Unit,
     onVolumeAdjusted: (Float) -> Unit,
+    onSeekAdjusted: (Long) -> Unit = {},
     onLibraryClicked: () -> Unit,
     onQueueClicked: () -> Unit,
+    onRadioClicked: (() -> Unit)? = null,
+    onDownloadClicked: ((com.aashik.music.wear.model.WearSong) -> Unit)? = null,
+    downloadStatus: com.aashik.music.wear.storage.WearDownloadStatus = com.aashik.music.wear.storage.WearDownloadStatus.Idle,
+    isDownloaded: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isRound = isScreenRound()
     val focusRequester = remember { FocusRequester() }
     val coroutineScope = rememberCoroutineScope()
-    var showVolumeBubble by remember { mutableStateOf(false) }
-    var hideVolumeJob by remember { mutableStateOf<Job?>(null) }
+    var rotaryMode by remember { mutableStateOf(RotaryMode.SEEK) }
+    var showHudBubble by remember { mutableStateOf(false) }
+    var lastSeekDeltaSec by remember { mutableIntStateOf(0) }
+    var hideHudJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -92,14 +109,23 @@ fun WearNowPlayingScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onRotaryScrollEvent { event ->
-                val delta = if (event.verticalScrollPixels > 0) 0.05f else -0.05f
-                onVolumeAdjusted(delta)
+                val isForward = event.verticalScrollPixels > 0
+                if (rotaryMode == RotaryMode.SEEK) {
+                    val stepMs = 5000L
+                    val deltaMs = if (isForward) stepMs else -stepMs
+                    lastSeekDeltaSec = if (isForward) 5 else -5
+                    onSeekAdjusted(deltaMs)
+                } else {
+                    val deltaVol = if (isForward) 0.05f else -0.05f
+                    onVolumeAdjusted(deltaVol)
+                }
 
-                showVolumeBubble = true
-                hideVolumeJob?.cancel()
-                hideVolumeJob = coroutineScope.launch {
+                showHudBubble = true
+                hideHudJob?.cancel()
+                hideHudJob = coroutineScope.launch {
                     delay(1400L)
-                    showVolumeBubble = false
+                    showHudBubble = false
+                    lastSeekDeltaSec = 0
                 }
                 true
             },
@@ -116,14 +142,23 @@ fun WearNowPlayingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top: Rotary Volume Indicator
+                // Top: Rotary HUD Indicator (Seek or Volume)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(20.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    RotaryVolumeBubble(visible = showVolumeBubble, volume = state.volume)
+                    if (rotaryMode == RotaryMode.SEEK) {
+                        RotarySeekBubble(
+                            visible = showHudBubble,
+                            positionMs = state.positionMs,
+                            durationMs = state.durationMs,
+                            deltaSec = lastSeekDeltaSec
+                        )
+                    } else {
+                        RotaryVolumeBubble(visible = showHudBubble, volume = state.volume)
+                    }
                 }
 
                 // Center: Artwork Thumbnail + Metadata
@@ -221,7 +256,7 @@ fun WearNowPlayingScreen(
                     }
                 }
 
-                // Bottom: Volume, Queue & Library Buttons
+                // Bottom: Volume, Queue, Radio & Download Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -229,19 +264,86 @@ fun WearNowPlayingScreen(
                 ) {
                     Button(
                         onClick = {
-                            val newVol = if (state.volume > 0.05f) 0f else 0.8f
-                            onVolumeAdjusted(newVol - state.volume)
-                            showVolumeBubble = true
+                            rotaryMode = if (rotaryMode == RotaryMode.SEEK) RotaryMode.VOLUME else RotaryMode.SEEK
+                            showHudBubble = true
+                            hideHudJob?.cancel()
+                            hideHudJob = coroutineScope.launch {
+                                delay(1200L)
+                                showHudBubble = false
+                            }
                         },
                         colors = ButtonDefaults.secondaryButtonColors(backgroundColor = Color.Transparent),
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = "Volume",
+                            imageVector = if (rotaryMode == RotaryMode.SEEK) Icons.Rounded.AvTimer else Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = if (rotaryMode == RotaryMode.SEEK) "Rotary: Seek" else "Rotary: Volume",
                             tint = WearPrimaryCyan,
                             modifier = Modifier.size(16.dp)
                         )
+                    }
+
+                    if (onRadioClicked != null) {
+                        Button(
+                            onClick = onRadioClicked,
+                            colors = ButtonDefaults.secondaryButtonColors(backgroundColor = Color.Transparent),
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Radio,
+                                contentDescription = "Radio",
+                                tint = WearPrimaryCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    if (onDownloadClicked != null && state.currentSong != null) {
+                        val isStream = state.currentSong.path.startsWith("http://", true) ||
+                                       state.currentSong.path.startsWith("https://", true)
+                        if (isStream) {
+                            Button(
+                                onClick = { onDownloadClicked(state.currentSong) },
+                                colors = ButtonDefaults.secondaryButtonColors(backgroundColor = Color.Transparent),
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                when (downloadStatus) {
+                                    is com.aashik.music.wear.storage.WearDownloadStatus.Downloading -> {
+                                        Icon(
+                                            imageVector = Icons.Default.Downloading,
+                                            contentDescription = "Downloading",
+                                            tint = com.aashik.music.wear.theme.WearSecondaryAmber,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    is com.aashik.music.wear.storage.WearDownloadStatus.Downloaded -> {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Downloaded",
+                                            tint = Color(0xFF30D158),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    else -> {
+                                        if (isDownloaded) {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = "Downloaded",
+                                                tint = Color(0xFF30D158),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.Download,
+                                                contentDescription = "Download",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     Button(
@@ -398,15 +500,114 @@ fun WearNowPlayingScreen(
                     }
                 }
 
-                // Bottom: Volume, Queue & Library Bar
+                // Bottom: Rotary Mode, Queue & Library Bar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    RotaryVolumeBubble(visible = showVolumeBubble, volume = state.volume)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Button(
+                            onClick = {
+                                rotaryMode = if (rotaryMode == RotaryMode.SEEK) RotaryMode.VOLUME else RotaryMode.SEEK
+                                showHudBubble = true
+                                hideHudJob?.cancel()
+                                hideHudJob = coroutineScope.launch {
+                                    delay(1200L)
+                                    showHudBubble = false
+                                }
+                            },
+                            colors = ButtonDefaults.secondaryButtonColors(backgroundColor = WearSurfaceCard),
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (rotaryMode == RotaryMode.SEEK) Icons.Rounded.AvTimer else Icons.AutoMirrored.Filled.VolumeUp,
+                                contentDescription = if (rotaryMode == RotaryMode.SEEK) "Rotary: Seek" else "Rotary: Volume",
+                                tint = WearPrimaryCyan,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        if (rotaryMode == RotaryMode.SEEK) {
+                            RotarySeekBubble(
+                                visible = showHudBubble,
+                                positionMs = state.positionMs,
+                                durationMs = state.durationMs,
+                                deltaSec = lastSeekDeltaSec
+                            )
+                        } else {
+                            RotaryVolumeBubble(visible = showHudBubble, volume = state.volume)
+                        }
+                    }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (onRadioClicked != null) {
+                            Button(
+                                onClick = onRadioClicked,
+                                colors = ButtonDefaults.secondaryButtonColors(backgroundColor = WearSurfaceCard),
+                                modifier = Modifier.size(30.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Radio,
+                                    contentDescription = "Radio",
+                                    tint = WearPrimaryCyan,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
+                        if (onDownloadClicked != null && state.currentSong != null) {
+                            val isStream = state.currentSong.path.startsWith("http://", true) ||
+                                           state.currentSong.path.startsWith("https://", true)
+                            if (isStream) {
+                                Button(
+                                    onClick = { onDownloadClicked(state.currentSong) },
+                                    colors = ButtonDefaults.secondaryButtonColors(backgroundColor = WearSurfaceCard),
+                                    modifier = Modifier.size(30.dp)
+                                ) {
+                                    when (downloadStatus) {
+                                        is com.aashik.music.wear.storage.WearDownloadStatus.Downloading -> {
+                                            Icon(
+                                                imageVector = Icons.Default.Downloading,
+                                                contentDescription = "Downloading",
+                                                tint = com.aashik.music.wear.theme.WearSecondaryAmber,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                        is com.aashik.music.wear.storage.WearDownloadStatus.Downloaded -> {
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = "Downloaded",
+                                                tint = Color(0xFF30D158),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                        else -> {
+                                            if (isDownloaded) {
+                                                Icon(
+                                                    imageVector = Icons.Default.CheckCircle,
+                                                    contentDescription = "Downloaded",
+                                                    tint = Color(0xFF30D158),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Default.Download,
+                                                    contentDescription = "Download",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                        }
+
                         Button(
                             onClick = onQueueClicked,
                             colors = ButtonDefaults.secondaryButtonColors(backgroundColor = WearSurfaceCard),

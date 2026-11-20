@@ -592,11 +592,12 @@ private fun FavoriteChip(viewModel: MusicViewModel, song: Song, showLabel: Boole
 @Composable
 private fun DownloadChip(viewModel: MusicViewModel, song: Song, showLabel: Boolean = true) {
     val downloads by viewModel.downloadStates.collectAsState()
-    val status = downloads[song.id] ?: DownloadStatus.Idle
-    val isDownloaded = status is DownloadStatus.Downloaded || viewModel.isSongDownloaded(song.id) ||
+    val rawStatus = downloads[song.id]
+    val isDownloaded = rawStatus is DownloadStatus.Downloaded || viewModel.isSongDownloaded(song) ||
         song.id.startsWith("download_") || song.path.contains("MusicPlayer")
     val downloadable = (song.isStream() && song.duration > 0) || isDownloaded
     if (!downloadable) return
+    val status = if (rawStatus is DownloadStatus.Downloading) rawStatus else if (isDownloaded) DownloadStatus.Downloaded else (rawStatus ?: DownloadStatus.Idle)
     when {
         status is DownloadStatus.Downloading -> CarActionChip(Icons.Rounded.Download, "Saving", onClick = {}, progress = status.progress, showLabel = showLabel)
         isDownloaded -> CarActionChip(
@@ -628,11 +629,12 @@ private fun RadioChip(viewModel: MusicViewModel, showLabel: Boolean = true) {
 @Composable
 private fun DownloadButton(viewModel: MusicViewModel, song: Song) {
     val downloads by viewModel.downloadStates.collectAsState()
-    val status = downloads[song.id] ?: DownloadStatus.Idle
-    val isDownloaded = status is DownloadStatus.Downloaded || viewModel.isSongDownloaded(song.id) ||
+    val rawStatus = downloads[song.id]
+    val isDownloaded = rawStatus is DownloadStatus.Downloaded || viewModel.isSongDownloaded(song) ||
         song.id.startsWith("download_") || song.path.contains("MusicPlayer")
     val downloadable = (song.isStream() && song.duration > 0) || isDownloaded
     if (!downloadable) return
+    val status = if (rawStatus is DownloadStatus.Downloading) rawStatus else if (isDownloaded) DownloadStatus.Downloaded else (rawStatus ?: DownloadStatus.Idle)
     when {
         status is DownloadStatus.Downloading -> CarIconButton(
             Icons.Rounded.Download, "Downloading", onClick = {}, filled = true, glyph = 24.dp, progress = status.progress
