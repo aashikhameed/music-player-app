@@ -1322,7 +1322,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 val fullQueue = ArrayList<Song>(1 + resolvedTracks.size)
                 fullQueue.add(seedSong)
                 for (t in resolvedTracks) {
-                    if (t.id != seedSong.id) fullQueue.add(t)
+                    val alreadyInQueue = fullQueue.any { q ->
+                        q.id == t.id || OnlineStreamRepository.isSameRecording(q.title, q.artist, t.title, t.artist)
+                    }
+                    if (!alreadyInQueue) fullQueue.add(t)
                 }
 
                 // Completely replace the active playlist & queue with the radio tracks
@@ -1361,8 +1364,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 if (moreTracks.isEmpty()) {
                     moreTracks = OnlineStreamRepository.getRadioTracksForSong(seedSong, targetGenre = genre, limit = 15)
                 }
-                val existingIds = activePlaylist.map { it.id }.toSet()
-                val newTracks = moreTracks.filter { !existingIds.contains(it.id) }
+                val existingList = activePlaylist
+                val newTracks = moreTracks.filter { cand ->
+                    existingList.none { existing ->
+                        existing.id == cand.id || OnlineStreamRepository.isSameRecording(existing.title, existing.artist, cand.title, cand.artist)
+                    }
+                }
                 if (newTracks.isNotEmpty()) {
                     withContext(Dispatchers.Main) {
                         val updatedPlaylist = activePlaylist + newTracks
@@ -2303,8 +2310,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     if (moreTracks.isEmpty()) {
                         moreTracks = OnlineStreamRepository.getRadioTracksForSong(lastSeed, targetGenre = genre, limit = 15)
                     }
-                    val existingIds = activePlaylist.map { it.id }.toSet()
-                    val newTracks = moreTracks.filter { !existingIds.contains(it.id) }
+                    val existingList = activePlaylist
+                    val newTracks = moreTracks.filter { cand ->
+                        existingList.none { existing ->
+                            existing.id == cand.id || OnlineStreamRepository.isSameRecording(existing.title, existing.artist, cand.title, cand.artist)
+                        }
+                    }
                     if (newTracks.isNotEmpty()) {
                         withContext(Dispatchers.Main) {
                             val updatedPlaylist = activePlaylist + newTracks

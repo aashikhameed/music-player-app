@@ -229,8 +229,11 @@ object WearMusicPlayer {
                     val newBatch = fetchMoreCategoryTracks(cat)
                     if (newBatch.isNotEmpty()) {
                         val currentList = _state.value.playlist
-                        val existingIds = currentList.map { it.id }.toSet()
-                        val distinctNew = newBatch.filter { !existingIds.contains(it.id) }
+                        val distinctNew = newBatch.filter { cand ->
+                            currentList.none { existing ->
+                                existing.id == cand.id || com.aashik.music.wear.online.WearOnlineRepository.isSameRecording(existing.title, existing.artist, cand.title, cand.artist)
+                            }
+                        }
                         val updated = if (distinctNew.isNotEmpty()) currentList + distinctNew else currentList + newBatch
                         val nextIndex = currentIndex + 1
                         _state.value = _state.value.copy(
@@ -257,8 +260,11 @@ object WearMusicPlayer {
                     scope.launch {
                         val relatedTracks = fetchRelatedRecommendations(currentSong)
                         val currentList = _state.value.playlist
-                        val existingIds = currentList.map { it.id }.toSet()
-                        val distinctNew = relatedTracks.filter { !existingIds.contains(it.id) }
+                        val distinctNew = relatedTracks.filter { cand ->
+                            currentList.none { existing ->
+                                existing.id == cand.id || com.aashik.music.wear.online.WearOnlineRepository.isSameRecording(existing.title, existing.artist, cand.title, cand.artist)
+                            }
+                        }
                         if (distinctNew.isNotEmpty()) {
                             val updated = currentList + distinctNew
                             val nextIndex = currentIndex + 1
@@ -301,8 +307,11 @@ object WearMusicPlayer {
                 val relatedTracks = fetchRelatedRecommendations(currentSong)
                 if (relatedTracks.isNotEmpty()) {
                     val currentList = _state.value.playlist
-                    val existingIds = currentList.map { it.id }.toSet()
-                    val distinctNew = relatedTracks.filter { !existingIds.contains(it.id) }
+                    val distinctNew = relatedTracks.filter { cand ->
+                        currentList.none { existing ->
+                            existing.id == cand.id || com.aashik.music.wear.online.WearOnlineRepository.isSameRecording(existing.title, existing.artist, cand.title, cand.artist)
+                        }
+                    }
                     if (distinctNew.isNotEmpty()) {
                         _state.value = _state.value.copy(playlist = currentList + distinctNew)
                     }
@@ -347,8 +356,11 @@ object WearMusicPlayer {
                 val newBatch = fetchMoreCategoryTracks(cat)
                 if (newBatch.isNotEmpty()) {
                     val currentList = _state.value.playlist
-                    val existingIds = currentList.map { it.id }.toSet()
-                    val distinctNew = newBatch.filter { !existingIds.contains(it.id) }
+                    val distinctNew = newBatch.filter { cand ->
+                        currentList.none { existing ->
+                            existing.id == cand.id || com.aashik.music.wear.online.WearOnlineRepository.isSameRecording(existing.title, existing.artist, cand.title, cand.artist)
+                        }
+                    }
                     if (distinctNew.isNotEmpty()) {
                         _state.value = _state.value.copy(playlist = currentList + distinctNew)
                     }

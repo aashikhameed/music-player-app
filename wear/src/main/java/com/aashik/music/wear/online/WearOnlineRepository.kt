@@ -68,6 +68,55 @@ object WearOnlineRepository {
             .replace("&nbsp;", " ")
     }
 
+    private fun cleanTitleForMatching(raw: String): String {
+        return raw.lowercase()
+            .replace(Regex("""\([^)]*\)"""), " ")
+            .replace(Regex("""\[[^\]]*\]"""), " ")
+            .replace(Regex("""\b(feat|ft|official|audio|video|lyrics|remix|from|the|a|an)\b"""), " ")
+            .replace(Regex("""[^a-z0-9]"""), " ")
+            .replace(Regex("""\s+"""), " ")
+            .trim()
+    }
+
+    private fun artistSet(raw: String): Set<String> {
+        return raw.lowercase()
+            .split(Regex("""[,/&|+]|\b(and|feat|featuring|with|ft)\b"""))
+            .map { it.replace(Regex("""[^a-z0-9]"""), " ").trim() }
+            .filter { it.isNotEmpty() && it != "unknown" && it != "various artists" && it != "online artist" && it != "downloaded" }
+            .toSet()
+    }
+
+    fun isSameRecording(aTitle: String, aArtist: String, bTitle: String, bArtist: String): Boolean {
+        val t1 = cleanTitleForMatching(aTitle)
+        val t2 = cleanTitleForMatching(bTitle)
+        if (t1.isEmpty() || t2.isEmpty()) return false
+
+        val titlesMatch = (t1 == t2) ||
+                (t1.length >= 6 && t2.length >= 6 && (t1.startsWith(t2) || t2.startsWith(t1)))
+
+        if (!titlesMatch) {
+            val words1 = t1.split(" ").filter { it.length > 2 }
+            val words2 = t2.split(" ").filter { it.length > 2 }
+            val commonWords = words1.count { it in words2 }
+            val threshold = maxOf(2, (minOf(words1.size, words2.size) * 0.75).toInt())
+            if (words1.size < 2 || words2.size < 2 || commonWords < threshold) {
+                return false
+            }
+        }
+
+        val a1 = artistSet(aArtist)
+        val a2 = artistSet(bArtist)
+        if (a1.isNotEmpty() && a2.isNotEmpty()) {
+            return a1.any { left ->
+                a2.any { right ->
+                    left == right || (left.length >= 4 && right.length >= 4 && (left.contains(right) || right.contains(left)))
+                }
+            }
+        }
+
+        return t1.length >= 8 && t1 == t2
+    }
+
     suspend fun search(query: String, limit: Int = 12, page: Int = 1): List<WearSong> = withContext(Dispatchers.IO) {
         val q = query.trim()
         if (q.isBlank()) return@withContext emptyList<WearSong>()
