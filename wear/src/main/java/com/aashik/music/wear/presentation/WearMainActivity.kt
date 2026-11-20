@@ -150,7 +150,7 @@ class WearMainActivity : ComponentActivity() {
                                 currentIndex = playerState.currentIndex,
                                 isPlaying = playerState.isPlaying,
                                 onSongSelected = { index ->
-                                    WearMusicPlayer.setPlaylist(playerState.playlist, index)
+                                    WearMusicPlayer.playSongAtIndex(index)
                                     navController.popBackStack()
                                 }
                             )

@@ -71,10 +71,24 @@ object WearMusicPlayer {
             currentSong = songs[safeIndex]
         )
         // If the station only has a few tracks or user started near the end, prefetch immediately
-        if (category != null && safeIndex >= songs.size - 3) {
-            replenishCategoryQueue(category)
+        if (safeIndex >= songs.size - 3) {
+            checkAndReplenishQueue()
         }
         playSong(songs[safeIndex])
+    }
+
+    fun playSongAtIndex(index: Int) {
+        val playlist = _state.value.playlist
+        if (playlist.isEmpty()) return
+        val safeIndex = index.coerceIn(0, playlist.size - 1)
+        _state.value = _state.value.copy(
+            currentIndex = safeIndex,
+            currentSong = playlist[safeIndex]
+        )
+        if (safeIndex >= playlist.size - 3) {
+            checkAndReplenishQueue()
+        }
+        playSong(playlist[safeIndex])
     }
 
     fun playSong(song: WearSong) {
@@ -203,12 +217,12 @@ object WearMusicPlayer {
         val isNearEnd = currentIndex >= playlist.size - 3
         val isLastSong = currentIndex >= playlist.size - 1
 
-        val cat = activeCategory
-        if (cat != null && isNearEnd && !isReplenishingQueue) {
-            replenishCategoryQueue(cat)
+        if (isNearEnd) {
+            checkAndReplenishQueue()
         }
 
         if (isLastSong) {
+            val cat = activeCategory
             if (cat != null) {
                 // When on the last song of an online radio station, fetch the next page and play immediately
                 scope.launch {
@@ -237,16 +251,11 @@ object WearMusicPlayer {
                 }
                 return
             } else {
-                // If it's a stream track without an explicit category (e.g. from general search or related),
-                // query recommendation or related tracks for the current song
+                // If on the last song, query recommendations/related tracks for continuous endless playback
                 val currentSong = _state.value.currentSong
-                if (currentSong != null && (currentSong.path.startsWith("http://", true) || currentSong.path.startsWith("https://", true))) {
+                if (currentSong != null) {
                     scope.launch {
-                        val relatedTracks = com.aashik.music.wear.online.WearOnlineRepository.search(
-                            "${currentSong.artist} hits",
-                            limit = 10,
-                            page = 1
-                        )
+                        val relatedTracks = fetchRelatedRecommendations(currentSong)
                         val currentList = _state.value.playlist
                         val existingIds = currentList.map { it.id }.toSet()
                         val distinctNew = relatedTracks.filter { !existingIds.contains(it.id) }
@@ -276,6 +285,58 @@ object WearMusicPlayer {
             currentSong = playlist.getOrNull(nextIndex)
         )
         playSong(playlist[nextIndex])
+    }
+
+    private fun checkAndReplenishQueue() {
+        if (isReplenishingQueue) return
+        val cat = activeCategory
+        if (cat != null) {
+            replenishCategoryQueue(cat)
+            return
+        }
+        val currentSong = _state.value.currentSong ?: return
+        isReplenishingQueue = true
+        scope.launch {
+            try {
+                val relatedTracks = fetchRelatedRecommendations(currentSong)
+                if (relatedTracks.isNotEmpty()) {
+                    val currentList = _state.value.playlist
+                    val existingIds = currentList.map { it.id }.toSet()
+                    val distinctNew = relatedTracks.filter { !existingIds.contains(it.id) }
+                    if (distinctNew.isNotEmpty()) {
+                        _state.value = _state.value.copy(playlist = currentList + distinctNew)
+                    }
+                }
+            } finally {
+                isReplenishingQueue = false
+            }
+        }
+    }
+
+    private suspend fun fetchRelatedRecommendations(song: WearSong): List<WearSong> {
+        val cleanArtist = song.artist.trim()
+        val cleanTitle = song.title.replace(Regex("""\([^)]*\)"""), "").replace(Regex("""\[[^\]]*\]"""), "").trim()
+        val queries = mutableListOf<String>()
+
+        if (cleanArtist.isNotBlank() && cleanArtist != "Online Artist" && cleanArtist != "Downloaded") {
+            queries.add(cleanArtist)
+            queries.add("$cleanArtist songs")
+        }
+        if (cleanTitle.isNotBlank()) {
+            queries.add(cleanTitle)
+            if (cleanArtist.isNotBlank() && cleanArtist != "Online Artist" && cleanArtist != "Downloaded") {
+                queries.add("$cleanTitle $cleanArtist")
+            }
+        }
+        queries.add("Top hits")
+
+        for (q in queries) {
+            val results = com.aashik.music.wear.online.WearOnlineRepository.search(q, limit = 10, page = 1)
+            if (results.isNotEmpty()) {
+                return results
+            }
+        }
+        return emptyList()
     }
 
     private fun replenishCategoryQueue(cat: com.aashik.music.wear.online.WearRadioRepository.RadioCategory) {

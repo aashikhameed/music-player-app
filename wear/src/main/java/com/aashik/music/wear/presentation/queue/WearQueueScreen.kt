@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,9 +55,21 @@ fun WearQueueScreen(
     modifier: Modifier = Modifier
 ) {
     val isRound = isScreenRound()
-    val listState = rememberScalingLazyListState()
+    val initialItem = remember(currentIndex, playlist.size) {
+        if (currentIndex in playlist.indices) (currentIndex + 1) else 0
+    }
+    val listState = rememberScalingLazyListState(
+        initialCenterItemIndex = initialItem
+    )
     val chipShape = remember(isRound) {
         if (isRound) CircleShape else SquareChipShape
+    }
+
+    LaunchedEffect(currentIndex, playlist.size) {
+        if (currentIndex in playlist.indices) {
+            // Scroll to center the currently playing item (item 0 is ListHeader, so item is currentIndex + 1)
+            listState.animateScrollToItem(currentIndex + 1)
+        }
     }
 
     Box(
