@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 data class WearPlayerState(
     val currentSong: WearSong? = null,
     val isPlaying: Boolean = false,
+    val isBuffering: Boolean = false,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val volume: Float = 0.8f,
@@ -63,9 +64,13 @@ object WearMusicPlayer {
 
     fun playSong(song: WearSong) {
         try {
+            stopProgressTracking()
             mediaPlayer?.stop()
             mediaPlayer?.release()
             mediaPlayer = null
+
+            val isNetworkStream = song.path.startsWith("http://", ignoreCase = true) ||
+                                  song.path.startsWith("https://", ignoreCase = true)
 
             val player = MediaPlayer().apply {
                 setAudioAttributes(
@@ -76,27 +81,55 @@ object WearMusicPlayer {
                 )
                 setWakeMode(null, PowerManager.PARTIAL_WAKE_LOCK)
                 setDataSource(song.path)
-                prepare()
                 setVolume(_state.value.volume, _state.value.volume)
                 setOnCompletionListener {
                     next()
                 }
+                setOnErrorListener { _, _, _ ->
+                    _state.value = _state.value.copy(isPlaying = false, isBuffering = false)
+                    false
+                }
             }
             mediaPlayer = player
 
-            val duration = if (song.durationMs > 0) song.durationMs else player.duration.toLong()
-            player.start()
+            if (isNetworkStream) {
+                _state.value = _state.value.copy(
+                    currentSong = song,
+                    isPlaying = false,
+                    isBuffering = true,
+                    durationMs = song.durationMs,
+                    positionMs = 0L
+                )
+                player.setOnPreparedListener { mp ->
+                    if (mediaPlayer == mp) {
+                        val duration = if (song.durationMs > 0) song.durationMs else mp.duration.toLong().coerceAtLeast(0L)
+                        mp.start()
+                        _state.value = _state.value.copy(
+                            isPlaying = true,
+                            isBuffering = false,
+                            durationMs = duration
+                        )
+                        startProgressTracking()
+                    }
+                }
+                player.prepareAsync()
+            } else {
+                player.prepare()
+                val duration = if (song.durationMs > 0) song.durationMs else player.duration.toLong()
+                player.start()
 
-            _state.value = _state.value.copy(
-                currentSong = song,
-                isPlaying = true,
-                durationMs = duration,
-                positionMs = 0L
-            )
-            startProgressTracking()
+                _state.value = _state.value.copy(
+                    currentSong = song,
+                    isPlaying = true,
+                    isBuffering = false,
+                    durationMs = duration,
+                    positionMs = 0L
+                )
+                startProgressTracking()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
-            _state.value = _state.value.copy(isPlaying = false)
+            _state.value = _state.value.copy(isPlaying = false, isBuffering = false)
         }
     }
 

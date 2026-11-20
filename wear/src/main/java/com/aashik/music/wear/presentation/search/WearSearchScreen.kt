@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Search
@@ -42,27 +41,16 @@ import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.ListHeader
 import androidx.wear.compose.material.Text
 import com.aashik.music.wear.model.WearSong
+import com.aashik.music.wear.online.WearOnlineRepository
 import com.aashik.music.wear.presentation.util.isScreenRound
 import com.aashik.music.wear.theme.WearBackgroundBlack
 import com.aashik.music.wear.theme.WearOnSurfaceDim
 import com.aashik.music.wear.theme.WearPrimaryCyan
 import com.aashik.music.wear.theme.WearSecondaryAmber
 import com.aashik.music.wear.theme.WearSurfaceCard
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
 
 private val SquareChipShape = RoundedCornerShape(12.dp)
-
-private val POPULAR_SEARCHES = listOf(
-    "Top Hits", "Workout", "Rock", "Acoustic", "EDM", "Lo-Fi Beats"
-)
 
 @Composable
 fun WearSearchScreen(
@@ -139,7 +127,7 @@ fun WearSearchScreen(
                         },
                         secondaryLabel = {
                             Text(
-                                text = "${song.artist} • STREAM",
+                                text = "${song.artist} • ONLINE 320K",
                                 fontSize = 10.sp,
                                 color = WearPrimaryCyan,
                                 maxLines = 1,
@@ -162,29 +150,36 @@ fun WearSearchScreen(
             } else {
                 item {
                     Text(
-                        text = "Quick Curated Streams",
+                        text = "Curated Online Stations",
                         fontSize = 11.sp,
                         color = WearOnSurfaceDim,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                 }
 
-                items(POPULAR_SEARCHES) { genre ->
+                items(WearOnlineRepository.CURATED_STATIONS) { station ->
                     Chip(
                         onClick = {
-                            lastQuery = genre
+                            lastQuery = station
                             isSearching = true
                             coroutineScope.launch {
-                                val results = performOnlineSearch(genre)
+                                val results = WearOnlineRepository.search(station)
                                 searchResults = results
                                 isSearching = false
                             }
                         },
                         label = {
                             Text(
-                                text = genre,
+                                text = station,
                                 fontSize = 12.sp,
                                 color = Color.White
+                            )
+                        },
+                        secondaryLabel = {
+                            Text(
+                                text = "Wi-Fi High-Res Stream",
+                                fontSize = 10.sp,
+                                color = WearOnSurfaceDim
                             )
                         },
                         icon = {
@@ -203,51 +198,4 @@ fun WearSearchScreen(
             }
         }
     }
-}
-
-private suspend fun performOnlineSearch(query: String): List<WearSong> = withContext(Dispatchers.IO) {
-    val results = mutableListOf<WearSong>()
-    try {
-        val encoded = URLEncoder.encode(query, "UTF-8")
-        val endpoint = "https://itunes.apple.com/search?term=$encoded&media=music&entity=song&limit=8"
-        val url = URL(endpoint)
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = 5000
-            readTimeout = 5000
-            setRequestProperty("User-Agent", "Mozilla/5.0 (WearOS Music Player)")
-        }
-
-        if (conn.responseCode == 200) {
-            val reader = BufferedReader(InputStreamReader(conn.inputStream))
-            val jsonText = reader.use { it.readText() }
-            val root = JSONObject(jsonText)
-            val items = root.optJSONArray("results")
-
-            if (items != null) {
-                for (i in 0 until items.length()) {
-                    val obj = items.getJSONObject(i)
-                    val title = obj.optString("trackName", "Unknown Track")
-                    val artist = obj.optString("artistName", "Unknown Artist")
-                    val previewUrl = obj.optString("previewUrl", "")
-                    val durationMs = obj.optLong("trackTimeMillis", 30000L)
-                    val id = "online_${obj.optLong("trackId", i.toLong())}"
-
-                    if (previewUrl.isNotEmpty()) {
-                        results.add(
-                            WearSong(
-                                id = id,
-                                title = title,
-                                artist = artist,
-                                durationMs = durationMs,
-                                path = previewUrl
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-    results
 }
