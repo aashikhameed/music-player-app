@@ -146,6 +146,18 @@ class WearMainActivity : ComponentActivity() {
                             )
                         }
 
+                        composable("queue") {
+                            com.aashik.music.wear.presentation.queue.WearQueueScreen(
+                                playlist = playerState.playlist,
+                                currentIndex = playerState.currentIndex,
+                                isPlaying = playerState.isPlaying,
+                                onSongSelected = { index ->
+                                    WearMusicPlayer.setPlaylist(playerState.playlist, index)
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
+
                         composable("search") {
                             WearSearchScreen(
                                 onSongSelected = { song, playlist, category ->
