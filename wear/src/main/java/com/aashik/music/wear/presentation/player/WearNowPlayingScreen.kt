@@ -67,11 +67,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class RotaryMode {
-    SEEK,
-    VOLUME
-}
-
 private val SquareThumbnailShape = RoundedCornerShape(10.dp)
 
 @Composable
@@ -80,7 +75,7 @@ fun WearNowPlayingScreen(
     onPlayPauseClicked: () -> Unit,
     onNextClicked: () -> Unit,
     onPreviousClicked: () -> Unit,
-    onVolumeAdjusted: (Float) -> Unit,
+    onVolumeAdjusted: ((Float) -> Unit)? = null,
     onSeekAdjusted: (Long) -> Unit = {},
     onLibraryClicked: () -> Unit,
     onQueueClicked: () -> Unit,
@@ -93,7 +88,6 @@ fun WearNowPlayingScreen(
     val isRound = isScreenRound()
     val focusRequester = remember { FocusRequester() }
     val coroutineScope = rememberCoroutineScope()
-    var rotaryMode by remember { mutableStateOf(RotaryMode.SEEK) }
     var showHudBubble by remember { mutableStateOf(false) }
     var lastSeekDeltaSec by remember { mutableIntStateOf(0) }
     var hideHudJob by remember { mutableStateOf<Job?>(null) }
@@ -110,15 +104,10 @@ fun WearNowPlayingScreen(
             .focusable()
             .onRotaryScrollEvent { event ->
                 val isForward = event.verticalScrollPixels > 0
-                if (rotaryMode == RotaryMode.SEEK) {
-                    val stepMs = 5000L
-                    val deltaMs = if (isForward) stepMs else -stepMs
-                    lastSeekDeltaSec = if (isForward) 5 else -5
-                    onSeekAdjusted(deltaMs)
-                } else {
-                    val deltaVol = if (isForward) 0.05f else -0.05f
-                    onVolumeAdjusted(deltaVol)
-                }
+                val stepMs = 5000L
+                val deltaMs = if (isForward) stepMs else -stepMs
+                lastSeekDeltaSec = if (isForward) 5 else -5
+                onSeekAdjusted(deltaMs)
 
                 showHudBubble = true
                 hideHudJob?.cancel()
@@ -142,61 +131,44 @@ fun WearNowPlayingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top: Rotary HUD Indicator (Seek or Volume)
+                // Top: Rotary Seek Indicator
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(20.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (rotaryMode == RotaryMode.SEEK) {
-                        RotarySeekBubble(
-                            visible = showHudBubble,
-                            positionMs = state.positionMs,
-                            durationMs = state.durationMs,
-                            deltaSec = lastSeekDeltaSec
-                        )
-                    } else {
-                        RotaryVolumeBubble(visible = showHudBubble, volume = state.volume)
-                    }
+                    RotarySeekBubble(
+                        visible = showHudBubble,
+                        positionMs = state.positionMs,
+                        durationMs = state.durationMs,
+                        deltaSec = lastSeekDeltaSec
+                    )
                 }
 
-                // Center: Artwork Thumbnail + Metadata
+                // Center: Metadata (Title & Artist)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .background(WearSurfaceCard),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = "Artwork",
-                            tint = WearPrimaryCyan,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
                     Text(
                         text = state.currentSong?.title ?: "No Track",
                         color = Color.White,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
                     )
 
+                    Spacer(modifier = Modifier.height(4.dp))
+
                     Text(
                         text = state.currentSong?.artist ?: "Tap Library to play",
                         color = WearOnSurfaceDim,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
@@ -256,48 +228,12 @@ fun WearNowPlayingScreen(
                     }
                 }
 
-                // Bottom: Volume, Queue, Radio & Download Buttons
+                // Bottom: Queue, Library & Download Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(
-                        onClick = {
-                            rotaryMode = if (rotaryMode == RotaryMode.SEEK) RotaryMode.VOLUME else RotaryMode.SEEK
-                            showHudBubble = true
-                            hideHudJob?.cancel()
-                            hideHudJob = coroutineScope.launch {
-                                delay(1200L)
-                                showHudBubble = false
-                            }
-                        },
-                        colors = ButtonDefaults.secondaryButtonColors(backgroundColor = Color.Transparent),
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (rotaryMode == RotaryMode.SEEK) Icons.Rounded.AvTimer else Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = if (rotaryMode == RotaryMode.SEEK) "Rotary: Seek" else "Rotary: Volume",
-                            tint = WearPrimaryCyan,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    if (onRadioClicked != null) {
-                        Button(
-                            onClick = onRadioClicked,
-                            colors = ButtonDefaults.secondaryButtonColors(backgroundColor = Color.Transparent),
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Radio,
-                                contentDescription = "Radio",
-                                tint = WearPrimaryCyan,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
                     if (onDownloadClicked != null && state.currentSong != null) {
                         val isStream = state.currentSong.path.startsWith("http://", true) ||
                                        state.currentSong.path.startsWith("https://", true)
@@ -305,7 +241,7 @@ fun WearNowPlayingScreen(
                             Button(
                                 onClick = { onDownloadClicked(state.currentSong) },
                                 colors = ButtonDefaults.secondaryButtonColors(backgroundColor = Color.Transparent),
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(32.dp)
                             ) {
                                 when (downloadStatus) {
                                     is com.aashik.music.wear.storage.WearDownloadStatus.Downloading -> {
@@ -313,7 +249,7 @@ fun WearNowPlayingScreen(
                                             imageVector = Icons.Default.Downloading,
                                             contentDescription = "Downloading",
                                             tint = com.aashik.music.wear.theme.WearSecondaryAmber,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                     is com.aashik.music.wear.storage.WearDownloadStatus.Downloaded -> {
@@ -321,7 +257,7 @@ fun WearNowPlayingScreen(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = "Downloaded",
                                             tint = Color(0xFF30D158),
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                     else -> {
@@ -330,14 +266,14 @@ fun WearNowPlayingScreen(
                                                 imageVector = Icons.Default.CheckCircle,
                                                 contentDescription = "Downloaded",
                                                 tint = Color(0xFF30D158),
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(18.dp)
                                             )
                                         } else {
                                             Icon(
                                                 imageVector = Icons.Default.Download,
                                                 contentDescription = "Download",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(18.dp)
                                             )
                                         }
                                     }
@@ -349,26 +285,26 @@ fun WearNowPlayingScreen(
                     Button(
                         onClick = onQueueClicked,
                         colors = ButtonDefaults.secondaryButtonColors(backgroundColor = Color.Transparent),
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                             contentDescription = "Queue",
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
                     Button(
                         onClick = onLibraryClicked,
                         colors = ButtonDefaults.secondaryButtonColors(backgroundColor = Color.Transparent),
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.LibraryMusic,
                             contentDescription = "Library",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            tint = WearPrimaryCyan,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -403,48 +339,31 @@ fun WearNowPlayingScreen(
                     }
                 }
 
-                // Center: Square-Rounded Thumbnail + Title & Artist
-                Row(
+                // Center: Title & Artist
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(SquareThumbnailShape)
-                            .background(WearSurfaceCard),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = "Artwork",
-                            tint = WearPrimaryCyan,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = state.currentSong?.title ?: "No Track Selected",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = state.currentSong?.artist ?: "Tap Library to select",
-                            color = WearOnSurfaceDim,
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = state.currentSong?.title ?: "No Track Selected",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = state.currentSong?.artist ?: "Tap Library to select",
+                        color = WearOnSurfaceDim,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
                 }
 
                 // Controls Row: Prev, Play/Pause, Next
@@ -500,65 +419,20 @@ fun WearNowPlayingScreen(
                     }
                 }
 
-                // Bottom: Rotary Mode, Queue & Library Bar
+                // Bottom: Queue, Library & Seek HUD Bar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Button(
-                            onClick = {
-                                rotaryMode = if (rotaryMode == RotaryMode.SEEK) RotaryMode.VOLUME else RotaryMode.SEEK
-                                showHudBubble = true
-                                hideHudJob?.cancel()
-                                hideHudJob = coroutineScope.launch {
-                                    delay(1200L)
-                                    showHudBubble = false
-                                }
-                            },
-                            colors = ButtonDefaults.secondaryButtonColors(backgroundColor = WearSurfaceCard),
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (rotaryMode == RotaryMode.SEEK) Icons.Rounded.AvTimer else Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = if (rotaryMode == RotaryMode.SEEK) "Rotary: Seek" else "Rotary: Volume",
-                                tint = WearPrimaryCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        if (rotaryMode == RotaryMode.SEEK) {
-                            RotarySeekBubble(
-                                visible = showHudBubble,
-                                positionMs = state.positionMs,
-                                durationMs = state.durationMs,
-                                deltaSec = lastSeekDeltaSec
-                            )
-                        } else {
-                            RotaryVolumeBubble(visible = showHudBubble, volume = state.volume)
-                        }
-                    }
+                    RotarySeekBubble(
+                        visible = showHudBubble,
+                        positionMs = state.positionMs,
+                        durationMs = state.durationMs,
+                        deltaSec = lastSeekDeltaSec
+                    )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (onRadioClicked != null) {
-                            Button(
-                                onClick = onRadioClicked,
-                                colors = ButtonDefaults.secondaryButtonColors(backgroundColor = WearSurfaceCard),
-                                modifier = Modifier.size(30.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Radio,
-                                    contentDescription = "Radio",
-                                    tint = WearPrimaryCyan,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-
                         if (onDownloadClicked != null && state.currentSong != null) {
                             val isStream = state.currentSong.path.startsWith("http://", true) ||
                                            state.currentSong.path.startsWith("https://", true)

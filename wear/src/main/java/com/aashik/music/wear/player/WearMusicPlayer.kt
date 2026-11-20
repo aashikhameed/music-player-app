@@ -70,6 +70,10 @@ object WearMusicPlayer {
             currentIndex = safeIndex,
             currentSong = songs[safeIndex]
         )
+        // If the station only has a few tracks or user started near the end, prefetch immediately
+        if (category != null && safeIndex >= songs.size - 3) {
+            replenishCategoryQueue(category)
+        }
         playSong(songs[safeIndex])
     }
 
@@ -196,7 +200,7 @@ object WearMusicPlayer {
         val playlist = _state.value.playlist
         if (playlist.isEmpty()) return
         val currentIndex = _state.value.currentIndex
-        val isNearEnd = currentIndex >= playlist.size - 2
+        val isNearEnd = currentIndex >= playlist.size - 3
         val isLastSong = currentIndex >= playlist.size - 1
 
         val cat = activeCategory
@@ -204,14 +208,16 @@ object WearMusicPlayer {
             replenishCategoryQueue(cat)
         }
 
-        if (isLastSong && cat != null) {
-            // When user or auto-advance hits the very last song of an online station,
-            // attempt immediate refill or loop around while fresh tracks are appended
-            if (!isReplenishingQueue) {
+        if (isLastSong) {
+            if (cat != null) {
+                // When on the last song of an online radio station, fetch the next page and play immediately
                 scope.launch {
                     val newBatch = fetchMoreCategoryTracks(cat)
                     if (newBatch.isNotEmpty()) {
-                        val updated = _state.value.playlist + newBatch
+                        val currentList = _state.value.playlist
+                        val existingIds = currentList.map { it.id }.toSet()
+                        val distinctNew = newBatch.filter { !existingIds.contains(it.id) }
+                        val updated = if (distinctNew.isNotEmpty()) currentList + distinctNew else currentList + newBatch
                         val nextIndex = currentIndex + 1
                         _state.value = _state.value.copy(
                             playlist = updated,
@@ -220,21 +226,55 @@ object WearMusicPlayer {
                         )
                         updated.getOrNull(nextIndex)?.let { playSong(it) }
                     } else {
+                        // Loop around to first song if no new tracks returned from server
                         val nextIndex = 0
-                        _state.value = _state.value.copy(currentIndex = nextIndex)
+                        _state.value = _state.value.copy(
+                            currentIndex = nextIndex,
+                            currentSong = playlist.getOrNull(nextIndex)
+                        )
                         playSong(playlist[nextIndex])
                     }
                 }
+                return
             } else {
-                val nextIndex = (currentIndex + 1) % playlist.size
-                _state.value = _state.value.copy(currentIndex = nextIndex)
-                playSong(playlist[nextIndex])
+                // If it's a stream track without an explicit category (e.g. from general search or related),
+                // query recommendation or related tracks for the current song
+                val currentSong = _state.value.currentSong
+                if (currentSong != null && (currentSong.path.startsWith("http://", true) || currentSong.path.startsWith("https://", true))) {
+                    scope.launch {
+                        val relatedTracks = com.aashik.music.wear.online.WearOnlineRepository.search(
+                            "${currentSong.artist} hits",
+                            limit = 10,
+                            page = 1
+                        )
+                        val currentList = _state.value.playlist
+                        val existingIds = currentList.map { it.id }.toSet()
+                        val distinctNew = relatedTracks.filter { !existingIds.contains(it.id) }
+                        if (distinctNew.isNotEmpty()) {
+                            val updated = currentList + distinctNew
+                            val nextIndex = currentIndex + 1
+                            _state.value = _state.value.copy(
+                                playlist = updated,
+                                currentIndex = nextIndex,
+                                currentSong = updated.getOrNull(nextIndex)
+                            )
+                            updated.getOrNull(nextIndex)?.let { playSong(it) }
+                            return@launch
+                        }
+                        val nextIndex = (currentIndex + 1) % playlist.size
+                        _state.value = _state.value.copy(currentIndex = nextIndex, currentSong = playlist.getOrNull(nextIndex))
+                        playSong(playlist[nextIndex])
+                    }
+                    return
+                }
             }
-            return
         }
 
         val nextIndex = (_state.value.currentIndex + 1) % playlist.size
-        _state.value = _state.value.copy(currentIndex = nextIndex)
+        _state.value = _state.value.copy(
+            currentIndex = nextIndex,
+            currentSong = playlist.getOrNull(nextIndex)
+        )
         playSong(playlist[nextIndex])
     }
 

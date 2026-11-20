@@ -97,11 +97,9 @@ class WearMainActivity : ComponentActivity() {
                                 },
                                 onNextClicked = { WearMusicPlayer.next() },
                                 onPreviousClicked = { WearMusicPlayer.previous() },
-                                onVolumeAdjusted = { delta -> WearMusicPlayer.adjustVolume(delta) },
                                 onSeekAdjusted = { deltaMs -> WearMusicPlayer.seekBy(deltaMs) },
                                 onLibraryClicked = { navController.navigate("library") },
                                 onQueueClicked = { navController.navigate("queue") },
-                                onRadioClicked = { navController.navigate("search") },
                                 onDownloadClicked = { song ->
                                     WearDownloadManager.downloadSong(this@WearMainActivity, song) { downloadedSong ->
                                         refreshDownloads()
