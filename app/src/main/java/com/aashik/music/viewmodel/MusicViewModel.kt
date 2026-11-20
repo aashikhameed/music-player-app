@@ -270,10 +270,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val autoResume: StateFlow<Boolean> = _autoResume.asStateFlow()
 
     // ── Auto HUD Mode & Bottom Bar Visibility ──
-    private val _autoHudEnabled = MutableStateFlow(appPrefs.getBoolean("auto_hud_enabled", true))
+    private val isAutomotiveDevice = application.packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
+    private val _autoHudEnabled = MutableStateFlow(appPrefs.getBoolean("auto_hud_enabled", isAutomotiveDevice))
     val autoHudEnabled: StateFlow<Boolean> = _autoHudEnabled.asStateFlow()
 
-    private val _hideBottomBar = MutableStateFlow(appPrefs.getBoolean("hide_bottom_bar", true))
+    private val _hideBottomBar = MutableStateFlow(appPrefs.getBoolean("hide_bottom_bar", false))
     val hideBottomBar: StateFlow<Boolean> = _hideBottomBar.asStateFlow()
 
     // ── Video Playback Toggle & State ──
@@ -462,6 +463,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     // ── Play Queue & "Play Next" State ──
     private val _userQueue = MutableStateFlow<List<Song>>(musicPlayer.userQueue)
     val userQueue: StateFlow<List<Song>> = _userQueue.asStateFlow()
+
+    // ── Track Playback History for Previous Navigation ──
+    private val playedHistory = ArrayDeque<Song>(50)
+
+    private fun addToPlayedHistory(song: Song) {
+        if (playedHistory.isNotEmpty() && playedHistory.last().id == song.id) return
+        if (playedHistory.size >= 50) {
+            playedHistory.removeFirstOrNull()
+        }
+        playedHistory.add(song)
+    }
 
     private val _isQueueOpen = MutableStateFlow(false)
     val isQueueOpen: StateFlow<Boolean> = _isQueueOpen.asStateFlow()
@@ -772,7 +784,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         // Remove selected item and all items before it
         _userQueue.value = q.drop(index + 1)
         play(selectedSong, direction = 1)
-        if (isLast) {
+        if (isLast && selectedSong.isStream()) {
             startRadioForSong(selectedSong)
         }
     }
@@ -919,32 +931,28 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getUpcomingSongs(limit: Int = 15): List<Song> {
         val userQ = _userQueue.value
-        if (userQ.isNotEmpty()) {
-            return userQ.take(limit)
-        }
+        val result = ArrayList<Song>(limit)
+        result.addAll(userQ.take(limit))
+        if (result.size >= limit) return result
+
         val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else musicPlayer.getPlaylist().ifEmpty { _songs.value.ifEmpty { originalSongs } }
         val list = if (_isShuffleOn.value) {
             if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist
         } else {
             currentPlaylist
         }
-        if (list.isEmpty()) return emptyList()
-        val curId = _currentSong.value?.id ?: return list.take(limit)
+        if (list.isEmpty()) return result
+        val curId = _currentSong.value?.id ?: return (result + list).take(limit)
         val index = list.indexOfFirst { it.id == curId }
-        if (index == -1) return list.take(limit)
-
-        val upcoming = ArrayList<Song>(limit)
-        for (i in (index + 1) until list.size) {
-            upcoming.add(list[i])
-            if (upcoming.size >= limit) break
-        }
-        if (upcoming.size < limit && list.size > 1) {
-            for (i in 0 until index) {
-                upcoming.add(list[i])
-                if (upcoming.size >= limit) break
+        val startIndex = if (index != -1) index + 1 else 0
+        for (i in startIndex until list.size) {
+            val s = list[i]
+            if (result.none { it.id == s.id }) {
+                result.add(s)
             }
+            if (result.size >= limit) break
         }
-        return upcoming
+        return result
     }
 
     fun openSettings() {
@@ -2041,6 +2049,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var consecutiveResolutionFailures = 0
+
     fun play(
         song: Song,
         playlist: List<Song>? = null,
@@ -2048,6 +2058,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         direction: Int? = null
     ) {
         val currentId = _currentSong.value?.id
+        _currentSong.value?.let { prev ->
+            if (prev.id != song.id && direction != -1) {
+                addToPlayedHistory(prev)
+            }
+        }
         _currentSong.value = song
         fetchLyricsForSong(song)
 
@@ -2070,18 +2085,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         if (qIndex != -1) {
             val isLast = (qIndex == _userQueue.value.lastIndex)
             _userQueue.value = _userQueue.value.drop(qIndex + 1)
-            if (isLast) {
+            if (isLast && song.isStream()) {
                 startRadioForSong(song)
             }
         } else {
-            val curIdx = targetList.indexOfFirst { it.id == song.id }
-            if (curIdx != -1 && curIdx < targetList.lastIndex) {
-                _userQueue.value = targetList.subList(curIdx + 1, targetList.size)
-            } else {
-                _userQueue.value = emptyList()
-                if (song.isStream()) {
-                    startRadioForSong(song)
-                }
+            // Keep user queue intact when playing from playlist or library.
+            // Only start radio if the song is an isolated stream track.
+            if (song.isStream() && targetList.size <= 1) {
+                startRadioForSong(song)
             }
         }
 
@@ -2142,9 +2153,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         if (!musicPlayer.isAudioSilencedForVideo()) {
                             if (resolved.isDirectPlayable()) {
+                                consecutiveResolutionFailures = 0
                                 musicPlayer.play(resolved, isAutoCrossfade)
                             } else {
-                                playNextSong(isAutoCrossfade = isAutoCrossfade)
+                                consecutiveResolutionFailures++
+                                if (consecutiveResolutionFailures <= 3) {
+                                    playNextSong(isAutoCrossfade = isAutoCrossfade)
+                                } else {
+                                    consecutiveResolutionFailures = 0
+                                    _isPlaying.value = false
+                                    musicPlayer.stop()
+                                    Log.w("MusicViewModel", "Streaming playback stopped: multiple consecutive stream resolution failures (offline/network error)")
+                                }
                             }
                         }
                     }
@@ -2191,7 +2211,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             MusicController.play(queued)
             triggerScrollToCurrentSong()
 
-            if (isLast) {
+            if (isLast && queued.isStream()) {
                 startRadioForSong(queued)
             } else if (queued.isStream() && _userQueue.value.size <= 2) {
                 refillStreamingQueue(queued)
@@ -2248,14 +2268,30 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         } else {
-            val nextSong = if (index in 0 until list.lastIndex) {
-                list[index + 1]
+            if (index in 0 until list.lastIndex) {
+                val nextSong = list[index + 1]
+                play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
+                MusicController.play(nextSong)
+                triggerScrollToCurrentSong()
             } else {
-                list[0]
+                if (isAutoCrossfade && _playbackMode.value == PlaybackMode.QUEUE) {
+                    // Auto-advance reached end of sequential playlist with repeat off
+                    pause()
+                    seekTo(0)
+                } else {
+                    val nextSong = if (_isShuffleOn.value && activeShuffledSongs.isNotEmpty()) {
+                        val reshuffled = currentPlaylist.shuffled().toMutableList()
+                        activeShuffledSongs = reshuffled
+                        shuffledSongs = reshuffled
+                        reshuffled.first()
+                    } else {
+                        list[0]
+                    }
+                    play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
+                    MusicController.play(nextSong)
+                    triggerScrollToCurrentSong()
+                }
             }
-            play(nextSong, playlist = currentPlaylist, isAutoCrossfade = isAutoCrossfade, direction = 1)
-            MusicController.play(nextSong)
-            triggerScrollToCurrentSong()
         }
     }
 
@@ -2268,6 +2304,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _navigationDirection.value = -1
+
+        // Check played history first so queued/shuffled tracks can be navigated backwards
+        val prevFromHistory = playedHistory.removeLastOrNull()
+        if (prevFromHistory != null) {
+            play(prevFromHistory, playlist = activePlaylist, isAutoCrossfade = false, direction = -1)
+            MusicController.play(prevFromHistory)
+            triggerScrollToCurrentSong()
+            return
+        }
+
         val currentPlaylist = if (activePlaylist.isNotEmpty()) activePlaylist else _songs.value.ifEmpty { originalSongs }
         val list = if (_isShuffleOn.value) {
             if (activeShuffledSongs.isNotEmpty()) activeShuffledSongs else currentPlaylist.shuffled().toMutableList().also { activeShuffledSongs = it }

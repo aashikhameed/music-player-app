@@ -24,8 +24,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -231,6 +233,11 @@ fun MobileGlassNowPlaying(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
     ) {
         // Background: artwork tint with a softly blurred copy of the cover (API 31+), recorded
         // so the liquid slider thumbs refract it.
@@ -356,7 +363,27 @@ private fun UpperArea(
                 modifier = Modifier
                     .then(dragModifier)
                     .clip(artShape)
-                    .background(c.fill),
+                    .background(c.fill)
+                    .pointerInput(compact) {
+                        if (!compact) {
+                            var accumulated = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { accumulated = 0f },
+                                onDragEnd = {
+                                    if (accumulated < -80f) {
+                                        viewModel.playNextSong()
+                                    } else if (accumulated > 80f) {
+                                        viewModel.playPreviousSong()
+                                    }
+                                    accumulated = 0f
+                                },
+                                onDragCancel = { accumulated = 0f }
+                            ) { change, dragAmount ->
+                                change.consume()
+                                accumulated += dragAmount
+                            }
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (albumArt != null) {
@@ -367,10 +394,13 @@ private fun UpperArea(
                 } else {
                     LargeGlyph(Icons.Rounded.MusicNote, null, c.tertiary, 40.dp)
                 }
-                // Hero layout: the action buttons sit inside the artwork's bottom-right corner.
+                // Hero layout: Favorite and Playback Mode sit inside the artwork's bottom-right corner.
                 if (heroActions) {
-                    NowPlayingActions(
-                        song, isFavorite, onToggleFavorite, viewModel, c,
+                    ArtworkActions(
+                        isFavorite = isFavorite,
+                        onToggleFavorite = onToggleFavorite,
+                        viewModel = viewModel,
+                        c = c,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(12.dp)
@@ -378,8 +408,14 @@ private fun UpperArea(
                     )
                 }
             }
-            // [1] title
-            TitleRow(song = song, c = c, shrink = t, modifier = dragModifier.graphicsLayer { alpha = contentAlpha() })
+            // [1] title + radio & download buttons
+            TitleRow(
+                song = song,
+                viewModel = viewModel,
+                c = c,
+                shrink = t,
+                modifier = dragModifier.graphicsLayer { alpha = contentAlpha() }
+            )
             // [2] lyrics / queue, faded in with the morph. The action buttons ride along in the
             // compact header (they are inside the artwork in the hero layout).
             Box(Modifier.graphicsLayer { alpha = t }) {
@@ -398,8 +434,11 @@ private fun UpperArea(
                 }
             }
             // [3] compact-header actions
-            NowPlayingActions(
-                song, isFavorite, onToggleFavorite, viewModel, c,
+            ArtworkActions(
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                viewModel = viewModel,
+                c = c,
                 modifier = Modifier.graphicsLayer { alpha = t }
             )
         }
@@ -453,32 +492,57 @@ private fun UpperArea(
 }
 
 @Composable
-private fun TitleRow(song: Song?, c: NpColors, shrink: Float, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().padding(start = 28.dp, end = 22.dp)) {
-        Text(
-            text = song?.title?.ifBlank { null } ?: "Not Playing",
-            color = c.text,
-            fontSize = (20f - 4f * shrink).sp,
-            lineHeight = (25f - 5f * shrink).sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = song?.artist?.ifBlank { null } ?: "Unknown Artist",
-            color = c.secondary,
-            fontSize = (18f - 4f * shrink).sp,
-            lineHeight = (23f - 5f * shrink).sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+private fun TitleRow(
+    song: Song?,
+    viewModel: MusicViewModel,
+    c: NpColors,
+    shrink: Float,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 28.dp, end = 22.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = song?.title?.ifBlank { null } ?: "Not Playing",
+                color = c.text,
+                fontSize = (20f - 4f * shrink).sp,
+                lineHeight = (25f - 5f * shrink).sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = song?.artist?.ifBlank { null } ?: "Unknown Artist",
+                color = c.secondary,
+                fontSize = (18f - 4f * shrink).sp,
+                lineHeight = (23f - 5f * shrink).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (shrink < 0.98f) {
+            Spacer(Modifier.width(12.dp))
+            Row(
+                modifier = Modifier.graphicsLayer { alpha = 1f - shrink },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                RadioButton(viewModel, c)
+                if (song != null && song.isStream() && !song.isLiveStream()) {
+                    DownloadButton(song, viewModel, c)
+                }
+            }
+        }
     }
 }
 
-/** Favourite, shuffle/repeat, radio and (streams) download: the glass actions that used to sit beside the title. */
+/** Favourite star and playback mode: the glass actions placed on the bottom-right of the artwork. */
 @Composable
-private fun NowPlayingActions(
-    song: Song?,
+private fun ArtworkActions(
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     viewModel: MusicViewModel,
@@ -507,10 +571,6 @@ private fun NowPlayingActions(
             onClick = onToggleFavorite
         )
         ModeToggleButton(viewModel, c)
-        RadioButton(viewModel, c)
-        if (song != null && song.isStream() && !song.isLiveStream()) {
-            DownloadButton(song, viewModel, c)
-        }
     }
 }
 

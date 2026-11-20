@@ -396,6 +396,14 @@ void AudioPlayer::decoderThreadLoop() {
                 int64_t dummyPos = 0;
                 int32_t fadeBytes = mFadingDecoder->decode(fadeBuf.data(), static_cast<size_t>(bytesDecoded), dummyPos);
                 if (fadeBytes <= 0 || mFadingDecoder->isEof()) {
+                    // Smoothly ramp new track up to 1.0f to prevent click on premature EOF
+                    auto* pcmNew = reinterpret_cast<int16_t*>(decodeBuf.data());
+                    size_t sampleCount = static_cast<size_t>(bytesDecoded) / sizeof(int16_t);
+                    float startW = std::sin(std::min(1.0f, static_cast<float>(crossfadeBytesProcessed) / static_cast<float>(totalCrossfadeBytes)) * 1.57079632679f);
+                    for (size_t i = 0; i < sampleCount; ++i) {
+                        float ramp = startW + (1.0f - startW) * (static_cast<float>(i) / static_cast<float>(sampleCount));
+                        pcmNew[i] = clamp16(static_cast<int32_t>(pcmNew[i] * ramp));
+                    }
                     mFadingDecoder->close();
                     mFadingDecoder.reset();
                     isCrossfading = false;

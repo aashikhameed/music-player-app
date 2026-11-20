@@ -95,6 +95,14 @@ object OnlineStreamRepository {
 
     fun normalisedTitle(raw: String): String = cleanTitleForMatching(raw)
 
+    fun cleanAlbum(raw: String): String = raw
+        .replace(BRACKET_REGEX, "")
+        .replace(Regex("""(?i)\b(ost|original motion picture soundtrack|soundtrack|album|film)\b"""), " ")
+        .replace(PUNCT_REGEX, " ")
+        .replace(SPACES_REGEX, " ")
+        .trim()
+        .lowercase(java.util.Locale.ROOT)
+
     fun artistSet(raw: String): Set<String> = raw.lowercase(java.util.Locale.ROOT)
         .replace(TOPIC_REGEX, " ")
         .split(",", "&", "·", "•", ";", " feat.", " feat ", " ft.", " ft ", " x ", " with ", " and ")
@@ -487,12 +495,20 @@ object OnlineStreamRepository {
             val batch = ArrayList<Song>(limit)
             val genre = targetGenre?.trim()?.takeIf { it.isNotBlank() }
             val perArtist = mutableMapOf<String, Int>()
+            val perAlbum = mutableMapOf<String, Int>()
 
             repeat(limit * 4) { // over-sample to skip duplicates
                 if (batch.size >= limit) return@repeat
                 val track = radioCandidatePool.poll() ?: return@repeat
                 val normTitle = normalisedTitle(track.title)
                 if (normTitle.isBlank() || sessionPlayedTitles.contains(normTitle)) return@repeat
+
+                val candAlbum = cleanAlbum(track.album)
+                val isGenericAlbum = candAlbum.isBlank() || candAlbum == "streaming single" || candAlbum == "single" || candAlbum == "unknown" || candAlbum == "online music"
+                if (!isGenericAlbum) {
+                    val playedAlbum = perAlbum[candAlbum] ?: 0
+                    if (playedAlbum >= 1) return@repeat
+                }
 
                 val artists = artistSet(track.artist)
                 val key = artists.minOrNull()
@@ -513,7 +529,14 @@ object OnlineStreamRepository {
                 )
                 val playableSong = resolvePlayableSong(unplayableSong)
                 if (playableSong.isDirectPlayable()) {
+                    val finalAlbum = cleanAlbum(playableSong.album)
+                    val isFinalGeneric = finalAlbum.isBlank() || finalAlbum == "streaming single" || finalAlbum == "single" || finalAlbum == "unknown" || finalAlbum == "online music"
+                    if (!isFinalGeneric && (perAlbum[finalAlbum] ?: 0) >= 1) {
+                        return@repeat
+                    }
+
                     sessionPlayedTitles.add(normTitle)
+                    if (!isFinalGeneric) perAlbum[finalAlbum] = (perAlbum[finalAlbum] ?: 0) + 1
                     if (key != null) perArtist[key] = (perArtist[key] ?: 0) + 1
                     val finalArt = playableSong.artworkUrl?.takeIf { it.isNotBlank() } ?: artUrl
                     if (!finalArt.isNullOrBlank()) {
@@ -530,15 +553,36 @@ object OnlineStreamRepository {
             }
             if (batch.isNotEmpty()) return@withContext batch
         }
-        // Fallback: Online station refill
+        // Fallback: Online station refill with album and artist diversity filtering
         val stId = activeStationId ?: return@withContext emptyList()
-        fetchStationSongs(stId, limit = limit, targetGenre = targetGenre)
+        val rawStationSongs = fetchStationSongs(stId, limit = limit * 2, targetGenre = targetGenre)
+        val filtered = ArrayList<Song>(limit)
+        val batchPerAlbum = mutableMapOf<String, Int>()
+        val batchPerArtist = mutableMapOf<String, Int>()
+        for (parsed in rawStationSongs) {
+            val normTitle = normalisedTitle(parsed.title)
+            if (normTitle.isBlank() || sessionPlayedTitles.contains(normTitle)) continue
+            val candAlbum = cleanAlbum(parsed.album)
+            val isGeneric = candAlbum.isBlank() || candAlbum == "streaming single" || candAlbum == "single" || candAlbum == "unknown" || candAlbum == "online music"
+            if (!isGeneric && (batchPerAlbum[candAlbum] ?: 0) >= 1) continue
+            val artists = artistSet(parsed.artist)
+            val key = artists.minOrNull()
+            if (key != null && (batchPerArtist[key] ?: 0) >= 2) continue
+
+            sessionPlayedTitles.add(normTitle)
+            if (!isGeneric) batchPerAlbum[candAlbum] = (batchPerAlbum[candAlbum] ?: 0) + 1
+            if (key != null) batchPerArtist[key] = (batchPerArtist[key] ?: 0) + 1
+            filtered.add(parsed)
+            if (filtered.size >= limit) break
+        }
+        filtered
     }
 
     /**
-     * Algorithmic Radio Queue Generator (RDAMVM Radio Queue + WebRadio fallback).
+     * Algorithmic Radio Queue Generator (RDAMVM Acoustic & Vibe Similarity + WebRadio Diversity).
      * Given an active seed track, queries the RDAMVM radio endpoint to generate
-     * an authentic queue of related tracks, then falls back to WebRadio if needed.
+     * an authentic acoustic/genre-similar queue while strictly eliminating same-movie
+     * soundtrack clustering and capping artist repetition at 2 songs.
      */
     suspend fun getRadioTracksForSong(
         seedSong: Song,
@@ -548,11 +592,70 @@ object OnlineStreamRepository {
         val filtered = ArrayList<Song>(limit)
         val seedNormTitle = normalisedTitle(seedSong.title)
         val seedArtists = artistSet(seedSong.artist)
+        val seedCleanAlbum = cleanAlbum(seedSong.album)
         val perArtist = mutableMapOf<String, Int>()
+        val perAlbum = mutableMapOf<String, Int>()
         val seenIds = HashSet<String>().apply { add(seedSong.id) }
         val seenTitles = HashSet<String>().apply { add(seedNormTitle) }
 
         sessionPlayedTitles.add(seedNormTitle)
+
+        // Helper: Validate diversity and deduplication constraints
+        fun shouldAccept(cand: Song): Boolean {
+            val normTitle = normalisedTitle(cand.title)
+            if (normTitle.isBlank()) return false
+            if (seenIds.contains(cand.id) || seenTitles.contains(normTitle) || sessionPlayedTitles.contains(normTitle)) return false
+            if (isSameRecording(seedSong.title, seedSong.artist, cand.title, cand.artist)) return false
+
+            // Strict Movie/Album Diversity Filter
+            val candAlbum = cleanAlbum(cand.album)
+            val isGenericAlbum = candAlbum.isBlank() || candAlbum == "streaming single" || candAlbum == "single" || candAlbum == "unknown" || candAlbum == "online music"
+            if (!isGenericAlbum) {
+                // Strictly 0 additional songs from the seed track's movie/soundtrack album
+                if (seedCleanAlbum.isNotBlank() && seedCleanAlbum != "streaming single" && seedCleanAlbum != "single" && candAlbum == seedCleanAlbum) {
+                    return false
+                }
+                // At most 1 song per external album
+                val albumCount = perAlbum[candAlbum] ?: 0
+                if (albumCount >= 1) return false
+            }
+
+            // Strict Artist Diversity Filter (Capped at 2 per artist across all tiers)
+            val artists = artistSet(cand.artist)
+            val artistKey = artists.minOrNull()
+            if (artistKey != null) {
+                val artistCount = perArtist[artistKey] ?: 0
+                if (artistCount >= 2) return false
+            }
+
+            return true
+        }
+
+        // Helper: Register accepted candidate and update state counters
+        fun markAccepted(cand: Song, resolvedGenre: String?) {
+            val normTitle = normalisedTitle(cand.title)
+            seenIds.add(cand.id)
+            seenTitles.add(normTitle)
+            sessionPlayedTitles.add(normTitle)
+
+            val candAlbum = cleanAlbum(cand.album)
+            val isGenericAlbum = candAlbum.isBlank() || candAlbum == "streaming single" || candAlbum == "single" || candAlbum == "unknown" || candAlbum == "online music"
+            if (!isGenericAlbum) {
+                perAlbum[candAlbum] = (perAlbum[candAlbum] ?: 0) + 1
+            }
+
+            val artists = artistSet(cand.artist)
+            val artistKey = artists.minOrNull()
+            if (artistKey != null) {
+                perArtist[artistKey] = (perArtist[artistKey] ?: 0) + 1
+            }
+
+            if (resolvedGenre != null) {
+                registerSongGenre(cand.id, resolvedGenre)
+                registerSongGenre(cand.path, resolvedGenre)
+            }
+            filtered.add(cand)
+        }
 
         // Resolve target genre (e.g. "Tamil", "Hindi", "Rock", "Lo-Fi", etc.)
         val genre = targetGenre?.trim()?.takeIf { it.isNotBlank() }
@@ -562,201 +665,173 @@ object OnlineStreamRepository {
                 if (seedSong.artist.contains("•") && artistPrefix.isNotBlank()) artistPrefix else null
             }
 
-        // Step 1: Resolve provider PID for authentic WebRadio
-        var pid = when {
-            seedSong.id.startsWith("online_") && !seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_")
-            else -> ""
-        }
+        // Tier 1: RDAMVM Radio Queue (Primary Acoustic & Vibe Similarity Engine)
+        val ytVideoId: String? = when {
+            seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_yt_")
+            seedSong.path.contains(VIDEO_WATCH_URL) || seedSong.path.contains(DOMAIN_YT1) ->
+                seedSong.path.substringAfter("v=").substringBefore("&").takeIf { it.length == 11 }
+            else -> null
+        } ?: try {
+            OnlineVideoResolver.resolveVideoId(seedSong.title, seedSong.artist)
+        } catch (_: Exception) { null }
 
-        if (pid.isBlank()) {
-            val cleanTitle = cleanTitleForMatching(seedSong.title)
-            val cleanArtist = seedSong.artist
-                .replace(FEAT_REGEX, "")
-                .replace(BRACKET_REGEX, "")
-                .trim()
-            val searchQuery = "$cleanTitle $cleanArtist".trim()
-            if (searchQuery.isNotBlank()) {
-                val matches = searchSongs(searchQuery, limit = 5)
-                val bestMatch = matches.firstOrNull { candidate ->
-                    candidate.isDirectPlayable() && isAccurateMatch(seedSong.title, seedSong.artist, candidate.title, candidate.artist)
-                }
-                if (bestMatch != null) {
-                    pid = bestMatch.id.removePrefix("online_")
-                }
-            }
-        }
-
-        // Step 2: Native WebRadio Engine (Primary — 100% matched direct stream, title, artist, art)
-        if (pid.isNotBlank()) {
+        if (!ytVideoId.isNullOrBlank()) {
             try {
-                val stationId = createRadioStation(pid)
-                if (stationId != null) {
-                    val stationSongs = fetchStationSongs(stationId, limit = limit + 4, targetGenre = genre)
-                    for (parsed in stationSongs) {
-                        val normTitle = normalisedTitle(parsed.title)
-                        if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle) && !sessionPlayedTitles.contains(normTitle)) {
-                            seenIds.add(parsed.id)
-                            seenTitles.add(normTitle)
-                            sessionPlayedTitles.add(normTitle)
-                            if (genre != null) {
-                                registerSongGenre(parsed.id, genre)
-                                registerSongGenre(parsed.path, genre)
+                val radioTracks = OnlineVideoResolver.fetchRadioQueue(ytVideoId)
+                radioCandidatePool.clear()
+
+                for (track in radioTracks) {
+                    val normTitle = normalisedTitle(track.title)
+                    if (normTitle.isBlank()) continue
+                    if (isSameRecording(seedSong.title, seedSong.artist, track.title, track.artist)) continue
+                    if (sessionPlayedTitles.contains(normTitle) || seenTitles.contains(normTitle)) continue
+
+                    val candAlbum = cleanAlbum(track.album)
+                    val isGenericAlbum = candAlbum.isBlank() || candAlbum == "streaming single" || candAlbum == "single" || candAlbum == "unknown" || candAlbum == "online music"
+                    if (!isGenericAlbum && seedCleanAlbum.isNotBlank() && candAlbum == seedCleanAlbum) {
+                        continue
+                    }
+
+                    val artists = artistSet(track.artist)
+                    val key = artists.minOrNull()
+                    if (key != null) {
+                        val played = perArtist[key] ?: 0
+                        if (played >= 2) continue
+                    }
+
+                    if (filtered.size < limit) {
+                        val artUrl = track.thumbnailUrl ?: ""
+                        val unplayableSong = Song(
+                            id = "online_yt_${track.videoId}",
+                            title = track.title,
+                            artist = track.artist,
+                            album = track.album,
+                            path = "$VIDEO_WATCH_URL${track.videoId}",
+                            duration = track.durationMs,
+                            artworkUrl = artUrl
+                        )
+                        val playableSong = resolvePlayableSong(unplayableSong)
+                        if (playableSong.isDirectPlayable() && shouldAccept(playableSong)) {
+                            markAccepted(playableSong, genre)
+                            val finalArt = playableSong.artworkUrl?.takeIf { it.isNotBlank() } ?: artUrl
+                            if (!finalArt.isNullOrBlank()) {
+                                com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, finalArt)
+                                com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(unplayableSong.path, finalArt)
+                                com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(unplayableSong.id, finalArt)
                             }
-                            filtered.add(parsed)
-                            if (filtered.size >= limit) break
+                        } else if (!playableSong.isDirectPlayable()) {
+                            radioCandidatePool.offer(track)
                         }
+                    } else {
+                        radioCandidatePool.offer(track)
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Native radio station failed: ${e.message}")
+                Log.w(TAG, "RDAMVM radio fetch failed for $ytVideoId: ${e.message}")
             }
         }
 
-        // Step 3: Algorithmic Recommendations Fallback (reco.getreco)
-        if (filtered.size < limit && pid.isNotBlank()) {
-            var connection: HttpURLConnection? = null
-            try {
-                val urlString = "$API_BASE?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=android&pid=$pid"
-                val url = URL(urlString)
-                connection = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 4000
-                    readTimeout = 5000
-                    setRequestProperty("User-Agent", "Mozilla/5.0")
-                    setRequestProperty("Accept", "application/json")
-                }
+        // Tier 2: Native WebRadio Engine with strict diversity filtering
+        if (filtered.size < limit) {
+            var pid = when {
+                seedSong.id.startsWith("online_") && !seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_")
+                else -> ""
+            }
 
-                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                    val responseText = connection.inputStream.bufferedReader().use(BufferedReader::readText)
-                    val root = JSONObject(responseText)
-                    val recoArray = root.optJSONArray(pid) ?: run {
-                        val keys = root.keys()
-                        var arr: org.json.JSONArray? = null
-                        while (keys.hasNext()) {
-                            val k = keys.next()
-                            arr = root.optJSONArray(k)
-                            if (arr != null && arr.length() > 0) break
-                        }
-                        arr
+            if (pid.isBlank()) {
+                val cleanTitle = cleanTitleForMatching(seedSong.title)
+                val cleanArtist = seedSong.artist
+                    .replace(FEAT_REGEX, "")
+                    .replace(BRACKET_REGEX, "")
+                    .trim()
+                val searchQuery = "$cleanTitle $cleanArtist".trim()
+                if (searchQuery.isNotBlank()) {
+                    val matches = searchSongs(searchQuery, limit = 5)
+                    val bestMatch = matches.firstOrNull { candidate ->
+                        candidate.isDirectPlayable() && isAccurateMatch(seedSong.title, seedSong.artist, candidate.title, candidate.artist)
                     }
+                    if (bestMatch != null) {
+                        pid = bestMatch.id.removePrefix("online_")
+                    }
+                }
+            }
 
-                    if (recoArray != null) {
-                        for (i in 0 until recoArray.length()) {
-                            val item = recoArray.optJSONObject(i) ?: continue
-                            val parsed = parseSongItem(item) ?: continue
-                            val normTitle = normalisedTitle(parsed.title)
-                            if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle) && !sessionPlayedTitles.contains(normTitle)) {
-                                seenIds.add(parsed.id)
-                                seenTitles.add(normTitle)
-                                sessionPlayedTitles.add(normTitle)
-                                if (genre != null) {
-                                    registerSongGenre(parsed.id, genre)
-                                    registerSongGenre(parsed.path, genre)
-                                }
-                                filtered.add(parsed)
+            if (pid.isNotBlank()) {
+                try {
+                    val stationId = createRadioStation(pid)
+                    if (stationId != null) {
+                        val stationSongs = fetchStationSongs(stationId, limit = limit + 10, targetGenre = genre)
+                        for (parsed in stationSongs) {
+                            if (shouldAccept(parsed)) {
+                                markAccepted(parsed, genre)
                                 if (filtered.size >= limit) break
                             }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Native radio station failed: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "reco.getreco query failed: ${e.message}")
-            } finally {
-                connection?.disconnect()
             }
-        }
 
-        // Step 4: RDAMVM Radio (for video tracks or when provider returned insufficient tracks)
-        if (filtered.size < limit) {
-            val ytVideoId: String? = when {
-                seedSong.id.startsWith("online_yt_") -> seedSong.id.removePrefix("online_yt_")
-                seedSong.path.contains(VIDEO_WATCH_URL) || seedSong.path.contains(DOMAIN_YT1) ->
-                    seedSong.path.substringAfter("v=").substringBefore("&").takeIf { it.length == 11 }
-                else -> null
-            } ?: try {
-                OnlineVideoResolver.resolveVideoId(seedSong.title, seedSong.artist)
-            } catch (_: Exception) { null }
-
-            if (!ytVideoId.isNullOrBlank()) {
+            // Tier 3: Algorithmic Recommendations Fallback (reco.getreco) with strict diversity filtering
+            if (filtered.size < limit && pid.isNotBlank()) {
+                var connection: HttpURLConnection? = null
                 try {
-                    val radioTracks = OnlineVideoResolver.fetchRadioQueue(ytVideoId)
-                    radioCandidatePool.clear()
+                    val urlString = "$API_BASE?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=android&pid=$pid"
+                    val url = URL(urlString)
+                    connection = (url.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 4000
+                        readTimeout = 5000
+                        setRequestProperty("User-Agent", "Mozilla/5.0")
+                        setRequestProperty("Accept", "application/json")
+                    }
 
-                    for (track in radioTracks) {
-                        val normTitle = normalisedTitle(track.title)
-                        if (normTitle.isBlank()) continue
-                        if (isSameRecording(seedSong.title, seedSong.artist, track.title, track.artist)) continue
-                        if (sessionPlayedTitles.contains(normTitle) || seenTitles.contains(normTitle)) continue
-
-                        val artists = artistSet(track.artist)
-                        val key = artists.minOrNull()
-                        if (key != null) {
-                            val cap = if (artists.any { it in seedArtists }) 4 else 2
-                            val played = perArtist[key] ?: 0
-                            if (played >= cap) continue
+                    if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                        val responseText = connection.inputStream.bufferedReader().use(BufferedReader::readText)
+                        val root = JSONObject(responseText)
+                        val recoArray = root.optJSONArray(pid) ?: run {
+                            val keys = root.keys()
+                            var arr: org.json.JSONArray? = null
+                            while (keys.hasNext()) {
+                                val k = keys.next()
+                                arr = root.optJSONArray(k)
+                                if (arr != null && arr.length() > 0) break
+                            }
+                            arr
                         }
 
-                        if (filtered.size < limit) {
-                            val artUrl = track.thumbnailUrl ?: ""
-                            val unplayableSong = Song(
-                                id = "online_yt_${track.videoId}",
-                                title = track.title,
-                                artist = track.artist,
-                                album = track.album,
-                                path = "$VIDEO_WATCH_URL${track.videoId}",
-                                duration = track.durationMs,
-                                artworkUrl = artUrl
-                            )
-                            val playableSong = resolvePlayableSong(unplayableSong)
-                            if (playableSong.isDirectPlayable()) {
-                                filtered.add(playableSong)
-                                seenTitles.add(normTitle)
-                                sessionPlayedTitles.add(normTitle)
-                                if (key != null) perArtist[key] = (perArtist[key] ?: 0) + 1
-                                val finalArt = playableSong.artworkUrl?.takeIf { it.isNotBlank() } ?: artUrl
-                                if (!finalArt.isNullOrBlank()) {
-                                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(playableSong.path, finalArt)
-                                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(unplayableSong.path, finalArt)
-                                    com.aashik.music.cache.AlbumArtCache.registerStreamArtwork(unplayableSong.id, finalArt)
+                        if (recoArray != null) {
+                            for (i in 0 until recoArray.length()) {
+                                val item = recoArray.optJSONObject(i) ?: continue
+                                val parsed = parseSongItem(item) ?: continue
+                                if (shouldAccept(parsed)) {
+                                    markAccepted(parsed, genre)
+                                    if (filtered.size >= limit) break
                                 }
-                                if (genre != null) {
-                                    registerSongGenre(playableSong.id, genre)
-                                    registerSongGenre(playableSong.path, genre)
-                                }
-                            } else {
-                                radioCandidatePool.offer(track)
                             }
-                        } else {
-                            radioCandidatePool.offer(track)
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "RDAMVM radio fetch failed for $ytVideoId: ${e.message}")
+                    Log.w(TAG, "reco.getreco query failed: ${e.message}")
+                } finally {
+                    connection?.disconnect()
                 }
             }
         }
 
-        // Step 4: Genre-Targeted Complementary Search with dynamic pagination (never repeats)
+        // Tier 4: Genre/Acoustic Diversity Search Fallback (Excludes artist hits queries to prevent clustering)
         if (filtered.size < limit) {
-            val cleanArtist = seedSong.artist
-                .replace(FEAT_REGEX, "")
-                .trim()
-            val isGenericArtist = cleanArtist.isBlank() || cleanArtist.contains("unknown", ignoreCase = true) || cleanArtist.contains("online", ignoreCase = true)
-
             val queries = mutableListOf<String>()
             if (genre != null && genre.isNotBlank()) {
-                if (!isGenericArtist) {
-                    queries.add("$cleanArtist $genre Hits")
-                }
                 queries.add("$genre Trending Hits")
-                queries.add("$genre Hits")
                 queries.add("$genre Top Songs")
-            } else if (!isGenericArtist) {
-                queries.add("$cleanArtist Hits")
+                queries.add("$genre Essentials")
             } else {
                 val cleanTitle = seedSong.title.replace(GREEDY_BRACKET_REGEX, "").replace('_', ' ').trim()
                 if (cleanTitle.isNotBlank()) {
                     queries.add("$cleanTitle Radio")
+                    queries.add("$cleanTitle Mix")
                 }
             }
 
@@ -767,7 +842,7 @@ object OnlineStreamRepository {
                 var conn: HttpURLConnection? = null
                 try {
                     val encodedQuery = URLEncoder.encode(q, "UTF-8")
-                    val urlString = "$API_BASE?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=android&q=$encodedQuery&p=$page&n=${needed + 4}"
+                    val urlString = "$API_BASE?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=android&q=$encodedQuery&p=$page&n=${needed + 8}"
                     val url = URL(urlString)
                     conn = (url.openConnection() as HttpURLConnection).apply {
                         requestMethod = "GET"
@@ -784,15 +859,8 @@ object OnlineStreamRepository {
                             for (i in 0 until resultsArray.length()) {
                                 val item = resultsArray.optJSONObject(i) ?: continue
                                 val parsed = parseSongItem(item) ?: continue
-                                val normTitle = parsed.title.lowercase().trim()
-                                if (!seenIds.contains(parsed.id) && !seenTitles.contains(normTitle)) {
-                                    seenIds.add(parsed.id)
-                                    seenTitles.add(normTitle)
-                                    if (genre != null) {
-                                        registerSongGenre(parsed.id, genre)
-                                        registerSongGenre(parsed.path, genre)
-                                    }
-                                    filtered.add(parsed)
+                                if (shouldAccept(parsed)) {
+                                    markAccepted(parsed, genre)
                                     if (filtered.size >= limit) break
                                 }
                             }

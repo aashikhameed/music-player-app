@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
@@ -72,6 +74,7 @@ object StreamDownloadManager {
     const val PRESET_CUSTOM = "custom"
 
     private val downloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val downloadSemaphore = Semaphore(2)
     private val _downloadStates = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
     val downloadStates: StateFlow<Map<String, DownloadStatus>> = _downloadStates.asStateFlow()
 
@@ -497,7 +500,8 @@ object StreamDownloadManager {
         }
 
         downloadScope.launch {
-            _downloadStates.update { it + (song.id to DownloadStatus.Downloading(0.01f)) }
+            downloadSemaphore.withPermit {
+                _downloadStates.update { it + (song.id to DownloadStatus.Downloading(0.01f)) }
 
             val songToDownload = if (song.isStream() && !song.isDirectPlayable()) {
                 val resolved = OnlineStreamRepository.resolvePlayableSong(song)
@@ -679,6 +683,7 @@ object StreamDownloadManager {
                     it + (song.id to DownloadStatus.Failed(errorMsg)) + (songToDownload.id to DownloadStatus.Failed(errorMsg))
                 }
             }
+        }
         }
     }
 

@@ -171,7 +171,7 @@ fun MobileMusicScreen(
                     song = song,
                     isCurrent = song.path == currentSong?.path,
                     onClick = { onSongClick(song) },
-                    showMoreButton = false,
+                    showMoreButton = true,
                     onLongClick = { songToDelete = song }
                 )
             }

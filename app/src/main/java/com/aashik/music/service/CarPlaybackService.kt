@@ -49,50 +49,54 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
         }
 
         mediaSession = MediaSessionCompat(this, "CarPlaybackService").apply {
-            setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                        MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-            )
+            setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
             setCallback(object : MediaSessionCompat.Callback() {
+                private fun getActiveVm() = viewModel ?: NotificationPlaybackService.instance?.viewModel
+
                 override fun onPlay() {
-                    val player = MusicPlayer.getInstance(this@CarPlaybackService)
-                    if (viewModel != null) {
-                        viewModel?.resumeMusic()
+                    val vm = getActiveVm()
+                    if (vm != null) {
+                        vm.resumeMusic()
                     } else {
+                        val player = MusicPlayer.getInstance(this@CarPlaybackService)
                         player.resume()
                         MusicController.play(player.currentSongFlow.value)
                     }
                 }
 
                 override fun onPause() {
-                    val player = MusicPlayer.getInstance(this@CarPlaybackService)
-                    if (viewModel != null) {
-                        viewModel?.pause()
+                    val vm = getActiveVm()
+                    if (vm != null) {
+                        vm.pause()
                     } else {
+                        val player = MusicPlayer.getInstance(this@CarPlaybackService)
                         player.pause()
                         MusicController.pause()
                     }
                 }
 
                 override fun onSkipToNext() {
-                    if (viewModel != null) {
-                        viewModel?.playNextSong()
+                    val vm = getActiveVm()
+                    if (vm != null) {
+                        vm.playNextSong()
                     } else {
                         MusicPlayer.getInstance(this@CarPlaybackService).playNext()
                     }
                 }
 
                 override fun onSkipToPrevious() {
-                    if (viewModel != null) {
-                        viewModel?.playPreviousSong()
+                    val vm = getActiveVm()
+                    if (vm != null) {
+                        vm.playPreviousSong()
                     } else {
                         MusicPlayer.getInstance(this@CarPlaybackService).playPrevious()
                     }
                 }
 
                 override fun onSeekTo(pos: Long) {
-                    if (viewModel != null) {
-                        viewModel?.seekTo(pos)
+                    val vm = getActiveVm()
+                    if (vm != null) {
+                        vm.seekTo(pos)
                     } else {
                         MusicPlayer.getInstance(this@CarPlaybackService).seekTo(pos)
                     }
@@ -106,6 +110,7 @@ class CarPlaybackService : MediaBrowserServiceCompat() {
             })
             isActive = true
         }
+        sessionToken = mediaSession.sessionToken
 
         MusicController.addListener(controllerListener)
     }

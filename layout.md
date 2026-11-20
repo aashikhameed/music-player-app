@@ -82,7 +82,7 @@ Only the Now Playing seek slider samples a backdrop (`LiquidSlider`); all other 
 There is no separate Drive HUD on the phone. The mini-player opens the Now Playing modal, and anything that used to
 request Drive Mode (restoring a playing session, old entry points) is mapped to that same modal in `MobileGlassMusicApp`.
 
-- Grab handle, large artwork (settles back when paused), title/artist with favourite, playback-mode button, radio button and (streams) download.
+- Grab handle, large artwork (settles back when paused) with favourite and playback-mode buttons in bottom-right corner, title/artist with radio button and (streams) download button to the right.
 - Liquid glass scrubber with format badge, previous / play-pause / next.
 - Bottom strip morphs the upper area between artwork, synced lyrics and the Playing Next queue; the audio output button opens the system output picker.
 - Drag the top area down or press Back to dismiss.

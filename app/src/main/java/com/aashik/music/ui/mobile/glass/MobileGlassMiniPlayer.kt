@@ -177,7 +177,7 @@ fun MobileGlassMiniPlayer(
 
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(40.dp)
                 .clip(CircleShape)
                 .clickable(onClick = onPlayPause),
             contentAlignment = Alignment.Center
@@ -197,7 +197,7 @@ fun MobileGlassMiniPlayer(
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onNext),
                 contentAlignment = Alignment.Center

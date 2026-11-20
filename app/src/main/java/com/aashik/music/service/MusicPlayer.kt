@@ -124,6 +124,8 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         floatArrayOf(2.0f, 0.0f, 1.5f, 1.0f, -1.0f)      // 22: Late Night
     )
 
+    private var resumeOnFocusGain = false
+
     init {
         val attrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -138,8 +140,16 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     return@setOnAudioFocusChangeListener
                 }
                 when (focusChange) {
-                    AudioManager.AUDIOFOCUS_LOSS -> pause()
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
+                    AudioManager.AUDIOFOCUS_LOSS -> {
+                        resumeOnFocusGain = false
+                        pause(abandonFocus = true)
+                    }
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                        if (_isPlayingFlow.value) {
+                            resumeOnFocusGain = true
+                            pause(abandonFocus = false)
+                        }
+                    }
                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                         nativeBridge.setVolume(0.2f)
                         streamMediaPlayer?.setVolume(0.2f, 0.2f)
@@ -147,6 +157,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
                     AudioManager.AUDIOFOCUS_GAIN -> {
                         nativeBridge.setVolume(1.0f)
                         streamMediaPlayer?.setVolume(1.0f, 1.0f)
+                        if (resumeOnFocusGain && !_isPlayingFlow.value) {
+                            resumeOnFocusGain = false
+                            resume()
+                        }
                     }
                 }
             }
@@ -160,6 +174,13 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             var wasAutoPausedByMute = false
             volumeReceiver = object : BroadcastReceiver() {
                 override fun onReceive(c: Context?, intent: Intent?) {
+                    if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                        if (_isPlayingFlow.value) {
+                            resumeOnFocusGain = false
+                            pause(abandonFocus = true)
+                        }
+                        return
+                    }
                     val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                     val isStreamMute = audioManager.isStreamMute(AudioManager.STREAM_MUSIC)
                     val isMuted = currentVolume == 0 || isStreamMute
@@ -247,8 +268,10 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
 
     override fun onTrackEnded() {
         val now = System.currentTimeMillis()
-        // If track started less than 3s ago, any onTrackEnded is a stale callback from the previous track!
-        if (now - trackStartTimeMs < 3000L) {
+        val dur = _durationFlow.value
+        // If track duration is short (< 3s), scale down the stale callback guard to avoid dropping track completion
+        val minPlayTime = if (dur in 1L..2999L) (dur - 300L).coerceAtLeast(200L) else 1500L
+        if (now - trackStartTimeMs < minPlayTime) {
             return
         }
         val currentPath = _currentSongFlow.value?.path
@@ -713,6 +736,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             h.mp.setOnCompletionListener(null)
             h.mp.setOnErrorListener(null)
             h.mp.setOnPreparedListener(null)
+            h.mp.setOnInfoListener(null)
             h.mp.reset()
             h.mp.release()
         } catch (_: Exception) {}
@@ -734,6 +758,15 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
             mp.setDataSource(song.path)
             mp.setOnPreparedListener { player ->
                 if (holder.activated) startStreamPlayback(player, song, holder) else holder.prepared = true
+            }
+            mp.setOnInfoListener { _, what, _ ->
+                if (holder.activated) {
+                    when (what) {
+                        MediaPlayer.MEDIA_INFO_BUFFERING_START -> _isTrackBufferingFlow.value = true
+                        MediaPlayer.MEDIA_INFO_BUFFERING_END -> _isTrackBufferingFlow.value = false
+                    }
+                }
+                false
             }
             mp.setOnErrorListener { _, what, extra ->
                 Log.e(TAG, "Streaming error: what=$what extra=$extra")
@@ -823,9 +856,12 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         }
     }
 
-    fun pause() {
+    fun pause(abandonFocus: Boolean = true) {
         _isTrackBufferingFlow.value = false
         _isPlayingFlow.value = false
+        if (abandonFocus) {
+            resumeOnFocusGain = false
+        }
         if (isAudioSilencedForVideo) {
             return
         }
@@ -837,11 +873,14 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
         } else {
             nativeBridge.pause()
         }
-        audioManager.abandonAudioFocusRequest(focusRequest)
+        if (abandonFocus) {
+            audioManager.abandonAudioFocusRequest(focusRequest)
+        }
     }
 
     fun stop() {
         _isTrackBufferingFlow.value = false
+        resumeOnFocusGain = false
         playJob?.cancel()
         autoCrossfadeTriggeredPath = null
         isTransitioning = false
@@ -863,6 +902,7 @@ class MusicPlayer(private val context: Context) : NativeAudioBridge.PlaybackList
     }
 
     fun resume() {
+        resumeOnFocusGain = false
         if (isAudioSilencedForVideo) {
             _isPlayingFlow.value = true
             return

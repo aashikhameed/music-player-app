@@ -84,6 +84,11 @@ internal fun CarPlaybackCapsule(
             .fillMaxWidth()
             .height(CarDims.CapsuleHeight)
             .carGlass(34.dp, CarCapsuleShape, flatAlpha = 0.94f)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp), // (68 − 52) / 2: concentric with the capsule

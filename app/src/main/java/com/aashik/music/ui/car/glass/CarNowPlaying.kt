@@ -184,21 +184,6 @@ internal fun CarNowPlaying(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(swipeThresholdPx) {
-                var accumulated = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { accumulated = 0f },
-                    onDragEnd = {
-                        if (accumulated < -swipeThresholdPx) { viewModel.playNextSong(); showFeedback("Next track") }
-                        else if (accumulated > swipeThresholdPx) { viewModel.playPreviousSong(); showFeedback("Previous track") }
-                        accumulated = 0f
-                    },
-                    onDragCancel = { accumulated = 0f }
-                ) { change, dragAmount ->
-                    change.consume()
-                    accumulated += dragAmount
-                }
-            }
             .pointerInput(Unit) {
                 var dy = 0f
                 detectVerticalDragGestures(
@@ -371,7 +356,25 @@ private fun NowPlayingBody(
                     .fillMaxSize()
                     .graphicsLayer { scaleX = pauseScale; scaleY = pauseScale }
                     .clip(CarHeroArtShape)
-                    .background(carIdleFill),
+                    .background(carIdleFill)
+                    .pointerInput(Unit) {
+                        var accumulated = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { accumulated = 0f },
+                            onDragEnd = {
+                                if (accumulated < -60f) {
+                                    viewModel.playNextSong()
+                                } else if (accumulated > 60f) {
+                                    viewModel.playPreviousSong()
+                                }
+                                accumulated = 0f
+                            },
+                            onDragCancel = { accumulated = 0f }
+                        ) { change, dragAmount ->
+                            change.consume()
+                            accumulated += dragAmount
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (art != null) Image(art, contentDescription = "Artwork", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
