@@ -47,7 +47,7 @@ jobs:
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
-      - name: Prepare Release APK Artifact
+      - name: Prepare Release APK Artifacts
         run: |
           mkdir -p dist
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
@@ -55,12 +55,17 @@ jobs:
           elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
             cp app/build/outputs/apk/release/app-release-unsigned.apk dist/car-music.apk
           fi
+          if [ -f wear/build/outputs/apk/release/wear-release.apk ]; then
+            cp wear/build/outputs/apk/release/wear-release.apk dist/wear-music.apk
+          elif [ -f wear/build/outputs/apk/release/wear-release-unsigned.apk ]; then
+            cp wear/build/outputs/apk/release/wear-release-unsigned.apk dist/wear-music.apk
+          fi
 
-      - name: Upload APK as Artifact
+      - name: Upload APKs as Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: car-music
-          path: dist/car-music.apk
+          name: release-apks
+          path: dist/*.apk
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -68,7 +73,9 @@ jobs:
         with:
           name: Release ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
-          files: dist/car-music.apk
+          files: |
+            dist/car-music.apk
+            dist/wear-music.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

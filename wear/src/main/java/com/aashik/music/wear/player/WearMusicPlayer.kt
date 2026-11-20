@@ -1,0 +1,241 @@
+package com.aashik.music.wear.player
+
+import android.content.ContentUris
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.MediaStore
+import com.aashik.music.wear.model.WearSong
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+data class WearPlayerState(
+    val currentSong: WearSong? = null,
+    val isPlaying: Boolean = false,
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L,
+    val volume: Float = 0.8f,
+    val playlist: List<WearSong> = emptyList(),
+    val currentIndex: Int = -1,
+    val isBluetoothConnected: Boolean = true
+) {
+    val progress: Float
+        get() = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
+}
+
+object WearMusicPlayer {
+
+    private val _state = MutableStateFlow(WearPlayerState())
+    val state: StateFlow<WearPlayerState> = _state.asStateFlow()
+
+    private var mediaPlayer: MediaPlayer? = null
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var progressJob: Job? = null
+    private val scope = CoroutineScope(Dispatchers.Main + Job())
+
+    fun initialize(context: Context) {
+        audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    }
+
+    fun setPlaylist(songs: List<WearSong>, startIndex: Int = 0) {
+        if (songs.isEmpty()) return
+        val safeIndex = startIndex.coerceIn(0, songs.size - 1)
+        _state.value = _state.value.copy(
+            playlist = songs,
+            currentIndex = safeIndex,
+            currentSong = songs[safeIndex]
+        )
+        playSong(songs[safeIndex])
+    }
+
+    fun playSong(song: WearSong) {
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+            mediaPlayer = null
+
+            val player = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+                setWakeMode(null, PowerManager.PARTIAL_WAKE_LOCK)
+                setDataSource(song.path)
+                prepare()
+                setVolume(_state.value.volume, _state.value.volume)
+                setOnCompletionListener {
+                    next()
+                }
+            }
+            mediaPlayer = player
+
+            val duration = if (song.durationMs > 0) song.durationMs else player.duration.toLong()
+            player.start()
+
+            _state.value = _state.value.copy(
+                currentSong = song,
+                isPlaying = true,
+                durationMs = duration,
+                positionMs = 0L
+            )
+            startProgressTracking()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _state.value = _state.value.copy(isPlaying = false)
+        }
+    }
+
+    fun togglePlayPause() {
+        val player = mediaPlayer ?: return
+        if (player.isPlaying) {
+            player.pause()
+            _state.value = _state.value.copy(isPlaying = false)
+            stopProgressTracking()
+        } else {
+            player.start()
+            _state.value = _state.value.copy(isPlaying = true)
+            startProgressTracking()
+        }
+    }
+
+    fun play() {
+        val player = mediaPlayer ?: return
+        if (!player.isPlaying) {
+            player.start()
+            _state.value = _state.value.copy(isPlaying = true)
+            startProgressTracking()
+        }
+    }
+
+    fun pause() {
+        val player = mediaPlayer ?: return
+        if (player.isPlaying) {
+            player.pause()
+            _state.value = _state.value.copy(isPlaying = false)
+            stopProgressTracking()
+        }
+    }
+
+    fun next() {
+        val playlist = _state.value.playlist
+        if (playlist.isEmpty()) return
+        val nextIndex = (_state.value.currentIndex + 1) % playlist.size
+        _state.value = _state.value.copy(currentIndex = nextIndex)
+        playSong(playlist[nextIndex])
+    }
+
+    fun previous() {
+        val playlist = _state.value.playlist
+        if (playlist.isEmpty()) return
+        val prevIndex = if (_state.value.currentIndex > 0) _state.value.currentIndex - 1 else playlist.size - 1
+        _state.value = _state.value.copy(currentIndex = prevIndex)
+        playSong(playlist[prevIndex])
+    }
+
+    fun seekTo(positionMs: Long) {
+        val player = mediaPlayer ?: return
+        val safePos = positionMs.coerceIn(0L, _state.value.durationMs)
+        player.seekTo(safePos.toInt())
+        _state.value = _state.value.copy(positionMs = safePos)
+    }
+
+    fun setVolume(volume: Float) {
+        val clamped = volume.coerceIn(0f, 1f)
+        _state.value = _state.value.copy(volume = clamped)
+        mediaPlayer?.setVolume(clamped, clamped)
+    }
+
+    fun adjustVolume(delta: Float) {
+        setVolume(_state.value.volume + delta)
+    }
+
+    private fun startProgressTracking() {
+        progressJob?.cancel()
+        progressJob = scope.launch {
+            while (isActive && _state.value.isPlaying) {
+                mediaPlayer?.let { player ->
+                    if (player.isPlaying) {
+                        _state.value = _state.value.copy(positionMs = player.currentPosition.toLong())
+                    }
+                }
+                delay(250L) // 4 updates/sec is battery-optimal for Wear OS
+            }
+        }
+    }
+
+    private fun stopProgressTracking() {
+        progressJob?.cancel()
+        progressJob = null
+    }
+
+    fun scanLocalMusic(context: Context): List<WearSong> {
+        val songs = mutableListOf<WearSong>()
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.DATA
+        )
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
+
+        try {
+            context.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                null,
+                sortOrder
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol).toString()
+                    val title = cursor.getString(titleCol) ?: "Unknown Track"
+                    val artist = cursor.getString(artistCol) ?: "Unknown Artist"
+                    val duration = cursor.getLong(durationCol)
+                    val album = cursor.getString(albumCol) ?: ""
+                    val path = cursor.getString(dataCol) ?: ""
+
+                    if (path.isNotEmpty()) {
+                        songs.add(
+                            WearSong(
+                                id = id,
+                                title = title,
+                                artist = artist,
+                                durationMs = duration,
+                                path = path,
+                                album = album
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return songs
+    }
+}

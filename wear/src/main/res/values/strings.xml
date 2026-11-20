@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Music</string>
+    <string name="wear_library_title">Library</string>
+    <string name="wear_now_playing_title">Now Playing</string>
+    <string name="wear_all_songs">All Songs</string>
+    <string name="wear_favorites">Favorites</string>
+    <string name="wear_downloads">Downloads</string>
+    <string name="wear_scan_storage">Scan Storage</string>
+    <string name="wear_no_songs_found">No music found on watch</string>
+    <string name="wear_no_bluetooth_title">Bluetooth Required</string>
+    <string name="wear_no_bluetooth_desc">Connect Bluetooth headphones to play music.</string>
+    <string name="wear_connect_bluetooth">Connect Headphones</string>
+    <string name="wear_volume">Volume</string>
+    <string name="wear_unknown_title">No Track Selected</string>
+    <string name="wear_unknown_artist">Select a song to start</string>
+</resources>
